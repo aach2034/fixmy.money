@@ -77,9 +77,14 @@ if (typeof window !== 'undefined' && !(window as any).__sb_patched__) {
 }
 
 export function createClient() {
+  // These are public browser credentials (the anon role is protected by RLS).
+  // Keep fallbacks so Sites source builds remain usable when NEXT_PUBLIC values
+  // are supplied only at runtime instead of during the client bundle build.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://agxzfdyvewptjwdfuvwq.supabase.co';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFneHpmZHl2ZXdwdGp3ZGZ1dndxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0OTkxNDcsImV4cCI6MjA5NjA3NTE0N30.AYhmxaOsReh8-a7u5_ufuzFeGkHQZ4e-UN3-kCPwMnc';
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll: () => canUseCookies() ? fromCookies() : fromStorage(),
