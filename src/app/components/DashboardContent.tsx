@@ -67,7 +67,7 @@ export default function DashboardContent() {
           .select('id, name, case_stage, subscription_status, active_disputes, items_deleted, next_task_due, next_task_label, updated_at')
           .eq('owner_id', user.id).order('updated_at', { ascending: false }),
         supabase.from('negative_items')
-          .select('dispute_status').eq('owner_id', user.id),
+          .select('dispute_status, tag_status, is_negative, is_selected').eq('owner_id', user.id),
       ]);
 
       if (profileResult.error) throw profileResult.error;
@@ -77,6 +77,10 @@ export default function DashboardContent() {
       const items = itemsResult.error ? [] : (itemsResult.data ?? []);
       const activeStatuses = new Set(['ready', 'generated', 'sent', 'waiting_for_response', 'escalated']);
       const completedStatuses = new Set(['updated', 'deleted', 'closed']);
+      const actualNegativeItems = items.filter((item: any) => item.is_negative === true);
+      const taggedDisputes = items.filter((item: any) =>
+        (item.tag_status === 'dispute' || item.is_selected === true) && activeStatuses.has(item.dispute_status)
+      );
 
       setState({
         name: profileResult.data?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || '',
@@ -84,9 +88,9 @@ export default function DashboardContent() {
         plan: profileResult.data?.subscription_plan || '',
         subscriptionStatus: profileResult.data?.subscription_status || '',
         clients,
-        negativeItems: items.length,
-        disputesInProgress: items.filter((item: any) => activeStatuses.has(item.dispute_status)).length,
-        completedItems: items.filter((item: any) => completedStatuses.has(item.dispute_status)).length,
+        negativeItems: actualNegativeItems.length,
+        disputesInProgress: taggedDisputes.length,
+        completedItems: actualNegativeItems.filter((item: any) => completedStatuses.has(item.dispute_status)).length,
       });
       setUpdatedAt(new Date());
     } catch (err) {
