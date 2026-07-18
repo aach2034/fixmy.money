@@ -8,8 +8,8 @@ type ClientRow = { plan: string | null; subscription_status: string | null };
 
 const planMonthlyValue: Record<string, number> = {
   starter: 49,
-  professional: 99,
-  agency: 199,
+  professional: 129,
+  agency: 249,
 };
 
 export default function RevenueForecastingContent() {

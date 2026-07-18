@@ -509,6 +509,14 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
               <select className="input-field" value={round} onChange={e => setRound(Number(e.target.value))}>
                 {[1, 2, 3, 4].map(r => <option key={r} value={r}>Round {r}</option>)}
               </select>
+              <div className="flex items-start gap-2 mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <Info size={13} className="text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground">
+                  {round === 1
+                    ? 'Typically begin with a focused FCRA dispute that identifies the exact inaccurate information and includes supporting documents. Broad or unsupported requests are less useful.'
+                    : 'For a follow-up, reference the earlier dispute and response, explain what was not addressed, and include new or previously overlooked evidence. Repeating the same letter alone is rarely the strongest next step.'}
+                </p>
+              </div>
             </div>
           </div>
         )}

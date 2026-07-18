@@ -65,6 +65,37 @@ const templates = [
   { id: 'HIPAA Medical', name: 'HIPAA Medical Dispute', desc: 'Disputes medical collections citing HIPAA privacy violations' },
 ];
 
+const templateGuidance: Record<string, { when: string; practice: string }> = {
+  'FCRA Section 611': {
+    when: 'Typically the best starting point when a credit bureau is reporting specific information that the consumer believes is inaccurate or incomplete.',
+    practice: 'The strongest disputes are usually narrow, factual, and supported by documents. Identify the exact field that is wrong instead of making a broad deletion request.',
+  },
+  'Method of Verification': {
+    when: 'Typically used after a bureau says an item was verified and the consumer needs details about how the investigation was performed.',
+    practice: 'Most useful when it references the prior dispute, the bureau response, and the exact item that remained unresolved.',
+  },
+  Reinvestigation: {
+    when: 'Typically appropriate after an initial dispute produced an incomplete response or failed to address the evidence submitted.',
+    practice: 'Better-supported cases explain what the first investigation missed and include the prior letter, response, and any new documentation.',
+  },
+  'Debt Validation': {
+    when: 'Typically sent to a third-party debt collector, especially soon after receiving a collection notice. It is not a substitute for a bureau dispute.',
+    practice: 'Success is more likely when the request identifies the collector and account clearly and is sent within any deadline stated in the collection notice.',
+  },
+  'Creditor Direct Dispute': {
+    when: 'Typically used when the company furnishing data to the bureaus has specific inaccurate account information.',
+    practice: 'Clear account identifiers and documents showing the correct balance, dates, or payment history make the request easier to investigate.',
+  },
+  'Goodwill Deletion': {
+    when: 'Typically reserved for accurate negative information after the account has been resolved; removal is discretionary.',
+    practice: 'There is no guaranteed outcome. Concise requests that acknowledge the history and explain unusual circumstances are generally more credible.',
+  },
+  'Warning Escalation': {
+    when: 'Usually not a first letter. Consider it only after documented attempts to correct a specific unresolved error.',
+    practice: 'Avoid threats or claims that cannot be supported. A factual timeline and copies of earlier correspondence are more persuasive.',
+  },
+};
+
 const itemTypeLabels: Record<string, string> = {
   collection: 'Collection Account',
   charge_off: 'Charge-Off',
@@ -883,6 +914,13 @@ Write the complete letter now:`;
       <div>
         <label className="label-text">Letter template <span className="text-danger">*</span></label>
         <p className="helper-text">Choose the legal basis for this dispute</p>
+        {templateGuidance[watch('template')] && (
+          <div className="mt-2 p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
+            <p className="text-xs font-semibold text-primary flex items-center gap-1.5"><Info size={13} /> Typical use</p>
+            <p className="text-xs text-foreground">{templateGuidance[watch('template')].when}</p>
+            <p className="text-xs text-muted-foreground"><strong>What tends to help:</strong> {templateGuidance[watch('template')].practice}</p>
+          </div>
+        )}
         <div className="space-y-2 mt-2 max-h-64 overflow-y-auto pr-1">
           {templates.map(t => {
             const isSelected = watch('template') === t.id;
@@ -947,7 +985,13 @@ Write the complete letter now:`;
           <select className="input-field" {...register('round')}>
             {['1', '2', '3', '4'].map(r => <option key={`round-${r}`} value={r}>Round {r}</option>)}
           </select>
+          <p className="helper-text mt-1">{watch('round') === '1' ? 'Typically start with a specific, evidence-backed initial dispute.' : 'Later rounds should address the prior response and add a clear reason for reinvestigation—not simply repeat the first letter.'}</p>
         </div>
+      </div>
+
+      <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+        <Info size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">Educational guidance only. Results vary by facts, documentation, recipient, and applicable law. Review every letter for accuracy and do not dispute information known to be accurate.</p>
       </div>
 
       <div>
