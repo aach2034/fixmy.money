@@ -119,7 +119,7 @@ export function trackCtaClick(ctaLabel: string, destination: string, location: s
 }
 
 /**
- * Fired when a user clicks "Start Free Trial" after watching the demo video.
+ * Fired when a user clicks "Start $1 Trial" after watching the demo video.
  * @param placement - Where the video is placed (e.g. 'hero', 'features', 'business_owner', 'pricing')
  */
 export function trackTrialClickAfterVideo(placement: string = 'unknown') {

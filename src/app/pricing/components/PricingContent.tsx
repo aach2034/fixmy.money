@@ -35,7 +35,7 @@ const PLANS = [
       'Audit log',
       'Email support',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Start $1 Trial',
   },
   {
     id: 'professional',
@@ -58,7 +58,7 @@ const PLANS = [
       'Analytics dashboard',
       'Priority email support',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Start $1 Trial',
   },
   {
     id: 'agency',
@@ -80,7 +80,7 @@ const PLANS = [
       'Onboarding assistance',
       'Priority support',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Start $1 Trial',
   },
   {
     id: 'enterprise',
@@ -194,7 +194,7 @@ export default function PricingContent() {
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Start Free Trial ${planName}`, '/signup', 'pricing_page');
+    trackCtaClick(`Start $1 Trial ${planName}`, '/signup', 'pricing_page');
     router.push(`/signup?plan=${planId}`);
   };
 
@@ -203,12 +203,12 @@ export default function PricingContent() {
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/homepage" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/product-tour" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Product Tour</Link>
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
             <Link href="/signup" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start Free Trial
+              Start $1 Trial
             </Link>
           </div>
         </div>
@@ -468,7 +468,7 @@ export default function PricingContent() {
               href="/signup"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Start Free Trial <ArrowRight size={16} />
+              Start $1 Trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

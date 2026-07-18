@@ -147,13 +147,13 @@ const CreditRepairCRMContent = () => {
             Ready to Upgrade Your Client Management?
           </h2>
           <p className="text-xl text-violet-100 mb-8">
-            Start your free 14-day trial. See how much time you can save.
+            Start your 14-day trial for $1. See how much time you can save.
           </p>
           <Link
             href="/demo"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-violet-600 font-semibold rounded-lg hover:bg-gray-100 transition"
           >
-            Start Free Trial <ArrowRight className="ml-2 w-5 h-5" />
+            Start $1 Trial <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
       </section>

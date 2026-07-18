@@ -37,7 +37,7 @@ export default function GlobalError({ error, reset }: ErrorBoundaryProps) {
                 <RefreshCw size={14} /> Try Again
               </button>
               <a
-                href="/homepage"
+                href="/"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'white', color: '#374151', border: '1px solid #e2e8f0', padding: '0.625rem 1.25rem', borderRadius: '0.75rem', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}
               >
                 <Home size={14} /> Go Home

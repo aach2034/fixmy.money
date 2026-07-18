@@ -20,18 +20,24 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money'),
-  title: 'FixMy.Money | Credit Repair Software for Agencies',
+  title: 'Credit Repair Software for Agencies | FixMy.Money',
   description:
-  'FixMy.Money is business software for credit repair professionals. Manage clients, disputes, billing, and compliance. 14-day free trial, no credit card required. Software only—no consumer credit repair services.',
-  keywords: [
-  'credit repair software',
-  'credit repair business software',
-  'credit repair CRM',
-  'credit repair automation',
-  'credit repair client portal',
-  'CROA-compliant software',
-  'credit dispute software',
-  'credit repair agency software'],
+    'Credit repair business software for agencies. Manage clients, dispute workflows, billing, documents, and compliance records in one workspace. Start a 14-day trial for $1.',
+  applicationName: 'FixMy.Money',
+  category: 'Business software',
+  creator: 'FixMy.Money',
+  publisher: 'FixMy.Money',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
 
   icons: {
     icon: [{ url: '/favicon.ico', type: 'image/x-icon' }]
@@ -41,11 +47,11 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
-    title: 'FixMy.Money | Credit Repair Software for Agencies',
-    description: 'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. 14-day free trial.',
+    title: 'Credit Repair Software for Agencies | FixMy.Money',
+    description: 'Manage clients, dispute workflows, billing, documents, and compliance records. Start a 14-day trial for $1.',
     images: [
     {
-      url: "https://img.rocket.new/generatedImages/rocket_gen_img_11dbd8980-1781307885069.png",
+      url: '/og.png',
       width: 1200,
       height: 630,
       alt: 'FixMy.Money - Credit Repair Software for Agencies'
@@ -54,11 +60,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FixMy.Money | Credit Repair Software for Agencies',
-    description: 'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. 14-day free trial.'
-  },
-  alternates: {
-    canonical: 'https://fixmy.money'
+    title: 'Credit Repair Software for Agencies | FixMy.Money',
+    description: 'Manage clients, dispute workflows, billing, documents, and compliance records. Start a 14-day trial for $1.',
+    images: ['/og.png'],
   }
 };
 
@@ -81,20 +85,27 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'FixMy.Money',
-              url: 'https://fixmy.money',
-              logo: "https://img.rocket.new/generatedImages/rocket_gen_img_1127282a2-1782158663296.png",
-              description: 'Business software for credit repair professionals',
-              sameAs: [
-              'https://twitter.com/fixmymoney',
-              'https://linkedin.com/company/fixmymoney'],
-
-              contactPoint: {
-                '@type': 'ContactPoint',
-                contactType: 'Customer Support',
-                availableLanguage: 'en'
-              }
+              '@graph': [
+                {
+                  '@type': 'Organization',
+                  '@id': 'https://fixmy.money/#organization',
+                  name: 'FixMy.Money',
+                  url: 'https://fixmy.money/',
+                  logo: {
+                    '@type': 'ImageObject',
+                    url: 'https://fixmy.money/assets/images/fix_my_money_logo-1780535345534.png',
+                  },
+                  description: 'Business software for credit repair professionals and agencies.',
+                },
+                {
+                  '@type': 'WebSite',
+                  '@id': 'https://fixmy.money/#website',
+                  url: 'https://fixmy.money/',
+                  name: 'FixMy.Money',
+                  publisher: { '@id': 'https://fixmy.money/#organization' },
+                  inLanguage: 'en-US',
+                },
+              ],
             })
 
           }} />

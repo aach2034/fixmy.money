@@ -39,7 +39,7 @@ export default function DemoContent() {
       {/* Nav */}
       <nav className="border-b border-gray-800 px-4 sm:px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/homepage" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
+          <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
             <ArrowLeft size={16} />
             Back to Home
           </Link>
@@ -107,7 +107,7 @@ export default function DemoContent() {
                 <p className="text-gray-400 mb-6">
                   We've sent a confirmation to <strong className="text-white">{form.email}</strong>. A specialist will reach out within 1 business hour to confirm your time slot.
                 </p>
-                <Link href="/homepage" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors">
+                <Link href="/" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors">
                   ← Back to Home
                 </Link>
               </div>

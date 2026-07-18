@@ -97,7 +97,7 @@ export default function ClientIntakeChecklistPage() {
           <p className="text-slate-400 mb-8">FixMy.Money automates client intake and onboarding workflows.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all">
-              Start Free Trial <ArrowRight size={16} />
+              Start $1 Trial <ArrowRight size={16} />
             </Link>
             <Link href="/demo" className="inline-flex items-center gap-2 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors">
               Book Demo

@@ -24,6 +24,10 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/:path(dashboard|admin|api|checkout|onboarding|workspace-setup|settings|client-portal/dashboard)/:rest*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }],
+      },
+      {
         // Long-lived immutable cache for all Next.js static chunks (JS, CSS, fonts)
         source: '/_next/static/:path*',
         headers: [
@@ -53,6 +57,12 @@ const nextConfig = {
           },
         ],
       },
+    ];
+  },
+  async redirects() {
+    return [
+      { source: '/privacy-policy', destination: '/privacy', permanent: true },
+      { source: '/terms-of-service', destination: '/terms', permanent: true },
     ];
   },
   webpack(

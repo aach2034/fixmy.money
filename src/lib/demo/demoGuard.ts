@@ -58,7 +58,7 @@ export function demoModeBlockedResponse(action: string): Response {
   return new Response(
     JSON.stringify({
       error: 'demo_mode_blocked',
-      message: `${action} is disabled in demo mode. Start a free trial to use this feature with real data.`,
+      message: `${action} is disabled in demo mode. Start a $1 trial to use this feature with real data.`,
       demoMode: true,
     }),
     {

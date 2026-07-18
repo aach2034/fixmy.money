@@ -8,7 +8,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
         disallow: [
           '/api/',
-          '/_next/',
           '/dashboard/',
           '/admin/',
           '/auth/',
@@ -31,7 +30,6 @@ export default function robots(): MetadataRoute.Robots {
           '/disputes/',
           '/finance/',
           '/debt-elimination/',
-          '/credit-repair-automation/',
           '/settings/',
           '/billing/',
           '/client-pipeline/',

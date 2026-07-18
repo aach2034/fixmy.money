@@ -60,14 +60,14 @@ function BlockedAction({ label }: { label: string }) {
               <h3 className="font-bold text-slate-900">Demo Mode</h3>
             </div>
             <p className="text-sm text-slate-600 mb-4">
-              This action is disabled in demo mode. Start a free trial to use all features with your real clients.
+              This action is disabled in demo mode. Start a $1 trial to use all features with your real clients.
             </p>
             <div className="flex gap-2">
               <button onClick={() => setShow(false)} className="flex-1 text-sm text-slate-600 border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50">
                 Close
               </button>
               <Link href="/sign-up-login-screen?tab=register" className="flex-1 text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-lg text-center hover:bg-blue-700">
-                Start Free Trial
+                Start $1 Trial
               </Link>
             </div>
           </div>
@@ -648,9 +648,9 @@ export default function DemoModeContent() {
         <div className="flex items-center gap-3">
           <DemoBadge />
           <Link href="/sign-up-login-screen?tab=register" className="hidden sm:flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-            Start Free Trial <ArrowRight size={12} />
+            Start $1 Trial <ArrowRight size={12} />
           </Link>
-          <Link href="/homepage" className="text-slate-400 hover:text-white text-xs flex items-center gap-1">
+          <Link href="/" className="text-slate-400 hover:text-white text-xs flex items-center gap-1">
             <X size={14} /> Exit Demo
           </Link>
         </div>
@@ -681,7 +681,7 @@ export default function DemoModeContent() {
           </nav>
           <div className="p-3 border-t border-slate-100">
             <Link href="/sign-up-login-screen?tab=register" className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2.5 rounded-lg transition-colors">
-              Start Free Trial <ArrowRight size={12} />
+              Start $1 Trial <ArrowRight size={12} />
             </Link>
           </div>
         </aside>
@@ -725,7 +725,7 @@ export default function DemoModeContent() {
       <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
         <p className="text-sm font-semibold">Ready to use FixMy.Money with your real clients?</p>
         <Link href="/sign-up-login-screen?tab=register" className="flex items-center gap-1.5 bg-white text-blue-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors">
-          Start Free Trial <ArrowRight size={12} />
+          Start $1 Trial <ArrowRight size={12} />
         </Link>
       </div>
     </div>

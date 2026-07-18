@@ -7,7 +7,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <div className="max-w-3xl mx-auto px-4 py-16">
-        <Link href="/homepage" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium mb-8">
+        <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium mb-8">
           <ArrowLeft size={16} /> Back to FixMy.Money
         </Link>
         <div className="flex items-center gap-3 mb-6">

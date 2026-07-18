@@ -158,12 +158,12 @@ export default function CROAWorkflowPage() {
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/homepage" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
             <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start Free Trial
+              Start $1 Trial
             </Link>
           </div>
         </div>
@@ -324,13 +324,13 @@ export default function CROAWorkflowPage() {
           <h2 className="text-3xl font-extrabold text-white mb-4">
             Build your credit repair agency on solid operational foundations
           </h2>
-          <p className="text-slate-400 mb-8">Start your free trial. Full platform access. Cancel anytime.</p>
+          <p className="text-slate-400 mb-8">Start your 14-day trial for $1. Full platform access. Cancel anytime.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/sign-up-login-screen?tab=register"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Start Free Trial <ArrowRight size={16} />
+              Start $1 Trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

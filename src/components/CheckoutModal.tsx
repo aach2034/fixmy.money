@@ -81,7 +81,7 @@ export default function CheckoutModal({ plan, planName, planPrice, onClose }: Ch
             <span className="text-white/50 text-xs">·</span>
             <span className="text-white/50 text-xs">Cancel anytime</span>
           </div>
-          <h2 className="text-xl font-bold text-white mb-1">{planName} Plan — Free trial</h2>
+          <h2 className="text-xl font-bold text-white mb-1">{planName} Plan — 14-day trial for $1</h2>
           <p className="text-sm text-blue-100/60">Full access for 14 days, then ${planPrice}/month</p>
         </div>
 
@@ -141,7 +141,7 @@ export default function CheckoutModal({ plan, planName, planPrice, onClose }: Ch
                 Redirecting to secure checkout…
               </>
             ) : (
-              'Start My Free Trial →'
+              'Start My $1 Trial →'
             )}
           </button>
 

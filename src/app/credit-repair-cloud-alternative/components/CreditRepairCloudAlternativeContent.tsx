@@ -123,7 +123,7 @@ const CreditRepairCloudAlternativeContent = () => {
                 </div>
               </div>
               <Link href="/demo" className="block text-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition">
-                Start Free Trial
+                Start $1 Trial
               </Link>
             </div>
             <div className="p-8 border border-gray-200 rounded-lg">
@@ -156,7 +156,7 @@ const CreditRepairCloudAlternativeContent = () => {
           </h2>
           <div className="space-y-8">
             {[
-              { step: '1', title: 'Start Your Free Trial', desc: 'Sign up for a 14-day free trial. No credit card required.' },
+              { step: '1', title: 'Start Your $1 Trial', desc: 'Sign up for a 14-day trial for $1. Payment method required.' },
               { step: '2', title: 'Import Your Clients', desc: 'We help you migrate all your clients from Credit Repair Cloud.' },
               { step: '3', title: 'Set Up Your Workflows', desc: 'Configure automation rules and customize your portal.' },
               { step: '4', title: 'Go Live', desc: 'Switch your clients over and start saving time immediately.' },
@@ -222,13 +222,13 @@ const CreditRepairCloudAlternativeContent = () => {
             Ready to Switch to Fix My Money?
           </h2>
           <p className="text-xl text-amber-100 mb-8">
-            Start your free 14-day trial today. See why agencies are switching.
+            Start your 14-day trial for $1 today. See why agencies are switching.
           </p>
           <Link
             href="/demo"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-amber-600 font-semibold rounded-lg hover:bg-gray-100 transition"
           >
-            Start Free Trial <ArrowRight className="ml-2 w-5 h-5" />
+            Start $1 Trial <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
       </section>

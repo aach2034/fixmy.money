@@ -23,11 +23,11 @@ export default function ContactPage() {
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/homepage" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
             <Link href="/signup" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start Free Trial
+              Start $1 Trial
             </Link>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function ContactPage() {
                 href="/signup"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm"
               >
-                Start Free Trial <ArrowRight size={14} />
+                Start $1 Trial <ArrowRight size={14} />
               </Link>
               <a
                 href="mailto:adam@fixmy.money"

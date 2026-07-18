@@ -3,11 +3,11 @@ import Link from 'next/link';
 import { ArrowRight, Check, Shield, AlertTriangle } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Best Credit Repair Software for Agencies 2024 | FixMy.Money',
+  title: 'Best Credit Repair Software for Agencies | FixMy.Money',
   description: 'Compare the best credit repair software for agencies. FixMy.Money offers AI analysis, dispute automation, CRM, billing, and client portals. Built for modern credit repair professionals.',
   alternates: { canonical: 'https://fixmy.money/best-credit-repair-software' },
   openGraph: {
-    title: 'Best Credit Repair Software for Agencies 2024 | FixMy.Money',
+    title: 'Best Credit Repair Software for Agencies | FixMy.Money',
     description: 'Compare the best credit repair software for agencies. FixMy.Money offers AI analysis, dispute automation, CRM, billing, and client portals.',
     url: 'https://fixmy.money/best-credit-repair-software',
     type: 'website',
@@ -59,7 +59,7 @@ export default function BestCreditRepairSoftwarePage() {
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all hover:-translate-y-0.5">
-              Start Free Trial <ArrowRight size={16} />
+              Start $1 Trial <ArrowRight size={16} />
             </Link>
             <Link href="/demo" className="inline-flex items-center gap-2 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors">
               Book Demo
@@ -121,10 +121,10 @@ export default function BestCreditRepairSoftwarePage() {
       <section className="py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to upgrade your credit repair software?</h2>
-          <p className="text-slate-400 mb-8">Start your free trial. Full platform access. Cancel anytime.</p>
+          <p className="text-slate-400 mb-8">Start your 14-day trial for $1. Full platform access. Cancel anytime.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all">
-              Start Free Trial <ArrowRight size={16} />
+              Start $1 Trial <ArrowRight size={16} />
             </Link>
             <Link href="/pricing" className="inline-flex items-center gap-2 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors">
               View Pricing

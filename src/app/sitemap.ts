@@ -4,7 +4,9 @@ import { getAllSlugs } from '@/lib/blog/articles';
 const BASE_URL = 'https://fixmy.money';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
+  // Use the actual content revision date; changing this on every build sends a
+  // misleading freshness signal to crawlers.
+  const now = new Date('2026-07-18T00:00:00.000Z');
 
   const staticPages: MetadataRoute.Sitemap = [
     // Homepage
@@ -20,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/credit-repair-billing-software`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/credit-repair-stripe-billing`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/credit-repair-agency-dashboard`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${BASE_URL}/credit-repair-automation`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE_URL}/credit-repair-audit-log`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/credit-repair-white-label-client-portal`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/credit-repair-software-for-small-agencies`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
@@ -47,7 +50,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/features`, lastModified: now, changeFrequency: 'monthly', priority: 0.85 },
     { url: `${BASE_URL}/pricing`, lastModified: now, changeFrequency: 'monthly', priority: 0.85 },
     { url: `${BASE_URL}/demo`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${BASE_URL}/demo-mode`, lastModified: now, changeFrequency: 'monthly', priority: 0.75 },
     { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE_URL}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE_URL}/blog`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },

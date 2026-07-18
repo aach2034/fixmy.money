@@ -35,9 +35,9 @@ const EDUCATION_ARTICLES = [
 ];
 
 const TOOLS = [
-  { icon: Brain, title: 'AI Credit Analysis', description: 'Upload a credit report and get instant AI-powered analysis of negative items and dispute opportunities.', cta: 'Try Free', href: '/sign-up-login-screen?tab=register' },
-  { icon: FileText, title: 'Dispute Letter Generator', description: 'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion in seconds.', cta: 'Try Free', href: '/sign-up-login-screen?tab=register' },
-  { icon: Users, title: 'Client Management CRM', description: 'Manage all your clients, disputes, documents, and billing from one professional dashboard.', cta: 'Try Free', href: '/sign-up-login-screen?tab=register' },
+  { icon: Brain, title: 'AI Credit Analysis', description: 'Upload a credit report and get instant AI-powered analysis of negative items and dispute opportunities.', cta: 'Try for $1', href: '/sign-up-login-screen?tab=register' },
+  { icon: FileText, title: 'Dispute Letter Generator', description: 'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion in seconds.', cta: 'Try for $1', href: '/sign-up-login-screen?tab=register' },
+  { icon: Users, title: 'Client Management CRM', description: 'Manage all your clients, disputes, documents, and billing from one professional dashboard.', cta: 'Try for $1', href: '/sign-up-login-screen?tab=register' },
 ];
 
 export default function FinanceContent() {
@@ -57,7 +57,7 @@ export default function FinanceContent() {
       {/* RELATIONSHIP BANNER */}
       <div className="bg-blue-600 text-white text-center py-2.5 px-4 text-sm font-medium">
         FixMy.Finance is the education hub for{' '}
-        <Link href="/homepage" className="underline font-bold hover:no-underline">
+        <Link href="/" className="underline font-bold hover:no-underline">
           FixMy.Money
         </Link>{' '}
         — the AI credit repair software platform.
@@ -68,7 +68,7 @@ export default function FinanceContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <Link href="/homepage">
+              <Link href="/">
                 <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto" />
               </Link>
               <span className="text-slate-300">|</span>
@@ -76,12 +76,12 @@ export default function FinanceContent() {
             </div>
             <div className="flex items-center gap-3">
               <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Articles</Link>
-              <Link href="/homepage#pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Pricing</Link>
+              <Link href="/#pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Pricing</Link>
               <Link
                 href="/sign-up-login-screen?tab=register"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all"
               >
-                Try FixMy.Money Free <ArrowRight size={14} />
+                Try FixMy.Money for $1 <ArrowRight size={14} />
               </Link>
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function FinanceContent() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
             >
               <Sparkles size={18} />
-              Try FixMy.Money — Free Trial
+              Try FixMy.Money — $1 Trial
             </Link>
             <a
               href="#articles"
@@ -131,7 +131,7 @@ export default function FinanceContent() {
               <p className="text-slate-400 text-sm leading-relaxed mb-4">
                 FixMy.Finance provides free credit education and business resources. When you're ready to run your credit repair business with professional tools, FixMy.Money is the platform — with AI analysis, dispute automation, client management, and billing built in.
               </p>
-              <Link href="/homepage" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 font-semibold text-sm">
+              <Link href="/" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 font-semibold text-sm">
                 Explore FixMy.Money <ExternalLink size={14} />
               </Link>
             </div>
@@ -160,7 +160,7 @@ export default function FinanceContent() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-2">Free Tools</p>
-            <h2 className="text-3xl font-extrabold text-slate-900">Professional credit repair tools — free to try</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900">Professional credit repair tools — try for $1</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TOOLS.map(tool => {
@@ -289,10 +289,10 @@ export default function FinanceContent() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-white text-blue-600 font-bold text-base px-8 py-4 rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
             >
               <Sparkles size={18} />
-              Start Free Trial on FixMy.Money
+              Start $1 Trial on FixMy.Money
             </Link>
             <Link
-              href="/homepage"
+              href="/"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-white/30 text-white font-semibold text-base px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors"
             >
               Learn More <ArrowRight size={16} />
@@ -305,9 +305,9 @@ export default function FinanceContent() {
       <footer className="bg-slate-950 text-slate-500 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs">© 2026 FixMy.Finance — An education resource by <Link href="/homepage" className="text-blue-400 hover:text-blue-300">FixMy.Money</Link>. Educational content only. Not legal advice.</p>
+            <p className="text-xs">© 2026 FixMy.Finance — An education resource by <Link href="/" className="text-blue-400 hover:text-blue-300">FixMy.Money</Link>. Educational content only. Not legal advice.</p>
             <div className="flex items-center gap-4 text-xs">
-              <Link href="/homepage" className="hover:text-slate-300 transition-colors">FixMy.Money</Link>
+              <Link href="/" className="hover:text-slate-300 transition-colors">FixMy.Money</Link>
               <a href="/privacy-policy" className="hover:text-slate-300 transition-colors">Privacy</a>
               <a href="/terms-of-service" className="hover:text-slate-300 transition-colors">Terms</a>
               <Link href="/contact" className="hover:text-slate-300 transition-colors">Contact</Link>

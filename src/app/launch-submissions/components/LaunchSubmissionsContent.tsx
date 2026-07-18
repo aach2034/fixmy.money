@@ -165,7 +165,7 @@ const SOCIAL_CALENDAR = [
   { day: 11, theme: 'Billing and Automation', platform: 'Twitter/LinkedIn', content: 'Chasing payments is not a business strategy. FixMy.Money integrates with Stripe so you can set up recurring billing, send invoices, and track revenue — without the manual work. https://fixmy.money #billing #automation' },
   { day: 12, theme: 'How Agencies Scale', platform: 'LinkedIn', content: 'Scaling a credit repair agency means: more clients, more staff, more processes. FixMy.Money gives you the dashboard, team management, and workflow tools to grow without losing control. https://fixmy.money #creditrepairagency' },
   { day: 13, theme: 'Product Demo', platform: 'All', content: 'Want to see FixMy.Money in action? We have a live demo at https://fixmy.money/demo — no signup required. See the client dashboard, dispute workflow, and billing tools for yourself. #creditrepair #saas' },
-  { day: 14, theme: 'Trial CTA', platform: 'All', content: 'If you run a credit repair business and want better software, try FixMy.Money for $1. No long-term contracts. Cancel anytime. 7-day risk-free trial. https://fixmy.money #creditrepair #trial' },
+  { day: 14, theme: 'Trial CTA', platform: 'All', content: 'If you run a credit repair business and want better software, try FixMy.Money for $1. No long-term contracts. Cancel anytime. 7-day risk-$1 trial. https://fixmy.money #creditrepair #trial' },
 ];
 
 const OUTREACH_TEMPLATES = {

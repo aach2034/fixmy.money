@@ -363,7 +363,7 @@ The cheapest option is rarely the best value. A platform that saves your team tw
 4. Is there a data export feature?
 5. How is client data secured and encrypted?
 6. What is the uptime SLA?
-7. Is there a free trial or demo available?
+7. Is there a $1 trial or demo available?
 8. What support is included at my plan level?
 9. Can I add team members with role-based access?
 10. Does the platform have a client portal?`,
@@ -513,7 +513,7 @@ FixMy.Money includes AI-assisted analysis with mandatory human review requiremen
 - Evaluate support quality at each tier
 - Look at annual vs. monthly pricing options
 
-FixMy.Money offers transparent, tiered pricing starting at $49/month with a 14-day free trial. No credit card required to start.`,
+FixMy.Money offers transparent, tiered pricing starting at $49/month with a 14-day trial for $1. Payment method required to start.`,
       },
       {
         heading: 'Making the Switch',
@@ -547,8 +547,8 @@ Most platforms offer migration assistance or onboarding support. Take advantage 
     relatedSlugs: ['best-credit-repair-software-2026', 'how-croa-billing-workflows-work', 'white-label-credit-repair-software'],
     disclaimer: 'This article is for informational purposes only. Product comparisons are based on publicly available information and the author\'s analysis. Verify current features directly with vendors.',
     cta: {
-      heading: 'Try FixMy.Money free for 14 days',
-      body: 'No credit card required. Explore all features with your own agency data.',
+      heading: 'Try FixMy.Money for 14 days for $1',
+      body: 'Payment method required. Explore all features with your own agency data.',
     },
   },
   {
@@ -1520,7 +1520,7 @@ Upgrade when the additional value clearly exceeds the additional cost. Do not up
     disclaimer: 'Pricing information is based on publicly available data and may not reflect current pricing. Verify current pricing directly with vendors.',
     cta: {
       heading: 'Transparent pricing, no surprises',
-      body: 'FixMy.Money offers clear, tiered pricing with a 14-day free trial. No credit card required to start.',
+      body: 'FixMy.Money offers clear, tiered pricing with a 14-day trial for $1. Payment method required to start.',
     },
   },
   {

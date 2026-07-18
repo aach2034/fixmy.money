@@ -51,7 +51,7 @@ export default function CreditRepairSoftwarePage() {
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/homepage" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl">Book Demo</Link>
             <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">Start Agency Trial</Link>

@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import AuthForm from '@/app/sign-up-login-screen/components/AuthForm';
 
 export const metadata: Metadata = {
-  title: 'Start Free Trial | FixMy.Money',
-  description: 'Create your FixMy.Money account and start your free trial.',
+  title: 'Start $1 Trial | FixMy.Money',
+  description: 'Create your FixMy.Money account and start your 14-day trial for $1.',
   alternates: { canonical: 'https://fixmy.money/signup' },
 };
 

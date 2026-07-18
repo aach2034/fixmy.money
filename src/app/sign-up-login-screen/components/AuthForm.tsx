@@ -152,7 +152,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         setVerifyEmailSent(true);
         toast.success('Account created! Please check your email to verify your address.');
       } else {
-        toast.success('Account created! Now start your free 14-day trial.');
+        toast.success('Account created! Now start your 14-day trial for $1.');
         router.push(`/checkout?plan=${planFromUrl}`);
       }
     } catch (error: any) {
@@ -201,7 +201,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
             ))}
           </div>
           <p className="text-sm text-slate-500 mb-8">
-            Click the link in the email to verify your account. After verifying, you&apos;ll be taken to select your plan and start your free 14-day trial.
+            Click the link in the email to verify your account. After verifying, you&apos;ll be taken to select your plan and start your 14-day trial for $1.
           </p>
           <div className="bg-slate-50 rounded-2xl p-4 text-sm text-slate-500 mb-6">
             <p className="font-semibold text-slate-700 mb-1">Didn&apos;t receive the email?</p>
@@ -231,7 +231,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         </div>
         <div className="relative z-10">
-          <Link href="/homepage" className="flex items-center gap-3 mb-12">
+          <Link href="/" className="flex items-center gap-3 mb-12">
             <AppLogo size={40} />
             <span className="text-white font-bold text-xl tracking-tight">FixMy.Money</span>
           </Link>
@@ -382,7 +382,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
             <div>
               <div className="mb-6">
                 <h1 className="text-2xl font-bold text-slate-900 mb-1">Create your account</h1>
-                <p className="text-sm text-slate-500">Start your 14-day free trial — full access, no credit card required</p>
+                <p className="text-sm text-slate-500">Start your 14-day trial for $1 — full access, payment method required</p>
               </div>
               <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -464,7 +464,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                 </div>
                 {/* Trust badges */}
                 <div className="flex flex-wrap gap-3 py-1">
-                  {['14-Day Free Trial', 'Cancel Anytime', 'No Setup Fees'].map(badge => (
+                  {['14-Day $1 Trial', 'Cancel Anytime', 'No Setup Fees'].map(badge => (
                     <div key={badge} className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                       <CheckCircle2 size={13} className="text-emerald-500" />
                       {badge}
@@ -477,7 +477,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                   className="w-full btn-primary py-3.5 flex items-center justify-center gap-2 rounded-xl text-base"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
-                  {loading ? 'Creating account...' : 'Create Account — Start Free Trial'}
+                  {loading ? 'Creating account...' : 'Create Account — Start $1 Trial'}
                 </button>
                 <p className="text-xs text-slate-400 text-center">
                   By creating an account, you agree to our Terms of Service and Privacy Policy.

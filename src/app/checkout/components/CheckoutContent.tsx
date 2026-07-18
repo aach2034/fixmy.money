@@ -276,7 +276,7 @@ export default function CheckoutContent() {
               </>
             ) : (
               <>
-                Start {selectedPlanData.name} Free Trial
+                Start {selectedPlanData.name} $1 Trial
                 <ArrowRight size={18} />
               </>
             )}

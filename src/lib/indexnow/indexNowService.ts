@@ -40,11 +40,15 @@ const RETRY_DELAY_MS = 2000;
 // Public pages that should be submitted to IndexNow
 export const PUBLIC_PAGES = [
   BASE_URL,
-  `${BASE_URL}/homepage`,
+  `${BASE_URL}/credit-repair-software`,
+  `${BASE_URL}/credit-repair-business-software`,
+  `${BASE_URL}/credit-repair-crm`,
+  `${BASE_URL}/credit-repair-automation`,
+  `${BASE_URL}/pricing`,
+  `${BASE_URL}/blog`,
   `${BASE_URL}/demo`,
   `${BASE_URL}/knowledge-base`,
   `${BASE_URL}/affiliate-program`,
-  `${BASE_URL}/ai-financial-coach`,
 ];
 
 // Excluded private/protected paths

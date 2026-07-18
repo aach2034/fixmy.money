@@ -5,7 +5,7 @@ import { Globe, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'White-Label Credit Repair Client Portal | FixMy.Money',
-  description: 'White-label client portal for credit repair agencies. Customize branding, track disputes, upload documents. 14-day free trial.',
+  description: 'White-label client portal for credit repair agencies. Customize branding, track disputes, upload documents. 14-day trial for $1.',
   keywords: ['white-label portal', 'client portal', 'credit repair portal', 'white-label software'],
   openGraph: {
     title: 'White-Label Credit Repair Client Portal | FixMy.Money',
@@ -54,7 +54,7 @@ export default function WhiteLabelPortalPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup?plan=agency" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
-                Start Free Trial
+                Start $1 Trial
               </Link>
               <Link href="/demo-mode" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
                 View Demo
@@ -119,9 +119,9 @@ export default function WhiteLabelPortalPage() {
         <section className="py-20 bg-blue-600">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">Build your branded client portal</h2>
-            <p className="text-lg text-blue-50 mb-8">Start your 14-day free trial today. No credit card required.</p>
+            <p className="text-lg text-blue-50 mb-8">Start your 14-day trial for $1 today. Payment method required.</p>
             <Link href="/signup?plan=agency" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
-              Start Free Trial <ArrowRight size={18} />
+              Start $1 Trial <ArrowRight size={18} />
             </Link>
           </div>
         </section>

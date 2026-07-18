@@ -31,7 +31,7 @@ export default function Error({ error, reset }: ErrorProps) {
             <RefreshCw size={14} /> Try Again
           </button>
           <Link
-            href="/homepage"
+            href="/"
             className="inline-flex items-center gap-2 bg-white text-slate-700 border border-slate-200 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors"
           >
             <Home size={14} /> Go Home

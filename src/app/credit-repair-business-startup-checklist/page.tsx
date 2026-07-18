@@ -54,7 +54,7 @@ export default function StartupChecklistPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
-                Start Free Trial
+                Start $1 Trial
               </Link>
               <Link href="/demo-mode" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
                 View Demo
@@ -106,7 +106,7 @@ export default function StartupChecklistPage() {
             <h2 className="text-3xl font-bold text-white mb-4">Ready to start your credit repair business?</h2>
             <p className="text-lg text-blue-50 mb-8">Use FixMy.Money to manage clients, disputes, and compliance from day one.</p>
             <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
-              Start Free Trial <ArrowRight size={18} />
+              Start $1 Trial <ArrowRight size={18} />
             </Link>
           </div>
         </section>

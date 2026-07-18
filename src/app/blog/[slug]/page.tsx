@@ -114,11 +114,11 @@ export default async function BlogArticlePage({ params }: Props) {
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/homepage" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Blog</Link>
             <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start Free Trial
+              Start $1 Trial
             </Link>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default async function BlogArticlePage({ params }: Props) {
       {/* Breadcrumb */}
       <div className="px-4 sm:px-8 py-3 bg-slate-50 border-b border-slate-100">
         <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-slate-500">
-          <Link href="/homepage" className="hover:text-slate-700">Home</Link>
+          <Link href="/" className="hover:text-slate-700">Home</Link>
           <ChevronRight size={12} />
           <Link href="/blog" className="hover:text-slate-700">Blog</Link>
           <ChevronRight size={12} />
@@ -185,9 +185,9 @@ export default async function BlogArticlePage({ params }: Props) {
               </div>
               <div className="mt-4 bg-blue-600 rounded-2xl p-5 text-white">
                 <p className="text-sm font-bold mb-2">Ready to get started?</p>
-                <p className="text-xs text-blue-100 mb-3">14-day free trial. No credit card required.</p>
+                <p className="text-xs text-blue-100 mb-3">14-day trial for $1. Payment method required.</p>
                 <Link href="/sign-up-login-screen?tab=register" className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
-                  Start Free Trial
+                  Start $1 Trial
                 </Link>
               </div>
             </div>
@@ -285,7 +285,7 @@ export default async function BlogArticlePage({ params }: Props) {
               <p className="text-slate-300 text-sm mb-4">{article.cta.body}</p>
               <div className="flex flex-wrap gap-3">
                 <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
-                  Start Free Trial <ArrowRight size={14} />
+                  Start $1 Trial <ArrowRight size={14} />
                 </Link>
                 <Link href="/demo-mode" className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   Explore Demo
