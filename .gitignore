@@ -13,3 +13,4 @@ dist
 
 # Local tooling
 .wrangler
+.pnpm-store
