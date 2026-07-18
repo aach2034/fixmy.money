@@ -87,7 +87,7 @@ const PLANS = [
 
 const FAQS = [
   { q: 'What is FixMy.Money and who is it for?', a: 'FixMy.Money is business software for credit repair professionals — agencies, consultants, and financial coaches who help clients manage their credit profiles. It provides tools for client management, dispute workflows, billing, and documentation. Users are responsible for operating in compliance with CROA, FCRA, TSR, and all applicable laws.' },
-  { q: 'How does the agency trial work?', a: 'You get 14 days of full access to the features included in your selected plan. No credit card is required to start. After the trial, your subscription begins at your chosen plan rate. Cancel any time before the trial ends and you will not be charged.' },
+  { q: 'How does the agency trial work?', a: 'Pay $1 today for 14 days of full access to the features included in your selected plan. After the trial, your subscription renews automatically at the chosen monthly rate unless you cancel.' },
   { q: 'Does FixMy.Money provide CROA-compliant workflows?', a: 'FixMy.Money supports CROA-aware workflows, documentation, and recordkeeping. Each business remains responsible for its own legal compliance. FixMy.Money provides workflow, documentation, and recordkeeping tools. It does not provide legal advice or guarantee compliance with federal, state, or local law.' },
   { q: 'What makes FixMy.Money different from Credit Repair Cloud?', a: 'FixMy.Money is built AI-first. We offer AI credit analysis, AI dispute generation, and AI risk assessment — features Credit Repair Cloud does not have. We also provide a modern dashboard, native Stripe billing, lead intake forms, and a credit education portal, all in one platform.' },
   { q: 'Can I manage multiple clients from one account?', a: 'Yes. Depending on your plan, you can manage 25 clients (Starter), 100 clients (Professional), or unlimited clients (Agency). Each client gets their own portal, dispute tracking, and billing profile.' },
@@ -748,7 +748,7 @@ export default function HomepageContent() {
             <div className="text-center mb-14">
               <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Pricing</p>
               <h2 className="text-4xl font-extrabold text-slate-900 mb-4">Transparent pricing for credit repair agencies</h2>
-              <p className="text-lg text-slate-600 max-w-xl mx-auto">14-day free trial. No credit card required. Cancel anytime.</p>
+              <p className="text-lg text-slate-600 max-w-xl mx-auto">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
             </div>
 
             {/* Pricing disclaimer */}

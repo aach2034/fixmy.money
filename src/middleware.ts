@@ -41,6 +41,12 @@ const ONBOARDING_GATED_PATHS = [
   '/admin',
 ];
 
+const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
+  (path) => !['/billing-subscriptions', '/onboarding', '/admin'].includes(path)
+);
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'trial_active']);
+const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+
 export async function middleware(request: NextRequest) {
   // PHASE 1 GUARD: If FixMy.Money is misconfigured to use the Partix database,
   // return a 503 with a clear message instead of silently contaminating Partix data.
@@ -156,6 +162,40 @@ export async function middleware(request: NextRequest) {
       // On DB error, redirect to onboarding as a safe fallback
       const url = request.nextUrl.clone();
       url.pathname = '/onboarding';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // SUBSCRIPTION GATE (server-side): Stripe webhooks are the source of truth.
+  // A failed renewal keeps full access for 3 days. From day 4 onward, only the
+  // billing recovery surface remains available; payment success clears the
+  // failure timestamp and restores access automatically.
+  const isSubscriptionGated = SUBSCRIPTION_GATED_PATHS.some((p) => pathname.startsWith(p));
+  if (user && isSubscriptionGated) {
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('subscription_status, payment_failed_at')
+        .eq('id', user.id)
+        .single();
+
+      const status = profile?.subscription_status || '';
+      const failedAt = profile?.payment_failed_at
+        ? new Date(profile.payment_failed_at).getTime()
+        : null;
+      const inFullAccessGrace =
+        status === 'past_due' && failedAt !== null && Date.now() - failedAt < FULL_ACCESS_GRACE_MS;
+
+      if (!ACTIVE_SUBSCRIPTION_STATUSES.has(status) && !inFullAccessGrace) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/billing-subscriptions';
+        url.searchParams.set('reason', status === 'past_due' ? 'payment_retry' : 'subscription_required');
+        return NextResponse.redirect(url);
+      }
+    } catch {
+      const url = request.nextUrl.clone();
+      url.pathname = '/billing-subscriptions';
+      url.searchParams.set('reason', 'subscription_check_failed');
       return NextResponse.redirect(url);
     }
   }

@@ -19,9 +19,6 @@ const PLAN_LABELS: Record<string, string> = {
 function DashboardSuccessBanner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const supabase = createClient();
-
   const isCheckoutSuccess = searchParams.get('checkout') === 'success';
   const planParam = searchParams.get('plan') || '';
   const planLabel = PLAN_LABELS[planParam.toLowerCase()] || planParam;
@@ -32,33 +29,9 @@ function DashboardSuccessBanner() {
     if (!isCheckoutSuccess) return;
     setShowBanner(true);
 
-    const activateSubscription = async () => {
-      if (!user || authLoading) return;
-      try {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('subscription_status, subscription_plan')
-          .eq('id', user.id)
-          .single();
-
-        const activeStatuses = ['trialing', 'active', 'trial_active'];
-        if (!profile || !activeStatuses.includes(profile.subscription_status || '')) {
-          await supabase
-            .from('user_profiles')
-            .update({
-              subscription_status: 'trial_active',
-              subscription_plan: planParam || profile?.subscription_plan || 'starter',
-              paid_trial: true,
-            })
-            .eq('id', user.id);
-        }
-      } catch (err) {
-        console.error('[Dashboard] Failed to activate subscription:', err);
-      }
-    };
-
-    activateSubscription();
-  }, [isCheckoutSuccess, user, authLoading]);
+    // Access is activated only by the signed Stripe webhook. The success URL
+    // is informational and must never be able to grant itself a subscription.
+  }, [isCheckoutSuccess]);
 
   const dismissBanner = () => {
     setShowBanner(false);
@@ -74,12 +47,12 @@ function DashboardSuccessBanner() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-emerald-800">
-          Welcome to FixMy.Money. Your subscription is now active.
+          Payment received. Welcome to FixMy.Money.
         </p>
         <p className="text-xs text-emerald-700 mt-0.5">
           {planLabel
-            ? `You're on the ${planLabel} plan. Your 14-day free trial has started — explore all features below.`
-            : 'Your 14-day free trial has started — explore all features below.'}
+            ? `You're on the ${planLabel} plan. Your $1, 14-day trial has started.`
+            : 'Your $1, 14-day trial has started.'}
         </p>
       </div>
       <button

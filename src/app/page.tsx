@@ -5,7 +5,7 @@ import HomepageContent from './homepage/components/HomepageContent';
 export const metadata: Metadata = {
   title: 'FixMy.Money | Credit Repair Software for Agencies',
   description:
-  'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. AI-assisted drafts, client portals, Stripe billing. 14-day free trial, no credit card required.',
+  'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. AI-assisted drafts, client portals, Stripe billing. $1 for 14 days.',
   keywords: [
   'credit repair software',
   'credit repair business software',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'FixMy.Money | Credit Repair Software for Agencies',
     description:
-    'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. 14-day free trial.',
+    'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. $1 for 14 days.',
     type: 'website',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'FixMy.Money | Credit Repair Software for Agencies',
     description:
-    'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. 14-day free trial.'
+    'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. $1 for 14 days.'
   },
   alternates: {
     canonical: 'https://fixmy.money'

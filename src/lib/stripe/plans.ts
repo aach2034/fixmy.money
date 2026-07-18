@@ -13,7 +13,7 @@
  * - Schema.org structured data
  * - Confirmation emails
  *
- * Trial: 14-day free trial. No credit card required. Cancel anytime.
+ * Trial: $1 today for 14 days, then the selected monthly plan. Cancel anytime.
  * Annual: ~20% discount (exact prices below).
  */
 
@@ -188,7 +188,10 @@ export function getStripePriceId(planId: PlanId): string | null {
  */
 export const TRIAL_CONFIG = {
   durationDays: 14,
-  requiresCreditCard: false,
-  label: '14-day free trial. No credit card required. Cancel anytime.',
-  shortLabel: '14-day free trial',
+  chargeCents: 100,
+  requiresCreditCard: true,
+  gracePeriodDays: 3,
+  retryPeriodDays: 7,
+  label: '$1 today for 14 days, then your selected monthly plan. Cancel anytime.',
+  shortLabel: '$1 for 14 days',
 } as const;

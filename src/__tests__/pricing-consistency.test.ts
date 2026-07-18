@@ -104,21 +104,24 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
 
 // ─── 2. Trial Consistency ─────────────────────────────────────────────────────
 
-describe('Trial Configuration — 14-day free, no credit card', () => {
+describe('Trial Configuration — $1 paid trial with retry policy', () => {
   it('Trial duration is exactly 14 days', () => {
     expect(TRIAL_CONFIG.durationDays).toBe(14);
   });
 
-  it('Trial does not require a credit card', () => {
-    expect(TRIAL_CONFIG.requiresCreditCard).toBe(false);
+  it('Trial charges $1 and requires a credit card', () => {
+    expect(TRIAL_CONFIG.chargeCents).toBe(100);
+    expect(TRIAL_CONFIG.requiresCreditCard).toBe(true);
   });
 
-  it('Trial label says "14-day free trial"', () => {
-    expect(TRIAL_CONFIG.label.toLowerCase()).toContain('14-day free trial');
+  it('Trial label clearly discloses the $1 charge and duration', () => {
+    expect(TRIAL_CONFIG.label).toContain('$1');
+    expect(TRIAL_CONFIG.label).toContain('14 days');
   });
 
-  it('Trial label says "no credit card required"', () => {
-    expect(TRIAL_CONFIG.label.toLowerCase()).toContain('no credit card required');
+  it('Defines the agreed grace and retry periods', () => {
+    expect(TRIAL_CONFIG.gracePeriodDays).toBe(3);
+    expect(TRIAL_CONFIG.retryPeriodDays).toBe(7);
   });
 
   it('Trial label does not say "7-day"', () => {
@@ -126,19 +129,14 @@ describe('Trial Configuration — 14-day free, no credit card', () => {
     expect(TRIAL_CONFIG.label.toLowerCase()).not.toContain('7 day');
   });
 
-  it('Trial label does not mention a $1 charge', () => {
-    expect(TRIAL_CONFIG.label).not.toContain('$1');
-    expect(TRIAL_CONFIG.label.toLowerCase()).not.toContain('one dollar');
-  });
-
-  it('Trial short label says "14-day free trial"', () => {
-    expect(TRIAL_CONFIG.shortLabel.toLowerCase()).toContain('14-day free trial');
+  it('Trial short label states the paid offer', () => {
+    expect(TRIAL_CONFIG.shortLabel).toBe('$1 for 14 days');
   });
 });
 
 // ─── 3. Checkout Route Safety ─────────────────────────────────────────────────
 
-describe('Checkout Route — No $1 Invoice Item', () => {
+describe('Checkout Route — Paid Trial Safety', () => {
   it('create-checkout route source does not contain invoiceItems.create', async () => {
     // Read the route source and verify no $1 invoice item is created
     const fs = await import('fs');
@@ -692,9 +690,9 @@ describe('No Old $99/$199/$399 Pricing in Public-Facing Code', () => {
   }
 });
 
-// ─── 11. No 7-day Trial or $1 Trial Language ─────────────────────────────────
+// ─── 11. No obsolete 7-day trial language ────────────────────────────────────
 
-describe('No 7-day Trial or $1 Trial Language in Public Code', () => {
+describe('No obsolete 7-day trial language in public code', () => {
   const PUBLIC_FILES = [
     'src/app/homepage/components/HomepageContent.tsx',
     'src/app/pricing/components/PricingContent.tsx',
@@ -704,7 +702,7 @@ describe('No 7-day Trial or $1 Trial Language in Public Code', () => {
   ];
 
   for (const filePath of PUBLIC_FILES) {
-    it(`${filePath} does not contain "7-day trial" or "$1 trial" language`, async () => {
+    it(`${filePath} does not contain 7-day trial language`, async () => {
       const fs = await import('fs');
       const path = await import('path');
       const fullPath = path.resolve(process.cwd(), filePath);
@@ -715,8 +713,6 @@ describe('No 7-day Trial or $1 Trial Language in Public Code', () => {
 
       expect(source).not.toContain('7-day trial');
       expect(source).not.toContain('7 day trial');
-      expect(source).not.toContain('$1 trial');
-      expect(source).not.toContain('one dollar trial');
       expect(source).not.toContain('trial_period_days: 7');
     });
   }

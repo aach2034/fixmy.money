@@ -4,11 +4,11 @@ import PricingContent from './components/PricingContent';
 
 export const metadata: Metadata = {
   title: 'Pricing | Fix My Money - Credit Repair Software',
-  description: 'Simple, transparent pricing for credit repair agencies. Starter $49, Professional $129, Agency $249. 14-day free trial, no credit card required.',
+  description: 'Simple pricing for credit repair agencies. Starter $49, Professional $129, Agency $249. $1 today for 14 days.',
   keywords: ['pricing', 'plans', 'subscription'],
   openGraph: {
     title: 'Pricing | Fix My Money',
-    description: 'Simple, transparent pricing for credit repair agencies. 14-day free trial.',
+    description: 'Simple, transparent pricing for credit repair agencies. $1 today for 14 days.',
     type: 'website',
     url: 'https://fixmy.money/pricing',
     siteName: 'Fix My Money',

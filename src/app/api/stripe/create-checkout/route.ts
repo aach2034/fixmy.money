@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     const monthlyAmount = planConfig.stripeAmountCents!;
 
     // Build line items — use Stripe price ID if configured, otherwise use price_data
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
+    const subscriptionLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
       ? [{ price: priceId, quantity: 1 }]
       : [
           {
@@ -151,33 +151,47 @@ export async function POST(req: NextRequest) {
           },
         ];
 
+    // A one-time $1 trial charge is invoiced immediately. The recurring plan
+    // remains at $0 until the 14-day trial ends, then renews at its normal rate.
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      ...subscriptionLineItems,
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${TRIAL_CONFIG.durationDays}-day paid trial`,
+            description: `$1 today, then $${monthlyAmount / 100}/month after the trial`,
+          },
+          unit_amount: TRIAL_CONFIG.chargeCents,
+        },
+        quantity: 1,
+      },
+    ];
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customer.id,
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items: lineItems,
       subscription_data: {
-        // 14-day free trial — no charge until trial ends
+        // Recurring plan begins after the $1 paid trial.
         trial_period_days: TRIAL_CONFIG.durationDays,
         trial_settings: {
           end_behavior: { missing_payment_method: 'cancel' },
         },
         metadata: { plan, userId },
       },
-      // Collect payment method upfront so trial-to-paid conversion works,
-      // but no charge occurs during the trial period.
-      payment_method_collection: 'if_required',
+      payment_method_collection: 'always',
       success_url: `${siteUrl}/dashboard?checkout=success&plan=${plan}`,
       cancel_url: `${siteUrl}/checkout?plan=${plan}&cancelled=1`,
       metadata: { plan, userId },
       custom_text: {
         submit: {
-          message: `Start your ${TRIAL_CONFIG.durationDays}-day free trial. No charge today. $${monthlyAmount / 100}/month after trial ends.`,
+          message: `$${TRIAL_CONFIG.chargeCents / 100} today for ${TRIAL_CONFIG.durationDays} days. Then $${monthlyAmount / 100}/month unless canceled.`,
         },
       },
     };
 
-    // NOTE: No invoice item created here — the trial is free, no $1 charge.
     const session = await stripe.checkout.sessions.create(sessionParams);
 
     console.log('[Stripe] Checkout session created for plan:', plan, '| trial days:', TRIAL_CONFIG.durationDays);

@@ -34,6 +34,7 @@ async function updateUserSubscription(
     trial_end?: number | null;
     subscription_id?: string;
     paid_trial?: boolean;
+    payment_failed_at?: number | null;
   }
 ) {
   try {
@@ -49,6 +50,11 @@ async function updateUserSubscription(
     }
     if (data.subscription_id !== undefined) updatePayload.subscription_id = data.subscription_id;
     if (data.paid_trial !== undefined) updatePayload.paid_trial = data.paid_trial;
+    if (data.payment_failed_at !== undefined) {
+      updatePayload.payment_failed_at = data.payment_failed_at
+        ? new Date(data.payment_failed_at * 1000).toISOString()
+        : null;
+    }
 
     const { error } = await supabaseAdmin
       .from('user_profiles')
@@ -175,7 +181,7 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        if (session.customer && session.mode === 'subscription') {
+        if (session.customer && session.mode === 'subscription' && session.payment_status === 'paid') {
           const customerId = session.customer as string;
           let plan = session.metadata?.plan || 'starter';
           const userId = session.metadata?.userId || '';
@@ -199,6 +205,7 @@ export async function POST(req: NextRequest) {
                 trial_end: trialEnd,
                 subscription_id: subscriptionId,
                 paid_trial: true,
+                payment_failed_at: null,
               });
 
               if (userId) {
@@ -210,6 +217,7 @@ export async function POST(req: NextRequest) {
                   trial_end: trialEnd ? new Date(trialEnd * 1000).toISOString() : null,
                   subscription_id: subscriptionId,
                   paid_trial: true,
+                  payment_failed_at: null,
                 }).eq('id', userId);
               }
             } catch (subErr) {
@@ -218,6 +226,7 @@ export async function POST(req: NextRequest) {
                 subscription_status: 'trial_active',
                 subscription_plan: plan,
                 paid_trial: true,
+                payment_failed_at: null,
               });
             }
           }
@@ -374,6 +383,7 @@ export async function POST(req: NextRequest) {
         if (invoice.customer && invoice.subscription) {
           await updateUserSubscription(invoice.customer as string, {
             subscription_status: 'active',
+            payment_failed_at: null,
           });
         }
         await logBillingEvent('invoice.payment_succeeded', {
@@ -394,6 +404,7 @@ export async function POST(req: NextRequest) {
         if (invoice.customer) {
           await updateUserSubscription(invoice.customer as string, {
             subscription_status: 'past_due',
+            payment_failed_at: event.created,
           });
         }
         await logBillingEvent('invoice.payment_failed', {

@@ -165,8 +165,8 @@ const COMPARISON_ROWS: {
 ];
 
 const BILLING_FAQS = [
-  { q: 'Is a credit card required to start a trial?', a: 'No. You can start a free trial without a credit card. After the trial period ends, you will need to add a payment method to continue.' },
-  { q: 'How long is the free trial?', a: 'The free trial is 14 days. You get full access to the features included in your selected trial plan.' },
+  { q: 'Is a credit card required to start a trial?', a: 'Yes. The paid trial costs $1 today and securely saves your card for the monthly subscription that begins after 14 days unless you cancel.' },
+  { q: 'How long is the trial?', a: 'The paid trial is 14 days. You get full access to the features included in your selected plan.' },
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
   { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
@@ -221,7 +221,7 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">14-day free trial. No credit card required. Cancel anytime.</p>
+          <p className="text-xl text-slate-300 mb-3">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
           <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
 
           {/* Billing Toggle */}
@@ -386,8 +386,8 @@ export default function PricingContent() {
           <h2 className="text-2xl font-extrabold text-slate-900 mb-6 text-center">Billing terms</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: 'Free trial', value: '14 days, full access to features in your selected plan' },
-              { label: 'Credit card required for trial', value: 'No' },
+              { label: 'Paid trial', value: '$1 today for 14 days, with full access to your selected plan' },
+              { label: 'Credit card required for trial', value: 'Yes' },
               { label: 'Monthly billing', value: 'Charged on the same date each month' },
               { label: 'Annual billing', value: 'Charged once per year, ~20% discount' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
@@ -462,7 +462,7 @@ export default function PricingContent() {
       <section className="py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">14-day free trial. No credit card required. Cancel anytime.</p>
+          <p className="text-slate-400 mb-8">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/signup"
