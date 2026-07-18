@@ -175,14 +175,48 @@ export async function middleware(request: NextRequest) {
     try {
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('subscription_status, payment_failed_at')
+        .select('subscription_status')
         .eq('id', user.id)
         .single();
 
       const status = profile?.subscription_status || '';
-      const failedAt = profile?.payment_failed_at
-        ? new Date(profile.payment_failed_at).getTime()
-        : null;
+      let failedAt: number | null = null;
+
+      if (status === 'past_due') {
+        const { data: workspace } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', user.id)
+          .single();
+
+        if (workspace?.id) {
+          const { data: lastPaid } = await supabase
+            .from('billing_events')
+            .select('stripe_created_at')
+            .eq('workspace_id', workspace.id)
+            .eq('event_type', 'invoice.payment_succeeded')
+            .order('stripe_created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          let failedQuery = supabase
+            .from('billing_events')
+            .select('stripe_created_at')
+            .eq('workspace_id', workspace.id)
+            .eq('event_type', 'invoice.payment_failed')
+            .order('stripe_created_at', { ascending: true })
+            .limit(1);
+
+          if (lastPaid?.stripe_created_at) {
+            failedQuery = failedQuery.gt('stripe_created_at', lastPaid.stripe_created_at);
+          }
+
+          const { data: firstFailure } = await failedQuery.maybeSingle();
+          failedAt = firstFailure?.stripe_created_at
+            ? new Date(firstFailure.stripe_created_at).getTime()
+            : null;
+        }
+      }
       const inFullAccessGrace =
         status === 'past_due' && failedAt !== null && Date.now() - failedAt < FULL_ACCESS_GRACE_MS;
 
