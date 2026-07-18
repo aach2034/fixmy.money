@@ -74,14 +74,15 @@ export default function CreditAuditContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data: disputes } = await supabase
-        .from('client_disputes')
-        .select('*')
+      const { data: savedItems, error: itemsError } = await supabase
+        .from('negative_items')
+        .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status')
         .eq('owner_id', user.id)
         .eq('client_id', client.id);
+      if (itemsError) throw itemsError;
 
-      const items = disputes ?? [];
-      const negativeItems = items.filter((d: any) => d.dispute_status !== 'resolved');
+      const items = savedItems ?? [];
+      const negativeItems = items.filter((d: any) => !['deleted', 'closed'].includes(d.dispute_status));
 
       const bureauMap: Record<string, { count: number; items: string[] }> = {};
       let collectionCount = 0, latePaymentCount = 0, inquiryCount = 0, chargeOffCount = 0, bankruptcyCount = 0;
@@ -90,9 +91,9 @@ export default function CreditAuditContent() {
         const bureau = item.bureau ?? 'Unknown';
         if (!bureauMap[bureau]) bureauMap[bureau] = { count: 0, items: [] };
         bureauMap[bureau].count++;
-        bureauMap[bureau].items.push(`${item.creditor_name ?? 'Unknown'} (${item.negative_item_type ?? 'item'})`);
+        bureauMap[bureau].items.push(`${item.creditor_name ?? 'Unknown'} (${item.negative_category ?? 'item'})`);
 
-        const type = item.negative_item_type ?? '';
+        const type = item.negative_category ?? '';
         if (type === 'collection') collectionCount++;
         else if (type === 'late_payment') latePaymentCount++;
         else if (type === 'hard_inquiry') inquiryCount++;
@@ -108,10 +109,10 @@ export default function CreditAuditContent() {
 
       const priorityItems = negativeItems.slice(0, 5).map((d: any) => ({
         creditor: d.creditor_name ?? 'Unknown',
-        type: d.negative_item_type ?? 'item',
+        type: d.negative_category ?? 'item',
         bureau: d.bureau ?? 'Unknown',
-        amount: d.amount ? `$${Number(d.amount).toLocaleString()}` : '—',
-        reason: d.dispute_reason ?? 'Review for inaccuracies',
+        amount: d.balance != null ? `$${Number(d.balance).toLocaleString()}` : '—',
+        reason: d.dispute_reason || d.negative_reason || 'Review for inaccuracies',
       }));
 
       const strategy: string[] = [];
@@ -120,7 +121,7 @@ export default function CreditAuditContent() {
       if (latePaymentCount > 0) strategy.push(`Dispute ${latePaymentCount} late payment${latePaymentCount !== 1 ? 's' : ''} — request method of verification`);
       if (inquiryCount > 0) strategy.push(`Review ${inquiryCount} hard ${inquiryCount !== 1 ? 'inquiries' : 'inquiry'} — dispute any unauthorized inquiries`);
       if (bankruptcyCount > 0) strategy.push('Verify bankruptcy record accuracy — check dates, amounts, and discharge status');
-      if (strategy.length === 0) strategy.push('No immediate dispute items identified — monitor for new negative items');
+      if (strategy.length === 0) strategy.push('No saved negative items were found. Import and review a credit report before creating a dispute strategy.');
 
       const result: AuditResult = {
         clientId: client.id,

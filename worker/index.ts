@@ -6,7 +6,7 @@ import {
 import handler from "vinext/server/app-router-entry";
 
 interface Env {
-  ASSETS: Fetcher;
+  ASSETS?: Fetcher;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -29,7 +29,9 @@ export default {
       return handleImageOptimization(
         request,
         {
-          fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
+          fetchAsset: (path) => env.ASSETS
+            ? env.ASSETS.fetch(new Request(new URL(path, request.url)))
+            : fetch(new Request(new URL(path, request.url))),
           transformImage: async (body, { width, format, quality }) => {
             const result = await env.IMAGES.input(body)
               .transform(width > 0 ? { width } : {})

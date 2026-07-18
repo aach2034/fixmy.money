@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #letter-print-preview,
+  #letter-print-preview * {
+    visibility: visible !important;
+  }
+
+  #letter-print-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0.75in;
+    box-shadow: none;
+  }
+}
+
 :root {
   --background: #F8FAFC;
   --foreground: #0F172A;

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, ArrowRight, Shield, TrendingUp, Users, Mail, Loader2, CheckCircle2, Sparkles, Brain, Zap } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Shield, Building2, LockKeyhole, Mail, Loader2, CheckCircle2, Sparkles, Brain, Zap } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,9 +16,9 @@ type RegisterFormData = {
 };
 
 const TRUST_ITEMS = [
-  { icon: Shield, text: '147 active clients managed on average per workspace' },
-  { icon: TrendingUp, text: '312 negative items deleted per month on average' },
-  { icon: Users, text: '3,200+ credit repair professionals trust FixMy.Money' },
+  { icon: Shield, text: 'Tenant-isolated records for every business account' },
+  { icon: Building2, text: 'A dedicated workspace created during onboarding' },
+  { icon: LockKeyhole, text: 'Secure sign-in and owner-scoped business data' },
 ];
 
 const FLOW_STEPS = [
@@ -240,13 +240,13 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
             AI-Powered Credit Repair Platform
           </div>
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Fix Your Credit.<br />
+            Run Your Credit Repair<br />
             <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-              Grow Your Business.
+              Business Securely.
             </span>
           </h2>
           <p className="text-slate-300 text-base leading-relaxed mb-8">
-            Manage clients, generate AI dispute letters, automate follow-ups, and grow your credit repair business — all in one workspace.
+            Manage clients, review reports, print dispute letters, track paper mail, and run billing in one private workspace.
           </p>
           {/* AI Features */}
           <div className="space-y-3 mb-8">

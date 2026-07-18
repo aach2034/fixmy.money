@@ -92,12 +92,17 @@ export default function OnboardingContent() {
 
     setSaving(true);
     try {
+      const workspaceSlug = `${companyData.companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'business'}-${user.id.slice(0, 8)}`;
       // Save to workspace
       const { error: wsError } = await supabase
         .from('workspaces')
         .upsert({
           owner_id: user.id,
           name: companyData.companyName,
+          slug: workspaceSlug,
           phone: companyData.phone || null,
           website: companyData.website || null,
           address: companyData.address || null,
@@ -108,17 +113,18 @@ export default function OnboardingContent() {
         }, { onConflict: 'owner_id' });
 
       if (wsError) {
-        console.error('[Onboarding] workspace upsert error:', wsError);
+        throw wsError;
       }
 
       // Update user profile
-      await supabase
+      const { error: profileError } = await supabase
         .from('user_profiles')
         .update({
           full_name: companyData.ownerName,
           company_name: companyData.companyName,
         })
         .eq('id', user.id);
+      if (profileError) throw profileError;
 
       setCurrentStep(2);
       toast.success('Company setup saved!');
@@ -157,17 +163,17 @@ export default function OnboardingContent() {
     if (!user) return;
     setSaving(true);
     try {
-      await supabase
+      const { error: finishError } = await supabase
         .from('user_profiles')
         .update({ onboarding_completed: true })
         .eq('id', user.id);
+      if (finishError) throw finishError;
 
       toast.success('Welcome to FixMy.Money! 🎉');
       router.push('/dashboard');
     } catch (err) {
       console.error('[Onboarding] finish error:', err);
-      // Still redirect even if update fails
-      router.push('/dashboard');
+      toast.error('We could not finish setting up your workspace. Please try again.');
     } finally {
       setSaving(false);
     }

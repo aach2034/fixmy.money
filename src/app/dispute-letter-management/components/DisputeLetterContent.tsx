@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, Plus, Filter, Download, Eye, Send, Copy, Trash2,
-  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X
+  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X, Printer
 } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
@@ -30,6 +30,7 @@ interface DisputeLetter {
   status: LetterStatus;
   assignedStaff: string;
   template: string;
+  letterContent: string;
 }
 
 const bureauConfig: Record<Bureau, { className: string; short: string }> = {
@@ -58,6 +59,7 @@ function mapRow(row: any): DisputeLetter {
     status: (row.letter_status ?? 'draft') as LetterStatus,
     assignedStaff: row.assigned_staff ?? '',
     template: row.template ?? 'FCRA Section 611',
+    letterContent: row.letter_content ?? '',
   };
 }
 
@@ -75,6 +77,7 @@ export default function DisputeLetterContent() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [previewLetter, setPreviewLetter] = useState<DisputeLetter | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 10;
 
@@ -134,13 +137,27 @@ export default function DisputeLetterContent() {
 
   const handleSendLetter = async (id: string, letterId: string, bureau: string) => {
     try {
+      const mailedDate = new Date();
+      const responseDue = new Date(mailedDate);
+      responseDue.setDate(responseDue.getDate() + 30);
       const { error: updError } = await supabase
         .from('dispute_letters')
-        .update({ letter_status: 'sent' })
+        .update({
+          letter_status: 'sent',
+          sent_date: mailedDate.toISOString().split('T')[0],
+          response_due_date: responseDue.toISOString().split('T')[0],
+          days_remaining: 30,
+        })
         .eq('id', id);
       if (updError) throw updError;
-      setLetters(prev => prev.map(l => l.id === id ? { ...l, status: 'sent' as LetterStatus } : l));
-      toast.success(`Letter ${letterId} sent to ${bureau}`);
+      setLetters(prev => prev.map(l => l.id === id ? {
+        ...l,
+        status: 'sent' as LetterStatus,
+        sentDate: mailedDate.toLocaleDateString('en-US'),
+        responseDueDate: responseDue.toLocaleDateString('en-US'),
+        daysRemaining: 30,
+      } : l));
+      toast.success(`Letter ${letterId} marked as mailed to ${bureau}`);
     } catch (err: any) {
       toast.error('Failed to send letter');
     }
@@ -180,6 +197,27 @@ export default function DisputeLetterContent() {
   const toggleAll = () => {
     if (selectedRows.size === paginated.length) setSelectedRows(new Set());
     else setSelectedRows(new Set(paginated.map(l => l.id)));
+  };
+
+  const markSelectedMailed = async () => {
+    const ids = Array.from(selectedRows);
+    if (!ids.length) return;
+    const mailedDate = new Date();
+    const responseDue = new Date(mailedDate);
+    responseDue.setDate(responseDue.getDate() + 30);
+    const { error: updateError } = await supabase.from('dispute_letters').update({
+      letter_status: 'sent',
+      sent_date: mailedDate.toISOString().split('T')[0],
+      response_due_date: responseDue.toISOString().split('T')[0],
+      days_remaining: 30,
+    }).in('id', ids);
+    if (updateError) { toast.error('Could not update the selected letters.'); return; }
+    setLetters(prev => prev.map(letter => ids.includes(letter.id) ? {
+      ...letter, status: 'sent', sentDate: mailedDate.toLocaleDateString('en-US'),
+      responseDueDate: responseDue.toLocaleDateString('en-US'), daysRemaining: 30,
+    } : letter));
+    setSelectedRows(new Set());
+    toast.success(`${ids.length} paper letter${ids.length === 1 ? '' : 's'} marked as mailed`);
   };
 
   const SortIcon = ({ field }: { field: SortField }) => (
@@ -241,7 +279,7 @@ export default function DisputeLetterContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Dispute Letters</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} letters · 30-day bureau response window tracked</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} letters · print, mail, and track paper correspondence</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="btn-secondary flex items-center gap-1.5">
@@ -251,6 +289,11 @@ export default function DisputeLetterContent() {
             <Plus size={15} /> Generate Letter
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3">
+        <Printer size={18} className="text-blue-600 shrink-0 mt-0.5" />
+        <div><p className="text-sm font-bold text-slate-900">Paper-mail workflow only</p><p className="text-xs text-slate-600 mt-1">Preview and print each letter, attach supporting documents, then mail it to the bureau, creditor, or collection agency. “Mark mailed” only records the date; FixMy.Money does not transmit the dispute electronically.</p></div>
       </div>
 
       {/* Stats */}
@@ -337,8 +380,8 @@ export default function DisputeLetterContent() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-foreground text-background rounded-xl px-5 py-3 shadow-xl slide-up">
           <span className="text-sm font-semibold">{selectedRows.size} selected</span>
           <div className="w-px h-4 bg-white/20" />
-          <button className="text-sm font-medium hover:text-white/80 transition-colors" onClick={() => toast.success(`Sent ${selectedRows.size} letters`)}>
-            Send Selected
+          <button className="text-sm font-medium hover:text-white/80 transition-colors" onClick={markSelectedMailed}>
+            Mark Selected Mailed
           </button>
           <button className="text-sm font-medium text-danger hover:text-red-300 transition-colors" onClick={() => toast.error(`Deleted ${selectedRows.size} drafts`)}>
             Delete Drafts
@@ -436,14 +479,14 @@ export default function DisputeLetterContent() {
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center gap-1">
-                          <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="View letter">
+                          <button onClick={() => setPreviewLetter(letter)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Print preview">
                             <Eye size={14} className="text-muted-foreground" />
                           </button>
                           {letter.status === 'draft' && (
                             <button
                               onClick={() => handleSendLetter(letter.id, letter.letterId, letter.bureau)}
                               className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors"
-                              title="Send letter to bureau"
+                              title="Mark paper letter as mailed"
                             >
                               <Send size={14} className="text-primary" />
                             </button>
@@ -488,6 +531,16 @@ export default function DisputeLetterContent() {
           </div>
         )}
       </div>
+
+      {previewLetter && (
+        <div className="fixed inset-0 z-[100] bg-black/60 p-4 flex items-center justify-center">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between"><div><h2 className="font-bold text-slate-900">Print preview · {previewLetter.letterId}</h2><p className="text-xs text-slate-500">{previewLetter.clientName} · {previewLetter.bureau} · paper mail only</p></div><button onClick={() => setPreviewLetter(null)} className="p-2 rounded-lg hover:bg-slate-100"><X size={17}/></button></div>
+            <div className="flex-1 overflow-auto bg-slate-100 p-4 sm:p-8"><div id="letter-print-preview" className="bg-white mx-auto max-w-[8.5in] min-h-[11in] p-[0.75in] shadow-sm"><pre className="whitespace-pre-wrap font-serif text-[12pt] leading-relaxed text-black">{previewLetter.letterContent || 'This legacy record does not contain printable letter content. Regenerate the letter to create a complete print copy.'}</pre></div></div>
+            <div className="p-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap"><p className="text-xs text-slate-500">Review names, addresses, account details, enclosures, and consumer authorization before printing.</p><div className="flex gap-2"><button onClick={() => window.print()} className="btn-secondary flex items-center gap-2"><Printer size={15}/>Print letter</button>{previewLetter.status === 'draft' && <button onClick={() => { handleSendLetter(previewLetter.id, previewLetter.letterId, previewLetter.bureau); setPreviewLetter(null); }} className="btn-primary flex items-center gap-2"><Send size={15}/>Mark mailed</button>}</div></div>
+          </div>
+        </div>
+      )}
 
       {/* Generate Letter Modal */}
       <Modal open={generateOpen} onClose={() => setGenerateOpen(false)} title="Generate Dispute Letter" subtitle="Create a new dispute letter for a client" size="lg">

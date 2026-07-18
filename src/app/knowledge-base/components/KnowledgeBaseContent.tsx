@@ -1,219 +1,28 @@
 'use client';
-import React, { useState } from 'react';
+
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  Search,
-  BookOpen,
-  FileText,
-  Users,
-  CreditCard,
-  Shield,
-  MessageSquare,
-  BarChart3,
-  ChevronRight,
-  Zap,
-  Star,
-} from 'lucide-react';
+import { ArrowLeft, BookOpen, CreditCard, FileSearch, Search, Shield, Users } from 'lucide-react';
 
-const categories = [
-  {
-    icon: Zap,
-    title: 'Getting Started',
-    color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    articles: [
-      'Setting up your FixMy.Money account',
-      'Importing your first clients',
-      'Configuring your white label portal',
-      'Connecting your payment processor',
-      'Inviting team members',
-    ],
-  },
-  {
-    icon: FileText,
-    title: 'Dispute Management',
-    color: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-    articles: [
-      'How automated disputes work',
-      'Customizing dispute letter templates',
-      'Tracking bureau responses',
-      'Managing round 2 and round 3 disputes',
-      'Understanding dispute success rates',
-    ],
-  },
-  {
-    icon: Users,
-    title: 'Client Management',
-    color: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    articles: [
-      'Adding and onboarding clients',
-      'Using the client pipeline stages',
-      'Setting up automated follow-ups',
-      'Client portal walkthrough',
-      'Managing client documents',
-    ],
-  },
-  {
-    icon: CreditCard,
-    title: 'Billing & Payments',
-    color: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    articles: [
-      'Setting up recurring billing',
-      'Creating payment plans',
-      'Handling failed payments',
-      'Issuing refunds',
-      'Understanding your revenue dashboard',
-    ],
-  },
-  {
-    icon: Shield,
-    title: 'Compliance & Legal',
-    color: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-    articles: [
-      'CROA compliance overview',
-      'Required disclosures and contracts',
-      'Audit trail and record keeping',
-      'State-specific regulations',
-      'Dispute letter compliance guidelines',
-    ],
-  },
-  {
-    icon: BarChart3,
-    title: 'Reports & Analytics',
-    color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-    articles: [
-      'Understanding your dashboard metrics',
-      'Revenue forecasting explained',
-      'Client risk score methodology',
-      'Exporting reports',
-      'Setting up automated reports',
-    ],
-  },
-];
-
-const popularArticles = [
-  { title: 'How to set up your white label client portal', views: '4.2k', category: 'Getting Started' },
-  { title: 'CROA compliance checklist for credit repair businesses', views: '3.8k', category: 'Compliance' },
-  { title: 'Automating dispute letters: step-by-step guide', views: '3.1k', category: 'Disputes' },
-  { title: 'Setting up recurring billing for your clients', views: '2.9k', category: 'Billing' },
-  { title: 'Understanding the client risk score', views: '2.4k', category: 'Analytics' },
+const ARTICLES = [
+  { id: 'first-client', category: 'Getting started', title: 'Add and onboard your first client', summary: 'Create a client record and prepare it for report import.', icon: Users, steps: ['Open Clients and choose Add client.', 'Enter the client’s contact details and service status.', 'Save the record before importing a report so every document stays tied to the correct client.', 'Use the next-action fields to keep follow-ups visible on the dashboard.'] },
+  { id: 'import-report', category: 'Credit workflow', title: 'Import and review a credit report', summary: 'Turn a supported credit report into reviewable negative items.', icon: FileSearch, steps: ['Open Import Report and select the correct client.', 'Upload the report and wait for parsing to finish.', 'Review the parser confidence and every extracted account.', 'Correct any item before saving it to the client workspace.', 'Only saved negative items appear in Credit Audit and dispute workflows.'] },
+  { id: 'credit-audit', category: 'Credit workflow', title: 'Run a client credit audit', summary: 'Create an audit from the client’s saved negative items.', icon: Shield, steps: ['Open Credit Audit and choose a client.', 'Select Run audit.', 'Review bureau totals, item categories, balances, and suggested priorities.', 'Confirm the source report before using an audit to prepare a dispute.', 'The audit never invents items; an empty report produces an empty audit.'] },
+  { id: 'business-billing', category: 'Billing', title: 'Manage your FixMy.Money subscription', summary: 'Update the payment method your business uses to pay FixMy.Money.', icon: CreditCard, steps: ['Open Billing from the sidebar.', 'In Your FixMy.Money subscription, choose Manage my subscription.', 'Use the secure Stripe portal to update your card, view invoices, change plans, or cancel.', 'Return to FixMy.Money when finished.'] },
+  { id: 'client-billing', category: 'Billing', title: 'Track billing for your clients', summary: 'Keep client payment status separate from your software subscription.', icon: CreditCard, steps: ['Open Billing and scroll to Client billing tracker.', 'Each row comes from a real client in your workspace.', 'Update a client’s status from the client management workflow.', 'Paid, overdue, and pending totals update from those records.'] },
+  { id: 'workspace-security', category: 'Security', title: 'How business workspaces stay private', summary: 'Understand account ownership and tenant isolation.', icon: Shield, steps: ['Every business owner signs in with a unique verified email and password.', 'Onboarding creates a business workspace owned by that account.', 'Client, report, dispute, and billing queries are restricted to the signed-in owner.', 'Never share account credentials; add separate staff access only through approved team features.'] },
 ];
 
 export default function KnowledgeBaseContent() {
-  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const filtered = useMemo(() => ARTICLES.filter(a => `${a.title} ${a.summary} ${a.category}`.toLowerCase().includes(search.toLowerCase())), [search]);
+  const selected = ARTICLES.find(a => a.id === selectedId);
 
-  const filteredCategories = categories?.map((cat) => ({
-    ...cat,
-    articles: cat?.articles?.filter((a) =>
-      query === '' || a?.toLowerCase()?.includes(query?.toLowerCase())
-    ),
-  }))?.filter((cat) => query === '' || cat?.articles?.length > 0);
+  if (selected) {
+    const Icon = selected.icon;
+    return <div className="p-4 sm:p-6 max-w-3xl mx-auto"><button onClick={() => setSelectedId(null)} className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:underline"><ArrowLeft size={15}/>Back to all guides</button><article className="mt-5 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8"><div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><Icon size={21}/></div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 mt-5">{selected.category}</p><h1 className="text-2xl font-bold text-slate-900 mt-2">{selected.title}</h1><p className="text-slate-500 mt-2">{selected.summary}</p><ol className="mt-7 space-y-4">{selected.steps.map((step, index) => <li key={step} className="flex gap-4"><span className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shrink-0">{index + 1}</span><p className="text-sm text-slate-700 pt-1">{step}</p></li>)}</ol></article></div>;
+  }
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Dashboard-style page header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
-            <BookOpen size={18} className="text-emerald-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Knowledge Base</h1>
-            <p className="text-sm text-slate-500">Guides, tutorials, and documentation for credit repair professionals.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-6 py-8 max-w-7xl mx-auto">
-        {/* Search */}
-        <div className="relative mb-8 max-w-2xl">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e?.target?.value)}
-            placeholder="Search articles, guides, tutorials..."
-            className="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors shadow-sm"
-          />
-        </div>
-
-        {/* Popular Articles */}
-        {query === '' && (
-          <div className="mb-10">
-            <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Star size={16} className="text-amber-500" />
-              Popular Articles
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {popularArticles?.map((article) => (
-                <div
-                  key={article?.title}
-                  className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors font-medium leading-snug">
-                      {article?.title}
-                    </p>
-                    <ChevronRight size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors shrink-0 mt-0.5" />
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">{article?.category}</span>
-                    <span className="text-xs text-slate-400">{article?.views} views</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Categories */}
-        <div>
-          <h2 className="text-base font-bold text-slate-800 mb-5">
-            {query ? `Results for "${query}"` : 'Browse by Category'}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredCategories?.map((cat) => {
-              const CatIcon = cat?.icon;
-              return (
-                <div key={cat?.title} className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 hover:shadow-sm transition-all">
-                  <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-4 ${cat?.color}`}>
-                    <CatIcon size={18} />
-                  </div>
-                  <h3 className="font-bold text-slate-900 mb-4">{cat?.title}</h3>
-                  <ul className="space-y-2.5">
-                    {cat?.articles?.map((article) => (
-                      <li key={article}>
-                        <button className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors text-left group w-full">
-                          <ChevronRight size={13} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
-                          {article}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Contact Support */}
-        <div className="mt-10 bg-white border border-slate-200 rounded-2xl p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-              <MessageSquare size={22} className="text-blue-600" />
-            </div>
-            <div>
-              <p className="font-bold text-slate-900">Can't find what you're looking for?</p>
-              <p className="text-sm text-slate-500">Our support team typically responds within 2 hours.</p>
-            </div>
-          </div>
-          <Link
-            href="/live-chat"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors whitespace-nowrap"
-          >
-            Contact Support
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6"><div><div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><BookOpen size={22}/></div><h1 className="text-2xl font-bold text-slate-900 mt-4">Knowledge base</h1><p className="text-sm text-slate-500 mt-1">Working guides for the FixMy.Money business platform.</p></div><div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search setup, credit audits, billing, or security…" className="w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"/></div><div className="grid md:grid-cols-2 gap-4">{filtered.map(article => { const Icon = article.icon; return <button key={article.id} onClick={() => setSelectedId(article.id)} className="text-left rounded-2xl border border-slate-200 bg-white p-5 hover:border-blue-300 hover:shadow-sm transition-all"><div className="flex gap-4"><div className="w-10 h-10 rounded-xl bg-slate-50 text-blue-600 flex items-center justify-center shrink-0"><Icon size={19}/></div><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{article.category}</p><h2 className="font-bold text-slate-900 mt-1">{article.title}</h2><p className="text-sm text-slate-500 mt-2">{article.summary}</p><span className="inline-block text-sm font-bold text-blue-600 mt-3">Read guide →</span></div></div></button>; })}</div>{filtered.length === 0 && <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">No guides match that search.</div>}<div className="rounded-2xl bg-slate-900 p-6 text-white flex items-center justify-between gap-4 flex-wrap"><div><p className="font-bold">Need help with your workspace?</p><p className="text-sm text-slate-300 mt-1">Open support chat from inside your secure account.</p></div><Link href="/live-chat" className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-slate-900">Contact support</Link></div></div>;
 }

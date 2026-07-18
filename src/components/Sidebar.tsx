@@ -12,7 +12,7 @@ const NAV_SECTIONS = [
     label: 'Main',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/client-management', label: 'Clients', icon: Users, badge: 3 },
+      { href: '/client-management', label: 'Clients', icon: Users },
       { href: '/client-pipeline', label: 'Leads', icon: Target },
     ],
   },
@@ -21,7 +21,7 @@ const NAV_SECTIONS = [
     items: [
       { href: '/credit-report-import', label: 'Import Report', icon: ScanSearch },
       { href: '/credit-audit', label: 'Credit Audit', icon: BarChart3 },
-      { href: '/disputes', label: 'Disputes', icon: Shield, badge: 7 },
+      { href: '/disputes', label: 'Disputes', icon: Shield },
       { href: '/dispute-wizard', label: 'Dispute Wizard', icon: CheckCircle2 },
       { href: '/dispute-letter-management', label: 'Letters', icon: FileText },
     ],
@@ -36,7 +36,7 @@ const NAV_SECTIONS = [
   {
     label: 'Business',
     items: [
-      { href: '/billing-subscriptions', label: 'Billing', icon: CreditCard, badge: 2 },
+      { href: '/billing-subscriptions', label: 'Billing', icon: CreditCard },
       { href: '/revenue-forecasting', label: 'Revenue', icon: BarChart3 },
       { href: '/workflow-task-management', label: 'Automation', icon: GitBranch },
       { href: '/appointments', label: 'Appointments', icon: Calendar },
@@ -241,18 +241,13 @@ export default function Sidebar() {
 
         {/* Notifications */}
         <div className="relative group mb-0.5">
-          <button className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}>
+          <Link href="/notifications" className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}>
             <Bell size={17} className="shrink-0" />
-            {!collapsed && (
-              <>
-                <span className="flex-1 text-left">Notifications</span>
-                <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">4</span>
-              </>
-            )}
-          </button>
+            {!collapsed && <span className="flex-1 text-left">Notifications</span>}
+          </Link>
           {collapsed && (
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-              Notifications (4)
+              Notifications
             </div>
           )}
         </div>
