@@ -237,6 +237,14 @@ export default function HomepageContent() {
         </div>
       )}
 
+      {/* SERVICE UPDATE */}
+      <div className="border-b border-emerald-200 bg-emerald-50 text-emerald-950" role="status">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2.5 text-center text-sm font-semibold sm:px-6 lg:px-8">
+          <CheckCircle2 size={17} className="shrink-0 text-emerald-600" aria-hidden="true" />
+          <span>Service update: FixMy.Money is fully operational, including secure trial and subscription billing.</span>
+        </div>
+      </div>
+
       {/* NAVBAR */}
       <header className={`sticky top-0 left-0 right-0 z-40 transition-all duration-200 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
