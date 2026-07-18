@@ -1,0 +1,498 @@
+'use client';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Search, Plus, Filter, Download, Eye, Send, Copy, Trash2,
+  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X
+} from 'lucide-react';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Modal from '@/components/ui/Modal';
+import EmptyState from '@/components/ui/EmptyState';
+import GenerateLetterForm from './GenerateLetterForm';
+import { toast } from 'sonner';
+import { FileText } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+
+import { createClient } from '@/lib/supabase/client';
+
+type Bureau = 'Equifax' | 'Experian' | 'TransUnion';
+type LetterStatus = 'draft' | 'sent' | 'awaiting' | 'received' | 'escalated' | 'closed';
+
+interface DisputeLetter {
+  id: string;
+  letterId: string;
+  clientName: string;
+  bureau: Bureau;
+  itemsCount: number;
+  round: number;
+  sentDate: string;
+  responseDueDate: string;
+  daysRemaining: number;
+  status: LetterStatus;
+  assignedStaff: string;
+  template: string;
+}
+
+const bureauConfig: Record<Bureau, { className: string; short: string }> = {
+  Equifax: { className: 'bureau-eq', short: 'EQ' },
+  Experian: { className: 'bureau-ex', short: 'EX' },
+  TransUnion: { className: 'bureau-tu', short: 'TU' },
+};
+
+type SortField = 'clientName' | 'bureau' | 'sentDate' | 'daysRemaining' | 'itemsCount';
+
+function mapRow(row: any): DisputeLetter {
+  return {
+    id: row.id,
+    letterId: row.letter_id ?? '',
+    clientName: row.client_name ?? '',
+    bureau: (row.bureau ?? 'Equifax') as Bureau,
+    itemsCount: row.items_count ?? 0,
+    round: row.round ?? 1,
+    sentDate: row.sent_date
+      ? new Date(row.sent_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+      : '',
+    responseDueDate: row.response_due_date
+      ? new Date(row.response_due_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+      : '',
+    daysRemaining: row.days_remaining ?? 0,
+    status: (row.letter_status ?? 'draft') as LetterStatus,
+    assignedStaff: row.assigned_staff ?? '',
+    template: row.template ?? 'FCRA Section 611',
+  };
+}
+
+export default function DisputeLetterContent() {
+  const [letters, setLetters] = useState<DisputeLetter[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [bureauFilter, setBureauFilter] = useState('All Bureaus');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [urgencyFilter, setUrgencyFilter] = useState('All');
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('daysRemaining');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 10;
+
+  const supabase = createClient();
+  const searchParams = useSearchParams();
+
+  // Auto-open generate modal if navigated from Disputes page with params
+  useEffect(() => {
+    const clientId = searchParams.get('clientId');
+    const disputeId = searchParams.get('disputeId');
+    if (clientId || disputeId) {
+      setGenerateOpen(true);
+    }
+  }, [searchParams]);
+
+  const fetchLetters = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
+      const { data, error: fetchError } = await supabase
+        .from('dispute_letters')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        if (fetchError.code?.startsWith('42')) throw fetchError;
+        setError(fetchError.message);
+        return;
+      }
+      setLetters((data ?? []).map(mapRow));
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to load dispute letters');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchLetters(); }, [fetchLetters]);
+
+  const handleDeleteLetter = async (id: string, letterId: string) => {
+    try {
+      const { error: delError } = await supabase
+        .from('dispute_letters')
+        .delete()
+        .eq('id', id);
+      if (delError) throw delError;
+      setLetters(prev => prev.filter(l => l.id !== id));
+      toast.error(`Letter ${letterId} deleted`);
+    } catch (err: any) {
+      toast.error('Failed to delete letter');
+    }
+  };
+
+  const handleSendLetter = async (id: string, letterId: string, bureau: string) => {
+    try {
+      const { error: updError } = await supabase
+        .from('dispute_letters')
+        .update({ letter_status: 'sent' })
+        .eq('id', id);
+      if (updError) throw updError;
+      setLetters(prev => prev.map(l => l.id === id ? { ...l, status: 'sent' as LetterStatus } : l));
+      toast.success(`Letter ${letterId} sent to ${bureau}`);
+    } catch (err: any) {
+      toast.error('Failed to send letter');
+    }
+  };
+
+  const filtered = useMemo(() => {
+    let data = [...letters];
+    if (search) data = data.filter(l => l.clientName.toLowerCase().includes(search.toLowerCase()) || l.letterId.toLowerCase().includes(search.toLowerCase()));
+    if (bureauFilter !== 'All Bureaus') data = data.filter(l => l.bureau === bureauFilter);
+    if (statusFilter !== 'All Statuses') data = data.filter(l => l.status === statusFilter);
+    if (urgencyFilter === 'Due Soon') data = data.filter(l => l.daysRemaining >= 0 && l.daysRemaining <= 7);
+    if (urgencyFilter === 'Overdue') data = data.filter(l => l.daysRemaining < 0);
+    data.sort((a, b) => {
+      const av = a[sortField] as string | number;
+      const bv = b[sortField] as string | number;
+      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+    return data;
+  }, [letters, search, bureauFilter, statusFilter, urgencyFilter, sortField, sortDir]);
+
+  const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+  const totalPages = Math.ceil(filtered.length / perPage);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const toggleRow = (id: string) => {
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedRows.size === paginated.length) setSelectedRows(new Set());
+    else setSelectedRows(new Set(paginated.map(l => l.id)));
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => (
+    <span className="ml-1 inline-flex flex-col">
+      <ChevronUp size={10} className={sortField === field && sortDir === 'asc' ? 'text-primary' : 'text-muted-foreground/40'} />
+      <ChevronDown size={10} className={sortField === field && sortDir === 'desc' ? 'text-primary' : 'text-muted-foreground/40'} />
+    </span>
+  );
+
+  const getDaysLabel = (days: number) => {
+    if (days < 0) return { label: `${Math.abs(days)}d overdue`, className: 'bg-danger/10 text-danger border-danger/20' };
+    if (days <= 5) return { label: `${days}d left`, className: 'bg-danger/10 text-danger border-danger/20' };
+    if (days <= 10) return { label: `${days}d left`, className: 'bg-warning/10 text-warning border-warning/20' };
+    return { label: `${days}d left`, className: 'bg-muted text-muted-foreground border-border' };
+  };
+
+  const statsData = [
+    { label: 'Total Letters', value: letters.length, icon: FileText, bg: 'bg-primary/10', color: 'text-primary' },
+    { label: 'Awaiting Response', value: letters.filter(l => l.status === 'awaiting').length, icon: Clock, bg: 'bg-warning/10', color: 'text-warning' },
+    { label: 'Due This Week', value: letters.filter(l => l.daysRemaining >= 0 && l.daysRemaining <= 7).length, icon: AlertTriangle, bg: 'bg-danger/10', color: 'text-danger' },
+    { label: 'Responses Received', value: letters.filter(l => l.status === 'received' || l.status === 'closed').length, icon: CheckCircle2, bg: 'bg-success/10', color: 'text-success' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Dispute Letters</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Loading letters…</p>
+          </div>
+        </div>
+        <div className="card p-8 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading dispute letters…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-screen-2xl mx-auto">
+        <div className="card p-8 flex flex-col items-center gap-3 text-center">
+          <AlertTriangle size={32} className="text-danger" />
+          <p className="text-sm font-semibold text-foreground">Failed to load dispute letters</p>
+          <p className="text-xs text-muted-foreground">{error}</p>
+          <button onClick={fetchLetters} className="btn-primary mt-2">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Dispute Letters</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} letters · 30-day bureau response window tracked</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary flex items-center gap-1.5">
+            <Download size={15} /> Export
+          </button>
+          <button onClick={() => setGenerateOpen(true)} className="btn-primary flex items-center gap-1.5">
+            <Plus size={15} /> Generate Letter
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {statsData.map(s => {
+          const StatIcon = s.icon;
+          return (
+            <div key={`dlstat-${s.label}`} className="card p-4 flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
+                <StatIcon size={17} className={s.color} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-foreground tabular-nums">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Search + Filters */}
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by client name or letter ID..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+              className="input-field pl-9"
+            />
+          </div>
+          {/* Quick urgency filter chips */}
+          <div className="flex items-center gap-1.5">
+            {['All', 'Due Soon', 'Overdue'].map(u => (
+              <button
+                key={`urgency-${u}`}
+                onClick={() => { setUrgencyFilter(u); setCurrentPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 border ${
+                  urgencyFilter === u
+                    ? u === 'Overdue' ? 'bg-danger/10 text-danger border-danger/30' : u === 'Due Soon' ? 'bg-warning/10 text-warning border-warning/30' : 'bg-primary/10 text-primary border-primary/30' :'bg-card text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn-secondary flex items-center gap-1.5 ${showFilters ? 'bg-primary/10 text-primary' : ''}`}
+          >
+            <Filter size={15} /> Filters
+          </button>
+        </div>
+        {showFilters && (
+          <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-border fade-in">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Bureau</label>
+              <select value={bureauFilter} onChange={e => { setBureauFilter(e.target.value); setCurrentPage(1); }} className="input-field text-xs py-1.5 w-36">
+                {['All Bureaus', 'Equifax', 'Experian', 'TransUnion'].map(o => <option key={`bf-${o}`} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="input-field text-xs py-1.5 w-40">
+                {['All Statuses', 'draft', 'sent', 'awaiting', 'received', 'escalated', 'closed'].map(o => (
+                  <option key={`sf-${o}`} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => { setBureauFilter('All Bureaus'); setStatusFilter('All Statuses'); setUrgencyFilter('All'); }}
+              className="btn-ghost flex items-center gap-1 text-xs"
+            >
+              <X size={12} /> Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bulk Action Bar */}
+      {selectedRows.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-foreground text-background rounded-xl px-5 py-3 shadow-xl slide-up">
+          <span className="text-sm font-semibold">{selectedRows.size} selected</span>
+          <div className="w-px h-4 bg-white/20" />
+          <button className="text-sm font-medium hover:text-white/80 transition-colors" onClick={() => toast.success(`Sent ${selectedRows.size} letters`)}>
+            Send Selected
+          </button>
+          <button className="text-sm font-medium text-danger hover:text-red-300 transition-colors" onClick={() => toast.error(`Deleted ${selectedRows.size} drafts`)}>
+            Delete Drafts
+          </button>
+          <button onClick={() => setSelectedRows(new Set())} className="ml-2 p-1 hover:bg-white/10 rounded transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px]">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="table-header w-10">
+                  <input type="checkbox" checked={selectedRows.size === paginated.length && paginated.length > 0} onChange={toggleAll} className="w-4 h-4 rounded border-input accent-primary" aria-label="Select all" />
+                </th>
+                <th className="table-header">Letter ID</th>
+                <th className="table-header cursor-pointer select-none" onClick={() => toggleSort('clientName')}>
+                  <span className="flex items-center">Client <SortIcon field="clientName" /></span>
+                </th>
+                <th className="table-header cursor-pointer select-none" onClick={() => toggleSort('bureau')}>
+                  <span className="flex items-center">Bureau <SortIcon field="bureau" /></span>
+                </th>
+                <th className="table-header cursor-pointer select-none" onClick={() => toggleSort('itemsCount')}>
+                  <span className="flex items-center">Items <SortIcon field="itemsCount" /></span>
+                </th>
+                <th className="table-header">Round</th>
+                <th className="table-header cursor-pointer select-none" onClick={() => toggleSort('sentDate')}>
+                  <span className="flex items-center">Sent Date <SortIcon field="sentDate" /></span>
+                </th>
+                <th className="table-header cursor-pointer select-none" onClick={() => toggleSort('daysRemaining')}>
+                  <span className="flex items-center">Response Due <SortIcon field="daysRemaining" /></span>
+                </th>
+                <th className="table-header">Status</th>
+                <th className="table-header w-24">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={10}>
+                    <EmptyState
+                      icon={FileText}
+                      title="No dispute letters found"
+                      description="No letters match your current filters. Generate a new dispute letter to get started."
+                      action={{ label: 'Generate Letter', onClick: () => setGenerateOpen(true) }}
+                    />
+                  </td>
+                </tr>
+              ) : (
+                paginated.map(letter => {
+                  const bc = bureauConfig[letter.bureau] ?? { className: '', short: letter.bureau };
+                  const dl = getDaysLabel(letter.daysRemaining);
+                  return (
+                    <tr key={letter.id} className={`border-b border-border row-hover ${selectedRows.has(letter.id) ? 'bg-primary/5' : ''}`}>
+                      <td className="table-cell">
+                        <input type="checkbox" checked={selectedRows.has(letter.id)} onChange={() => toggleRow(letter.id)} className="w-4 h-4 rounded border-input accent-primary" aria-label={`Select ${letter.letterId}`} />
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-mono text-xs font-semibold text-foreground bg-muted px-2 py-1 rounded">{letter.letterId}</span>
+                      </td>
+                      <td className="table-cell">
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{letter.clientName}</p>
+                          <p className="text-xs text-muted-foreground">{letter.template}</p>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <span className={`badge ${bc.className}`}>{letter.bureau}</span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="font-semibold text-foreground tabular-nums">{letter.itemsCount}</span>
+                        <span className="text-xs text-muted-foreground ml-1">items</span>
+                      </td>
+                      <td className="table-cell">
+                        <span className="badge bg-muted text-muted-foreground border-border">Round {letter.round}</span>
+                      </td>
+                      <td className="table-cell text-muted-foreground text-sm">{letter.sentDate}</td>
+                      <td className="table-cell">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">{letter.responseDueDate}</p>
+                          {letter.status !== 'draft' && letter.status !== 'closed' && (
+                            <span className={`badge ${dl.className}`}>
+                              {letter.daysRemaining < 0 ? <AlertTriangle size={10} className="mr-1" /> : <Clock size={10} className="mr-1" />}
+                              {dl.label}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <StatusBadge status={letter.status} />
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center gap-1">
+                          <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="View letter">
+                            <Eye size={14} className="text-muted-foreground" />
+                          </button>
+                          {letter.status === 'draft' && (
+                            <button
+                              onClick={() => handleSendLetter(letter.id, letter.letterId, letter.bureau)}
+                              className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors"
+                              title="Send letter to bureau"
+                            >
+                              <Send size={14} className="text-primary" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => toast.success(`Letter ${letter.letterId} duplicated`)}
+                            className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+                            title="Duplicate letter"
+                          >
+                            <Copy size={14} className="text-muted-foreground" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLetter(letter.id, letter.letterId)}
+                            className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors"
+                            title="Delete letter — this cannot be undone"
+                          >
+                            <Trash2 size={14} className="text-muted-foreground hover:text-danger" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Showing {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, filtered.length)} of {filtered.length} letters
+            </p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="btn-ghost px-2 py-1 text-xs disabled:opacity-40">Previous</button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button key={`dlpage-${i + 1}`} onClick={() => setCurrentPage(i + 1)} className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${currentPage === i + 1 ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}>{i + 1}</button>
+              ))}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="btn-ghost px-2 py-1 text-xs disabled:opacity-40">Next</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Generate Letter Modal */}
+      <Modal open={generateOpen} onClose={() => setGenerateOpen(false)} title="Generate Dispute Letter" subtitle="Create a new dispute letter for a client" size="lg">
+        <GenerateLetterForm onClose={() => { setGenerateOpen(false); fetchLetters(); }} />
+      </Modal>
+    </div>
+  );
+}

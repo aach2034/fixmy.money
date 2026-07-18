@@ -1,0 +1,15 @@
+# Local Netlify folder
+.netlify
+
+# Dependencies and generated builds
+node_modules
+.next
+dist
+
+# Local runtime configuration
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.wrangler

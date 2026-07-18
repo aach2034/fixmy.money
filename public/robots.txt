@@ -1,0 +1,39 @@
+User-agent: *
+Allow: /
+
+# Private / protected pages — do not index
+Disallow: /api/
+Disallow: /_next/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /sign-up-login-screen/
+Disallow: /workspace-setup/
+Disallow: /onboarding/
+Disallow: /checkout/
+Disallow: /client-portal/dashboard/
+Disallow: /launch-submissions/
+Disallow: /billing-subscriptions/
+Disallow: /client-management/
+Disallow: /workflow-task-management/
+Disallow: /revenue-forecasting/
+Disallow: /financial-health/
+Disallow: /appointments/
+Disallow: /live-chat/
+Disallow: /ai-dispute-analyzer/
+Disallow: /ai-financial-coach/
+Disallow: /dispute-letter-management/
+Disallow: /disputes/
+Disallow: /finance/
+Disallow: /debt-elimination/
+Disallow: /credit-repair-automation/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /client-pipeline/
+
+# Auth pages — allow indexing for login/signup
+Allow: /login
+Allow: /signup
+Allow: /forgot-password
+
+Sitemap: https://fixmy.money/sitemap.xml
