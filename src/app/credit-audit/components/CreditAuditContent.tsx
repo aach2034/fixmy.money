@@ -76,13 +76,19 @@ export default function CreditAuditContent() {
 
       const { data: savedItems, error: itemsError } = await supabase
         .from('negative_items')
-        .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status')
+        .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, is_negative')
         .eq('owner_id', user.id)
-        .eq('client_id', client.id);
+        .eq('client_id', client.id)
+        // The import table also stores positive tradelines for review. Audits
+        // must only include genuinely negative rows and hard inquiries.
+        .or('is_negative.eq.true,negative_category.eq.hard_inquiry');
       if (itemsError) throw itemsError;
 
       const items = savedItems ?? [];
-      const negativeItems = items.filter((d: any) => !['deleted', 'closed'].includes(d.dispute_status));
+      const negativeItems = items.filter((d: any) =>
+        !['deleted', 'closed'].includes(d.dispute_status) &&
+        (d.is_negative === true || d.negative_category === 'hard_inquiry')
+      );
 
       const bureauMap: Record<string, { count: number; items: string[] }> = {};
       let collectionCount = 0, latePaymentCount = 0, inquiryCount = 0, chargeOffCount = 0, bankruptcyCount = 0;

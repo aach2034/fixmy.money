@@ -148,7 +148,7 @@ export default function Sidebar() {
             <span className="text-white font-bold text-xs">FM</span>
           </div>
         ) : (
-          <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto" priority />
+          <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto" priority unoptimized />
         )}
       </div>
 
