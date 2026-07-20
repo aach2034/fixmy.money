@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
+import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
 
 type ClientRow = {
   id: string;
@@ -67,7 +68,8 @@ export default function DashboardContent() {
           .select('id, name, case_stage, subscription_status, active_disputes, items_deleted, next_task_due, next_task_label, updated_at')
           .eq('owner_id', user.id).order('updated_at', { ascending: false }),
         supabase.from('negative_items')
-          .select('dispute_status, tag_status, is_negative, is_selected').eq('owner_id', user.id),
+          .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, tag_status, is_negative, is_selected, parser_confidence, account_number_masked, date_reported')
+          .eq('owner_id', user.id),
       ]);
 
       if (profileResult.error) throw profileResult.error;
@@ -77,8 +79,10 @@ export default function DashboardContent() {
       const items = itemsResult.error ? [] : (itemsResult.data ?? []);
       const activeStatuses = new Set(['ready', 'generated', 'sent', 'waiting_for_response', 'escalated']);
       const completedStatuses = new Set(['updated', 'deleted', 'closed']);
-      const actualNegativeItems = items.filter((item: any) => item.is_negative === true);
-      const taggedDisputes = items.filter((item: any) =>
+      // Use the exact same finalized item set as Credit Audit so raw saved rows
+      // and parser duplicates cannot inflate or diverge from the audit total.
+      const actualNegativeItems = selectReliableAuditItems(items as SavedAuditItem[]);
+      const taggedDisputes = actualNegativeItems.filter((item: any) =>
         (item.tag_status === 'dispute' || item.is_selected === true) && activeStatuses.has(item.dispute_status)
       );
 
