@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { ChevronRight, ChevronLeft, User, Building2, FileText, AlertTriangle, CheckCircle2, Paperclip, Send, Clock, Info, Loader2 } from 'lucide-react';
 
 import { useSearchParams } from 'next/navigation';
+import { deduplicateDisputeRows } from '@/lib/creditReport/disputeItems';
 
 
 interface WizardClient { id: string; name: string; email?: string; }
@@ -185,7 +186,7 @@ export default function DisputeWizardContent() {
         }
 
         if (negativeData && negativeData.length > 0) {
-          setDisputeItems(negativeData.map((d: any) => ({
+          setDisputeItems(deduplicateDisputeRows(negativeData).map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_category ?? 'Item'}`,
             type: d.negative_category ?? 'other',
@@ -205,7 +206,7 @@ export default function DisputeWizardContent() {
             .eq('client_id', selectedClient.id)
             .eq('bureau', selectedBureau)
             .not('dispute_status', 'eq', 'resolved');
-          setDisputeItems((legacyData ?? []).map((d: any) => ({
+          setDisputeItems(deduplicateDisputeRows(legacyData ?? []).map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_item_type ?? 'Item'}`,
             type: d.negative_item_type ?? 'other',
