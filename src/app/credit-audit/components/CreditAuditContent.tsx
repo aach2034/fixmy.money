@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, Download, Loader2, TrendingDown, FileText, Clock, Users, BarChart2, Info } from 'lucide-react';
+import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
 
 interface AuditClient {
   id: string;
@@ -76,7 +77,7 @@ export default function CreditAuditContent() {
 
       const { data: savedItems, error: itemsError } = await supabase
         .from('negative_items')
-        .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, is_negative')
+        .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, is_negative, parser_confidence, account_number_masked, date_reported')
         .eq('owner_id', user.id)
         .eq('client_id', client.id)
         // The import table also stores positive tradelines for review. Audits
@@ -84,11 +85,7 @@ export default function CreditAuditContent() {
         .or('is_negative.eq.true,negative_category.eq.hard_inquiry');
       if (itemsError) throw itemsError;
 
-      const items = savedItems ?? [];
-      const negativeItems = items.filter((d: any) =>
-        !['deleted', 'closed'].includes(d.dispute_status) &&
-        (d.is_negative === true || d.negative_category === 'hard_inquiry')
-      );
+      const negativeItems = selectReliableAuditItems((savedItems ?? []) as SavedAuditItem[]);
 
       const bureauMap: Record<string, { count: number; items: string[] }> = {};
       let collectionCount = 0, latePaymentCount = 0, inquiryCount = 0, chargeOffCount = 0, bankruptcyCount = 0;
