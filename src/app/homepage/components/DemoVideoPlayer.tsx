@@ -153,7 +153,7 @@ export default function DemoVideoPlayer({
             playsInline
             className="w-full h-full object-contain"
             style={{ background: '#0D1B2A' }}
-            aria-label="FixMy.Money platform demo — AI-powered credit repair dashboard with client management, dispute workflows, and billing tools"
+            aria-label="FixMy.Money platform demo — evidence-first agency workflow with client management, human-approved disputes, and billing tools"
           />
           {/* Inner blue glow overlay */}
           <div

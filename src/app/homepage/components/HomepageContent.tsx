@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { trackTrialSignup, trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
-import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, CreditCard, Lock, Sparkles, GitBranch, Shield, Zap, Brain, Bot, Check, AlertTriangle, Building2, TrendingUp, Inbox, BookOpen, LayoutDashboard, ClipboardList, UserPlus, Upload, Send, DollarSign, ChevronRight, Play, ArrowRight, Search } from 'lucide-react';
+import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, Lock, Sparkles, Shield, Check, AlertTriangle, Building2, TrendingUp, LayoutDashboard, ClipboardList, UserPlus, Upload, DollarSign, ArrowRight, Search, Database, KeyRound, History, ScanLine } from 'lucide-react';
 import DemoVideoPlayer from './DemoVideoPlayer';
 
 const NAV_LINKS = [
@@ -57,8 +57,8 @@ const PLANS = [
     id: 'professional',
     name: 'Professional',
     price: 129,
-    description: 'For growing agencies that need automation and AI tools.',
-    features: ['100 active clients', '5 team members', 'Everything in Starter', 'AI Credit Analysis', 'AI Dispute Generator', 'Task Automation', 'Workflow Templates', 'Lead Intake Forms', 'Priority Support'],
+    description: 'For growing agencies with team-based evidence review.',
+    features: ['100 active clients', '5 team members', 'Everything in Starter', 'Structured report review', 'Evidence-linked draft assistance', 'Named verification and approval', 'Workflow templates', 'Response tracking', 'Priority Support'],
     highlight: true,
     badge: 'Most Popular',
   },
@@ -66,8 +66,8 @@ const PLANS = [
     id: 'agency',
     name: 'Agency',
     price: 249,
-    description: 'For larger teams, higher volume, and advanced workflows.',
-    features: ['Unlimited clients', '15 team members', 'Everything in Professional', 'White-Label Portal', 'Agency Dashboard', '100 GB storage', 'API Access', 'Priority support'],
+    description: 'For larger teams that need stronger oversight and controls.',
+    features: ['Unlimited clients', '15 team members', 'Everything in Professional', 'Role-based review controls', 'Agency Dashboard', '100 GB storage', 'Data export', 'Priority support'],
     highlight: false,
     badge: null,
   },
@@ -171,17 +171,17 @@ export default function HomepageContent() {
               priceCurrency: 'USD',
             },
             featureList: [
-              'AI Credit Report Analysis',
-              'AI Dispute Letter Generator',
+              'Source-linked report review',
+              'Evidence-linked draft assistance',
               'Client CRM',
               'Client Portal',
               'Document Storage',
               'Billing and Stripe Integration',
-              'Task Automation',
-              'Education Portal',
+              'Named human approvals',
+              'Versioned audit history',
               'Agency Dashboard',
-              'Workflow Templates',
-              'Lead Intake Forms',
+              'Workflow templates',
+              'Response deadline tracking',
               'Progress Tracking',
             ],
           })
@@ -387,7 +387,7 @@ export default function HomepageContent() {
               <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-700">Product Walkthrough</p>
               <h2 className="mb-4 text-4xl font-extrabold text-[#071B2E]">See FixMy.Money In Action</h2>
               <p className="mx-auto max-w-2xl text-lg text-[#526579]">
-                Watch how credit repair professionals use FixMy.Money to manage clients, automate disputes, and grow their business.
+                See how one report becomes verified facts, an authorized draft, a recorded approval, and a traceable bureau outcome.
               </p>
             </div>
 
@@ -406,11 +406,11 @@ export default function HomepageContent() {
               <div className="space-y-4">
                 {[
                   { icon: Users, label: 'Client Management', body: 'Organized client profiles with full history, notes, tasks, and communication logs.' },
-                  { icon: FileText, label: 'Credit Report Analysis', body: 'AI assists authorized users in identifying potential negative items, inconsistencies, and review opportunities.' },
-                  { icon: Brain, label: 'AI Dispute Generation', body: 'Generate editable dispute-letter drafts. Your business independently verifies every fact and authorization before use.' },
-                  { icon: TrendingUp, label: 'Progress Tracking', body: 'Real-time dispute status tracking with bureau response timelines and client-facing reports.' },
+                  { icon: FileText, label: 'Source-linked report review', body: 'Every extracted value stays connected to its report, bureau, source page, and confidence.' },
+                  { icon: ClipboardList, label: 'Evidence-linked drafts', body: 'Editable drafts are assembled from verified facts, with every factual assertion available for review.' },
+                  { icon: TrendingUp, label: 'Response tracking', body: 'Delivery dates, response deadlines, bureau outcomes, and next reviews stay on the same case history.' },
                   { icon: DollarSign, label: 'Revenue Dashboard', body: 'Track revenue, subscriptions, and business performance from one analytics view.' },
-                  { icon: Zap, label: 'Business Automation', body: 'Automate routine administrative steps while keeping decisions and final use under your business’s control.' },
+                  { icon: CheckCircle2, label: 'Human approval controls', body: 'The record shows who verified the evidence and who approved the final version before delivery.' },
                 ].map(item => {
                   const ItemIcon = item.icon;
                   return (
@@ -818,80 +818,44 @@ export default function HomepageContent() {
           </div>
         </section>
 
-        {/* ── SECTION: BUILT TO SCALE YOUR CREDIT REPAIR BUSINESS ── */}
+        {/* ── SECTION: SECURITY AND OPERATING CONTROLS ── */}
         <section className="py-24 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0D1B2A 0%, #111827 60%, #0d1f3c 100%)' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full blur-3xl -translate-y-1/2 -translate-x-1/4" style={{ background: 'rgba(37,99,235,0.08)' }} />
             <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full blur-3xl translate-y-1/2 translate-x-1/4" style={{ background: 'rgba(34,197,94,0.06)' }} />
           </div>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            {/* Section header */}
             <div className="text-center mb-12">
-              <p className="text-sm font-semibold text-emerald-400 uppercase tracking-widest mb-3">Agency operations</p>
-              <h2 className="text-4xl font-extrabold text-white mb-4">Control the workflow as your agency grows</h2>
+              <p className="text-sm font-semibold text-emerald-400 uppercase tracking-widest mb-3">Security and accountability</p>
+              <h2 className="text-4xl font-extrabold text-white mb-4">Sensitive records need more than a disclaimer</h2>
               <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-                Scale client volume and team responsibility without separating evidence, decisions, deadlines, billing, or client communication.
+                FixMy.Money combines workspace isolation, access controls, encryption, and attributable history to protect the report-to-response workflow.
               </p>
             </div>
-
-            {/* Video above copy */}
-            <div className="max-w-4xl mx-auto mb-14">
-              <DemoVideoPlayer
-                placement="business_owner"
-                showTrialCta
-                showDemoCta
-                onTrialClick={() => handleStartTrial(undefined, undefined, 'business_owner_video_cta')}
-                onDemoClick={() => handleBookDemo('business_owner_video_cta')}
-              />
-            </div>
-
-            {/* Feature list below video */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-              <div>
-                <p className="text-lg text-slate-300 mb-8 leading-relaxed">
-                  Give every team member the right context and controls while keeping agency-wide visibility in one organized workspace.
-                </p>
-                <div className="space-y-4 mb-8">
-                  {[
-                    { icon: Users, label: 'Tenant-scoped client and case records', color: 'text-blue-400' },
-                    { icon: Shield, label: 'Role-based review and approval controls', color: 'text-violet-400' },
-                    { icon: FileText, label: 'Versioned documents and audit events', color: 'text-emerald-400' },
-                    { icon: TrendingUp, label: 'Response deadlines and outcome visibility', color: 'text-amber-400' },
-                    { icon: Building2, label: 'Agency dashboard for workload oversight', color: 'text-blue-400' },
-                  ].map(item => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <div key={item.label} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                          <ItemIcon size={16} className={item.color} />
-                        </div>
-                        <span className="text-sm text-slate-300 font-medium">{item.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleStartTrial(undefined, undefined, 'business_owner_section')}
-                  className="inline-flex items-center gap-2.5 text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-                  style={{ background: '#2563EB', boxShadow: '0 8px 32px rgba(37,99,235,0.4)' }}
-                >
-                  <Sparkles size={18} />
-                  Start $1 Trial
-                </button>
-              </div>
-              <div className="space-y-4">
-                {[
-                  { title: 'Solo Consultants', body: 'Run a disciplined client-to-outcome process with authorization, evidence review, approvals, and complete history.' },
-                  { title: 'Growing Agencies', body: 'Assign reviewers, centralize client communication, standardize templates, and keep deadlines visible across the team.' },
-                  { title: 'Established Agencies', body: 'Add granular roles, white-label client experiences, retention controls, integrations, and agency-wide audit exports.' },
-                ].map(tier => (
-                  <div key={tier.title} className="p-5 rounded-2xl" style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.2)' }}>
-                    <h3 className="text-sm font-bold text-white mb-2">{tier.title}</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">{tier.body}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { icon: Lock, title: 'Encrypted transport and storage', body: 'TLS protects data in transit; database and document storage are encrypted at rest.' },
+                { icon: Database, title: 'Tenant-scoped records', body: 'Row-level security restricts client, report, dispute, billing, and audit records to the signed-in agency workspace.' },
+                { icon: KeyRound, title: 'Roles and secure sessions', body: 'Verified sign-in, managed sessions, and role-based permissions limit access to sensitive agency actions.' },
+                { icon: History, title: 'Attributable audit history', body: 'Significant actions retain timestamps and user attribution; standard users cannot rewrite audit entries.' },
+                { icon: ScanLine, title: 'Controlled AI handling', body: 'AI assists classification and wording. Uploaded reports are not used to train models, and human review remains required.' },
+                { icon: Shield, title: 'Backups and incident process', body: 'Managed backups, documented incident notification, responsible disclosure, and account-deletion requests support operations.' },
+              ].map(item => {
+                const ItemIcon = item.icon;
+                return (
+                  <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.045] p-6">
+                    <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300"><ItemIcon size={20} /></div>
+                    <h3 className="mb-2 text-sm font-bold text-white">{item.title}</h3>
+                    <p className="text-sm leading-6 text-slate-400">{item.body}</p>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
+            <div className="mt-8 text-center">
+              <Link href="/security" className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-950">
+                Review verified security details <ArrowRight size={16} />
+              </Link>
+              <p className="mx-auto mt-4 max-w-2xl text-xs leading-5 text-slate-500">Two-factor authentication is available through Google sign-in; native TOTP is not currently offered. FixMy.Money has not completed SOC 2 certification.</p>
             </div>
           </div>
         </section>

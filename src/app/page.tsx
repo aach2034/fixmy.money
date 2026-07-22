@@ -3,13 +3,13 @@ import type { Metadata } from 'next';
 import HomepageContent from './homepage/components/HomepageContent';
 
 export const metadata: Metadata = {
-  title: 'Credit Repair Software for Agencies',
+  title: 'Evidence-First Credit Repair Agency Software',
   description:
-  'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. AI-assisted drafts, client portals, Stripe billing. $1 for 14 days.',
+  'Verify credit-report evidence, prepare authorized disputes, record human approval, and track bureau outcomes in one auditable agency workflow.',
   openGraph: {
-    title: 'Credit Repair Software for Agencies | FixMy.Money',
+    title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
     description:
-    'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. $1 for 14 days.',
+    'Turn credit-report evidence into a documented, human-approved agency workflow.',
     type: 'website',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
@@ -18,15 +18,15 @@ export const metadata: Metadata = {
       url: '/og.png',
       width: 1200,
       height: 630,
-      alt: 'FixMy.Money - Credit Repair Software for Agencies'
+      alt: 'FixMy.Money evidence-first agency workflow'
     }]
 
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Credit Repair Software for Agencies | FixMy.Money',
+    title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
     description:
-    'Business software for credit repair professionals. Manage clients, disputes, billing, and compliance. $1 for 14 days.',
+    'Turn credit-report evidence into a documented, human-approved agency workflow.',
     images: ['/og.png'],
   },
   alternates: {
