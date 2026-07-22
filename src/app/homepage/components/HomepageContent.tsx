@@ -16,43 +16,31 @@ const NAV_LINKS = [
 ];
 
 const FEATURES = [
-  { icon: Brain, title: 'AI Credit Report Analysis', body: 'Upload any credit report and AI assists authorized users in identifying potential negative items, inconsistencies, and review opportunities.', badge: 'AI', badgeColor: 'bg-violet-100 text-violet-700', color: 'text-violet-600', bg: 'bg-violet-50', span: 'lg:col-span-2' },
-  { icon: Zap, title: 'AI Dispute Letter Generator', body: 'Generate editable dispute-letter drafts. No FixMy.Money approval is required; your business verifies the facts and consumer authorization before use.', badge: 'AI', badgeColor: 'bg-violet-100 text-violet-700', color: 'text-blue-600', bg: 'bg-blue-50', span: '' },
-  { icon: Users, title: 'Client CRM', body: 'Organized client profiles with dispute history, notes, tasks, timelines, and full audit trails.', badge: 'Core', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-blue-600', bg: 'bg-blue-50', span: '' },
-  { icon: LayoutDashboard, title: 'Client Portal', body: 'White-labeled client-facing portal where clients track their own progress, upload documents, and communicate with your team.', badge: 'Core', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-indigo-600', bg: 'bg-indigo-50', span: '' },
-  { icon: FileText, title: 'Document Storage', body: 'Secure cloud storage for credit reports, contracts, dispute evidence, and compliance documents.', badge: 'Core', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-slate-600', bg: 'bg-slate-50', span: '' },
-  { icon: CreditCard, title: 'Billing & Stripe Integration', body: 'Charge clients automatically. Manage subscriptions, invoices, and payment history without leaving the platform.', badge: 'Core', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-emerald-700', bg: 'bg-emerald-50', span: '' },
-  { icon: GitBranch, title: 'Task Automation', body: 'Build automation rules for onboarding, disputes, and billing. Keep your team on schedule without manual follow-up.', badge: 'Pro', badgeColor: 'bg-amber-100 text-amber-700', color: 'text-amber-600', bg: 'bg-amber-50', span: '' },
-  { icon: BookOpen, title: 'Education Portal', body: 'White-labeled educational content to keep clients engaged and informed throughout the process.', badge: 'Agency', badgeColor: 'bg-rose-100 text-rose-700', color: 'text-rose-600', bg: 'bg-rose-50', span: '' },
-  { icon: Building2, title: 'Agency Dashboard', body: "Bird's-eye view of your entire agency: revenue, disputes, client pipeline, and team performance in one place.", badge: 'Agency', badgeColor: 'bg-rose-100 text-rose-700', color: 'text-blue-700', bg: 'bg-blue-50', span: '' },
-  { icon: ClipboardList, title: 'Workflow Templates', body: 'Pre-built dispute workflow templates for common negative item types. Start fast, customize as you grow.', badge: 'Pro', badgeColor: 'bg-amber-100 text-amber-700', color: 'text-teal-600', bg: 'bg-teal-50', span: '' },
-  { icon: Inbox, title: 'Lead Intake Forms', body: 'Embeddable intake forms that capture leads, qualify prospects, and automatically create client records.', badge: 'Pro', badgeColor: 'bg-amber-100 text-amber-700', color: 'text-orange-600', bg: 'bg-orange-50', span: '' },
-  { icon: TrendingUp, title: 'Progress Tracking', body: 'Real-time dispute progress tracking with bureau response timelines and client-facing status reports.', badge: 'Core', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-emerald-700', bg: 'bg-emerald-50', span: 'lg:col-span-2' },
+  { icon: Building2, title: 'Agency Dashboard', body: 'See the client pipeline, overdue bureau responses, open tasks, revenue, and cases awaiting approval.', badge: 'Operate', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-blue-700', bg: 'bg-blue-50', span: '' },
+  { icon: Users, title: 'Client Workspace', body: 'Keep identity data, agreements, authorizations, documents, communications, invoices, and complete history together.', badge: 'Organize', badgeColor: 'bg-cyan-100 text-cyan-800', color: 'text-cyan-700', bg: 'bg-cyan-50', span: '' },
+  { icon: Search, title: 'Report Review', body: 'Review structured accounts, bureau differences, suspected inconsistencies, and source-page citations.', badge: 'Verify', badgeColor: 'bg-violet-100 text-violet-700', color: 'text-violet-600', bg: 'bg-violet-50', span: '' },
+  { icon: ClipboardList, title: 'Evidence & Disputes', body: 'Organize selected items, evidence checklists, editable drafts, factual assertions, approvals, and delivery history.', badge: 'Approve', badgeColor: 'bg-amber-100 text-amber-800', color: 'text-amber-700', bg: 'bg-amber-50', span: '' },
+  { icon: LayoutDashboard, title: 'Client Portal', body: 'Give clients a focused place for secure uploads, progress updates, tasks, messages, agreements, and invoices.', badge: 'Connect', badgeColor: 'bg-emerald-100 text-emerald-800', color: 'text-emerald-700', bg: 'bg-emerald-50', span: '' },
+  { icon: Shield, title: 'Agency Administration', body: 'Manage team roles, branding, templates, billing, integrations, retention settings, and audit exports.', badge: 'Control', badgeColor: 'bg-slate-200 text-slate-700', color: 'text-slate-700', bg: 'bg-slate-100', span: '' },
 ];
 
 const HOW_IT_WORKS = [
-  { step: '01', icon: UserPlus, title: 'Add a Client', body: 'Create a client record, send the intake form, and collect signed agreements — all from one screen.' },
-  { step: '02', icon: Upload, title: 'Upload or Review Credit Report Data', body: 'Upload a credit report PDF or connect bureau data. AI assists authorized users in identifying potential negative items and review opportunities.' },
-  { step: '03', icon: Brain, title: 'Generate Dispute Workflow', body: 'AI suggests possible workflows and creates editable drafts. Your business independently verifies every fact and authorization before use.' },
-  { step: '04', icon: Send, title: 'Send, Track, and Manage Progress', body: 'Send disputes, track bureau response timelines, log updates, and keep clients informed through their portal.' },
-  { step: '05', icon: DollarSign, title: 'Bill Clients and Grow Your Agency', body: 'Automate billing via Stripe, track revenue, and use analytics to identify growth opportunities.' },
+  { step: '01', icon: UserPlus, title: 'Onboard & authorize', body: 'Create the client record, capture agreements, disclosures, identity details, and documented authorization.' },
+  { step: '02', icon: Upload, title: 'Import & structure', body: 'Upload the report, extract structured facts, preserve source pages, and compare information across bureaus.' },
+  { step: '03', icon: Search, title: 'Verify the evidence', body: 'Review suspected inconsistencies, supporting documents, confidence, and the person responsible for verification.' },
+  { step: '04', icon: FileText, title: 'Draft & approve', body: 'Build an editable draft from verified facts, review every assertion, and record explicit human approval.' },
+  { step: '05', icon: TrendingUp, title: 'Deliver & track', body: 'Log delivery, response deadlines, bureau outcomes, follow-up tasks, and the next review without losing history.' },
 ];
 
 const COMPARISON = [
-  { feature: 'AI Credit Analysis', fixmy: true, crc: false },
-  { feature: 'AI Dispute Generation', fixmy: true, crc: false },
-  { feature: 'Automated Workflows', fixmy: true, crc: true },
-  { feature: 'Modern Dashboard', fixmy: true, crc: false },
-  { feature: 'Stripe Native Billing', fixmy: true, crc: false },
-  { feature: 'Client CRM', fixmy: true, crc: true },
-  { feature: 'White-Label Client Portal', fixmy: true, crc: true },
-  { feature: 'Credit Education Portal', fixmy: true, crc: false },
-  { feature: 'Task Automation', fixmy: true, crc: true },
-  { feature: 'AI Risk Assessment', fixmy: true, crc: false },
-  { feature: 'Real-Time Analytics', fixmy: true, crc: false },
-  { feature: 'Mobile Responsive', fixmy: true, crc: false },
-  { feature: 'Lead Intake Forms', fixmy: true, crc: false },
-  { feature: 'Workflow Templates', fixmy: true, crc: true },
+  { feature: 'Source-page citations', fixmy: true, crc: false },
+  { feature: 'Structured fact provenance', fixmy: true, crc: false },
+  { feature: 'Named human verification', fixmy: true, crc: false },
+  { feature: 'Draft assertion review', fixmy: true, crc: false },
+  { feature: 'Explicit approval record', fixmy: true, crc: false },
+  { feature: 'Delivery and deadline history', fixmy: true, crc: true },
+  { feature: 'Bureau response and outcome', fixmy: true, crc: true },
+  { feature: 'Append-oriented audit trail', fixmy: true, crc: false },
 ];
 
 const PLANS = [
@@ -89,7 +77,7 @@ const FAQS = [
   { q: 'What is FixMy.Money and who is it for?', a: 'FixMy.Money is business software for credit repair professionals — agencies, consultants, and financial coaches who help clients manage their credit profiles. It provides tools for client management, dispute workflows, billing, and documentation. Users are responsible for operating in compliance with CROA, FCRA, TSR, and all applicable laws.' },
   { q: 'How does the agency trial work?', a: 'Pay $1 today for 14 days of full access to the features included in your selected plan. After the trial, your subscription renews automatically at the chosen monthly rate unless you cancel.' },
   { q: 'Does FixMy.Money provide CROA-compliant workflows?', a: 'FixMy.Money supports CROA-aware workflows, documentation, and recordkeeping. Each business remains responsible for its own legal compliance. FixMy.Money provides workflow, documentation, and recordkeeping tools. It does not provide legal advice or guarantee compliance with federal, state, or local law.' },
-  { q: 'What makes FixMy.Money different from Credit Repair Cloud?', a: 'FixMy.Money is built AI-first. We offer AI credit analysis, AI dispute generation, and AI risk assessment — features Credit Repair Cloud does not have. We also provide a modern dashboard, native Stripe billing, lead intake forms, and a credit education portal, all in one platform.' },
+  { q: 'What makes FixMy.Money different from generic credit repair software?', a: 'FixMy.Money is built around evidence traceability. Source documents, extracted facts, verification, draft assertions, approvals, delivery, responses, and outcomes stay connected in one auditable workflow. AI can propose and organize; a human verifies and approves.' },
   { q: 'Can I manage multiple clients from one account?', a: 'Yes. Depending on your plan, you can manage 25 clients (Starter), 100 clients (Professional), or unlimited clients (Agency). Each client gets their own portal, dispute tracking, and billing profile.' },
   { q: 'Do you guarantee credit score improvements or item removals?', a: 'No. FixMy.Money is a software platform that provides tools for credit repair professionals. We do not guarantee credit score improvements, item removals, or any specific credit outcomes. Results depend on individual circumstances, bureau responses, and the accuracy of information on credit reports.' },
   { q: 'What happens after my trial ends?', a: "Your account automatically converts to a paid subscription at your chosen plan rate. You\'ll receive an email reminder before the trial ends. Cancel any time from your billing settings." },
@@ -175,7 +163,7 @@ export default function HomepageContent() {
             applicationCategory: 'BusinessApplication',
             operatingSystem: 'Web',
             url: 'https://fixmy.money',
-            description: 'Credit repair software for modern agencies. Manage clients, dispute workflows, billing, documents, and progress tracking from one organized workspace.',
+            description: 'Evidence-first operating software for credit repair agencies. Onboard clients, verify report facts, approve authorized disputes, and track bureau outcomes without losing the audit trail.',
             offers: {
               '@type': 'AggregateOffer',
               lowPrice: '49',
@@ -323,42 +311,42 @@ export default function HomepageContent() {
             <div className="relative grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
               <div>
                 <div className="inline-flex items-center gap-4 text-xs font-extrabold uppercase tracking-[0.24em] text-cyan-200 sm:text-sm">
-                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Clarity before action
+                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Evidence-first agency operations
                 </div>
                 <h1 className="mt-9 max-w-2xl text-5xl font-semibold leading-[0.94] tracking-[-0.045em] text-[#F4F8FC] sm:text-6xl lg:text-[78px]" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>
-                  Evidence-first credit dispute <span className="text-cyan-200">readiness.</span>
+                  Turn credit-report evidence into a <span className="text-cyan-200">documented workflow.</span>
                 </h1>
                 <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
-                  Turn complex credit reports into a clear, documented review process. Verify every detail, understand what is supportable, and stay in control before anything moves forward.
+                  Onboard clients, verify source evidence, prepare authorized disputes, record human approval, and track every response—without losing the audit trail.
                 </p>
                 <div className="mt-9 flex flex-col gap-5 sm:flex-row sm:items-center">
                   <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_12px_35px_rgba(34,211,238,.18)] transition hover:-translate-y-0.5 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
-                    Review my report <ArrowRight size={22} />
+                    Start agency trial <ArrowRight size={22} />
                   </button>
-                  <span className="max-w-[210px] text-sm font-medium leading-6 text-[#8298AD]">Private by design · You approve every action</span>
+                  <span className="max-w-[230px] text-sm font-medium leading-6 text-[#8298AD]">Built for credit-repair agencies · Human approval stays required</span>
                 </div>
               </div>
 
               <div className="relative rounded-[38px] border border-[#2A5671] bg-[#0A2940] p-5 shadow-[0_34px_80px_rgba(0,0,0,.25)] sm:p-8 lg:p-10">
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Your evidence workspace</h2>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-300 sm:text-sm">Secure review</span>
+                  <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Agency evidence workspace</h2>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-300 sm:text-sm">Approval required</span>
                 </div>
                 <div className="mt-8 rounded-[28px] border border-[#153B54] bg-[#031725] p-5 sm:p-8">
                   <div className="flex items-center gap-5">
                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-cyan-400 text-cyan-400"><FileText size={31} strokeWidth={1.6} /></div>
-                    <div className="min-w-0 flex-1"><p className="text-lg font-extrabold text-white">Credit report review</p><p className="mt-1 text-sm text-[#8198AD] sm:text-base">Evidence organized across all bureaus</p></div>
+                    <div className="min-w-0 flex-1"><p className="text-lg font-extrabold text-white">Tradeline evidence review</p><p className="mt-1 text-sm text-[#8198AD] sm:text-base">Source page, bureau, facts, and authorization connected</p></div>
                     <div className="hidden h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-[5px] border-cyan-400 sm:flex"><span className="text-3xl font-extrabold text-white">84</span><span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#8BA0B4]">Ready</span></div>
                   </div>
                   <div className="mt-10 space-y-3">
                     {[
-                      ['Identity details cross-checked', 'Verified', true],
-                      ['Account evidence organized', 'Complete', true],
-                      ['Your review and approval', 'Required', false],
+                      ['Source page and bureau linked', 'Verified', true],
+                      ['Supporting evidence reviewed', 'Complete', true],
+                      ['Final assertions and approval', 'Required', false],
                     ].map(([label, status, done]) => <div key={String(label)} className="flex items-center gap-4 rounded-2xl bg-[#0A2132] px-5 py-4"><span className={`flex h-5 w-5 items-center justify-center text-cyan-400 ${done ? '' : 'rounded-full border-2 border-cyan-400'}`}>{done ? <Check size={18} /> : null}</span><span className="min-w-0 flex-1 text-sm font-semibold text-[#BDCCDC] sm:text-base">{label}</span><span className="text-xs font-extrabold uppercase text-cyan-200 sm:text-sm">{status}</span></div>)}
                   </div>
                   <div className="mt-12 grid grid-cols-5 gap-2">
-                    {['Upload', 'Verify', 'Score', 'Draft', 'Approve'].map((label, index) => <div key={label} className="relative text-center"><div className={`relative z-10 mx-auto flex h-11 w-11 items-center justify-center rounded-full border ${index === 0 ? 'border-cyan-200 bg-cyan-400 text-[#031322]' : 'border-[#31566E] bg-[#092235] text-cyan-200'}`}>{index + 1}</div>{index < 4 && <span className="absolute left-[calc(50%+22px)] top-[21px] h-px w-[calc(100%-44px)] bg-cyan-400/70" />}<p className="mt-3 text-[11px] text-[#8298AD] sm:text-xs">{label}</p></div>)}
+                    {['Import', 'Verify', 'Draft', 'Approve', 'Track'].map((label, index) => <div key={label} className="relative text-center"><div className={`relative z-10 mx-auto flex h-11 w-11 items-center justify-center rounded-full border ${index === 0 ? 'border-cyan-200 bg-cyan-400 text-[#031322]' : 'border-[#31566E] bg-[#092235] text-cyan-200'}`}>{index + 1}</div>{index < 4 && <span className="absolute left-[calc(50%+22px)] top-[21px] h-px w-[calc(100%-44px)] bg-cyan-400/70" />}<p className="mt-3 text-[11px] text-[#8298AD] sm:text-xs">{label}</p></div>)}
                   </div>
                 </div>
               </div>
@@ -370,11 +358,11 @@ export default function HomepageContent() {
         <section className="border-b border-[#183146] bg-[#031322] py-10" aria-label="Platform highlights">
           <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
             <div className="grid gap-6 border-t border-[#183146] pt-9 sm:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr] lg:gap-9">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7890A5]">Built for informed decisions</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7890A5]">Built for accountable agency work</p>
               {[
-                { icon: Check, label: 'Evidence-based analysis' },
-                { icon: Shield, label: 'Encrypted document handling' },
-                { icon: CheckCircle2, label: 'No action without approval' },
+                { icon: Check, label: 'Source-linked facts' },
+                { icon: Shield, label: 'Tenant-scoped records' },
+                { icon: CheckCircle2, label: 'Human-verified approvals' },
               ].map(item => {
                 const ItemIcon = item.icon;
                 return (
@@ -455,15 +443,15 @@ export default function HomepageContent() {
         <section className="py-20 bg-white border-b border-slate-100">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <p className="text-sm font-semibold text-red-700 uppercase tracking-widest mb-3">The Problem</p>
-              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">Running a credit repair business is harder than it should be</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">Most credit repair professionals are stitching together spreadsheets, email, and outdated software — wasting hours on admin instead of growing their business.</p>
+              <p className="text-sm font-semibold text-red-700 uppercase tracking-widest mb-3">The operational gap</p>
+              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">A generated letter is not an evidence workflow</h2>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">When reports, evidence, authorizations, drafts, approvals, and bureau responses live in separate tools, your team loses context—and your audit trail breaks.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
-                { icon: '📋', title: 'Manual Dispute Tracking', body: 'Tracking disputes across spreadsheets and email threads leads to missed deadlines, lost documents, and frustrated clients.' },
-                { icon: '💸', title: 'Disconnected Billing', body: 'Chasing payments manually, sending invoices from separate tools, and losing track of who owes what costs you time and revenue.' },
-                { icon: '🔄', title: 'No Scalable Workflow', body: 'Without automation, every new client means more manual work. Growth creates chaos instead of leverage.' },
+                { icon: '📄', title: 'Facts lose their source', body: 'A disputed value should always point back to the document, page, bureau, and supporting evidence it came from.' },
+                { icon: '✓', title: 'Approval becomes ambiguous', body: 'Teams need to know who verified each fact, which assertions entered the draft, and who approved the final version.' },
+                { icon: '↻', title: 'Outcomes lose continuity', body: 'Delivery dates, response deadlines, bureau outcomes, and next reviews should remain attached to the same case history.' },
               ].map(p => (
                 <div key={p.title} className="bg-white rounded-2xl border border-red-100 p-6 shadow-sm">
                   <div className="text-3xl mb-4">{p.icon}</div>
@@ -479,17 +467,17 @@ export default function HomepageContent() {
         <section className="py-20 bg-slate-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <p className="text-sm font-semibold text-emerald-700 uppercase tracking-widest mb-3">Dispute Workflow</p>
-              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">From report review to tracked dispute — in one workspace</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">Review reports, generate drafts, track disputes, and manage follow-ups without switching tools.</p>
+              <p className="text-sm font-semibold text-emerald-700 uppercase tracking-widest mb-3">The central workflow</p>
+              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">One connected lifecycle, from lead to outcome</h2>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">Lead → onboarding → authorization → report import → evidence verification → draft → approval → delivery → response → next review.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div className="space-y-5">
                 {[
-                  { icon: Upload, title: 'Review credit reports', body: 'Upload reports and let AI identify negative items, dispute opportunities, and risk factors instantly.' },
-                  { icon: FileText, title: 'Generate dispute drafts', body: 'AI creates editable drafts for selected items. Verify, customize, obtain authorization, and decide whether to send.' },
-                  { icon: TrendingUp, title: 'Track dispute progress', body: 'Monitor bureau response timelines, log updates, and keep clients informed through their portal.' },
-                  { icon: ClipboardList, title: 'Manage follow-ups', body: 'Automated reminders and task assignments keep your team on schedule without manual tracking.' },
+                  { icon: Upload, title: 'Preserve provenance', body: 'Every extracted value retains its report, bureau, source page, and confidence so reviewers can return to the evidence.' },
+                  { icon: Search, title: 'Verify before drafting', body: 'AI can organize and flag ambiguity; authorized agency users confirm facts, inconsistencies, and supporting documents.' },
+                  { icon: FileText, title: 'Control every assertion', body: 'Drafts are assembled from verified structured facts and editable templates—not invented accounts, dates, laws, or evidence.' },
+                  { icon: ClipboardList, title: 'Keep append-oriented history', body: 'Corrections create a new version. Approvals, delivery, bureau responses, outcomes, and exports remain attributable.' },
                 ].map(s => {
                   const SIcon = s.icon;
                   return (
@@ -509,10 +497,10 @@ export default function HomepageContent() {
                 <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4">Workflow Metrics (Your Data)</p>
                 <div className="space-y-3">
                   {[
-                    { label: 'Disputes Sent', desc: 'Track every letter sent to bureaus' },
-                    { label: 'Responses Received', desc: 'Log bureau responses and outcomes' },
-                    { label: 'Client Tasks Completed', desc: 'Monitor workflow progress per client' },
-                    { label: 'Documents Uploaded', desc: 'Organize reports, contracts, evidence' },
+                    { label: 'Source citation', desc: 'Document → page → extracted fact' },
+                    { label: 'Verification', desc: 'Reviewer, decision, and supporting evidence' },
+                    { label: 'Draft assertions', desc: 'Every factual statement mapped to verified data' },
+                    { label: 'Approval & outcome', desc: 'Approver, delivery, response, and next review' },
                   ].map((item, i) => (
                     <div key={item.label} className="flex items-center gap-3">
                       <div className="w-6 h-6 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-xs font-bold text-blue-400">{i + 1}</div>
@@ -532,18 +520,18 @@ export default function HomepageContent() {
         <section className="py-20 bg-white">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Client Operations</p>
-              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">CRM, portal, billing, notes, and documents — all connected</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">Every client interaction, document, and payment in one organized workspace.</p>
+              <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Traceability by design</p>
+              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">Every disputed item carries its own evidence trail</h2>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">Your team can see what the report says, why an item needs review, what supports it, who approved it, and what happened next.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[
-                { icon: Users, title: 'Client CRM', body: 'Organized client profiles with full history, notes, tasks, and communication logs.', color: 'text-blue-600', bg: 'bg-blue-50' },
-                { icon: LayoutDashboard, title: 'Client Portal', body: 'White-labeled portal where clients track progress, upload documents, and communicate with your team.', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                { icon: CreditCard, title: 'Stripe Billing', body: 'Automated billing, subscription management, and payment tracking — powered by Stripe.', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                { icon: ClipboardList, title: 'Notes & Tasks', body: 'Internal notes, task assignments, and follow-up reminders keep your team aligned.', color: 'text-amber-600', bg: 'bg-amber-50' },
-                { icon: FileText, title: 'Document Storage', body: 'Secure storage for credit reports, contracts, dispute evidence, and compliance documents.', color: 'text-slate-700', bg: 'bg-slate-50' },
-                { icon: TrendingUp, title: 'Progress Tracking', body: 'Real-time dispute status tracking with bureau response timelines and client-facing reports.', color: 'text-violet-600', bg: 'bg-violet-50' },
+                { icon: FileText, title: 'What the report says', body: 'The exact extracted value stays connected to its report, bureau, page, and source context.', color: 'text-blue-600', bg: 'bg-blue-50' },
+                { icon: Search, title: 'Suspected inconsistency', body: 'Reason codes and cross-bureau differences explain why the item is being reviewed.', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                { icon: Shield, title: 'Supporting evidence', body: 'Identity records, statements, correspondence, and other supporting files remain attached to the case.', color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                { icon: Users, title: 'Verified by', body: 'Reviewer identity, notes, timestamps, and decisions make responsibility explicit.', color: 'text-amber-600', bg: 'bg-amber-50' },
+                { icon: ClipboardList, title: 'Assertions & approval', body: 'See which verified facts appear in the draft and who approved the final version.', color: 'text-slate-700', bg: 'bg-slate-50' },
+                { icon: TrendingUp, title: 'Delivery & response', body: 'Track when it was sent, when a response is due, the bureau outcome, and the next review.', color: 'text-violet-600', bg: 'bg-violet-50' },
               ].map(item => {
                 const ItemIcon = item.icon;
                 return (
@@ -564,9 +552,9 @@ export default function HomepageContent() {
         <section id="features" className="py-24 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-14">
-              <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Platform Features</p>
-              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">Everything you need to run a credit repair business</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">From AI-powered dispute workflows to client billing — FixMy.Money replaces 5+ tools with one unified platform.</p>
+              <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Six connected workspaces</p>
+              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">Built around how an agency actually operates</h2>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">Each surface supports the same report-to-response lifecycle instead of becoming another disconnected tool.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {FEATURES.map((feat, idx) => {
@@ -596,8 +584,8 @@ export default function HomepageContent() {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-14">
               <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">How It Works</p>
-              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">From first client to growing agency in 5 steps</h2>
-              <p className="text-lg text-slate-600 max-w-xl mx-auto">FixMy.Money guides your entire workflow — from client intake to billing and beyond.</p>
+              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">From authorization to bureau outcome in five controlled stages</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">AI proposes and organizes. Your agency verifies the evidence and approves what moves forward.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {HOW_IT_WORKS.map((step, idx) => {
@@ -639,8 +627,8 @@ export default function HomepageContent() {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-14">
               <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Why FixMy.Money</p>
-              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">The modern AI-first alternative to Credit Repair Cloud</h2>
-              <p className="text-lg text-slate-600 max-w-xl mx-auto">Credit Repair Cloud was built for a different era. FixMy.Money is built for the AI age.</p>
+              <h2 className="text-4xl font-extrabold text-slate-900 mb-4">Trustworthy workflow, not just faster document generation</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">FixMy.Money is designed to preserve evidence, decisions, accountability, and outcomes across the complete agency lifecycle.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
               <div className="grid grid-cols-3 bg-slate-900 border-b border-slate-700">
@@ -651,7 +639,7 @@ export default function HomepageContent() {
                     FixMy.Money
                   </div>
                 </div>
-                <div className="px-6 py-4 text-center text-sm font-semibold text-slate-300">Credit Repair Cloud</div>
+                <div className="px-6 py-4 text-center text-sm font-semibold text-slate-300">Basic letter tools</div>
               </div>
               {COMPARISON.map((row, idx) => (
                 <div key={row.feature} className={`grid grid-cols-3 border-b border-slate-100 last:border-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
@@ -681,11 +669,7 @@ export default function HomepageContent() {
                 </div>
               ))}
             </div>
-            <div className="text-center mt-8">
-              <Link href="/credit-repair-cloud-alternative" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded">
-                See the full comparison <ChevronRight size={16} />
-              </Link>
-            </div>
+            <p className="mt-8 text-center text-sm text-slate-500">AI can assist with classification and wording. It does not replace authorization, factual verification, or final human approval.</p>
           </div>
         </section>
 
@@ -843,10 +827,10 @@ export default function HomepageContent() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             {/* Section header */}
             <div className="text-center mb-12">
-              <p className="text-sm font-semibold text-emerald-400 uppercase tracking-widest mb-3">Scale Your Business</p>
-              <h2 className="text-4xl font-extrabold text-white mb-4">Built To Scale Your Credit Repair Business</h2>
+              <p className="text-sm font-semibold text-emerald-400 uppercase tracking-widest mb-3">Agency operations</p>
+              <h2 className="text-4xl font-extrabold text-white mb-4">Control the workflow as your agency grows</h2>
               <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-                Whether you're a solo consultant or running a full agency, FixMy.Money gives you the infrastructure to scale — without the chaos.
+                Scale client volume and team responsibility without separating evidence, decisions, deadlines, billing, or client communication.
               </p>
             </div>
 
@@ -865,15 +849,15 @@ export default function HomepageContent() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
               <div>
                 <p className="text-lg text-slate-300 mb-8 leading-relaxed">
-                  Automate disputes, manage hundreds of clients, and grow your revenue from one organized workspace.
+                  Give every team member the right context and controls while keeping agency-wide visibility in one organized workspace.
                 </p>
                 <div className="space-y-4 mb-8">
                   {[
-                    { icon: Users, label: 'Manage unlimited clients with full CRM', color: 'text-blue-400' },
-                    { icon: Brain, label: 'AI-powered dispute generation in seconds', color: 'text-violet-400' },
-                    { icon: DollarSign, label: 'Automated billing via Stripe', color: 'text-emerald-400' },
-                    { icon: TrendingUp, label: 'Real-time analytics and revenue forecasting', color: 'text-amber-400' },
-                    { icon: Building2, label: "Agency dashboard for bird's-eye oversight", color: 'text-blue-400' },
+                    { icon: Users, label: 'Tenant-scoped client and case records', color: 'text-blue-400' },
+                    { icon: Shield, label: 'Role-based review and approval controls', color: 'text-violet-400' },
+                    { icon: FileText, label: 'Versioned documents and audit events', color: 'text-emerald-400' },
+                    { icon: TrendingUp, label: 'Response deadlines and outcome visibility', color: 'text-amber-400' },
+                    { icon: Building2, label: 'Agency dashboard for workload oversight', color: 'text-blue-400' },
                   ].map(item => {
                     const ItemIcon = item.icon;
                     return (
@@ -898,9 +882,9 @@ export default function HomepageContent() {
               </div>
               <div className="space-y-4">
                 {[
-                  { title: 'Solo Consultants', body: 'Manage your first 50 clients with professional tools, automated billing, and a client portal — without hiring staff.' },
-                  { title: 'Growing Agencies', body: 'Scale to 250+ clients with AI dispute generation, workflow automation, and team task management.' },
-                  { title: 'Established Agencies', body: 'Run unlimited clients, white-label the portal, access the API, and get a dedicated success manager.' },
+                  { title: 'Solo Consultants', body: 'Run a disciplined client-to-outcome process with authorization, evidence review, approvals, and complete history.' },
+                  { title: 'Growing Agencies', body: 'Assign reviewers, centralize client communication, standardize templates, and keep deadlines visible across the team.' },
+                  { title: 'Established Agencies', body: 'Add granular roles, white-label client experiences, retention controls, integrations, and agency-wide audit exports.' },
                 ].map(tier => (
                   <div key={tier.title} className="p-5 rounded-2xl" style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.2)' }}>
                     <h3 className="text-sm font-bold text-white mb-2">{tier.title}</h3>
@@ -921,13 +905,13 @@ export default function HomepageContent() {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
             <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-2 rounded-full mb-8">
               <Sparkles size={13} />
-              The modern alternative to Credit Repair Cloud
+              Evidence first · Human approved · Fully traceable
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
-              Launch and scale your<br />credit repair agency today
+              Build a more trustworthy<br />credit repair agency workflow
             </h2>
             <p className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
-              Start your agency trial. Full access to features in your selected plan. Cancel anytime.
+              Bring onboarding, report evidence, dispute approvals, delivery, responses, and outcomes into one connected operating system.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <button
@@ -964,7 +948,7 @@ export default function HomepageContent() {
                 <span className="text-xl font-black tracking-[-0.035em] text-white">FixMy<span className="text-cyan-300">.</span>Money</span>
               </Link>
               <p className="mt-5 max-w-sm text-sm leading-6 text-slate-400">
-                Credit repair software for modern agencies. Manage clients, dispute workflows, billing, documents, and progress tracking from one organized workspace.
+                Evidence-first operating software for credit repair agencies. Verify facts, control approvals, and preserve the complete report-to-response history.
               </p>
             </div>
             <div>
