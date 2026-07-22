@@ -250,7 +250,7 @@ export default function HomepageContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded-lg">
-              <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money — Credit Repair Software for Agencies" width={140} height={36} className="object-contain h-auto" priority />
+              <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money — Credit Repair Software for Agencies" width={140} height={36} className="object-contain h-auto" priority unoptimized />
             </Link>
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
               {NAV_LINKS.map(link => (
@@ -953,7 +953,7 @@ export default function HomepageContent() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
             <div className="md:col-span-2">
               <Link href="/" className="focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded inline-block">
-                <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto brightness-0 invert opacity-70 mb-4" />
+                <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto brightness-0 invert opacity-70 mb-4" unoptimized />
               </Link>
               <p className="text-sm text-slate-300 leading-relaxed max-w-sm">
                 Credit repair software for modern agencies. Manage clients, dispute workflows, billing, documents, and progress tracking from one organized workspace.
