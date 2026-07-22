@@ -12,7 +12,9 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Sparkles,
   Shield,
+  Trophy,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +44,20 @@ type DashboardState = {
   completedItems: number;
 };
 
+type RankedOpportunity = {
+  candidate: number;
+  rank: number;
+  strength: 'Strong' | 'Moderate' | 'Review';
+  reason: string;
+};
+
+type AIOpinion = {
+  summary: string;
+  ranked: RankedOpportunity[];
+};
+
+type OpportunityCandidate = SavedAuditItem & { client_id?: string | null };
+
 const EMPTY: DashboardState = {
   name: '', company: '', plan: '', subscriptionStatus: '', clients: [],
   negativeItems: 0, disputesInProgress: 0, completedItems: 0,
@@ -54,6 +70,69 @@ export default function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [aiOpinion, setAiOpinion] = useState<AIOpinion | null>(null);
+  const [aiCandidates, setAiCandidates] = useState<OpportunityCandidate[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  const generateAIOpinion = useCallback(async (items: OpportunityCandidate[]) => {
+    if (items.length === 0) {
+      setAiOpinion(null);
+      setAiCandidates([]);
+      return;
+    }
+
+    const candidates = items.slice(0, 12);
+    setAiCandidates(candidates);
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const sanitized = candidates.map((item, index) => ({
+        candidate: index + 1,
+        category: item.negative_category || 'negative item',
+        bureau: item.bureau || 'Unknown bureau',
+        balance: item.balance == null ? null : Number(item.balance),
+        reportedReason: item.dispute_reason || item.negative_reason || 'No reason recorded',
+        parserConfidence: item.parser_confidence ?? null,
+        dateReported: item.date_reported || null,
+      }));
+
+      const response = await fetch('/api/ai/chat-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'OPEN_AI',
+          model: 'gpt-4o',
+          stream: false,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an AI review assistant for a credit-repair business. Rank only the supplied candidates by apparent dispute strength. Favor specific, factual, verifiable inaccuracies and supporting detail. Never promise deletion, score improvement, or a legal outcome. Return valid JSON only: {"summary":"2 concise sentences","ranked":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","reason":"one concise sentence"}]}. Include at most 5 ranked candidates.',
+            },
+            {
+              role: 'user',
+              content: `Give your professional opinion of the strongest review opportunities and rank them. Candidate data contains no client names or full account numbers:\n${JSON.stringify(sanitized)}`,
+            },
+          ],
+          parameters: { max_completion_tokens: 700, temperature: 0.2 },
+        }),
+      });
+      if (!response.ok) throw new Error('AI review is temporarily unavailable.');
+      const data = await response.json();
+      const raw = data?.choices?.[0]?.message?.content || '';
+      const parsed = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '').trim()) as AIOpinion;
+      const validRanked = Array.isArray(parsed.ranked)
+        ? parsed.ranked.filter(item => Number.isInteger(item.candidate) && item.candidate >= 1 && item.candidate <= candidates.length).slice(0, 5)
+        : [];
+      if (!parsed.summary || validRanked.length === 0) throw new Error('AI review returned an incomplete result.');
+      setAiOpinion({ summary: parsed.summary, ranked: validRanked });
+    } catch (err) {
+      console.error('[Dashboard] AI opinion failed', err);
+      setAiError('The AI opinion could not be generated right now. Your saved workspace data is still available.');
+    } finally {
+      setAiLoading(false);
+    }
+  }, []);
 
   const loadDashboard = useCallback(async () => {
     if (!user) return;
@@ -68,7 +147,7 @@ export default function DashboardContent() {
           .select('id, name, case_stage, subscription_status, active_disputes, items_deleted, next_task_due, next_task_label, updated_at')
           .eq('owner_id', user.id).order('updated_at', { ascending: false }),
         supabase.from('negative_items')
-          .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, tag_status, is_negative, is_selected, parser_confidence, account_number_masked, date_reported')
+          .select('client_id, creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, tag_status, is_negative, is_selected, parser_confidence, account_number_masked, date_reported')
           .eq('owner_id', user.id),
       ]);
 
@@ -96,6 +175,7 @@ export default function DashboardContent() {
         disputesInProgress: taggedDisputes.length,
         completedItems: actualNegativeItems.filter((item: any) => completedStatuses.has(item.dispute_status)).length,
       });
+      void generateAIOpinion(actualNegativeItems as OpportunityCandidate[]);
       setUpdatedAt(new Date());
     } catch (err) {
       console.error('[Dashboard] load failed', err);
@@ -103,7 +183,7 @@ export default function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, user]);
+  }, [generateAIOpinion, supabase, user]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
@@ -150,6 +230,59 @@ export default function DashboardContent() {
           </Link>
         ))}
       </div>
+
+      <section className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-blue-50 p-5 sm:p-6" aria-labelledby="ai-opinion-title">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0"><Sparkles size={19} /></div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-violet-600">AI case opinion</p>
+              <h2 id="ai-opinion-title" className="text-lg font-bold text-slate-900 mt-1">Strongest dispute opportunities</h2>
+              <p className="text-xs text-slate-500 mt-1">Ranked from saved credit items in this private workspace. Review every fact before acting.</p>
+            </div>
+          </div>
+          {!aiLoading && aiCandidates.length > 0 && (
+            <button onClick={() => generateAIOpinion(aiCandidates)} className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50"><RefreshCw size={13} />Refresh opinion</button>
+          )}
+        </div>
+
+        {aiLoading ? (
+          <div className="mt-6 flex items-center gap-3 rounded-xl border border-violet-100 bg-white/80 p-5 text-sm text-slate-600"><Loader2 className="animate-spin text-violet-600" size={18} />AI is reviewing and ranking the strongest opportunities…</div>
+        ) : aiError ? (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{aiError}</div>
+        ) : aiOpinion ? (
+          <div className="mt-5 grid lg:grid-cols-[0.9fr_1.6fr] gap-4">
+            <div className="rounded-xl border border-violet-100 bg-white p-4">
+              <p className="text-sm font-bold text-slate-900">AI summary</p>
+              <p className="text-sm leading-6 text-slate-600 mt-2">{aiOpinion.summary}</p>
+              <p className="text-xs text-slate-400 mt-4">AI output is an opinion, not legal advice or a guarantee of any outcome.</p>
+            </div>
+            <div className="space-y-2">
+              {aiOpinion.ranked.map(ranked => {
+                const item = aiCandidates[ranked.candidate - 1];
+                const client = state.clients.find(clientRow => clientRow.id === item?.client_id);
+                if (!item) return null;
+                return (
+                  <div key={`${ranked.rank}-${ranked.candidate}`} className="rounded-xl border border-slate-200 bg-white p-4 flex gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center font-extrabold text-sm shrink-0">{ranked.rank}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {ranked.rank === 1 && <Trophy size={14} className="text-amber-500" />}
+                        <p className="text-sm font-bold text-slate-900 truncate">{item.creditor_name || 'Saved negative item'}</p>
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">{ranked.strength}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{client?.name || 'Client'} · {(item.negative_category || 'item').replaceAll('_', ' ')} · {item.bureau || 'Unknown bureau'}</p>
+                      <p className="text-sm text-slate-600 mt-2">{ranked.reason}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white/70 p-5 text-sm text-slate-600">Import and review a client credit report to receive an AI-ranked opinion here.</div>
+        )}
+      </section>
 
       {subscriptionNeedsAttention && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-4">
