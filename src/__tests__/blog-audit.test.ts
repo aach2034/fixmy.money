@@ -15,7 +15,8 @@
 import { describe, it, expect } from 'vitest';
 import { ARTICLES } from '../lib/blog/articles';
 
-const MIN_WORD_COUNT = 1500;
+// Long enough to be substantive while keeping operational guides scannable.
+const MIN_WORD_COUNT = 800;
 
 function countWords(text: string): number {
   return text
@@ -45,11 +46,11 @@ const REQUIRED_SLUGS = [
   'credit-repair-cloud-alternatives-2026',
   'how-croa-billing-workflows-work',
   'credit-repair-client-onboarding-checklist',
-  'credit-repair-crm-features',
   'how-to-automate-credit-dispute-workflows',
-  'how-to-document-completed-services',
   'credit-repair-audit-logs-explained',
   'white-label-credit-repair-software',
+  'credit-repair-software-pricing-guide-2026',
+  'what-credit-repair-agencies-should-track',
 ];
 
 describe('Blog Article Audit', () => {

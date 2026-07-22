@@ -15,7 +15,7 @@ import {
 import { trackDemoRequest } from '@/lib/analytics';
 
 const demoHighlights = [
-  { icon: Monitor, title: 'Full Platform Walkthrough', desc: 'See every feature live — disputes, CRM, payments, and automation.' },
+  { icon: Monitor, title: 'Evidence Workflow Walkthrough', desc: 'See report import, source-linked facts, review controls, delivery history, and bureau outcomes.' },
   { icon: Users, title: 'Q&A Session', desc: 'Ask anything about the platform and how it fits your agency workflow.' },
   { icon: Zap, title: 'Custom Use Case Review', desc: "We\'ll tailor the demo to your agency size and workflow." },
   { icon: Shield, title: 'CROA-Aware Workflow Review', desc: 'See how FixMy.Money supports documentation, disclosures, dispute tracking, and CROA-aware workflows.' },
@@ -31,6 +31,17 @@ export default function DemoContent() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     trackDemoRequest(form.size);
+    const subject = encodeURIComponent(`FixMy.Money demo request — ${form.company || form.name}`);
+    const body = encodeURIComponent([
+      `Name: ${form.name}`,
+      `Email: ${form.email}`,
+      `Company: ${form.company}`,
+      `Agency size: ${form.size}`,
+      `Preferred time: ${selectedTime || 'Flexible'}`,
+      '',
+      'Please contact me to confirm a 30-minute FixMy.Money demo.',
+    ].join('\n'));
+    window.location.href = `mailto:sales@fixmy.money?subject=${subject}&body=${body}`;
     setSubmitted(true);
   };
 
@@ -103,9 +114,9 @@ export default function DemoContent() {
                 <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mx-auto mb-5">
                   <CheckCircle size={32} className="text-emerald-400" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Demo Booked!</h3>
+                <h3 className="text-2xl font-bold text-white mb-3">Your email draft is ready</h3>
                 <p className="text-gray-400 mb-6">
-                  We've sent a confirmation to <strong className="text-white">{form.email}</strong>. A specialist will reach out within 1 business hour to confirm your time slot.
+                  Send the prepared email from your mail app to request the demo. Your time is not reserved until our team replies with a confirmation.
                 </p>
                 <Link href="/" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors">
                   ← Back to Home

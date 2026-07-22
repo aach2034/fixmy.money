@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, ArrowRight, Shield, Building2, LockKeyhole, Mail, Loader2, CheckCircle2, Sparkles, Brain, Zap } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Shield, Building2, LockKeyhole, Mail, Loader2, CheckCircle2, Sparkles, FileSearch, ClipboardCheck } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,10 +28,10 @@ const FLOW_STEPS = [
   { step: 4, label: 'Dashboard', active: false },
 ];
 
-const AI_FEATURES = [
-  { icon: Brain, label: 'AI Credit Analysis' },
-  { icon: Zap, label: 'Auto Dispute Generation' },
-  { icon: Sparkles, label: 'Smart Action Plans' },
+const WORKFLOW_FEATURES = [
+  { icon: FileSearch, label: 'Source-linked report review' },
+  { icon: ClipboardCheck, label: 'Verified facts and human approval' },
+  { icon: Sparkles, label: 'Traceable responses and outcomes' },
 ];
 
 export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'register' | 'forgot' }) {
@@ -237,7 +237,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           </Link>
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
             <Sparkles size={12} />
-            AI-Powered Credit Repair Platform
+            Evidence-First Agency Platform
           </div>
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
             Run Your Credit Repair<br />
@@ -248,9 +248,9 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           <p className="text-slate-300 text-base leading-relaxed mb-8">
             Manage clients, review reports, print dispute letters, track paper mail, and run billing in one private workspace.
           </p>
-          {/* AI Features */}
+          {/* Workflow Features */}
           <div className="space-y-3 mb-8">
-            {AI_FEATURES.map(feat => {
+            {WORKFLOW_FEATURES.map(feat => {
               const FeatIcon = feat.icon;
               return (
                 <div key={feat.label} className="flex items-center gap-3">

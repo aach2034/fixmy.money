@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
-import { LayoutDashboard, Users, FileText, CreditCard, GitBranch, ChevronLeft, ChevronRight, Settings, LogOut, ChevronDown, ScanSearch, Target, Bell, User, Shield, CheckCircle2, X, Menu, Brain, MessageSquare, BookOpen, BarChart3, Calendar, Rocket, Link2, Bug } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, CreditCard, ChevronLeft, ChevronRight, Settings, LogOut, ChevronDown, ScanSearch, Target, Bell, User, Shield, CheckCircle2, X, Menu, MessageSquare, BookOpen, BarChart3, Calendar, Link2 } from 'lucide-react';
 
 const NAV_SECTIONS = [
   {
@@ -27,9 +27,8 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: 'AI Tools',
+    label: 'Guidance',
     items: [
-      { href: '/ai-financial-coach', label: 'AI Coach', icon: Brain, ai: true },
       { href: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
     ],
   },
@@ -37,23 +36,14 @@ const NAV_SECTIONS = [
     label: 'Business',
     items: [
       { href: '/billing-subscriptions', label: 'Billing', icon: CreditCard },
-      { href: '/revenue-forecasting', label: 'Revenue', icon: BarChart3 },
-      { href: '/workflow-task-management', label: 'Automation', icon: GitBranch },
       { href: '/appointments', label: 'Appointments', icon: Calendar },
       { href: '/live-chat', label: 'Live Chat', icon: MessageSquare },
-    ],
-  },
-  {
-    label: 'Growth',
-    items: [
-      { href: '/launch-submissions', label: 'Launch Distribution', icon: Rocket },
     ],
   },
   {
     label: 'Settings',
     items: [
       { href: '/settings/report-providers', label: 'Report Providers', icon: Link2 },
-      { href: '/admin/parser-debugger', label: 'Parser Debugger', icon: Bug },
     ],
   },
 ];
@@ -301,6 +291,7 @@ export default function Sidebar() {
       {/* Collapse Toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
         className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors z-10"
       >
         {collapsed ? <ChevronRight size={12} className="text-slate-500" /> : <ChevronLeft size={12} className="text-slate-500" />}
@@ -317,6 +308,7 @@ export default function Sidebar() {
 
       {/* Mobile Toggle */}
       <button
+        aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
         className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm"
         onClick={() => setMobileOpen(!mobileOpen)}
       >

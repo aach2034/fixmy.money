@@ -67,7 +67,7 @@ export const ARTICLES: Article[] = [
         level: 2,
         content: `A credit repair business helps consumers identify inaccurate, unverifiable, or outdated information on their credit reports and assists them in disputing those items with the three major credit bureaus — Equifax, Experian, and TransUnion.
 
-Credit repair agencies do not guarantee results. They provide a service: reviewing credit reports, preparing dispute correspondence, tracking bureau responses, and documenting the process. The outcome of any dispute depends on the bureau's investigation and the underlying accuracy of the information.
+Credit repair agencies cannot control bureau outcomes. They provide a service: reviewing credit reports, preparing dispute correspondence, tracking bureau responses, and documenting the process. The outcome of any dispute depends on the bureau's investigation and the underlying accuracy of the information.
 
 In 2026, the credit repair industry continues to grow as more consumers seek professional help navigating complex credit reporting systems. Agencies that operate transparently, document their work carefully, and use modern software to manage workflows are better positioned to build sustainable businesses.`,
       },
@@ -126,7 +126,7 @@ Several states — including Georgia, Louisiana, and others — require credit r
 - Analytics and reporting
 - Team management with role-based access
 
-Avoid platforms that promise guaranteed deletions or score increases — those claims are not legally supportable and should be a red flag about the vendor's compliance posture.
+Avoid platforms that advertise assured deletions or score increases — those claims are not supportable and should be a red flag about the vendor's compliance posture.
 
 FixMy.Money is designed specifically for credit repair agencies and includes all of the above features in a single platform.`,
       },
@@ -175,8 +175,8 @@ Typical monthly fees in 2026 range from $79 to $199 per month depending on the m
 - **Clear service descriptions** — Explain exactly what you do and what you do not do. Transparency reduces refund requests and disputes.
 
 **What to avoid in marketing:**
-- Guarantees of specific score increases
-- Promises of specific deletions
+- Assurances of specific score increases
+- Assurances of specific deletions
 - Claims of legal compliance without verification
 - Fake testimonials or fabricated results`,
       },
@@ -188,7 +188,7 @@ Typical monthly fees in 2026 range from $79 to $199 per month depending on the m
 1. **Charging fees before services are performed** — This is a CROA violation and can result in civil liability.
 2. **Using non-compliant contracts** — Generic contracts downloaded from the internet may not meet CROA requirements. Have an attorney review your contracts.
 3. **Failing to document completed services** — If you cannot demonstrate what services were performed, you cannot justify your billing.
-4. **Making guarantees** — Never guarantee deletions, score increases, or specific outcomes.
+4. **Assuring outcomes** — Never assure deletions, score increases, or specific outcomes.
 5. **Inadequate client communication** — Clients who feel ignored become complainants. Build regular communication into your process.
 6. **Ignoring state law** — CROA is federal law, but many states have additional requirements. Research your state's rules.
 7. **Using manual processes at scale** — Spreadsheets and email break down as client volume grows. Invest in proper software early.`,
@@ -315,7 +315,7 @@ Role-based access controls let you add staff members with appropriate permission
         level: 2,
         content: `Some credit repair software vendors make claims that should give you pause:
 
-**Guaranteed results** — No software can guarantee credit score increases or specific deletions. Vendors who make these claims are either misleading you or encouraging practices that could expose your business to liability.
+**Assured results** — No software can control credit score changes or specific deletions. Vendors who make these claims are either misleading you or encouraging practices that could expose your business to liability.
 
 **"Loopholes" or "secrets"** — Legitimate credit repair is based on the FCRA's right to dispute inaccurate information. There are no loopholes. Vendors who market their software around secret techniques are a red flag.
 
@@ -728,7 +728,7 @@ This checklist covers the minimum steps required for a CROA-compliant onboarding
 ☐ Set realistic expectations — explain what credit repair can and cannot do
 ☐ Explain your process, timeline, and pricing
 ☐ Answer all client questions honestly
-☐ Do not make guarantees about outcomes, score increases, or deletions
+☐ Do not assure outcomes, score increases, or deletions
 
 **Documentation:**
 - Note the date and content of the consultation
@@ -775,7 +775,7 @@ Consult an attorney to ensure your disclosure document meets current CROA requir
 - Payment terms (structured to comply with CROA's completed-service requirement)
 - Start and end dates (or duration)
 - Three-day cancellation right
-- Any guarantees (note: guarantees of specific outcomes are generally not advisable)`,
+- Any assured outcomes (specific result assurances are generally not advisable)`,
       },
       {
         heading: 'Phase 4: Cancellation Period',

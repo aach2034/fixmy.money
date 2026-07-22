@@ -160,22 +160,22 @@ const FEATURES = [
     bg: 'bg-emerald-50',
   },
   {
-    id: 'automation',
+    id: 'approvals',
     icon: Zap,
-    title: 'Automation',
+    title: 'Review and Approval Controls',
     description:
-      'Build automation rules for onboarding sequences, dispute follow-ups, billing reminders, and client communications. Reduce manual work across your team.',
-    highlights: ['Onboarding automation', 'Dispute follow-up rules', 'Billing reminders', 'Communication triggers'],
+      'Keep factual assertions, reviewer decisions, supporting evidence, and final human approval connected before delivery.',
+    highlights: ['Assertion-level review', 'Named verification', 'Explicit approval', 'Versioned history'],
     color: 'text-amber-600',
     bg: 'bg-amber-50',
   },
   {
     id: 'analytics',
     icon: BarChart3,
-    title: 'Analytics',
+    title: 'Responses and Outcomes',
     description:
-      'Track agency performance with revenue forecasting, dispute success metrics, client pipeline analytics, and team productivity reports.',
-    highlights: ['Revenue forecasting', 'Dispute metrics', 'Client pipeline analytics', 'Team productivity'],
+      'Track delivery dates, response deadlines, bureau replies, documented outcomes, and the next review without breaking case history.',
+    highlights: ['Delivery history', 'Response deadlines', 'Bureau outcomes', 'Next-review tasks'],
     color: 'text-blue-600',
     bg: 'bg-blue-50',
   },
@@ -247,7 +247,7 @@ export default function ProductTourPage() {
         </div>
       </section>
 
-      {/* Video Placeholder */}
+      {/* Guided walkthrough */}
       <section className="py-16 px-4 bg-slate-950">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
@@ -267,9 +267,9 @@ export default function ProductTourPage() {
               <div className="w-16 h-16 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
                 <Play size={28} className="text-blue-400 ml-1" />
               </div>
-              <p className="text-white font-bold text-lg mb-2">Product walkthrough coming soon.</p>
+              <p className="text-white font-bold text-lg mb-2">See the evidence workflow with your own use case.</p>
               <p className="text-slate-400 text-sm max-w-sm mx-auto">
-                In the meantime, book a live demo and we&apos;ll walk you through the platform personally.
+                Book a guided session to review report import, source-linked facts, human approval, delivery history, and bureau outcomes.
               </p>
               <Link
                 href="/demo"

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
+import { PLANS_LIST } from '@/lib/stripe/plans';
 import DemoVideoPlayer from '@/app/homepage/components/DemoVideoPlayer';
 import {
   Check,
@@ -14,96 +15,7 @@ import {
 } from 'lucide-react';
 
 // ─── Plan configuration (single source of truth) ─────────────────────────────
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    monthlyPrice: 49,
-    annualPrice: 39,
-    description: 'For solo operators and new credit repair businesses.',
-    badge: null,
-    highlight: false,
-    features: [
-      'Up to 25 active clients',
-      '1 team member',
-      'Client portal',
-      'Dispute management',
-      'Document storage (5 GB)',
-      'Credit report upload',
-      'Basic dispute letters',
-      'Stripe billing integration',
-      'Audit log',
-      'Email support',
-    ],
-    cta: 'Start $1 Trial',
-  },
-  {
-    id: 'professional',
-    name: 'Professional',
-    monthlyPrice: 129,
-    annualPrice: 103,
-    description: 'For growing agencies that need automation and AI tools.',
-    badge: 'Most Popular',
-    highlight: true,
-    features: [
-      'Up to 100 active clients',
-      'Up to 5 team members',
-      'Everything in Starter',
-      'AI credit report analysis',
-      'AI dispute letter generation',
-      'Task automation',
-      'Workflow templates',
-      'Lead intake forms',
-      'Document storage (25 GB)',
-      'Analytics dashboard',
-      'Priority email support',
-    ],
-    cta: 'Start $1 Trial',
-  },
-  {
-    id: 'agency',
-    name: 'Agency',
-    monthlyPrice: 249,
-    annualPrice: 199,
-    description: 'For larger teams, higher volume, and advanced workflows.',
-    badge: null,
-    highlight: false,
-    features: [
-      'Unlimited active clients',
-      'Up to 15 team members',
-      'Everything in Professional',
-      'White-label client portal',
-      'Agency analytics dashboard',
-      'Document storage (100 GB)',
-      'API access',
-      'Data export',
-      'Onboarding assistance',
-      'Priority support',
-    ],
-    cta: 'Start $1 Trial',
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    monthlyPrice: null,
-    annualPrice: null,
-    description: 'Custom pricing for large agencies and multi-location operations.',
-    badge: null,
-    highlight: false,
-    features: [
-      'Unlimited clients',
-      'Unlimited team members',
-      'Everything in Agency',
-      'Custom integrations',
-      'Dedicated success manager',
-      'Custom SLA',
-      'Custom data retention',
-      'Security review',
-      'Custom contract',
-    ],
-    cta: 'Contact Sales',
-  },
-];
+const PLANS = PLANS_LIST;
 
 // ─── Comparison table rows ────────────────────────────────────────────────────
 const COMPARISON_ROWS: {
@@ -129,27 +41,25 @@ const COMPARISON_ROWS: {
     ],
   },
   {
-    category: 'AI Features',
+    category: 'Evidence Review',
     rows: [
-      { feature: 'AI credit report analysis', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'AI dispute letter generation', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'AI usage limits', starter: '—', professional: '100 reports/mo', agency: '500 reports/mo', enterprise: 'Custom' },
+      { feature: 'Structured report review', starter: false, professional: true, agency: true, enterprise: true },
+      { feature: 'Evidence-linked draft assistance', starter: false, professional: true, agency: true, enterprise: true },
+      { feature: 'Named verification and approval', starter: false, professional: true, agency: true, enterprise: true },
     ],
   },
   {
-    category: 'Automation & Workflows',
+    category: 'Workflow Controls',
     rows: [
-      { feature: 'Task automation', starter: false, professional: true, agency: true, enterprise: true },
       { feature: 'Workflow templates', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'Lead intake forms', starter: false, professional: true, agency: true, enterprise: true },
+      { feature: 'Response tracking', starter: false, professional: true, agency: true, enterprise: true },
+      { feature: 'Role-based review controls', starter: false, professional: false, agency: true, enterprise: true },
     ],
   },
   {
     category: 'Advanced',
     rows: [
-      { feature: 'White-label client portal', starter: false, professional: false, agency: true, enterprise: true },
       { feature: 'Analytics dashboard', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'API access', starter: false, professional: false, agency: true, enterprise: true },
       { feature: 'Data export', starter: false, professional: false, agency: true, enterprise: true },
       { feature: 'Onboarding assistance', starter: false, professional: false, agency: true, enterprise: true },
     ],
