@@ -70,6 +70,7 @@ export default function RootLayout({
   children
 }: Readonly<{children: React.ReactNode;}>) {
   const isProduction = process.env.NEXT_PUBLIC_SITE_URL === 'https://fixmy.money';
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   return (
     <html lang="en" className={plusJakartaSans.variable}>
@@ -117,10 +118,10 @@ export default function RootLayout({
           {children}
           <Toaster />
         </AuthProvider>
-        {isProduction &&
+        {isProduction && gaMeasurementId &&
         <>
             <Script
-            src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
+            src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
             strategy="afterInteractive" />
           
             <Script
@@ -131,7 +132,7 @@ export default function RootLayout({
                   window.dataLayer = window.dataLayer || [];
                   function gtag(){dataLayer.push(arguments);}
                   gtag('js', new Date());
-                  gtag('config', 'G-XXXXXXXXXX');
+                  gtag('config', '${gaMeasurementId}');
                 `
             }} />
           

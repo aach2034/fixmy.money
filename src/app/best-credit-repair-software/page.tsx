@@ -3,27 +3,36 @@ import Link from 'next/link';
 import { ArrowRight, Check, Shield, AlertTriangle } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Best Credit Repair Software for Agencies | FixMy.Money',
-  description: 'Compare the best credit repair software for agencies. FixMy.Money offers AI analysis, dispute automation, CRM, billing, and client portals. Built for modern credit repair professionals.',
+  title: 'Best Credit Repair Software 2026 | FixMy.Money',
+  description: 'Compare credit repair software by evidence review, human approval, client operations, response tracking, billing, security, and total cost.',
   alternates: { canonical: 'https://fixmy.money/best-credit-repair-software' },
   openGraph: {
-    title: 'Best Credit Repair Software for Agencies | FixMy.Money',
-    description: 'Compare the best credit repair software for agencies. FixMy.Money offers AI analysis, dispute automation, CRM, billing, and client portals.',
+    title: 'Best Credit Repair Software 2026 | FixMy.Money',
+    description: 'A practical 2026 evaluation framework for credit repair agency software, from evidence review through outcome tracking.',
     url: 'https://fixmy.money/best-credit-repair-software',
     type: 'website',
   },
 };
 
 const comparison = [
-  { feature: 'AI Credit Analysis', fixmy: true, others: false },
-  { feature: 'Dispute Automation', fixmy: true, others: true },
-  { feature: 'Client CRM', fixmy: true, others: true },
-  { feature: 'Stripe Billing', fixmy: true, others: false },
-  { feature: 'Client Portal', fixmy: true, others: true },
-  { feature: 'Document Storage', fixmy: true, others: true },
-  { feature: 'Task Automation', fixmy: true, others: false },
-  { feature: 'Modern UI/UX', fixmy: true, others: false },
+  { feature: 'Source-linked evidence review', fixmy: true, others: false },
+  { feature: 'Human approval before final use', fixmy: true, others: false },
+  { feature: 'Client CRM and portal', fixmy: true, others: true },
+  { feature: 'Bureau response and outcome tracking', fixmy: true, others: true },
+  { feature: 'Stripe billing records', fixmy: true, others: false },
+  { feature: 'Document storage and audit history', fixmy: true, others: true },
+  { feature: 'Team workflow controls', fixmy: true, others: true },
+  { feature: 'Data export', fixmy: true, others: true },
 ];
+
+const criteria = [
+  ['Evidence quality', 'Can staff connect each factual assertion to the report, correspondence, or client-supplied document that supports it?'],
+  ['Review controls', 'Can your agency require a human to verify the facts, requested correction, and client authorization before final use?'],
+  ['Outcome tracking', 'Can the system record bureau and furnisher responses without treating every deletion or update as the same result?'],
+  ['Operational fit', 'Does it connect intake, documents, CRM, tasks, billing, communications, and the client portal without duplicate entry?'],
+  ['Security and portability', 'Look for role-based access, audit history, retention controls, and a practical way to export agency data.'],
+  ['Total cost', 'Compare client and seat limits, storage, implementation time, add-ons, payment processing, and the cost of disconnected tools.'],
+] as const;
 
 export default function BestCreditRepairSoftwarePage() {
   return (
@@ -47,10 +56,10 @@ export default function BestCreditRepairSoftwarePage() {
             Business Software for Agencies
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
-            Best credit repair software for agencies
+            Best credit repair software for agencies in 2026
           </h1>
           <p className="text-xl text-slate-300 mb-6 max-w-2xl mx-auto">
-            Compare features and find the right platform for your credit repair business.
+            Use a practical evaluation framework—not a feature-count contest—to choose software your team can operate, review, and document responsibly.
           </p>
           <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl px-5 py-3 mb-8 max-w-2xl mx-auto">
             <p className="text-xs text-slate-400">
@@ -68,12 +77,30 @@ export default function BestCreditRepairSoftwarePage() {
         </div>
       </section>
 
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="max-w-3xl mb-10">
+            <p className="text-sm font-bold uppercase tracking-widest text-blue-700 mb-3">Evaluation framework</p>
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-4">What agencies should compare before buying</h2>
+            <p className="text-slate-600 leading-relaxed">The right platform depends on how your agency verifies information, assigns responsibility, documents approval, communicates with clients, and measures outcomes. Score every vendor against the same written criteria and validate important claims in a working demonstration.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-5">
+            {criteria.map(([heading, body]) => (
+              <div key={heading} className="rounded-2xl border border-slate-200 p-6">
+                <h3 className="font-bold text-slate-900 mb-2">{heading}</h3>
+                <p className="text-sm leading-relaxed text-slate-600">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Comparison Table */}
       <section className="py-20 px-4 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Feature Comparison</h2>
-            <p className="text-lg text-slate-600">See how FixMy.Money compares to other credit repair software.</p>
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Workflow capability comparison</h2>
+            <p className="text-lg text-slate-600">A directional comparison of FixMy.Money with capabilities commonly found across agency platforms. Confirm individual vendor features before purchasing.</p>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <table className="w-full">
@@ -81,7 +108,7 @@ export default function BestCreditRepairSoftwarePage() {
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="text-left px-6 py-4 font-bold text-slate-900">Feature</th>
                   <th className="text-center px-6 py-4 font-bold text-slate-900">FixMy.Money</th>
-                  <th className="text-center px-6 py-4 font-bold text-slate-600">Other Platforms</th>
+                  <th className="text-center px-6 py-4 font-bold text-slate-600">Commonly available elsewhere</th>
                 </tr>
               </thead>
               <tbody>

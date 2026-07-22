@@ -5,6 +5,10 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, Clock, User, ChevronRight } from 'lucide-react';
 import { getArticleBySlug, getRelatedArticles, getAllSlugs } from '@/lib/blog/articles';
 
+function machineDate(date: string) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -28,8 +32,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'article',
       url: article.canonicalUrl,
       siteName: 'FixMy.Money',
-      publishedTime: article.publishedDate,
-      modifiedTime: article.updatedDate,
+      publishedTime: machineDate(article.publishedDate),
+      modifiedTime: machineDate(article.updatedDate),
       authors: [article.author],
     },
     twitter: {
@@ -65,8 +69,8 @@ export default async function BlogArticlePage({ params }: Props) {
       name: 'FixMy.Money',
       url: 'https://fixmy.money',
     },
-    datePublished: article.publishedDate,
-    dateModified: article.updatedDate,
+    datePublished: machineDate(article.publishedDate),
+    dateModified: machineDate(article.updatedDate),
     url: article.canonicalUrl,
     mainEntityOfPage: article.canonicalUrl,
   };
@@ -152,17 +156,19 @@ export default async function BlogArticlePage({ params }: Props) {
               <User size={14} />
               {article.author} · {article.authorTitle}
             </span>
-            <span className="flex items-center gap-1.5">
+            <time dateTime={machineDate(article.publishedDate)} className="flex items-center gap-1.5">
               <Calendar size={14} />
               Published {article.publishedDate}
-            </span>
+            </time>
             <span className="flex items-center gap-1.5">
               <Clock size={14} />
               {article.readingTime}
             </span>
           </div>
           {article.updatedDate !== article.publishedDate && (
-            <p className="text-xs text-slate-500 mt-2">Updated {article.updatedDate}</p>
+            <p className="text-xs text-slate-500 mt-2">
+              Updated <time dateTime={machineDate(article.updatedDate)}>{article.updatedDate}</time>
+            </p>
           )}
         </div>
       </header>
@@ -195,6 +201,16 @@ export default async function BlogArticlePage({ params }: Props) {
 
           {/* Article Body */}
           <article className="lg:col-span-3 order-1 lg:order-2">
+            <div className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-sm font-bold text-slate-900">Written and reviewed by {article.author}</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                {article.authorTitle}. FixMy.Money publishes operational guidance for credit-repair professionals using primary regulatory sources and practical agency workflows. Content is educational and is not legal advice.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
+                <Link href="/about" className="text-blue-700 hover:text-blue-800">About the publisher</Link>
+                <Link href="/compliance" className="text-blue-700 hover:text-blue-800">Compliance approach</Link>
+              </div>
+            </div>
             <div className="prose prose-slate max-w-none">
               {article.sections.map((section, i) => (
                 <div key={i} className="mb-8">
