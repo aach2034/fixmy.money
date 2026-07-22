@@ -238,34 +238,39 @@ export default function HomepageContent() {
       )}
 
       {/* SERVICE UPDATE */}
-      <div className="border-b border-emerald-200 bg-emerald-50 text-emerald-950" role="status">
-        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2.5 text-center text-sm font-semibold sm:px-6 lg:px-8">
-          <CheckCircle2 size={17} className="shrink-0 text-emerald-600" aria-hidden="true" />
+      <div className="border-b border-emerald-200/80 bg-emerald-50 text-emerald-950" role="status">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2 text-center text-xs font-semibold sm:px-6 sm:text-sm lg:px-8">
+          <CheckCircle2 size={15} className="shrink-0 text-emerald-600" aria-hidden="true" />
           <span>Service update: FixMy.Money is fully operational, including secure trial and subscription billing.</span>
         </div>
       </div>
 
       {/* NAVBAR */}
-      <header className={`sticky top-0 left-0 right-0 z-40 transition-all duration-200 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100' : 'bg-white'}`}>
+      <header className={`sticky top-0 left-0 right-0 z-40 border-b transition-all duration-200 ${scrolled ? 'border-slate-200 bg-white/95 shadow-sm backdrop-blur-md' : 'border-slate-100 bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded-lg">
-              <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money — Credit Repair Software for Agencies" width={140} height={36} className="object-contain h-auto" priority unoptimized />
+          <div className="flex h-[72px] items-center justify-between gap-6">
+            <Link href="/" className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 shadow-sm">
+                <Image src="/assets/images/app_logo.png" alt="" width={27} height={31} className="h-[31px] w-auto object-contain" priority unoptimized />
+              </span>
+              <span className="leading-none">
+                <span className="block text-[19px] font-black tracking-[-0.035em] text-slate-950">FixMy<span className="text-blue-600">.</span>Money</span>
+                <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Agency software</span>
+              </span>
             </Link>
-            <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
+            <nav className="hidden items-center gap-7 xl:flex" aria-label="Main navigation">
               {NAV_LINKS.map(link => (
                 link.href.startsWith('#')
                   ? <a key={link.href} href={link.href} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded">{link.label}</a>
                   : <Link key={link.href} href={link.href} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded">{link.label}</Link>
               ))}
             </nav>
-            <div className="hidden md:flex items-center gap-3">
-              <Link href="/login" className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded-lg">Sign In</Link>
-              <Link href="/product-tour" className="text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hover:border-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">View Product Tour</Link>
+            <div className="hidden items-center gap-2 xl:flex">
+              <Link href="/login" className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">Sign In</Link>
               <button
                 type="button"
                 onClick={() => handleStartTrial(undefined, undefined, 'header_nav')}
-                className="text-sm font-bold bg-blue-600 text-white px-5 py-2 rounded-xl hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
               >
                 Start Agency Trial
               </button>
@@ -276,7 +281,7 @@ export default function HomepageContent() {
               aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={mobileOpen}
               aria-controls="mobile-navigation"
-              className="md:hidden p-2 rounded-lg text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+              className="rounded-xl border border-slate-200 p-2.5 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 xl:hidden"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -286,7 +291,7 @@ export default function HomepageContent() {
         {/* Mobile navigation — id matches aria-controls */}
           <div
           id="mobile-navigation"
-          className={`md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-2 shadow-lg ${mobileOpen ? '' : 'hidden'}`}
+          className={`border-t border-slate-100 bg-white px-4 py-4 shadow-lg xl:hidden ${mobileOpen ? '' : 'hidden'}`}
         >
           {NAV_LINKS.map(link => (
             link.href.startsWith('#')
@@ -948,57 +953,58 @@ export default function HomepageContent() {
       </main>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-slate-950 text-slate-300 py-14">
+      <footer className="border-t border-slate-800 bg-[#07111f] py-16 text-slate-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
-            <div className="md:col-span-2">
-              <Link href="/" className="focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded inline-block">
-                <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto brightness-0 invert opacity-70 mb-4" unoptimized />
+          <div className="grid grid-cols-2 gap-x-8 gap-y-12 lg:grid-cols-[1.7fr_1fr_1fr_1fr] lg:gap-12">
+            <div className="col-span-2 lg:col-span-1">
+              <Link href="/" className="inline-flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-950">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                  <Image src="/assets/images/app_logo.png" alt="" width={29} height={34} className="h-[34px] w-auto object-contain" unoptimized />
+                </span>
+                <span className="text-xl font-black tracking-[-0.035em] text-white">FixMy<span className="text-cyan-300">.</span>Money</span>
               </Link>
-              <p className="text-sm text-slate-300 leading-relaxed max-w-sm">
+              <p className="mt-5 max-w-sm text-sm leading-6 text-slate-400">
                 Credit repair software for modern agencies. Manage clients, dispute workflows, billing, documents, and progress tracking from one organized workspace.
-              </p>
-              <p className="text-xs text-slate-400 mt-4 leading-relaxed">
-                FixMy.Money provides business software for credit repair professionals. We do not provide consumer credit repair services or guarantee credit outcomes. Not legal advice.
               </p>
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-4">Platform</p>
-              <ul className="space-y-2.5 text-sm">
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-white">Platform</p>
+              <ul className="space-y-3 text-sm">
                 <li><Link href="/features" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Features</Link></li>
                 <li><Link href="/pricing" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Pricing</Link></li>
                 <li><Link href="/credit-repair-crm" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Credit Repair CRM</Link></li>
                 <li><Link href="/credit-repair-dispute-software" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Dispute Software</Link></li>
                 <li><Link href="/credit-repair-client-portal" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Client Portal</Link></li>
                 <li><Link href="/credit-repair-automation" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Workflow Automation</Link></li>
-                <li><Link href="/credit-repair-cloud-alternative" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">vs Credit Repair Cloud</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-white">Company</p>
+              <ul className="space-y-3 text-sm">
+                <li><Link href="/product-tour" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Product Tour</Link></li>
                 <li><Link href="/demo" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Book Demo</Link></li>
                 <li><Link href="/blog" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Blog</Link></li>
                 <li><Link href="/contact" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-4">Legal & Compliance</p>
-              <ul className="space-y-2.5 text-sm">
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-white">Trust & Legal</p>
+              <ul className="space-y-3 text-sm">
                 <li><Link href="/terms" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Terms of Service</Link></li>
                 <li><Link href="/privacy" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Privacy Policy</Link></li>
-                <li><Link href="/refund-policy" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Refund Policy</Link></li>
-                <li><Link href="/cancellation-policy" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Cancellation Policy</Link></li>
                 <li><Link href="/security" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Security</Link></li>
                 <li><Link href="/compliance" className="text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Compliance</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-slate-400">© 2026 FixMy.Money. All rights reserved. FixMy.Money is a software platform, not a credit repair organization. We do not provide consumer credit repair services.</p>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
-              <Link href="/privacy" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Privacy</Link>
-              <Link href="/terms" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Terms</Link>
+          <div className="mt-12 flex flex-col gap-5 border-t border-slate-800 pt-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs leading-5 text-slate-500">FixMy.Money provides business software for credit repair professionals. We do not provide consumer credit repair services, legal advice, or guarantee credit outcomes.</p>
+              <p className="mt-2 text-xs text-slate-500">© 2026 FixMy.Money. All rights reserved.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
               <Link href="/refund-policy" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Refund Policy</Link>
               <Link href="/cancellation-policy" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Cancellation</Link>
-              <Link href="/security" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Security</Link>
-              <Link href="/compliance" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Compliance</Link>
-              <Link href="/contact" className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded">Contact</Link>
             </div>
           </div>
         </div>
