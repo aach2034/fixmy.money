@@ -20,10 +20,12 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
+import { isLegacySeedClient, purgeLegacyProductionSeeds } from '@/lib/demo/purgeLegacyProductionSeeds';
 
 type ClientRow = {
   id: string;
   name: string;
+  email: string | null;
   case_stage: string | null;
   subscription_status: string | null;
   active_disputes: number | null;
@@ -139,12 +141,17 @@ export default function DashboardContent() {
     setLoading(true);
     setError('');
     try {
+      // An early production migration attached fictional seed rows to the first
+      // real account. Purge those exact fixtures before every read; the cleanup
+      // is idempotent, and the local filter below is a second line of defense.
+      await purgeLegacyProductionSeeds(supabase, user.id);
+
       const [profileResult, clientsResult, itemsResult] = await Promise.all([
         supabase.from('user_profiles')
           .select('full_name, company_name, subscription_plan, subscription_status')
           .eq('id', user.id).single(),
         supabase.from('staff_clients')
-          .select('id, name, case_stage, subscription_status, active_disputes, items_deleted, next_task_due, next_task_label, updated_at')
+          .select('id, name, email, case_stage, subscription_status, active_disputes, items_deleted, next_task_due, next_task_label, updated_at')
           .eq('owner_id', user.id).order('updated_at', { ascending: false }),
         supabase.from('negative_items')
           .select('client_id, creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, tag_status, is_negative, is_selected, parser_confidence, account_number_masked, date_reported')
@@ -154,7 +161,7 @@ export default function DashboardContent() {
       if (profileResult.error) throw profileResult.error;
       if (clientsResult.error) throw clientsResult.error;
 
-      const clients = (clientsResult.data ?? []) as ClientRow[];
+      const clients = (clientsResult.data ?? []).filter(client => !isLegacySeedClient(client)) as ClientRow[];
       const items = itemsResult.error ? [] : (itemsResult.data ?? []);
       const activeStatuses = new Set(['ready', 'generated', 'sent', 'waiting_for_response', 'escalated']);
       const completedStatuses = new Set(['updated', 'deleted', 'closed']);
