@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { trackTrialSignup, trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
-import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, CreditCard, Lock, Sparkles, GitBranch, Shield, Zap, Brain, Bot, Check, AlertTriangle, Building2, TrendingUp, Inbox, BookOpen, LayoutDashboard, ClipboardList, UserPlus, Upload, Send, DollarSign, ChevronRight, Play } from 'lucide-react';
+import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, CreditCard, Lock, Sparkles, GitBranch, Shield, Zap, Brain, Bot, Check, AlertTriangle, Building2, TrendingUp, Inbox, BookOpen, LayoutDashboard, ClipboardList, UserPlus, Upload, Send, DollarSign, ChevronRight, Play, ArrowRight, Search } from 'lucide-react';
 import DemoVideoPlayer from './DemoVideoPlayer';
 
 const NAV_LINKS = [
@@ -311,99 +311,69 @@ export default function HomepageContent() {
       <main id="main-content">
 
         {/* ── SECTION 1: HERO ── */}
-        <section className="relative overflow-hidden pt-16 pb-20" style={{ background: 'linear-gradient(135deg, #0D1B2A 0%, #111827 50%, #0d1f3c 100%)' }}>
-          {/* Background glows */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" style={{ background: 'rgba(37,99,235,0.1)' }} />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" style={{ background: 'rgba(34,197,94,0.06)' }} />
-            <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
-          </div>
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-
-              {/* LEFT: Headline + CTAs */}
-              <div className="flex flex-col">
-                <div className="inline-flex items-center gap-2 self-start mb-8" style={{ background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)', borderRadius: '9999px', padding: '6px 16px' }}>
-                  <Bot size={13} className="text-blue-300" />
-                  <span className="text-xs font-semibold text-blue-300">Business Software for Credit Repair Professionals</span>
+        <section className="relative overflow-hidden border-b border-slate-200 bg-[#F7FAFB] py-16 sm:py-24">
+          <div className="pointer-events-none absolute -right-24 -top-32 h-[440px] w-[440px] rounded-full bg-cyan-100/60 blur-3xl" />
+          <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
+            <div className="grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-800">
+                  <Shield size={14} /> Private, evidence-led review
                 </div>
-
-                <h1 className="text-5xl sm:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-5">
-                  Run Your Credit Repair Agency{' '}
-                  <span className="bg-gradient-to-r from-blue-400 via-emerald-400 to-blue-300 bg-clip-text text-transparent">
-                    From One Platform
-                  </span>
+                <h1 className="mt-7 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.055em] text-[#071B2E] sm:text-6xl lg:text-[76px]">
+                  Evidence-first credit dispute readiness
                 </h1>
-
-                <p className="text-xl text-slate-300 leading-relaxed mb-6 max-w-xl">
-                  Manage client onboarding, credit reports, dispute workflows, communication, documentation, service-based billing, and compliance records without stitching together multiple tools.
+                <p className="mt-7 max-w-xl text-lg leading-8 text-[#526579] sm:text-xl">
+                  Turn complex credit reports into a clear, documented review process. Verify every detail, understand what is supportable, and stay in control before anything moves forward.
                 </p>
-
-                <div className="flex flex-col sm:flex-row items-start gap-4 mb-5">
-                  <button
-                    type="button"
-                    onClick={() => handleStartTrial(undefined, undefined, 'hero')}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-                    style={{ background: '#2563EB', boxShadow: '0 8px 32px rgba(37,99,235,0.4)' }}
-                  >
-                    <Sparkles size={18} />
-                    Start $1 Trial
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-3 rounded-xl bg-[#071B2E] px-7 py-4 text-base font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-[#0B2942] focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                    Review your report <ChevronRight size={18} />
                   </button>
-                  <Link
-                    href="/demo-mode"
-                    onClick={() => trackCtaClick('Explore Interactive Demo', '/demo-mode', 'hero')}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 font-semibold text-base px-8 py-4 rounded-2xl transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', backdropFilter: 'blur(8px)' }}
-                  >
-                    <Play size={16} className="text-blue-400" />
-                    Explore Interactive Demo
+                  <Link href="/product-tour" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-bold text-[#173B59] hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                    See how it works <ArrowRight size={17} className="text-cyan-600" />
                   </Link>
                 </div>
-
-                {/* FOUNDING AGENCY STATEMENT */}
-                <p className="text-xs text-slate-400 mb-6 max-w-xl leading-relaxed">
-                  For verified credit-repair businesses purchasing software access. FixMy.Money does not provide personal credit-repair services.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-5 text-sm text-slate-300">
-                  <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-400" /> No Long-Term Contracts</span>
-                  <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-400" /> Cancel Anytime</span>
-                  <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-400" /> Secure Payments via Stripe</span>
+                <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#526579]">
+                  <span className="flex items-center gap-2"><CheckCircle2 size={17} className="text-emerald-600" />Your data stays private</span>
+                  <span className="flex items-center gap-2"><CheckCircle2 size={17} className="text-emerald-600" />You approve every action</span>
                 </div>
               </div>
 
-              {/* RIGHT: Evidence-first workflow visual */}
-              <div className="w-full">
-                <div className="overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950 shadow-2xl shadow-blue-950/50">
-                  <Image
-                    src="/evidence-first-workflow.png"
-                    alt="FixMy.Money evidence-first workflow: upload, verify, score, draft, and approve"
-                    width={1760}
-                    height={910}
-                    className="h-auto w-full"
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                    priority
-                  />
+              <div className="relative rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_28px_70px_rgba(12,38,61,0.10)] sm:p-8">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div><p className="text-xs font-extrabold uppercase tracking-[0.22em] text-cyan-600">Evidence review</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#071B2E] sm:text-3xl">A clear path from report to readiness</h2></div>
+                  <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"><CheckCircle2 size={16} />Secure workspace</span>
                 </div>
-                <p className="mt-3 text-center text-xs font-medium text-slate-400">
-                  A transparent path from source documents to consumer-approved dispute packages.
-                </p>
+                <div className="mt-8 grid grid-cols-5 gap-2 sm:gap-4">
+                  {[
+                    { label: 'Upload', note: 'Add report', icon: Upload },
+                    { label: 'Verify', note: 'Review facts', icon: Search },
+                    { label: 'Score', note: 'Assess support', icon: Shield },
+                    { label: 'Draft', note: 'Prepare clearly', icon: FileText },
+                    { label: 'Approve', note: 'You decide', icon: Check },
+                  ].map((step, index) => {
+                    const StepIcon = step.icon;
+                    return <div key={step.label} className="relative text-center"><div className={`mx-auto flex aspect-square max-w-[84px] items-center justify-center rounded-2xl border ${index === 0 || index === 4 ? 'border-[#071B2E] bg-[#071B2E] text-white' : index === 2 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-[#173B59]'} shadow-sm`}><StepIcon size={index === 2 ? 26 : 23} /></div><p className="mt-3 text-xs font-extrabold text-[#071B2E] sm:text-sm">{step.label}</p><p className="mt-1 hidden text-xs text-slate-400 sm:block">{step.note}</p></div>;
+                  })}
+                </div>
+                <div className="mt-8 grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div><div className="h-2 w-4/5 rounded-full bg-cyan-200" /><div className="mt-3 h-2 w-3/5 rounded-full bg-slate-200" /><div className="mt-3 h-2 w-2/3 rounded-full bg-slate-200" /></div>
+                  <div className="flex items-center gap-3 border-slate-200 sm:border-l sm:pl-6"><div className="flex h-14 w-14 items-center justify-center rounded-full border-[6px] border-emerald-600 bg-white text-sm font-extrabold text-[#071B2E]">Ready</div><div><p className="text-sm font-extrabold text-[#071B2E]">Evidence reviewed</p><p className="text-xs text-slate-500">Human approval required</p></div></div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* ── TRUST STRIP ── */}
-        <section className="py-8 bg-slate-50 border-y border-slate-100" aria-label="Platform highlights">
+        <section className="border-b border-slate-200 bg-white py-8" aria-label="Platform highlights">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 text-sm font-semibold text-slate-700">
               {[
-                { icon: Users, label: 'Client CRM' },
-                { icon: GitBranch, label: 'Dispute Workflows' },
-                { icon: CreditCard, label: 'Stripe Billing' },
-                { icon: LayoutDashboard, label: 'Client Portal' },
-                { icon: Shield, label: 'CROA-Aware Documentation' },
+                { icon: Shield, label: 'Evidence-led analysis' },
+                { icon: Lock, label: 'Private by default' },
+                { icon: CheckCircle2, label: 'Human approval required' },
+                { icon: FileText, label: 'Clear audit trail' },
               ].map(item => {
                 const ItemIcon = item.icon;
                 return (
@@ -418,16 +388,16 @@ export default function HomepageContent() {
         </section>
 
         {/* ── SECTION: SEE FIXMY.MONEY IN ACTION (immediately below hero) ── */}
-        <section className="py-24 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0D1B2A 0%, #111827 100%)' }}>
+        <section className="relative overflow-hidden border-b border-slate-200 bg-[#F7FAFB] py-24">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" style={{ background: 'rgba(37,99,235,0.08)' }} />
             <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" style={{ background: 'rgba(34,197,94,0.05)' }} />
           </div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center mb-14">
-              <p className="text-sm font-semibold text-blue-400 uppercase tracking-widest mb-3">Product Walkthrough</p>
-              <h2 className="text-4xl font-extrabold text-white mb-4">See FixMy.Money In Action</h2>
-              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-700">Product Walkthrough</p>
+              <h2 className="mb-4 text-4xl font-extrabold text-[#071B2E]">See FixMy.Money In Action</h2>
+              <p className="mx-auto max-w-2xl text-lg text-[#526579]">
                 Watch how credit repair professionals use FixMy.Money to manage clients, automate disputes, and grow their business.
               </p>
             </div>
@@ -458,19 +428,19 @@ export default function HomepageContent() {
                     <div
                       key={item.label}
                       className="flex items-start gap-4 p-4 rounded-2xl transition-all"
-                      style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)' }}
+                      style={{ background: '#FFFFFF', border: '1px solid #DCE7EC' }}
                     >
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.25)' }}>
-                        <ItemIcon size={18} className="text-blue-400" />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#E8F8FB', border: '1px solid #BDECF4' }}>
+                        <ItemIcon size={18} className="text-cyan-700" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.2)' }}>
                             <Check size={10} className="text-emerald-400" />
                           </span>
-                          <h3 className="text-sm font-bold text-white">{item.label}</h3>
+                          <h3 className="text-sm font-bold text-[#071B2E]">{item.label}</h3>
                         </div>
-                        <p className="text-xs text-slate-400 leading-relaxed">{item.body}</p>
+                        <p className="text-xs leading-relaxed text-[#526579]">{item.body}</p>
                       </div>
                     </div>
                   );
