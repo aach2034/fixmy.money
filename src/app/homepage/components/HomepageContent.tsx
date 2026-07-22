@@ -311,54 +311,50 @@ export default function HomepageContent() {
       <main id="main-content">
 
         {/* ── SECTION 1: HERO ── */}
-        <section className="relative overflow-hidden border-b border-slate-200 bg-[#F7FAFB] py-16 sm:py-24">
-          <div className="pointer-events-none absolute -right-24 -top-32 h-[440px] w-[440px] rounded-full bg-cyan-100/60 blur-3xl" />
+        <section className="relative overflow-hidden border-b border-[#183146] bg-[#031322] py-16 text-white sm:py-24">
+          <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(40,204,229,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(40,204,229,.07) 1px, transparent 1px)', backgroundSize: '88px 88px' }} />
+          <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
           <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-            <div className="grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
+            <div className="relative grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-800">
-                  <Shield size={14} /> Private, evidence-led review
+                <div className="inline-flex items-center gap-4 text-xs font-extrabold uppercase tracking-[0.24em] text-cyan-200 sm:text-sm">
+                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Clarity before action
                 </div>
-                <h1 className="mt-7 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.055em] text-[#071B2E] sm:text-6xl lg:text-[76px]">
-                  Evidence-first credit dispute readiness
+                <h1 className="mt-9 max-w-2xl text-5xl font-semibold leading-[0.94] tracking-[-0.045em] text-[#F4F8FC] sm:text-6xl lg:text-[78px]" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>
+                  Evidence-first credit dispute <span className="text-cyan-200">readiness.</span>
                 </h1>
-                <p className="mt-7 max-w-xl text-lg leading-8 text-[#526579] sm:text-xl">
+                <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
                   Turn complex credit reports into a clear, documented review process. Verify every detail, understand what is supportable, and stay in control before anything moves forward.
                 </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-3 rounded-xl bg-[#071B2E] px-7 py-4 text-base font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-[#0B2942] focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
-                    Review your report <ChevronRight size={18} />
+                <div className="mt-9 flex flex-col gap-5 sm:flex-row sm:items-center">
+                  <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_12px_35px_rgba(34,211,238,.18)] transition hover:-translate-y-0.5 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
+                    Review my report <ArrowRight size={22} />
                   </button>
-                  <Link href="/product-tour" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-bold text-[#173B59] hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
-                    See how it works <ArrowRight size={17} className="text-cyan-600" />
-                  </Link>
-                </div>
-                <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#526579]">
-                  <span className="flex items-center gap-2"><CheckCircle2 size={17} className="text-emerald-600" />Your data stays private</span>
-                  <span className="flex items-center gap-2"><CheckCircle2 size={17} className="text-emerald-600" />You approve every action</span>
+                  <span className="max-w-[210px] text-sm font-medium leading-6 text-[#8298AD]">Private by design · You approve every action</span>
                 </div>
               </div>
 
-              <div className="relative rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_28px_70px_rgba(12,38,61,0.10)] sm:p-8">
+              <div className="relative rounded-[38px] border border-[#2A5671] bg-[#0A2940] p-5 shadow-[0_34px_80px_rgba(0,0,0,.25)] sm:p-8 lg:p-10">
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div><p className="text-xs font-extrabold uppercase tracking-[0.22em] text-cyan-600">Evidence review</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#071B2E] sm:text-3xl">A clear path from report to readiness</h2></div>
-                  <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"><CheckCircle2 size={16} />Secure workspace</span>
+                  <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Your evidence workspace</h2>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-300 sm:text-sm">Secure review</span>
                 </div>
-                <div className="mt-8 grid grid-cols-5 gap-2 sm:gap-4">
-                  {[
-                    { label: 'Upload', note: 'Add report', icon: Upload },
-                    { label: 'Verify', note: 'Review facts', icon: Search },
-                    { label: 'Score', note: 'Assess support', icon: Shield },
-                    { label: 'Draft', note: 'Prepare clearly', icon: FileText },
-                    { label: 'Approve', note: 'You decide', icon: Check },
-                  ].map((step, index) => {
-                    const StepIcon = step.icon;
-                    return <div key={step.label} className="relative text-center"><div className={`mx-auto flex aspect-square max-w-[84px] items-center justify-center rounded-2xl border ${index === 0 || index === 4 ? 'border-[#071B2E] bg-[#071B2E] text-white' : index === 2 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-[#173B59]'} shadow-sm`}><StepIcon size={index === 2 ? 26 : 23} /></div><p className="mt-3 text-xs font-extrabold text-[#071B2E] sm:text-sm">{step.label}</p><p className="mt-1 hidden text-xs text-slate-400 sm:block">{step.note}</p></div>;
-                  })}
-                </div>
-                <div className="mt-8 grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div><div className="h-2 w-4/5 rounded-full bg-cyan-200" /><div className="mt-3 h-2 w-3/5 rounded-full bg-slate-200" /><div className="mt-3 h-2 w-2/3 rounded-full bg-slate-200" /></div>
-                  <div className="flex items-center gap-3 border-slate-200 sm:border-l sm:pl-6"><div className="flex h-14 w-14 items-center justify-center rounded-full border-[6px] border-emerald-600 bg-white text-sm font-extrabold text-[#071B2E]">Ready</div><div><p className="text-sm font-extrabold text-[#071B2E]">Evidence reviewed</p><p className="text-xs text-slate-500">Human approval required</p></div></div>
+                <div className="mt-8 rounded-[28px] border border-[#153B54] bg-[#031725] p-5 sm:p-8">
+                  <div className="flex items-center gap-5">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-cyan-400 text-cyan-400"><FileText size={31} strokeWidth={1.6} /></div>
+                    <div className="min-w-0 flex-1"><p className="text-lg font-extrabold text-white">Credit report review</p><p className="mt-1 text-sm text-[#8198AD] sm:text-base">Evidence organized across all bureaus</p></div>
+                    <div className="hidden h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-[5px] border-cyan-400 sm:flex"><span className="text-3xl font-extrabold text-white">84</span><span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#8BA0B4]">Ready</span></div>
+                  </div>
+                  <div className="mt-10 space-y-3">
+                    {[
+                      ['Identity details cross-checked', 'Verified', true],
+                      ['Account evidence organized', 'Complete', true],
+                      ['Your review and approval', 'Required', false],
+                    ].map(([label, status, done]) => <div key={String(label)} className="flex items-center gap-4 rounded-2xl bg-[#0A2132] px-5 py-4"><span className={`flex h-5 w-5 items-center justify-center text-cyan-400 ${done ? '' : 'rounded-full border-2 border-cyan-400'}`}>{done ? <Check size={18} /> : null}</span><span className="min-w-0 flex-1 text-sm font-semibold text-[#BDCCDC] sm:text-base">{label}</span><span className="text-xs font-extrabold uppercase text-cyan-200 sm:text-sm">{status}</span></div>)}
+                  </div>
+                  <div className="mt-12 grid grid-cols-5 gap-2">
+                    {['Upload', 'Verify', 'Score', 'Draft', 'Approve'].map((label, index) => <div key={label} className="relative text-center"><div className={`relative z-10 mx-auto flex h-11 w-11 items-center justify-center rounded-full border ${index === 0 ? 'border-cyan-200 bg-cyan-400 text-[#031322]' : 'border-[#31566E] bg-[#092235] text-cyan-200'}`}>{index + 1}</div>{index < 4 && <span className="absolute left-[calc(50%+22px)] top-[21px] h-px w-[calc(100%-44px)] bg-cyan-400/70" />}<p className="mt-3 text-[11px] text-[#8298AD] sm:text-xs">{label}</p></div>)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -366,20 +362,20 @@ export default function HomepageContent() {
         </section>
 
         {/* ── TRUST STRIP ── */}
-        <section className="border-b border-slate-200 bg-white py-8" aria-label="Platform highlights">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 text-sm font-semibold text-slate-700">
+        <section className="border-b border-[#183146] bg-[#031322] py-10" aria-label="Platform highlights">
+          <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
+            <div className="grid gap-6 border-t border-[#183146] pt-9 sm:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr] lg:gap-9">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7890A5]">Built for informed decisions</p>
               {[
-                { icon: Shield, label: 'Evidence-led analysis' },
-                { icon: Lock, label: 'Private by default' },
-                { icon: CheckCircle2, label: 'Human approval required' },
-                { icon: FileText, label: 'Clear audit trail' },
+                { icon: Check, label: 'Evidence-based analysis' },
+                { icon: Shield, label: 'Encrypted document handling' },
+                { icon: CheckCircle2, label: 'No action without approval' },
               ].map(item => {
                 const ItemIcon = item.icon;
                 return (
-                  <div key={item.label} className="flex items-center gap-2 text-slate-700">
-                    <ItemIcon size={16} className="text-blue-600" />
-                    <span>{item.label}</span>
+                  <div key={item.label} className="flex items-center gap-3 text-[#BDCCDC]">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#31566E] text-cyan-400"><ItemIcon size={16} /></span>
+                    <span className="text-sm font-semibold leading-5">{item.label}</span>
                   </div>
                 );
               })}
