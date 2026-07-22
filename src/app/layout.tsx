@@ -20,9 +20,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money'),
-  title: 'Credit Repair Software for Agencies | FixMy.Money',
+  title: 'Evidence-First Credit Dispute Software | FixMy.Money',
   description:
-    'Credit repair business software for agencies. Manage clients, dispute workflows, billing, documents, and compliance records in one workspace. Start a 14-day trial for $1.',
+    'Securely extract, verify, score, draft, and approve evidence-backed credit dispute packages with an auditable rules-based workflow.',
   applicationName: 'FixMy.Money',
   category: 'Business software',
   creator: 'FixMy.Money',
@@ -47,21 +47,21 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
-    title: 'Credit Repair Software for Agencies | FixMy.Money',
-    description: 'Manage clients, dispute workflows, billing, documents, and compliance records. Start a 14-day trial for $1.',
+    title: 'Evidence-First Credit Dispute Software | FixMy.Money',
+    description: 'Turn verified report facts and supporting documents into clear, auditable dispute packages.',
     images: [
     {
       url: '/og.png',
       width: 1200,
       height: 630,
-      alt: 'FixMy.Money - Credit Repair Software for Agencies'
+      alt: 'FixMy.Money evidence-first dispute readiness workflow'
     }]
 
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Credit Repair Software for Agencies | FixMy.Money',
-    description: 'Manage clients, dispute workflows, billing, documents, and compliance records. Start a 14-day trial for $1.',
+    title: 'Evidence-First Credit Dispute Software | FixMy.Money',
+    description: 'Turn verified report facts and supporting documents into clear, auditable dispute packages.',
     images: ['/og.png'],
   }
 };

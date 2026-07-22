@@ -25,51 +25,12 @@ interface Appointment {
   notes?: string;
 }
 
-const mockAppointments: Appointment[] = [
-  {
-    id: '1',
-    title: 'Credit Score Strategy Session',
-    date: 'Jun 5, 2026',
-    time: '10:00 AM',
-    type: 'video',
-    status: 'upcoming',
-    coach: 'Sarah Johnson',
-    notes: 'Review dispute letters and credit utilization plan',
-  },
-  {
-    id: '2',
-    title: 'Debt Elimination Planning',
-    date: 'May 28, 2026',
-    time: '2:00 PM',
-    type: 'phone',
-    status: 'completed',
-    coach: 'Marcus Williams',
-    notes: 'Created snowball payoff plan for 4 accounts',
-  },
-  {
-    id: '3',
-    title: 'Budget Review & Savings Goals',
-    date: 'May 15, 2026',
-    time: '11:00 AM',
-    type: 'video',
-    status: 'completed',
-    coach: 'Sarah Johnson',
-  },
-  {
-    id: '4',
-    title: 'Initial Financial Assessment',
-    date: 'May 1, 2026',
-    time: '3:00 PM',
-    type: 'video',
-    status: 'completed',
-    coach: 'Marcus Williams',
-  },
-];
-
 const CALENDLY_URL = 'https://calendly.com';
 
 export default function AppointmentsContent() {
-  const [appointments] = useState<Appointment[]>(mockAppointments);
+  // Appointments stay empty until a real calendar provider is connected.
+  // Production screens must never be populated with illustrative sessions.
+  const [appointments] = useState<Appointment[]>([]);
   const [showScheduler, setShowScheduler] = useState(false);
   const [calendlyLoaded, setCalendlyLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
