@@ -14,20 +14,8 @@ interface Client {
   reportAnalyzed?: boolean;
 }
 
-const TIMELINE = [
-  { id: 'tl-001', date: 'Jun 1, 2026', event: 'Equifax response received', detail: '2 items deleted, 1 verified', type: 'success' },
-  { id: 'tl-002', date: 'May 15, 2026', event: 'Letter sent to Equifax', detail: 'Round 2 — 3 items disputed', type: 'info' },
-  { id: 'tl-003', date: 'Apr 28, 2026', event: 'TransUnion letter sent', detail: 'Round 1 — 4 items disputed', type: 'info' },
-  { id: 'tl-004', date: 'Apr 14, 2026', event: 'Experian response received', detail: '3 items deleted successfully', type: 'success' },
-  { id: 'tl-005', date: 'Mar 14, 2026', event: 'Client enrolled', detail: 'Starter plan · Keisha James assigned', type: 'neutral' },
-];
-
-const AI_RISK_FACTORS = [
-  { label: 'High utilization ratio', severity: 'high' },
-  { label: 'Multiple collection accounts', severity: 'high' },
-  { label: 'Recent late payments', severity: 'medium' },
-  { label: 'Short credit history', severity: 'low' },
-];
+const TIMELINE: Array<{ id: string; date: string; event: string; detail: string; type: string }> = [];
+const AI_RISK_FACTORS: Array<{ label: string; severity: string }> = [];
 
 const SEVERITY_COLORS: Record<string, string> = {
   high: 'bg-red-100 text-red-700',
@@ -191,6 +179,7 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                         </div>
                       </div>
                     ))}
+                    {TIMELINE.length === 0 && <p className="text-sm text-slate-500 pl-6">No recorded case activity yet.</p>}
                   </div>
                 </div>
               </div>
@@ -220,28 +209,7 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                 <span>View All Dispute Items</span>
                 <ChevronRight size={12} />
               </Link>
-              {[
-                { id: 'di-001', bureau: 'EQ', item: 'Collections — Midland Credit Mgmt', status: 'Awaiting Response', round: 2, amount: '$2,340', priority: 'high' },
-                { id: 'di-002', bureau: 'EX', item: 'Late Payment — Chase Sapphire', status: 'Letter Sent', round: 1, amount: '90 days late', priority: 'medium' },
-                { id: 'di-003', bureau: 'TU', item: 'Charge-Off — Capital One', status: 'Identified', round: 1, amount: '$1,890', priority: 'high' },
-              ].map(d => (
-                <div key={d.id} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-200 hover:shadow-sm transition-all">
-                  <div className="flex items-start gap-3">
-                    <span className={`badge text-xs shrink-0 ${d.bureau === 'EQ' ? 'bureau-eq' : d.bureau === 'EX' ? 'bureau-ex' : 'bureau-tu'}`}>{d.bureau}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{d.item}</p>
-                      <p className="text-xs text-slate-500">{d.amount} · Round {d.round}</p>
-                    </div>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${d.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{d.priority}</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-slate-500">{d.status}</span>
-                    <Link href={`/dispute-letter-management?client=${client.id}`} className="text-xs font-semibold text-blue-600 hover:underline">
-                      Generate Letter →
-                    </Link>
-                  </div>
-                </div>
-              ))}
+              <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-200 p-4">Open the client&apos;s saved dispute items to view real report data.</p>
             </div>
           )}
 
@@ -259,9 +227,7 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                   </div>
                   <span className="ml-auto text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">AI</span>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed">
-                  This client has <strong>3 high-priority dispute opportunities</strong> across all three bureaus. The collections account from Midland Credit Management is the highest-impact item — successful removal could improve their score by an estimated <strong>40-60 points</strong>. Recommend prioritizing Equifax round 2 response this week.
-                </p>
+                <p className="text-sm text-slate-700 leading-relaxed">Run an analysis after importing a verified credit report. No estimated outcomes or sample recommendations are shown.</p>
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Risk Factors</p>
@@ -297,18 +263,7 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                   <Plus size={12} /> Add Note
                 </button>
               </div>
-              {[
-                { id: 'n1', author: 'Keisha James', date: 'Jun 1, 2026', text: 'Client called to confirm Equifax response received. Very happy with 2 deletions. Wants to proceed with round 3 for remaining items.' },
-                { id: 'n2', author: 'Marcus Reed', date: 'May 15, 2026', text: 'Sent round 2 letters to Equifax. Client confirmed receipt of all documents. Follow up in 30 days.' },
-              ].map(note => (
-                <div key={note.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-slate-900">{note.author}</p>
-                    <p className="text-xs text-slate-400">{note.date}</p>
-                  </div>
-                  <p className="text-sm text-slate-700 leading-relaxed">{note.text}</p>
-                </div>
-              ))}
+              <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-200 p-4">No saved notes yet.</p>
             </div>
           )}
 
@@ -321,24 +276,11 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                   <StatusBadge status={client.subscriptionStatus as 'paid'} />
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-500">
-                  <p>Next billing: Jul 1, 2026</p>
                   <p>Enrolled: {client.enrolledDate}</p>
                 </div>
               </div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Invoice History</p>
-              {[
-                { id: 'inv-001', date: 'Jun 1, 2026', amount: '$99.00', status: 'paid' },
-                { id: 'inv-002', date: 'May 1, 2026', amount: '$99.00', status: 'paid' },
-                { id: 'inv-003', date: 'Apr 1, 2026', amount: '$99.00', status: 'paid' },
-              ].map(inv => (
-                <div key={inv.id} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{inv.amount}</p>
-                    <p className="text-xs text-slate-400">{inv.date}</p>
-                  </div>
-                  <StatusBadge status={inv.status as 'paid'} />
-                </div>
-              ))}
+              <p className="text-sm text-slate-500">No recorded invoices are available in this view.</p>
             </div>
           )}
         </div>

@@ -1,304 +1,120 @@
 'use client';
-import React, { useState, useRef } from 'react';
-import { Upload, FileText, Sparkles, CheckCircle2, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Bot } from 'lucide-react';
-import { useChat } from '@/lib/hooks/useChat';
 
-interface DisputeItem {
-  id: string;
-  creditor: string;
-  accountType: string;
-  balance: string;
-  status: string;
-  likelihood: 'high' | 'medium' | 'low';
-  reason: string;
-  strategy: string;
-}
+import React, { useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, FileText, Loader2, Sparkles, Upload } from 'lucide-react';
 
-const sampleAnalysis: DisputeItem[] = [
-  {
-    id: 'di-001', creditor: 'Capital One', accountType: 'Credit Card', balance: '$2,340', status: 'Late Payment × 3',
-    likelihood: 'high', reason: 'Creditor failed to verify within 30-day FCRA window in prior dispute cycle.',
-    strategy: 'Send Method of Verification letter to all 3 bureaus immediately.',
-  },
-  {
-    id: 'di-002', creditor: 'Midland Credit Mgmt', accountType: 'Collection', balance: '$890', status: 'Collection Account',
-    likelihood: 'high', reason: 'Debt buyer — original creditor may not have proper documentation to validate.',
-    strategy: 'Debt validation letter first, then dispute if unverified within 30 days.',
-  },
-  {
-    id: 'di-003', creditor: 'Synchrony Bank', accountType: 'Retail Card', balance: '$1,200', status: 'Charge-off',
-    likelihood: 'medium', reason: 'Account shows inconsistent reporting dates across bureaus.',
-    strategy: 'Dispute date of first delinquency discrepancy with Equifax and TransUnion.',
-  },
-  {
-    id: 'di-004', creditor: 'Student Loan Servicer', accountType: 'Student Loan', balance: '$18,400', status: 'Current',
-    likelihood: 'low', reason: 'Federal student loans are well-documented and rarely deleted.',
-    strategy: 'Focus on payment history accuracy rather than deletion.',
-  },
-  {
-    id: 'di-005', creditor: 'Verizon Wireless', accountType: 'Utility/Telecom', balance: '$340', status: 'Collection',
-    likelihood: 'high', reason: 'Telecom collections frequently lack proper documentation for verification.',
-    strategy: 'Goodwill deletion request + dispute if no response in 30 days.',
-  },
-];
-
-const likelihoodConfig = {
-  high: { label: 'Likely Deletion', bg: 'bg-success/10', text: 'text-success', border: 'border-success/20', icon: CheckCircle2 },
-  medium: { label: 'Possible Deletion', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/20', icon: AlertTriangle },
-  low: { label: 'Low Probability', bg: 'bg-danger/10', text: 'text-danger', border: 'border-danger/20', icon: XCircle },
+type AnalysisItem = {
+  type?: string;
+  creditor_name?: string;
+  account_number?: string | null;
+  amount?: number | null;
+  date_reported?: string | null;
+  bureau?: string;
+  dispute_reason?: string;
+  priority?: 'high' | 'medium' | 'low';
+  dispute_letter_template?: string;
 };
 
+type Analysis = {
+  summary?: string;
+  negative_items?: AnalysisItem[];
+};
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+
+function readAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('The report could not be read.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AIDisputeAnalyzerContent() {
-  const [uploaded, setUploaded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analyzed, setAnalyzed] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [expandedItem, setExpandedItem] = useState<string | null>(null);
-  const [aiQuestion, setAiQuestion] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { response, isLoading, sendMessage } = useChat('openai', 'gpt-4o', false);
+  const [error, setError] = useState('');
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setUploaded(true);
+  const chooseFile = (nextFile?: File) => {
+    setAnalysis(null);
+    setError('');
+    if (!nextFile) return;
+    if (!ACCEPTED_TYPES.has(nextFile.type)) {
+      setFile(null);
+      setError('Upload a PDF, PNG, or JPG credit report.');
+      return;
     }
+    if (nextFile.size > MAX_FILE_BYTES) {
+      setFile(null);
+      setError('The report must be 10 MB or smaller.');
+      return;
+    }
+    setFile(nextFile);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setUploaded(true);
-    }
-  };
-
-  const handleAnalyze = () => {
+  const analyze = async () => {
+    if (!file) return;
     setAnalyzing(true);
-    setTimeout(() => {
+    setError('');
+    setAnalysis(null);
+    try {
+      const fileData = await readAsDataUrl(file);
+      const response = await fetch('/api/credit-report/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileData, fileName: file.name, fileType: file.type }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'The report could not be analyzed.');
+      const result = payload.analysis as Analysis;
+      if (!Array.isArray(result?.negative_items)) throw new Error('The analysis returned an invalid result. Please try again.');
+      setAnalysis(result);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The report could not be analyzed.');
+    } finally {
       setAnalyzing(false);
-      setAnalyzed(true);
-    }, 2200);
+    }
   };
 
-  const handleAskAI = () => {
-    if (!aiQuestion.trim()) return;
-    sendMessage([
-      { role: 'system', content: 'You are a credit repair expert AI. Analyze credit report disputes and provide actionable advice. Be concise and specific.' },
-      { role: 'user', content: aiQuestion },
-    ]);
-    setAiQuestion('');
-  };
-
-  const highCount = sampleAnalysis.filter(i => i.likelihood === 'high').length;
-  const medCount = sampleAnalysis.filter(i => i.likelihood === 'medium').length;
-  const lowCount = sampleAnalysis.filter(i => i.likelihood === 'low').length;
+  const ranked = [...(analysis?.negative_items || [])].sort((a, b) => {
+    const rank = { high: 0, medium: 1, low: 2 };
+    return rank[a.priority || 'low'] - rank[b.priority || 'low'];
+  });
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-semibold text-foreground">AI Dispute Analyzer</h1>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-ai/10 text-ai">AI Powered</span>
-          </div>
-          <p className="text-sm text-muted-foreground">Upload a credit report to get AI-powered dispute recommendations</p>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div>
+        <div className="flex items-center gap-2"><h1 className="text-2xl font-semibold">AI Dispute Analyzer</h1><span className="badge bg-ai/10 text-ai">AI Powered</span></div>
+        <p className="text-sm text-muted-foreground mt-1">Results are generated only from the report you upload and must be reviewed before use.</p>
+      </div>
+
+      <div className="card p-8 text-center border-2 border-dashed"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => { event.preventDefault(); chooseFile(event.dataTransfer.files?.[0]); }}>
+        {file ? <FileText className="mx-auto text-primary" size={32}/> : <Upload className="mx-auto text-ai" size={32}/>}
+        <p className="font-bold mt-3">{file?.name || 'Drop your credit report here'}</p>
+        <p className="text-sm text-muted-foreground mt-1">PDF, PNG, or JPG · Maximum 10 MB</p>
+        <input ref={inputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden" onChange={(event) => chooseFile(event.target.files?.[0])}/>
+        <div className="mt-4 flex justify-center gap-3">
+          <button className="btn-secondary" onClick={() => inputRef.current?.click()}>{file ? 'Change report' : 'Browse files'}</button>
+          {file && <button className="btn-primary flex items-center gap-2" disabled={analyzing} onClick={analyze}>{analyzing ? <Loader2 className="animate-spin" size={17}/> : <Sparkles size={17}/>} {analyzing ? 'Analyzing…' : 'Analyze report'}</button>}
         </div>
       </div>
 
-      {!analyzed ? (
-        /* Upload Area */
-        <div className="max-w-2xl mx-auto">
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-              uploaded ? 'border-primary bg-primary/5' : 'border-border hover:border-ai/50 hover:bg-ai/5'
-            }`}
-          >
-            {uploaded ? (
-              <div className="space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-                  <FileText size={28} className="text-primary" />
-                </div>
-                <p className="text-base font-bold text-foreground">{fileName}</p>
-                <p className="text-sm text-muted-foreground">Report ready for analysis</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-ai/10 flex items-center justify-center mx-auto">
-                  <Upload size={28} className="text-ai" />
-                </div>
-                <p className="text-base font-bold text-foreground">Drop your credit report here</p>
-                <p className="text-sm text-muted-foreground">PDF, PNG, or JPG · Max 10MB</p>
-              </div>
-            )}
-            <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} className="hidden" />
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="mt-4 btn-secondary text-sm"
-            >
-              {uploaded ? 'Change File' : 'Browse Files'}
-            </button>
-          </div>
+      {error && <div className="card p-4 border border-danger/30 bg-danger/5 text-danger flex gap-2"><AlertTriangle size={18}/><p className="text-sm">{error}</p></div>}
 
-          {uploaded && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                className="btn-primary px-8 py-3 text-base flex items-center gap-2 mx-auto"
-              >
-                {analyzing ? (
-                  <><Loader2 size={18} className="animate-spin" /> Analyzing Report...</>
-                ) : (
-                  <><Sparkles size={18} /> Analyze with AI</>
-                )}
-              </button>
-              {analyzing && (
-                <p className="text-xs text-muted-foreground mt-2 animate-pulse">
-                  AI is scanning for dispute opportunities...
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Demo Mode */}
-          {!uploaded && (
-            <div className="mt-6 text-center">
-              <p className="text-xs text-muted-foreground mb-2">Want to see a demo?</p>
-              <button
-                onClick={() => { setFileName('sample_credit_report.pdf'); setUploaded(true); }}
-                className="text-xs text-ai hover:underline font-semibold"
-              >
-                Load sample report →
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Analysis Results */
-        <div className="space-y-5">
-          {/* Summary */}
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { count: highCount, label: 'Likely Deletions', level: 'high' as const },
-              { count: medCount, label: 'Possible Deletions', level: 'medium' as const },
-              { count: lowCount, label: 'Low Probability', level: 'low' as const },
-            ].map((s) => {
-              const cfg = likelihoodConfig[s.level];
-              const SIcon = cfg.icon;
-              return (
-                <div key={s.level} className={`card p-5 border ${cfg.border} ${cfg.bg}`}>
-                  <div className="flex items-center gap-3">
-                    <SIcon size={22} className={cfg.text} />
-                    <div>
-                      <p className={`text-2xl font-black ${cfg.text}`}>{s.count}</p>
-                      <p className="text-xs text-muted-foreground">{s.label}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Dispute Items */}
-          <div className="card overflow-hidden">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h3 className="text-base font-bold text-foreground">Dispute Analysis — {sampleAnalysis.length} items found</h3>
-              <span className="text-xs text-muted-foreground">{fileName}</span>
-            </div>
-            <div className="divide-y divide-border">
-              {sampleAnalysis.map((item) => {
-                const cfg = likelihoodConfig[item.likelihood];
-                const CfgIcon = cfg.icon;
-                const isExpanded = expandedItem === item.id;
-                return (
-                  <div key={item.id}>
-                    <button
-                      className="w-full px-5 py-4 flex items-center gap-4 hover:bg-muted/30 transition-colors text-left"
-                      onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                    >
-                      <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
-                        <CfgIcon size={15} className={cfg.text} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-foreground">{item.creditor}</span>
-                          <span className="text-xs text-muted-foreground">{item.accountType}</span>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="text-xs text-muted-foreground">{item.balance}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.status}</p>
-                      </div>
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.text} shrink-0`}>{cfg.label}</span>
-                      {isExpanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
-                    </button>
-                    {isExpanded && (
-                      <div className="px-5 pb-4 fade-in">
-                        <div className="ml-12 space-y-3">
-                          <div className={`p-3 rounded-xl ${cfg.bg} border ${cfg.border}`}>
-                            <p className="text-xs font-semibold text-foreground mb-1">Why this may be deleted:</p>
-                            <p className="text-xs text-muted-foreground">{item.reason}</p>
-                          </div>
-                          <div className="p-3 rounded-xl bg-ai/5 border border-ai/20">
-                            <p className="text-xs font-semibold text-ai mb-1 flex items-center gap-1"><Sparkles size={11} /> Recommended Strategy:</p>
-                            <p className="text-xs text-foreground">{item.strategy}</p>
-                          </div>
-                          <button className="btn-primary text-xs py-1.5 px-4">Generate Dispute Letter</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* AI Chat */}
-          <div className="card p-5 border-ai/20 bg-gradient-to-br from-ai/5 to-card">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-ai/10 flex items-center justify-center">
-                <Bot size={16} className="text-ai" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground">Ask AI About This Report</p>
-                <p className="text-xs text-muted-foreground">Get specific advice on any item</p>
-              </div>
-            </div>
-            {response && (
-              <div className="mb-3 p-3 rounded-xl bg-card border border-border text-sm text-foreground leading-relaxed">
-                {response}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={aiQuestion}
-                onChange={e => setAiQuestion(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAskAI()}
-                placeholder="e.g. Should I dispute the Capital One account first?"
-                className="input-field flex-1 text-sm"
-              />
-              <button
-                onClick={handleAskAI}
-                disabled={isLoading || !aiQuestion.trim()}
-                className="btn-primary flex items-center gap-1.5 shrink-0"
-              >
-                {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                Ask
-              </button>
-            </div>
-          </div>
-
-          <button onClick={() => { setAnalyzed(false); setUploaded(false); setFileName(''); }} className="btn-secondary text-sm">
-            Analyze Another Report
-          </button>
-        </div>
-      )}
+      {analysis && <div className="space-y-4">
+        <div className="card p-5"><h2 className="font-bold">AI summary</h2><p className="text-sm text-muted-foreground mt-2">{analysis.summary || 'Analysis completed. Review each extracted item against the original report.'}</p></div>
+        {ranked.length === 0 ? <div className="card p-8 text-center"><CheckCircle2 className="mx-auto text-success"/><p className="font-bold mt-2">No negative items were extracted</p><p className="text-sm text-muted-foreground mt-1">Verify this against the original report before relying on the result.</p></div> : ranked.map((item, index) => <div className="card p-5" key={`${item.creditor_name || 'item'}-${index}`}>
+          <div className="flex items-start justify-between gap-4"><div><p className="text-xs text-muted-foreground">Priority #{index + 1} · {(item.priority || 'low').toUpperCase()}</p><h3 className="font-bold mt-1">{item.creditor_name || item.type || 'Reported item'}</h3><p className="text-xs text-muted-foreground">{[item.bureau, item.account_number ? `Account ending ${item.account_number}` : '', item.amount != null ? `$${item.amount.toLocaleString()}` : ''].filter(Boolean).join(' · ')}</p></div><span className="badge bg-ai/10 text-ai">AI recommendation</span></div>
+          <p className="text-sm mt-4"><strong>Why it is ranked here:</strong> {item.dispute_reason || 'No specific dispute basis was identified. Review manually.'}</p>
+          {item.dispute_letter_template && <div className="mt-4 rounded-xl bg-muted/40 p-4"><p className="text-xs font-bold uppercase tracking-wide">Draft letter — review and edit</p><p className="text-sm whitespace-pre-wrap mt-2">{item.dispute_letter_template}</p></div>}
+        </div>)}
+      </div>}
     </div>
   );
 }

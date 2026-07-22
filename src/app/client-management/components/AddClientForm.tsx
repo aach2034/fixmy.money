@@ -48,7 +48,7 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
   const { register, handleSubmit, formState: { errors } } = useForm<AddClientFormData>({
     defaultValues: {
       plan: 'Growth',
-      assignedStaff: 'Keisha James',
+      assignedStaff: '',
       bureausEQ: true,
       bureausEX: true,
       bureausTU: true,
@@ -389,7 +389,7 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
         <input
           type="tel"
           className="input-field"
-          placeholder="(404) 555-0182"
+          placeholder="Client phone number"
           {...register('phone', { required: 'Required' })}
         />
         {errors.phone && <p className="error-text">{errors.phone.message}</p>}
@@ -407,10 +407,7 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <label className="label-text">Assigned staff</label>
-          <select className="input-field" {...register('assignedStaff')}>
-            <option>Keisha James</option>
-            <option>Marcus Reed</option>
-          </select>
+          <input className="input-field" placeholder="Staff member (optional)" {...register('assignedStaff')} />
         </div>
       </div>
 

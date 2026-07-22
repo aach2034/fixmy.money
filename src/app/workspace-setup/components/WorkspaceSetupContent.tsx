@@ -326,7 +326,7 @@ export default function WorkspaceSetupContent() {
                         type="text"
                         value={newName}
                         onChange={(e) => { setNewName(e.target.value); setError(''); }}
-                        placeholder="e.g. Apex Credit Solutions"
+                        placeholder="Enter your business name"
                         className="input-field pl-9"
                       />
                     </div>

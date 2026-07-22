@@ -32,7 +32,6 @@ interface Client {
 }
 
 const stageOptions = ['All Stages', 'lead', 'enrolled', 'active', 'onhold', 'completed', 'churned'];
-const staffOptions = ['All Staff', 'Keisha James', 'Marcus Reed'];
 const subStatusOptions = ['All Billing', 'paid', 'overdue', 'pending'];
 
 type SortField = 'name' | 'enrolledDate' | 'activeDisputes' | 'itemsDeleted' | 'nextTaskDue';
@@ -79,6 +78,7 @@ export default function ClientManagementContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 10;
+  const staffOptions = useMemo(() => ['All Staff', ...Array.from(new Set(clients.map(client => client.assignedStaff).filter(Boolean)))], [clients]);
 
   const supabase = createClient();
 

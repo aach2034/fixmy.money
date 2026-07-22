@@ -254,7 +254,7 @@ export default function OnboardingContent() {
                       type="text"
                       value={companyData.companyName}
                       onChange={e => setCompanyData(prev => ({ ...prev, companyName: e.target.value }))}
-                      placeholder="Apex Credit Solutions"
+                      placeholder="Your company name"
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}

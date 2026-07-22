@@ -145,7 +145,7 @@ export default function DemoContent() {
                       type="text"
                       value={form.company}
                       onChange={(e) => setForm({ ...form, company: e.target.value })}
-                      placeholder="Apex Credit Solutions"
+                      placeholder="Your company name"
                       className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
                     />
                   </div>
