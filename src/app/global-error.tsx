@@ -10,6 +10,30 @@ interface ErrorBoundaryProps {
 }
 
 export default function GlobalError({ error, reset }: ErrorBoundaryProps) {
+  const message = `${error?.name || ''} ${error?.message || ''}`.toLowerCase();
+  const isStaleAssetError =
+    message.includes('chunkloaderror') ||
+    message.includes('loading chunk') ||
+    message.includes('dynamically imported module') ||
+    message.includes('module script') ||
+    message.includes('/assets/');
+
+  React.useEffect(() => {
+    if (!isStaleAssetError) return;
+    const recoveryKey = `fixmy-global-asset-recovery:${window.location.pathname}`;
+    if (window.sessionStorage.getItem(recoveryKey)) return;
+    window.sessionStorage.setItem(recoveryKey, '1');
+    window.location.reload();
+  }, [isStaleAssetError]);
+
+  const handleRetry = () => {
+    if (isStaleAssetError) {
+      window.location.reload();
+      return;
+    }
+    reset();
+  };
+
   return (
     <html lang="en">
       <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, background: '#f8fafc' }}>
@@ -31,7 +55,7 @@ export default function GlobalError({ error, reset }: ErrorBoundaryProps) {
             )}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
-                onClick={reset}
+                onClick={handleRetry}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#2563eb', color: 'white', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
               >
                 <RefreshCw size={14} /> Try Again
