@@ -373,15 +373,22 @@ export default function HomepageContent() {
                 </div>
               </div>
 
-              {/* RIGHT: Video */}
+              {/* RIGHT: Evidence-first workflow visual */}
               <div className="w-full">
-                <DemoVideoPlayer
-                  placement="hero"
-                  showTrialCta
-                  showDemoCta
-                  onTrialClick={() => handleStartTrial(undefined, undefined, 'hero_video_cta')}
-                  onDemoClick={() => handleBookDemo('hero_video_cta')}
-                />
+                <div className="overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950 shadow-2xl shadow-blue-950/50">
+                  <Image
+                    src="/evidence-first-workflow.png"
+                    alt="FixMy.Money evidence-first workflow: upload, verify, score, draft, and approve"
+                    width={1760}
+                    height={910}
+                    className="h-auto w-full"
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    priority
+                  />
+                </div>
+                <p className="mt-3 text-center text-xs font-medium text-slate-400">
+                  A transparent path from source documents to consumer-approved dispute packages.
+                </p>
               </div>
             </div>
           </div>
