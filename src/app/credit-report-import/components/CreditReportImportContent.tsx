@@ -956,7 +956,6 @@ export default function CreditReportImportContent() {
               letter_status: 'draft',
               template: 'AI-ranked FCRA Section 611',
               auto_generated: true,
-              ai_assisted: true,
               dispute_reason: rationale,
               priority: bureauSelections.some(({ opinion: selected }) => selected.strength === 'Strong') ? 'high' : 'medium',
               letter_content: letterContent,

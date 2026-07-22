@@ -753,7 +753,6 @@ Write the complete letter now:`;
         letter_content: letterContent,
         generated_at: new Date().toISOString(),
         generation_error: null,
-        ai_assisted: usedAI,
       });
 
       if (insertError) {
