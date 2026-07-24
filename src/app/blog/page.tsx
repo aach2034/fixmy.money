@@ -19,6 +19,16 @@ export const metadata: Metadata = {
 
 const ARTICLES = [
   {
+    title: 'Why I Built FixMy.Money',
+    slug: 'why-i-built-fixmy-money',
+    excerpt:
+      'FixMy.Money was not born in a boardroom. It grew from my own frustration with an unclear, inconsistent credit-reporting process—and the belief that people deserve better tools.',
+    date: 'July 2026',
+    author: 'Adam Hamilton',
+    readTime: '5 min read',
+    category: 'Founder Story',
+  },
+  {
     title: 'How to Start a Credit Repair Business in 2026',
     slug: 'how-to-start-a-credit-repair-business-2026',
     excerpt:
@@ -120,7 +130,7 @@ const ARTICLES = [
   },
 ];
 
-const CATEGORIES = ['All', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
+const CATEGORIES = ['All', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
 
 export default function BlogPage() {
   return (

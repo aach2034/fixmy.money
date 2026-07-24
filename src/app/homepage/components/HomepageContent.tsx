@@ -718,6 +718,30 @@ export default function HomepageContent() {
           </div>
         </section>
 
+        {/* ── FOUNDER STORY ── */}
+        <section className="border-y border-slate-200 bg-slate-950 py-20 text-white">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="grid items-center gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
+              <div>
+                <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-300">Founder Story</p>
+                <h2 className="text-4xl font-extrabold leading-tight sm:text-5xl">Built from personal frustration with a process that felt impossible to navigate.</h2>
+              </div>
+              <div>
+                <p className="text-lg leading-relaxed text-slate-300">
+                  I did what I thought was right, yet found myself confronting unclear reporting, inconsistent outcomes, and progress that never felt permanent. That experience pushed me to study the process, understand the evidence, and build the organized workflow I wished had existed when I needed it.
+                </p>
+                <p className="mt-5 text-sm font-semibold text-white">— Adam Hamilton, Founder</p>
+                <Link
+                  href="/blog/why-i-built-fixmy-money"
+                  className="mt-7 inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-950"
+                >
+                  Read why I built FixMy.Money <ArrowRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── SECTION 9: PRICING ── */}
         <section id="pricing" className="py-24 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
