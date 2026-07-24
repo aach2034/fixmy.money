@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { trackTrialSignup, trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
 import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, Lock, Sparkles, Shield, Check, AlertTriangle, Building2, TrendingUp, LayoutDashboard, ClipboardList, UserPlus, Upload, DollarSign, ArrowRight, Search, Database, KeyRound, History, ScanLine } from 'lucide-react';
 import DemoVideoPlayer from './DemoVideoPlayer';
+import LeadCaptureSection from './LeadCaptureSection';
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
@@ -319,12 +320,15 @@ export default function HomepageContent() {
                 <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
                   Onboard clients, verify source evidence, prepare authorized disputes, record human approval, and track every response—without losing the audit trail.
                 </p>
-                <div className="mt-9 flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_12px_35px_rgba(34,211,238,.18)] transition hover:-translate-y-0.5 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
                     Start agency trial <ArrowRight size={22} />
                   </button>
-                  <span className="max-w-[230px] text-sm font-medium leading-6 text-[#8298AD]">Built for credit-repair agencies · Human approval stays required</span>
+                  <a href="#starter-kit" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#31566E] px-6 py-4 text-sm font-extrabold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
+                    Get the free agency kit <ArrowRight size={17} />
+                  </a>
                 </div>
+                <p className="mt-5 text-sm font-medium leading-6 text-[#8298AD]">Built for credit-repair agencies · Human approval stays required</p>
               </div>
 
               <div className="relative rounded-[38px] border border-[#2A5671] bg-[#0A2940] p-5 shadow-[0_34px_80px_rgba(0,0,0,.25)] sm:p-8 lg:p-10">
@@ -438,6 +442,8 @@ export default function HomepageContent() {
             </div>
           </div>
         </section>
+
+        <LeadCaptureSection />
 
         {/* ── SECTION 2: PROBLEM ── */}
         <section className="py-20 bg-white border-b border-slate-100">

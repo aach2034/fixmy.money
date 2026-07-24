@@ -5,8 +5,18 @@ import {
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 
+interface D1PreparedStatement {
+  bind(...values: unknown[]): D1PreparedStatement;
+  run(): Promise<unknown>;
+}
+
+interface D1Binding {
+  prepare(query: string): D1PreparedStatement;
+}
+
 interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> };
+  DB?: D1Binding;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -21,9 +31,89 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+const LEAD_OFFER = "evidence-first-agency-starter-kit";
+const LEAD_CONSENT =
+  "Send me the Evidence-First Agency Starter Kit and occasional FixMy.Money product and workflow emails. I can unsubscribe at any time.";
+
+function leadResponse(body: Record<string, unknown>, status = 200): Response {
+  return Response.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+async function captureMarketingLead(request: Request, env: Env): Promise<Response> {
+  if (request.method !== "POST") {
+    return leadResponse({ error: "Method not allowed." }, 405);
+  }
+
+  if (!env.DB) {
+    console.error("[LeadCapture] D1 binding DB is unavailable.");
+    return leadResponse({ error: "Email signup is temporarily unavailable." }, 503);
+  }
+
+  const contentLength = Number(request.headers.get("content-length") || "0");
+  if (contentLength > 4096) {
+    return leadResponse({ error: "Request is too large." }, 413);
+  }
+
+  let payload: { email?: unknown; source?: unknown; website?: unknown };
+  try {
+    payload = (await request.json()) as typeof payload;
+  } catch {
+    return leadResponse({ error: "Invalid request." }, 400);
+  }
+
+  // Honeypot fields are treated as successful so bots do not learn how to bypass them.
+  if (typeof payload.website === "string" && payload.website.trim()) {
+    return leadResponse({ ok: true });
+  }
+
+  const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+  const source =
+    typeof payload.source === "string" && /^[a-z0-9_-]{1,64}$/.test(payload.source)
+      ? payload.source
+      : "homepage";
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  if (!emailPattern.test(email) || email.length > 254) {
+    return leadResponse({ error: "Enter a valid work email address." }, 400);
+  }
+
+  try {
+    await env.DB.prepare(
+      `INSERT INTO marketing_leads (
+        email, offer, source, consent_text, consented_at, last_requested_at
+      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(email, offer) DO UPDATE SET
+        source = excluded.source,
+        consent_text = excluded.consent_text,
+        consented_at = CURRENT_TIMESTAMP,
+        last_requested_at = CURRENT_TIMESTAMP,
+        request_count = marketing_leads.request_count + 1`
+    )
+      .bind(email, LEAD_OFFER, source, LEAD_CONSENT)
+      .run();
+  } catch (error) {
+    console.error("[LeadCapture] Failed to save signup.", error);
+    return leadResponse({ error: "We could not save your signup. Please try again." }, 500);
+  }
+
+  return leadResponse({
+    ok: true,
+    downloadUrl: "/resources/evidence-first-agency-starter-kit",
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/api/marketing/lead") {
+      return captureMarketingLead(request, env);
+    }
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(

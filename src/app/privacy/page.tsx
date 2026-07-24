@@ -21,7 +21,7 @@ export default function PrivacyPage() {
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900">Privacy Policy</h1>
         </div>
-        <p className="text-sm text-slate-500 mb-8">Last updated: June 2026</p>
+        <p className="text-sm text-slate-500 mb-8">Last updated: July 2026</p>
         <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-6">
           <p className="text-slate-600">FixMy.Money (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform.</p>
 
@@ -46,10 +46,13 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-bold text-slate-900">7. Third-Party Services</h2>
           <p className="text-slate-600">We use Stripe for payment processing, Supabase for database infrastructure, and Google Analytics for usage analytics. Each of these services has its own privacy policy governing their use of data.</p>
 
-          <h2 className="text-lg font-bold text-slate-900">8. Your Rights</h2>
+          <h2 className="text-lg font-bold text-slate-900">8. Email Resources and Marketing</h2>
+          <p className="text-slate-600">When you request a resource or opt in to product updates, we collect your email address, the requested resource, signup source, and consent timestamp. We use this information to deliver the resource and send occasional FixMy.Money product and workflow emails. You can unsubscribe at any time using the link in an email or by contacting support@fixmy.money.</p>
+
+          <h2 className="text-lg font-bold text-slate-900">9. Your Rights</h2>
           <p className="text-slate-600">You have the right to access, correct, or delete your personal data. To exercise these rights, contact us at support@fixmy.money.</p>
 
-          <h2 className="text-lg font-bold text-slate-900">9. Contact</h2>
+          <h2 className="text-lg font-bold text-slate-900">10. Contact</h2>
           <p className="text-slate-600">For privacy-related questions, contact us at <a href="mailto:support@fixmy.money" className="text-blue-600 hover:underline">support@fixmy.money</a>.</p>
         </div>
 

@@ -79,6 +79,19 @@ export function trackDemoRequest(teamSize: string = '') {
   });
 }
 
+export function trackLeadMagnetSignup(
+  offer: string = 'evidence-first-agency-starter-kit',
+  location: string = 'homepage_lead_capture'
+) {
+  trackEvent('generate_lead', {
+    event_category: 'conversion',
+    event_label: offer,
+    lead_type: 'lead_magnet',
+    offer_name: offer,
+    cta_location: location,
+  });
+}
+
 /**
  * Fired when a user clicks on a pricing plan CTA (before navigating to sign-up).
  * @param planName - The plan name (e.g. 'Starter', 'Professional', 'Agency')
