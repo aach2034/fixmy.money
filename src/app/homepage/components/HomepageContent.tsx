@@ -19,7 +19,7 @@ const NAV_LINKS = [
 const FEATURES = [
   { icon: Building2, title: 'Agency Dashboard', body: 'See the client pipeline, overdue bureau responses, open tasks, revenue, and cases awaiting approval.', badge: 'Operate', badgeColor: 'bg-blue-100 text-blue-700', color: 'text-blue-700', bg: 'bg-blue-50', span: '' },
   { icon: Users, title: 'Client Workspace', body: 'Keep identity data, agreements, authorizations, documents, communications, invoices, and complete history together.', badge: 'Organize', badgeColor: 'bg-cyan-100 text-cyan-800', color: 'text-cyan-700', bg: 'bg-cyan-50', span: '' },
-  { icon: Search, title: 'Report Review', body: 'Review structured accounts, bureau differences, suspected inconsistencies, and source-page citations.', badge: 'Verify', badgeColor: 'bg-violet-100 text-violet-700', color: 'text-violet-600', bg: 'bg-violet-50', span: '' },
+  { icon: Search, title: 'AI-Assisted Report Analysis', body: 'Read imported reports, compare bureau data, and flag suspected inconsistencies with source-page citations for human verification.', badge: 'Analyze', badgeColor: 'bg-violet-100 text-violet-700', color: 'text-violet-600', bg: 'bg-violet-50', span: '' },
   { icon: ClipboardList, title: 'Evidence & Disputes', body: 'Organize selected items, evidence checklists, editable drafts, factual assertions, approvals, and delivery history.', badge: 'Approve', badgeColor: 'bg-amber-100 text-amber-800', color: 'text-amber-700', bg: 'bg-amber-50', span: '' },
   { icon: LayoutDashboard, title: 'Client Portal', body: 'Give clients a focused place for secure uploads, progress updates, tasks, messages, agreements, and invoices.', badge: 'Connect', badgeColor: 'bg-emerald-100 text-emerald-800', color: 'text-emerald-700', bg: 'bg-emerald-50', span: '' },
   { icon: Shield, title: 'Agency Administration', body: 'Manage team roles, branding, templates, billing, integrations, retention settings, and audit exports.', badge: 'Control', badgeColor: 'bg-slate-200 text-slate-700', color: 'text-slate-700', bg: 'bg-slate-100', span: '' },
@@ -79,6 +79,7 @@ const FAQS = [
   { q: 'How does the agency trial work?', a: 'Pay $1 today for 14 days of full access to the features included in your selected plan. After the trial, your subscription renews automatically at the chosen monthly rate unless you cancel.' },
   { q: 'Does FixMy.Money provide CROA-compliant workflows?', a: 'FixMy.Money supports CROA-aware workflows, documentation, and recordkeeping. Each business remains responsible for its own legal compliance. FixMy.Money provides workflow, documentation, and recordkeeping tools. It does not provide legal advice or guarantee compliance with federal, state, or local law.' },
   { q: 'What makes FixMy.Money different from generic credit repair software?', a: 'FixMy.Money is built around evidence traceability. Source documents, extracted facts, verification, draft assertions, approvals, delivery, responses, and outcomes stay connected in one auditable workflow. AI can propose and organize; a human verifies and approves.' },
+  { q: 'Can AI read a credit report and spot inconsistencies?', a: 'Yes. FixMy.Money can read an imported credit report, structure account data, compare information across bureaus, and flag suspected inconsistencies such as conflicting balances, statuses, dates, payment histories, duplicate accounts, and personal information. Every AI finding is a review candidate—not a confirmed error—and must be verified against the source report and supporting evidence before it enters a dispute.' },
   { q: 'Can I manage multiple clients from one account?', a: 'Yes. Depending on your plan, you can manage 25 clients (Starter), 100 clients (Professional), or unlimited clients (Agency). Each client gets their own portal, dispute tracking, and billing profile.' },
   { q: 'Do you guarantee credit score improvements or item removals?', a: 'No. FixMy.Money is a software platform that provides tools for credit repair professionals. We do not guarantee credit score improvements, item removals, or any specific credit outcomes. Results depend on individual circumstances, bureau responses, and the accuracy of information on credit reports.' },
   { q: 'What happens after my trial ends?', a: "Your account automatically converts to a paid subscription at your chosen plan rate. You\'ll receive an email reminder before the trial ends. Cancel any time from your billing settings." },
@@ -164,7 +165,7 @@ export default function HomepageContent() {
             applicationCategory: 'BusinessApplication',
             operatingSystem: 'Web',
             url: 'https://fixmy.money',
-            description: 'Evidence-first operating software for credit repair agencies. Onboard clients, verify report facts, approve authorized disputes, and track bureau outcomes without losing the audit trail.',
+            description: 'AI-assisted credit report analysis and evidence-first operating software for credit repair agencies. Read imported reports, compare bureaus, flag suspected inconsistencies, verify report facts, approve authorized disputes, and track bureau outcomes.',
             offers: {
               '@type': 'AggregateOffer',
               lowPrice: '49',
@@ -173,6 +174,9 @@ export default function HomepageContent() {
             },
             featureList: [
               'Source-linked report review',
+              'AI-assisted credit report reading',
+              'Cross-bureau inconsistency detection',
+              'Guided dispute strategy',
               'Evidence-linked draft assistance',
               'Client CRM',
               'Client Portal',
@@ -312,14 +316,22 @@ export default function HomepageContent() {
             <div className="relative grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
               <div>
                 <div className="inline-flex items-center gap-4 text-xs font-extrabold uppercase tracking-[0.24em] text-cyan-200 sm:text-sm">
-                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Evidence-first agency operations
+                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> AI-assisted credit report analysis
                 </div>
                 <h1 className="mt-9 max-w-2xl text-5xl font-semibold leading-[0.94] tracking-[-0.045em] text-[#F4F8FC] sm:text-6xl lg:text-[78px]" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>
-                  Turn credit-report evidence into a <span className="text-cyan-200">documented workflow.</span>
+                  Spot credit-report inconsistencies. <span className="text-cyan-200">Build stronger disputes.</span>
                 </h1>
                 <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
-                  Onboard clients, verify source evidence, prepare authorized disputes, record human approval, and track every response—without losing the audit trail.
+                  AI reads imported reports, compares bureau data, and flags suspected inconsistencies. Your team verifies every finding, follows a guided dispute workflow, and keeps the source evidence connected.
                 </p>
+                <div className="mt-7 grid max-w-xl gap-3 text-sm font-semibold text-cyan-50 sm:grid-cols-3">
+                  {['Read & structure reports', 'Compare bureau data', 'Guide verified disputes'].map((benefit) => (
+                    <div key={benefit} className="flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-3 py-3">
+                      <CheckCircle2 size={16} className="shrink-0 text-cyan-300" aria-hidden="true" />
+                      <span>{benefit}</span>
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_12px_35px_rgba(34,211,238,.18)] transition hover:-translate-y-0.5 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
                     Start agency trial <ArrowRight size={22} />
@@ -328,7 +340,7 @@ export default function HomepageContent() {
                     Get the free agency kit <ArrowRight size={17} />
                   </a>
                 </div>
-                <p className="mt-5 text-sm font-medium leading-6 text-[#8298AD]">Built for credit-repair agencies · Human approval stays required</p>
+                <p className="mt-5 text-sm font-medium leading-6 text-[#8298AD]">AI flags review candidates—not confirmed errors · Human verification and approval stay required</p>
               </div>
 
               <div className="relative rounded-[38px] border border-[#2A5671] bg-[#0A2940] p-5 shadow-[0_34px_80px_rgba(0,0,0,.25)] sm:p-8 lg:p-10">

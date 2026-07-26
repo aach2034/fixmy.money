@@ -3,31 +3,38 @@ import type { Metadata } from 'next';
 import HomepageContent from './homepage/components/HomepageContent';
 
 export const metadata: Metadata = {
-  title: 'Evidence-First Credit Repair Agency Software',
+  title: 'AI Credit Report Analysis & Dispute Software',
   description:
-  'Verify credit-report evidence, prepare authorized disputes, record human approval, and track bureau outcomes in one auditable agency workflow.',
+  'Use AI to read imported credit reports, compare bureau data, flag suspected inconsistencies, and guide human-verified dispute workflows.',
+  keywords: [
+    'AI credit report analysis',
+    'credit report inconsistency detection',
+    'credit repair dispute software',
+    'credit audit software',
+    'credit repair agency software',
+  ],
   openGraph: {
-    title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
+    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
     description:
-    'Turn credit-report evidence into a documented, human-approved agency workflow.',
+    'Read reports, compare bureaus, flag suspected inconsistencies, and move verified findings into a guided dispute workflow.',
     type: 'website',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
     images: [
     {
-      url: '/og.png',
-      width: 1200,
-      height: 630,
-      alt: 'FixMy.Money evidence-first agency workflow'
+      url: '/og-ai-analysis.png',
+      width: 1731,
+      height: 909,
+      alt: 'FixMy.Money AI-assisted credit report analysis and dispute workflow'
     }]
 
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
+    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
     description:
-    'Turn credit-report evidence into a documented, human-approved agency workflow.',
-    images: ['/og.png'],
+    'AI-assisted report reading, bureau comparison, inconsistency detection, and human-verified dispute guidance.',
+    images: ['/og-ai-analysis.png'],
   },
   alternates: {
     canonical: 'https://fixmy.money'

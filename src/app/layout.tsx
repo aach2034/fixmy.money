@@ -20,9 +20,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money'),
-  title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
+  title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
   description:
-    'Onboard clients, verify credit-report evidence, prepare authorized disputes, record human approval, and track bureau outcomes in one auditable agency workflow.',
+    'Use AI to read imported credit reports, compare bureau data, flag suspected inconsistencies, and guide human-verified dispute workflows.',
   applicationName: 'FixMy.Money',
   category: 'Business software',
   creator: 'FixMy.Money',
@@ -47,22 +47,22 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
-    title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
-    description: 'Turn credit-report evidence into a documented, human-approved agency workflow.',
+    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
+    description: 'Read reports, compare bureaus, flag suspected inconsistencies, and move verified findings into a guided dispute workflow.',
     images: [
     {
-      url: '/og-evidence-first.png',
-      width: 1200,
-      height: 630,
-      alt: 'FixMy.Money evidence-first dispute readiness workflow'
+      url: '/og-ai-analysis.png',
+      width: 1731,
+      height: 909,
+      alt: 'FixMy.Money AI-assisted credit report analysis and dispute workflow'
     }]
 
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Evidence-First Credit Repair Agency Software | FixMy.Money',
-    description: 'Turn credit-report evidence into a documented, human-approved agency workflow.',
-    images: ['/og-evidence-first.png'],
+    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
+    description: 'AI-assisted report reading, bureau comparison, inconsistency detection, and human-verified dispute guidance.',
+    images: ['/og-ai-analysis.png'],
   }
 };
 
