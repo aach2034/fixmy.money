@@ -2215,25 +2215,7 @@ export function parseCreditReport(
   }
 }
 
-export const DISPUTE_REASONS = [
-  'Not mine',
-  'Account information inaccurate',
-  'Incorrect balance',
-  'Incorrect payment history',
-  'Incorrect late payment',
-  'Incorrect account status',
-  'Incorrect dates',
-  'Duplicate account',
-  'Account paid but reporting incorrectly',
-  'Collection reporting incorrectly',
-  'Original creditor mismatch',
-  'Account obsolete',
-  'Inquiry not authorized',
-  'Personal information inaccurate',
-  'Mixed file issue',
-  'Already resolved',
-  'Other',
-];
+export { DISPUTE_REASONS } from '@/lib/disputes/reasonRanking';
 
 export const DISPUTE_INSTRUCTIONS = [
   'Delete this account',

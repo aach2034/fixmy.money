@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { type SupportedProvider } from '@/lib/creditReport/parser';
 import { type NormalizedReport, type NormalizedAccount, type ImportComparison } from '@/lib/creditReport/adapters';
 import { extractPdfText } from '@/lib/creditReport/pdfUtils';
+import DisputeReasonSelect from '@/components/DisputeReasonSelect';
+import { DISPUTE_REASONS } from '@/lib/disputes/reasonRanking';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,24 +43,6 @@ const PROVIDERS: Array<{ value: SupportedProvider; label: string }> = [
   { value: 'experian', label: 'Experian' },
   { value: 'equifax', label: 'Equifax' },
   { value: 'transunion', label: 'TransUnion' },
-];
-
-const DISPUTE_REASONS = [
-  'Not my account',
-  'Account paid in full',
-  'Account settled',
-  'Incorrect balance',
-  'Incorrect payment history',
-  'Duplicate account',
-  'Account included in bankruptcy',
-  'Fraudulent account / identity theft',
-  'Incorrect account status',
-  'Incorrect date of last activity',
-  'Incorrect date opened',
-  'Unauthorized inquiry',
-  'Debt past statute of limitations',
-  'No signed agreement / contract',
-  'Other',
 ];
 
 const DISPUTE_INSTRUCTIONS = [
@@ -227,14 +211,11 @@ function AccountCard({
             <div className="space-y-2">
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Dispute Reason</label>
-                <select
+                <DisputeReasonSelect
                   value={account.disputeReason}
-                  onChange={e => onEdit(account.id, 'disputeReason', e.target.value)}
+                  onChange={value => onEdit(account.id, 'disputeReason', value)}
                   className="input text-xs w-full"
-                >
-                  <option value="">Select reason…</option>
-                  {DISPUTE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Instruction</label>
@@ -982,10 +963,7 @@ export default function ImportWizard({
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground block mb-1">Dispute Reason</label>
-                          <select value={item.disputeReason} onChange={e => updateManualItem(i, 'disputeReason', e.target.value)} className="input text-xs w-full">
-                            <option value="">Select…</option>
-                            {DISPUTE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
+                          <DisputeReasonSelect value={item.disputeReason} onChange={value => updateManualItem(i, 'disputeReason', value)} className="input text-xs w-full" placeholder="Select…" />
                         </div>
                       </div>
                     </div>

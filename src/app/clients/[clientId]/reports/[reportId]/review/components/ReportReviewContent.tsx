@@ -5,7 +5,8 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, Arro
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ParsedCreditReport, ParsedAccount, SectionConfidence } from '@/lib/creditReport/parser';
-import { DISPUTE_REASONS, DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import { DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import DisputeReasonSelect from '@/components/DisputeReasonSelect';
 
 interface ReportReviewContentProps {
   clientId: string;
@@ -516,14 +517,10 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs font-medium text-muted-foreground block mb-1">Dispute Reason</label>
-                          <select
+                          <DisputeReasonSelect
                             value={acc._disputeReason}
-                            onChange={e => updateAccount(acc.id, { _disputeReason: e.target.value })}
-                            className="w-full text-xs border border-border rounded-lg px-2 py-1.5 bg-card text-foreground"
-                          >
-                            <option value="">Select reason…</option>
-                            {DISPUTE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
+                            onChange={value => updateAccount(acc.id, { _disputeReason: value })}
+                          />
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground block mb-1">Dispute Instruction</label>

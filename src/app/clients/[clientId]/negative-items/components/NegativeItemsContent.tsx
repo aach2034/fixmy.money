@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Plus, Loader2, ArrowRight, ChevronDown, ChevronUp, FileText, Trash2, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { DISPUTE_REASONS, DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import { DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import DisputeReasonSelect from '@/components/DisputeReasonSelect';
 import ImportWizard from '@/components/ImportWizard';
 
 interface NegativeItem {
@@ -378,10 +379,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Dispute Reason</label>
-              <select value={newItem.disputeReason} onChange={e => setNewItem(p => ({ ...p, disputeReason: e.target.value }))} className="w-full text-xs border border-border rounded-lg px-2 py-1.5 bg-card text-foreground">
-                <option value="">Select…</option>
-                {DISPUTE_REASONS.map(r => <option key={r}>{r}</option>)}
-              </select>
+              <DisputeReasonSelect value={newItem.disputeReason} onChange={value => setNewItem(p => ({ ...p, disputeReason: value }))} placeholder="Select…" />
             </div>
           </div>
           <button onClick={addManualItem} className="btn-primary text-xs">Add Item</button>
@@ -457,10 +455,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1">Dispute Reason</label>
-                            <select value={editValues.disputeReason ?? ''} onChange={e => setEditValues(p => ({ ...p, disputeReason: e.target.value }))} className="w-full text-xs border border-border rounded-lg px-2 py-1.5 bg-card text-foreground">
-                              <option value="">Select…</option>
-                              {DISPUTE_REASONS.map(r => <option key={r}>{r}</option>)}
-                            </select>
+                            <DisputeReasonSelect value={editValues.disputeReason ?? ''} onChange={value => setEditValues(p => ({ ...p, disputeReason: value }))} placeholder="Select…" />
                           </div>
                           <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1">Dispute Instruction</label>

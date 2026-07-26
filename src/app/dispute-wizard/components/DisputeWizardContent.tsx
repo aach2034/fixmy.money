@@ -6,6 +6,7 @@ import { ChevronRight, ChevronLeft, User, Building2, FileText, AlertTriangle, Ch
 
 import { useSearchParams } from 'next/navigation';
 import { deduplicateDisputeRows } from '@/lib/creditReport/disputeItems';
+import { DISPUTE_REASON_OPTIONS } from '@/lib/disputes/reasonRanking';
 
 
 interface WizardClient { id: string; name: string; email?: string; }
@@ -23,7 +24,7 @@ interface WizardDisputeItem {
 
 const BUREAUS = ['Equifax', 'Experian', 'TransUnion'];
 
-const DISPUTE_REASONS = [
+const WIZARD_REASON_VALUES = [
   'Not my account',
   'Account paid in full',
   'Account settled',
@@ -41,6 +42,7 @@ const DISPUTE_REASONS = [
   'No signed agreement / contract',
   'Other (specify in notes)',
 ];
+const DISPUTE_REASONS = DISPUTE_REASON_OPTIONS.filter(option => WIZARD_REASON_VALUES.includes(option.value));
 
 const INSTRUCTIONS = [
   'Delete this item from my credit report',
@@ -569,14 +571,21 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
             <h2 className="text-base font-semibold text-foreground">Select Dispute Reason</h2>
             <p className="text-sm text-muted-foreground">Why are you disputing these items?</p>
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {DISPUTE_REASONS.map(r => (
-                <button key={r} type="button" onClick={() => setDisputeReason(r)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${disputeReason === r ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
-                  {disputeReason === r ? <CheckCircle2 size={14} className="text-primary shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground shrink-0" />}
-                  <p className="text-sm text-foreground">{r}</p>
+              {DISPUTE_REASONS.map(reason => (
+                <button key={reason.value} type="button" onClick={() => setDisputeReason(reason.value)}
+                  className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all ${disputeReason === reason.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
+                  {disputeReason === reason.value ? <CheckCircle2 size={14} className="text-primary shrink-0 mt-0.5" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground shrink-0 mt-0.5" />}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-foreground">{reason.value}</p>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{reason.removalPotential} removal potential</span>
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{reason.why}</p>
+                  </div>
                 </button>
               ))}
             </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">Rankings are guidance only. Outcomes depend on truthful facts, supporting evidence, and the bureau or furnisher investigation.</p>
             {disputeReason === 'Other (specify in notes)' && (
               <textarea className="input-field resize-none" rows={3} placeholder="Describe the dispute reason in detail…" value={customReason} onChange={e => setCustomReason(e.target.value)} />
             )}
