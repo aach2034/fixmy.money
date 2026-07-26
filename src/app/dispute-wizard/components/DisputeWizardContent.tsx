@@ -6,7 +6,7 @@ import { ChevronRight, ChevronLeft, User, Building2, FileText, AlertTriangle, Ch
 
 import { useSearchParams } from 'next/navigation';
 import { deduplicateDisputeRows } from '@/lib/creditReport/disputeItems';
-import { DISPUTE_REASON_OPTIONS } from '@/lib/disputes/reasonRanking';
+import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 
 
 interface WizardClient { id: string; name: string; email?: string; }
@@ -17,6 +17,7 @@ interface WizardDisputeItem {
   amount: string;
   bureau: string;
   disputeReason: string;
+  rankingReason: string;
   creditorName: string;
   accountNumber: string;
   source: 'negative_items' | 'client_disputes';
@@ -194,7 +195,8 @@ export default function DisputeWizardContent() {
             type: d.negative_category ?? 'other',
             amount: d.balance ? `$${Number(d.balance).toLocaleString()}` : '—',
             bureau: d.bureau ?? '',
-            disputeReason: '',
+            disputeReason: d.dispute_reason ?? '',
+            rankingReason: d.dispute_reason ?? d.negative_reason ?? '',
             creditorName: d.creditor_name ?? 'Unknown',
             accountNumber: d.account_number_masked ?? '',
             source: 'negative_items',
@@ -215,6 +217,7 @@ export default function DisputeWizardContent() {
             amount: d.amount ? `$${Number(d.amount).toLocaleString()}` : '—',
             bureau: d.bureau ?? '',
             disputeReason: d.dispute_reason ?? '',
+            rankingReason: d.dispute_reason ?? d.negative_reason ?? d.negative_item_type ?? '',
             creditorName: d.creditor_name ?? 'Unknown',
             accountNumber: d.account_number ?? '',
             source: 'client_disputes',
@@ -528,7 +531,7 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
         {step === 3 && (
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-foreground">Select Dispute Items</h2>
-            <p className="text-sm text-muted-foreground">Choose the accounts or items to dispute with {selectedBureau}</p>
+            <p className="text-sm text-muted-foreground">Items are ranked by estimated removal potential. Select only items with a truthful, documentable reporting issue.</p>
             {fromReport && preReportId && (
               <div className="flex items-start gap-2 p-2.5 bg-primary/5 border border-primary/20 rounded-lg text-xs text-primary">
                 <Info size={12} className="shrink-0 mt-0.5" />
@@ -543,22 +546,32 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
               </div>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {disputeItems.map(item => {
+                {[...disputeItems].sort((a, b) => {
+                  const aRank = rankDisputeItem(a.rankingReason, a.type).rank;
+                  const bRank = rankDisputeItem(b.rankingReason, b.type).rank;
+                  return aRank - bRank;
+                }).map(item => {
                   const checked = selectedItems.has(item.id);
+                  const ranking = rankDisputeItem(item.rankingReason, item.type);
                   return (
                     <button key={item.id} type="button" onClick={() => {
                       setSelectedItems(prev => { const n = new Set(prev); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n; });
-                    }} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
-                      {checked ? <CheckCircle2 size={16} className="text-primary shrink-0" /> : <div className="w-4 h-4 rounded border-2 border-muted-foreground shrink-0" />}
+                    }} className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
+                      {checked ? <CheckCircle2 size={16} className="text-primary shrink-0 mt-0.5" /> : <div className="w-4 h-4 rounded border-2 border-muted-foreground shrink-0 mt-0.5" />}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{item.label}</p>
-                        <p className="text-xs text-muted-foreground">{item.type} · {item.amount}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-foreground">{item.label}</p>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{ranking.removalPotential} removal potential</span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{item.type} · {item.amount}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Why ranked here:</span> {ranking.why}</p>
                       </div>
                     </button>
                   );
                 })}
               </div>
             )}
+            <p className="text-[11px] leading-relaxed text-muted-foreground">Rankings are guidance, not guarantees. Bureau and furnisher investigations determine whether an item is corrected, verified, or removed.</p>
             {selectedItems.size > 0 && (
               <p className="text-xs text-primary font-medium">{selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected</p>
             )}

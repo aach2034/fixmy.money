@@ -50,3 +50,38 @@ export const DISPUTE_REASONS = DISPUTE_REASON_OPTIONS.map(option => option.value
 export function getDisputeReasonOption(value: string): DisputeReasonOption | undefined {
   return DISPUTE_REASON_OPTIONS.find(option => option.value === value);
 }
+
+const POTENTIAL_ORDER: Record<RemovalPotential, number> = {
+  Higher: 0,
+  Moderate: 1,
+  'Lower / uncertain': 2,
+};
+
+export function rankDisputeItem(reason: string, type = ''): DisputeReasonOption & { rank: number } {
+  const exact = getDisputeReasonOption(reason);
+  if (exact) return { ...exact, rank: POTENTIAL_ORDER[exact.removalPotential] };
+
+  const context = `${reason} ${type}`.toLowerCase();
+  if (/identity|fraud|not mine|not my|mixed file|duplicate|unauthorized inquiry|obsolete/.test(context)) {
+    return {
+      value: reason || type,
+      removalPotential: 'Higher',
+      why: 'The item appears to involve ownership, duplication, authorization, or reporting-age evidence that can directly challenge whether it belongs on the report.',
+      rank: 0,
+    };
+  }
+  if (/incorrect|inaccurate|balance|payment|late|status|date|collection|creditor|paid|settled|bankruptcy/.test(context)) {
+    return {
+      value: reason || type,
+      removalPotential: 'Moderate',
+      why: 'The item appears to contain a factual reporting issue. Documents or cross-bureau differences should identify the exact inconsistency.',
+      rank: 1,
+    };
+  }
+  return {
+    value: reason || type,
+    removalPotential: 'Lower / uncertain',
+    why: 'No specific, supported reporting inconsistency has been recorded yet. Review the source report and evidence before selecting this item.',
+    rank: 2,
+  };
+}
