@@ -2,6 +2,7 @@
  * Centralized blog article data structure.
  * CMS-compatible: articles can be moved to Supabase without rebuilding routes.
  */
+import { ADDITIONAL_SEO_ARTICLES } from './additionalSeoArticles';
 
 export interface ArticleSection {
   heading: string;
@@ -2106,6 +2107,7 @@ FixMy.Money is designed to be the central tracking system for credit repair agen
       body: 'FixMy.Money combines client management, dispute tracking, compliance documentation, billing records, and business analytics in a single platform.',
     },
   },
+  ...ADDITIONAL_SEO_ARTICLES,
 ];
 
 export function getArticleBySlug(slug: string): Article | undefined {

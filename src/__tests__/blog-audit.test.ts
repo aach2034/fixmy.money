@@ -53,6 +53,23 @@ const REQUIRED_SLUGS = [
   'what-credit-repair-agencies-should-track',
   'ai-credit-dispute-analysis-guide',
   'credit-repair-client-portal-guide',
+  'credit-repair-business-plan-guide',
+  'credit-repair-business-startup-costs',
+  'how-to-price-credit-repair-services',
+  'credit-repair-lead-generation-guide',
+  'credit-repair-client-retention-strategies',
+  'credit-repair-team-training-guide',
+  'credit-report-review-workflow-for-agencies',
+  'credit-bureau-response-tracking-guide',
+  'credit-repair-dispute-documentation-checklist',
+  'credit-repair-agency-sop-guide',
+  'credit-repair-agency-kpis',
+  'credit-repair-workflow-automation-checklist',
+  'credit-repair-crm-buyers-guide',
+  'white-label-credit-repair-client-portal-guide',
+  'credit-repair-software-implementation-guide',
+  'credit-repair-agency-security-checklist',
+  'credit-repair-client-intake-process',
 ];
 
 describe('Blog Article Audit', () => {
