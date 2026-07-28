@@ -69,9 +69,6 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children
 }: Readonly<{children: React.ReactNode;}>) {
-  const isProduction = process.env.NEXT_PUBLIC_SITE_URL === 'https://fixmy.money';
-  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
-
   return (
     <html lang="en" className={plusJakartaSans.variable}>
       <head>
@@ -90,6 +87,19 @@ new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-PQQ9V4XT');`,
+          }}
+        />
+
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-8MPF8KLDVG"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-8MPF8KLDVG');`,
           }}
         />
 
@@ -139,26 +149,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           {children}
           <Toaster />
         </AuthProvider>
-        {isProduction && gaMeasurementId &&
-        <>
-            <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-            strategy="afterInteractive" />
-          
-            <Script
-            id="gtag-init"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${gaMeasurementId}');
-                `
-            }} />
-          
-          </>
-        }
       </body>
     </html>);
 
