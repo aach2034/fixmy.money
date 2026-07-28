@@ -3,9 +3,6 @@ import { imageHosts } from './image-hosts.config.mjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  allowedDevOrigins: [
-    'creediltflow2597.builtwithrocket.new',
-  ],
   productionBrowserSourceMaps: false,
   distDir: process.env.DIST_DIR || '.next',
   // Mark PDF packages as server-external so webpack doesn't try to bundle them
