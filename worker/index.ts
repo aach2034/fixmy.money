@@ -35,6 +35,35 @@ const LEAD_OFFER = "evidence-first-agency-starter-kit";
 const LEAD_CONSENT =
   "Send me the Evidence-First Agency Starter Kit and occasional FixMy.Money product and workflow emails. I can unsubscribe at any time.";
 
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self' https://checkout.stripe.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://static.rocket.new https://js.stripe.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://appanalytics.rocket.new",
+  "frame-src 'self' https://www.googletagmanager.com https://js.stripe.com https://hooks.stripe.com",
+  "upgrade-insecure-requests",
+].join("; ");
+
+function withSecurityHeaders(response: Response): Response {
+  const secured = new Response(response.body, response);
+  secured.headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  secured.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  secured.headers.set("X-Content-Type-Options", "nosniff");
+  secured.headers.set("X-Frame-Options", "DENY");
+  secured.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  secured.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(self \"https://js.stripe.com\")",
+  );
+  return secured;
+}
+
 function leadResponse(body: Record<string, unknown>, status = 200): Response {
   return Response.json(body, {
     status,
@@ -112,11 +141,11 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api/marketing/lead") {
-      return captureMarketingLead(request, env);
+      return withSecurityHeaders(await captureMarketingLead(request, env));
     }
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return handleImageOptimization(
+      return withSecurityHeaders(await handleImageOptimization(
         request,
         {
           fetchAsset: (path) => env.ASSETS
@@ -130,8 +159,8 @@ export default {
           },
         },
         allowedWidths,
-      );
+      ));
     }
-    return handler.fetch(request, env, ctx);
+    return withSecurityHeaders(await handler.fetch(request, env, ctx));
   },
 };

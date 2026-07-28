@@ -1,17 +1,10 @@
 import React, { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import Script from 'next/script';
+import '@fontsource-variable/plus-jakarta-sans';
 import '../styles/tailwind.css';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-plus-jakarta-sans',
-  display: 'swap'
-});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -70,7 +63,7 @@ export default function RootLayout({
   children
 }: Readonly<{children: React.ReactNode;}>) {
   return (
-    <html lang="en" className={plusJakartaSans.variable}>
+    <html lang="en">
       <head>
         {/* Preconnect to GA origins for faster analytics loading */}
         <link rel="preconnect" href="https://www.googletagmanager.com" />
