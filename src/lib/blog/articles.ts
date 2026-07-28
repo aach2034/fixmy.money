@@ -26,6 +26,8 @@ export interface Article {
   updatedDate: string;
   readingTime: string;
   category: string;
+  focusKeyword?: string;
+  secondaryKeywords?: string[];
   excerpt: string;
   tableOfContents: string[];
   sections: ArticleSection[];
@@ -38,6 +40,287 @@ export interface Article {
 const BASE_URL = 'https://fixmy.money';
 
 export const ARTICLES: Article[] = [
+  {
+    slug: 'ai-credit-dispute-analysis-guide',
+    title: 'AI Credit Dispute Analysis: A Practical Guide for Agencies',
+    seoTitle: 'AI Credit Dispute Analysis for Credit Repair Agencies',
+    metaDescription:
+      'Learn how AI credit dispute analysis can help agencies review reports, organize evidence, prioritize items, and keep a human in control.',
+    canonicalUrl: `${BASE_URL}/blog/ai-credit-dispute-analysis-guide`,
+    author: 'Adam Hamilton',
+    authorTitle: 'Founder, FixMy.Money',
+    publishedDate: 'July 28, 2026',
+    updatedDate: 'July 28, 2026',
+    readingTime: '9 min read',
+    category: 'Automation',
+    focusKeyword: 'AI credit dispute analysis',
+    secondaryKeywords: [
+      'AI credit repair software',
+      'credit report analysis software',
+      'automated dispute workflow',
+      'credit repair agency automation',
+    ],
+    excerpt:
+      'A practical framework for using AI to organize credit-report facts and supporting evidence without removing the professional judgment, client authorization, or documentation an agency needs.',
+    tableOfContents: [
+      'What AI Credit Dispute Analysis Actually Does',
+      'Where AI Fits in a Responsible Agency Workflow',
+      'A Step-by-Step Analysis Process',
+      'What Agencies Should Never Fully Automate',
+      'How to Evaluate AI Credit Repair Software',
+      'Measuring the Operational Impact',
+    ],
+    sections: [
+      {
+        heading: 'What AI Credit Dispute Analysis Actually Does',
+        level: 2,
+        content: `AI credit dispute analysis uses software to help a credit-repair professional organize information found in a credit report. Depending on the platform, it may identify account fields, group similar tradelines, flag possible inconsistencies, summarize bureau-level differences, or connect a reported item with documents already stored in the client file.
+
+The useful word is “help.” AI does not determine whether information is legally inaccurate, decide what a consumer should claim, or establish that an item must be deleted. A credit report is a snapshot of data supplied by multiple parties, and the surrounding facts may not appear in the report itself. The client’s records, identity documents, account history, bureau responses, and explanation still matter.
+
+For an agency, the main value is faster preparation. Instead of moving facts between spreadsheets, PDFs, notes, and letter templates, staff can begin with an organized review queue. That can reduce repetitive data entry and make it easier to see which items need evidence, clarification, or no action at all.`,
+      },
+      {
+        heading: 'Where AI Fits in a Responsible Agency Workflow',
+        level: 2,
+        content: `A responsible automated dispute workflow has clear boundaries. Software can extract and organize data, while trained people verify the facts and approve every material action.
+
+**A practical division of work:**
+- AI extracts report fields and proposes issue categories.
+- Staff compare the extracted data with the original report.
+- The client confirms personal facts and supplies supporting records.
+- A qualified team member selects the appropriate next step.
+- The client reviews or authorizes correspondence when required.
+- The platform records approvals, delivery events, responses, and outcomes.
+
+This division matters because a confident-looking suggestion can still be incomplete or wrong. Scanned documents may be unclear. Two accounts may look alike without being duplicates. A balance difference may reflect reporting dates rather than an error. Human review prevents a software suggestion from becoming an unsupported statement.
+
+Agencies should also explain the role of automation in plain language. Clients should understand that technology assists the review process; it does not assure a deletion, score change, or particular investigation result.`,
+      },
+      {
+        heading: 'A Step-by-Step Analysis Process',
+        level: 2,
+        content: `Start with a repeatable process that preserves the source material at every stage.
+
+1. **Import the source report.** Keep the original file unchanged and record when it was received.
+2. **Extract account data.** Capture bureau, furnisher, account identifier, status, balance, dates, remarks, and other relevant fields.
+3. **Validate the extraction.** Compare the structured record with the source page before relying on it.
+4. **Compare bureau reporting.** Note differences, but do not assume every difference is inaccurate.
+5. **Collect client evidence.** Link statements, correspondence, identity records, or other documents to the relevant item.
+6. **Choose an evidence-based reason.** The reason should describe the client’s actual facts, not a generic tactic.
+7. **Review the draft.** Confirm names, addresses, account references, factual statements, attachments, and requested action.
+8. **Record authorization and delivery.** Preserve who approved the action, when it was sent, and what was included.
+9. **Track the response.** Connect each bureau or furnisher response to the original item and dispute round.
+
+This workflow makes AI credit dispute analysis useful without treating it as an autopilot. It also creates a record that another staff member can understand later.`,
+      },
+      {
+        heading: 'What Agencies Should Never Fully Automate',
+        level: 2,
+        content: `Some decisions require context and accountability. An agency should not automatically submit every issue a model flags, invent a factual explanation, select a dispute reason the client has not confirmed, or send correspondence without the required review and authorization.
+
+Avoid “one-click” volume as the primary measure of success. More letters do not necessarily mean better service. Repetitive or unsupported submissions can create confusion, weaken documentation, and make it harder to understand what happened in a particular case.
+
+Sensitive information also requires special care. Credit reports contain Social Security numbers, dates of birth, addresses, and account details. Agencies should understand where data is stored, who can access it, what vendors receive it, and how long it is retained. Role-based access, encryption, activity logs, and documented deletion practices are operational necessities rather than optional features.`,
+      },
+      {
+        heading: 'How to Evaluate AI Credit Repair Software',
+        level: 2,
+        content: `A product demo should show more than a generated letter. Ask the vendor to demonstrate how the system handles an unclear scan, a corrected extraction, conflicting bureau data, staff approval, client evidence, and a later response.
+
+**Evaluation questions:**
+- Can a reviewer see the exact source page behind every extracted fact?
+- Can staff correct a suggestion without losing the original record?
+- Does the system distinguish a possible inconsistency from a confirmed inaccuracy?
+- Are reasons connected to client-provided facts and evidence?
+- Is there a clear approval step before correspondence is finalized?
+- Does the audit log show who changed, reviewed, approved, and sent each item?
+- Can access be limited by role and workspace?
+- Does the vendor explain data retention and subprocessors?
+
+The best AI credit repair software should make careful work easier to perform and easier to audit. It should not obscure the evidence behind a recommendation or encourage claims that have not been verified.`,
+      },
+      {
+        heading: 'Measuring the Operational Impact',
+        level: 2,
+        content: `Measure whether the workflow improves quality as well as speed. Useful operational metrics include report-review time, extraction corrections, items returned for missing evidence, time from intake to staff approval, response-processing time, and the percentage of records with complete documentation.
+
+Track exceptions too. If reviewers frequently correct the same field or issue category, the agency may need a better import process, staff guidance, or vendor configuration. If cases stall because evidence is missing, improve the client intake checklist rather than generating a draft prematurely.
+
+The goal is not to remove people from the process. It is to give people a clearer workspace for making and documenting decisions. When source reports, client evidence, review notes, approvals, correspondence, and outcomes remain connected, automation can support a more consistent agency operation.`,
+      },
+    ],
+    faqs: [
+      {
+        question: 'Can AI determine whether a credit-report item must be removed?',
+        answer:
+          'No. AI can flag possible inconsistencies and organize information, but it cannot establish the legal or factual outcome of an investigation. A trained person should review the source report, client evidence, and relevant circumstances.',
+      },
+      {
+        question: 'Should an agency send AI-generated dispute letters automatically?',
+        answer:
+          'Agencies should keep human review and appropriate client authorization in the workflow. Every factual statement, account reference, reason, attachment, and requested action should be checked before correspondence is finalized.',
+      },
+      {
+        question: 'What is the most important AI software feature for a credit repair agency?',
+        answer:
+          'Traceability is essential: reviewers should be able to connect every extracted fact and suggestion to its source, then see who corrected, approved, and acted on it.',
+      },
+    ],
+    relatedSlugs: [
+      'how-to-automate-credit-dispute-workflows',
+      'credit-repair-audit-logs-explained',
+      'best-credit-repair-software-2026',
+    ],
+    disclaimer:
+      'This article is for educational purposes only and does not constitute legal, financial, or credit-repair advice. AI output may be incomplete or inaccurate, and agencies remain responsible for reviewing their work and following applicable laws.',
+    cta: {
+      heading: 'Review report evidence with a human in control',
+      body: 'See how FixMy.Money connects AI-assisted analysis, source documents, staff review, approvals, and outcomes in one agency workflow.',
+    },
+  },
+  {
+    slug: 'credit-repair-client-portal-guide',
+    title: 'Credit Repair Client Portal: Features, Security, and Workflow',
+    seoTitle: 'Credit Repair Client Portal Guide for Agencies',
+    metaDescription:
+      'Learn what a secure credit repair client portal should include, from document exchange and status updates to permissions and audit trails.',
+    canonicalUrl: `${BASE_URL}/blog/credit-repair-client-portal-guide`,
+    author: 'Adam Hamilton',
+    authorTitle: 'Founder, FixMy.Money',
+    publishedDate: 'July 28, 2026',
+    updatedDate: 'July 28, 2026',
+    readingTime: '9 min read',
+    category: 'Operations',
+    focusKeyword: 'credit repair client portal',
+    secondaryKeywords: [
+      'credit repair software with client login',
+      'secure client document portal',
+      'white-label credit repair portal',
+      'credit repair client communication',
+    ],
+    excerpt:
+      'A buyer’s guide to the client-login experience agencies need for secure document exchange, clear status updates, approvals, and an auditable service record.',
+    tableOfContents: [
+      'What a Credit Repair Client Portal Is',
+      'Core Features Agencies Should Require',
+      'Designing the Client Journey',
+      'Security and Access Controls',
+      'White-Label Portal Considerations',
+      'How to Evaluate Portal Software',
+    ],
+    sections: [
+      {
+        heading: 'What a Credit Repair Client Portal Is',
+        level: 2,
+        content: `A credit repair client portal is a private online workspace where a client can exchange documents, review progress, complete assigned steps, and communicate with an agency. It is the client-facing side of the agency’s operating system, not merely a login page with a few downloadable files.
+
+A useful portal answers the questions clients ask most often: What do you need from me? What has been reviewed? What is waiting for approval? What was sent? Has a response arrived? What happens next?
+
+When those answers are easy to find, clients do not have to rely on scattered emails, text messages, or memory. Staff also spend less time recreating status updates. The portal becomes a shared record of the service relationship while the agency’s internal workspace retains the controls needed for review and documentation.`,
+      },
+      {
+        heading: 'Core Features Agencies Should Require',
+        level: 2,
+        content: `The strongest portal features connect directly to an agency workflow rather than existing as isolated widgets.
+
+**Essential capabilities include:**
+- Secure account access and password recovery
+- Guided intake with required fields and document requests
+- Protected upload and download of credit reports and supporting records
+- Clear task lists with owners, due dates, and completion status
+- Plain-language case updates that do not imply assured outcomes
+- Review and acknowledgment steps for important documents
+- A message history connected to the client record
+- Notifications that bring the client back to the secure portal
+- Mobile-friendly pages and accessible form controls
+- A visible history of submitted files, approvals, and completed actions
+
+A dashboard should prioritize the client’s next action. Too many charts, internal status codes, or unexplained dispute terms can make the experience feel less transparent. A simple “Upload the requested statement” task is more useful than a colorful screen that still leaves the client unsure what to do.`,
+      },
+      {
+        heading: 'Designing the Client Journey',
+        level: 2,
+        content: `Map the portal around the stages a real client moves through.
+
+1. **Account setup.** Confirm the client’s identity and explain how the secure workspace will be used.
+2. **Intake.** Collect contact details, relevant history, acknowledgments, and required files without asking for the same information twice.
+3. **Document review.** Show what the agency received and identify anything missing or unreadable.
+4. **Case preparation.** Present tasks and review requests without exposing confusing internal notes.
+5. **Authorization.** Record required acknowledgments or approvals with a date, time, user, and document version.
+6. **Progress updates.** Distinguish actions completed by the agency from responses controlled by a bureau or furnisher.
+7. **Response handling.** Notify the client when a response is available and explain the next review step.
+8. **Offboarding.** Provide appropriate final records, close open tasks, and apply the agency’s retention process.
+
+Each stage should have a clear owner. If the client must act, say exactly what is needed. If the agency is reviewing a document, identify that status. If the process is waiting on an outside party, avoid presenting the timing or outcome as something the agency controls.`,
+      },
+      {
+        heading: 'Security and Access Controls',
+        level: 2,
+        content: `A secure client document portal handles highly sensitive personal and financial information. Security should be evaluated as part of the product, not added as a footnote after purchase.
+
+Look for encrypted connections, protected storage, role-based access, session controls, activity logging, and a documented process for removing access when a staff member leaves. Multi-factor authentication is valuable, especially for agency administrators and staff accounts. The system should prevent one client from seeing another client’s workspace and should make tenant boundaries testable.
+
+Notifications deserve attention too. Email or text alerts should avoid including sensitive report details. A notification can say that a new message or task is available, then direct the client to sign in securely.
+
+Ask vendors how backups, retention, incident response, subprocessors, and data deletion are handled. No checklist makes a business automatically compliant, but clear technical and operational controls help an agency understand and manage its risk.`,
+      },
+      {
+        heading: 'White-Label Portal Considerations',
+        level: 2,
+        content: `A white-label credit repair portal can create a consistent client experience by using the agency’s name, logo, colors, contact information, and domain or branded link. Branding is useful, but it should not hide who operates the underlying technology or replace required disclosures.
+
+Evaluate what “white label” actually covers. Some products change only a logo. Others support branded emails, portal colors, custom help content, agency contact details, and a consistent mobile experience. Confirm whether vendor branding remains in footers, automated messages, payment screens, or support links.
+
+Consistency also affects trust. The business name shown in the portal should match the client’s agreement, billing descriptor, and communications. Support instructions should explain whether the client is contacting the agency or the software provider. A polished login screen cannot compensate for confusing ownership or missing service information.`,
+      },
+      {
+        heading: 'How to Evaluate Portal Software',
+        level: 2,
+        content: `Test a portal from the client’s perspective before committing to it. Create a sample account, open the invitation on a phone, reset the password, upload a document, complete a task, review a notice, send a message, and download a record. Then review the same events from the staff side.
+
+**Questions for a product evaluation:**
+- Can clients understand their next step without staff explanation?
+- Are uploaded documents connected to the correct case and task?
+- Can staff control which internal information is client-visible?
+- Are acknowledgments tied to the correct document version?
+- Does the audit history show access, uploads, messages, and approvals?
+- Can the agency export appropriate client records?
+- Does the portal remain usable on a small screen and with a keyboard?
+- Are branded notifications clear and free of sensitive details?
+
+The right credit repair software with client login should reduce uncertainty for both sides. Clients gain a dependable place to act and check progress, while agencies gain better documentation, fewer status requests, and a cleaner handoff between intake, review, authorization, delivery, and response tracking.`,
+      },
+    ],
+    faqs: [
+      {
+        question: 'What should clients be able to do in a credit repair portal?',
+        answer:
+          'Clients should be able to securely upload requested documents, view assigned tasks, receive clear progress updates, review or acknowledge relevant records, and communicate with the agency.',
+      },
+      {
+        question: 'Is a client portal more secure than email?',
+        answer:
+          'A well-designed portal can keep sensitive files and messages behind authenticated access instead of placing them directly in an inbox. Agencies should still evaluate the vendor’s encryption, permissions, logging, retention, and incident practices.',
+      },
+      {
+        question: 'What is the difference between a client portal and a CRM?',
+        answer:
+          'A CRM is primarily the agency’s internal system for managing relationships and work. A client portal is the controlled, client-facing view for tasks, documents, messages, approvals, and progress.',
+      },
+    ],
+    relatedSlugs: [
+      'credit-repair-client-onboarding-checklist',
+      'white-label-credit-repair-software',
+      'what-credit-repair-agencies-should-track',
+    ],
+    disclaimer:
+      'This article is for informational purposes only and does not constitute legal, security, or compliance advice. Agencies should evaluate their obligations and consult qualified professionals for guidance specific to their operations.',
+    cta: {
+      heading: 'Give every client a clearer next step',
+      body: 'Explore a secure, branded portal connected to your agency’s intake, document, review, messaging, and audit workflows.',
+    },
+  },
   {
     slug: 'why-i-built-fixmy-money',
     title: 'Why I Built FixMy.Money',

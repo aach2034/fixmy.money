@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
+import { ARTICLES } from '@/lib/blog/articles';
 
 export const metadata: Metadata = {
   title: 'Blog | FixMy.Money — Credit Repair Software for Agencies',
@@ -16,119 +17,6 @@ export const metadata: Metadata = {
     siteName: 'FixMy.Money',
   },
 };
-
-const ARTICLES = [
-  {
-    title: 'Why I Built FixMy.Money',
-    slug: 'why-i-built-fixmy-money',
-    excerpt:
-      'FixMy.Money was not born in a boardroom. It grew from my own frustration with an unclear, inconsistent credit-reporting process—and the belief that people deserve better tools.',
-    date: 'July 2026',
-    author: 'Adam Hamilton',
-    readTime: '5 min read',
-    category: 'Founder Story',
-  },
-  {
-    title: 'How to Start a Credit Repair Business in 2026',
-    slug: 'how-to-start-a-credit-repair-business-2026',
-    excerpt:
-      'A practical guide to launching a credit repair agency in 2026 — covering CROA compliance, software selection, client onboarding, and building a sustainable operation.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '12 min read',
-    category: 'Getting Started',
-  },
-  {
-    title: 'Best Credit Repair Software in 2026',
-    slug: 'best-credit-repair-software-2026',
-    excerpt:
-      'An honest comparison of credit repair software platforms in 2026. What features matter, what to avoid, and how to evaluate platforms for your agency size.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '10 min read',
-    category: 'Software',
-  },
-  {
-    title: 'Credit Repair Cloud Alternatives in 2026',
-    slug: 'credit-repair-cloud-alternatives-2026',
-    excerpt:
-      'Looking for alternatives to Credit Repair Cloud? This guide compares the leading platforms on features, pricing, AI capabilities, and compliance tools.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '9 min read',
-    category: 'Software',
-  },
-  {
-    title: 'How CROA Billing Workflows Work',
-    slug: 'how-croa-billing-workflows-work',
-    excerpt:
-      'CROA restricts when and how credit repair agencies can charge clients. This guide explains the billing restrictions, completed-service requirements, and how to document billing eligibility.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '8 min read',
-    category: 'Compliance',
-  },
-  {
-    title: 'Credit Repair Client Onboarding Checklist',
-    slug: 'credit-repair-client-onboarding-checklist',
-    excerpt:
-      'A step-by-step onboarding checklist for credit repair agencies — covering intake, disclosure delivery, agreement execution, cancellation period, and activating the client.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '7 min read',
-    category: 'Operations',
-  },
-  {
-    title: 'How to Automate Credit Dispute Workflows',
-    slug: 'how-to-automate-credit-dispute-workflows',
-    excerpt:
-      'Manual dispute management breaks down as client volume grows. This guide covers how to automate dispute generation, tracking, follow-ups, and bureau response management.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '8 min read',
-    category: 'Automation',
-  },
-  {
-    title: 'Credit Repair Audit Logs Explained',
-    slug: 'credit-repair-audit-logs-explained',
-    excerpt:
-      'Why audit logs matter for credit repair agencies, what they should record, and how immutable audit trails support compliance documentation and dispute resolution.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '6 min read',
-    category: 'Compliance',
-  },
-  {
-    title: 'White-Label Credit Repair Software Guide',
-    slug: 'white-label-credit-repair-software',
-    excerpt:
-      'What white-label credit repair software actually includes, what to look for, and how to evaluate whether white-labeling is worth it for your agency.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '7 min read',
-    category: 'Software',
-  },
-  {
-    title: 'Credit Repair Software Pricing Guide 2026',
-    slug: 'credit-repair-software-pricing-guide-2026',
-    excerpt:
-      'A transparent breakdown of credit repair software pricing in 2026 — what drives cost, what to expect at each price tier, and how to evaluate total cost of ownership.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '8 min read',
-    category: 'Software',
-  },
-  {
-    title: 'What Credit Repair Agencies Should Track',
-    slug: 'what-credit-repair-agencies-should-track',
-    excerpt:
-      'The key metrics, records, and documentation that credit repair agencies need to track — for operations, compliance, billing, and business growth.',
-    date: 'June 2026',
-    author: 'Adam Hamilton',
-    readTime: '9 min read',
-    category: 'Operations',
-  },
-];
 
 const CATEGORIES = ['All', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
 
@@ -207,11 +95,11 @@ export default function BlogPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar size={12} />
-                      {article.date}
+                      {article.publishedDate.replace(/^\w+ (\d+), /, '')}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
-                      {article.readTime}
+                      {article.readingTime}
                     </span>
                   </div>
                   <Link

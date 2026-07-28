@@ -25,6 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: article.seoTitle,
     description: article.metaDescription,
+    keywords: [article.focusKeyword, ...(article.secondaryKeywords ?? [])].filter(Boolean) as string[],
     alternates: { canonical: article.canonicalUrl },
     openGraph: {
       title: article.seoTitle,

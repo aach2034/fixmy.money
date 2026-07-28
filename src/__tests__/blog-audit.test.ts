@@ -51,6 +51,8 @@ const REQUIRED_SLUGS = [
   'white-label-credit-repair-software',
   'credit-repair-software-pricing-guide-2026',
   'what-credit-repair-agencies-should-track',
+  'ai-credit-dispute-analysis-guide',
+  'credit-repair-client-portal-guide',
 ];
 
 describe('Blog Article Audit', () => {
@@ -104,6 +106,18 @@ describe('Blog Article Audit', () => {
         expect(article.readingTime).toBeTruthy();
         expect(article.category).toBeTruthy();
       });
+
+      if (article.focusKeyword) {
+        it('has a focused SEO keyword set', () => {
+          expect(article.focusKeyword.length).toBeGreaterThan(3);
+          expect(article.secondaryKeywords?.length).toBeGreaterThanOrEqual(3);
+          expect(
+            `${article.title} ${article.seoTitle} ${article.metaDescription}`
+              .toLowerCase()
+              .includes(article.focusKeyword!.toLowerCase()),
+          ).toBe(true);
+        });
+      }
 
       it('has table of contents', () => {
         expect(article.tableOfContents.length).toBeGreaterThanOrEqual(3);
