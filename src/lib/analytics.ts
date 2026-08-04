@@ -46,23 +46,17 @@ export function trackEvent(eventName: string, eventParams: Record<string, unknow
 // ─── Conversion Events ────────────────────────────────────────────────────────
 
 /**
- * Fired when a user clicks any "Start Agency Trial" button.
+ * Fired when a user clicks any trial CTA.
  * @param plan - The plan name/id (e.g. 'starter', 'professional', 'agency')
  * @param location - Where on the page the CTA was clicked (e.g. 'hero', 'pricing', 'sticky_bar', 'footer_cta')
  */
-export function trackTrialSignup(plan: string = 'professional', location: string = 'unknown') {
+export function trackTrialSignup(plan: string = 'starter', location: string = 'unknown') {
   trackEvent('begin_checkout', {
     event_category: 'conversion',
     event_label: `trial_signup_${plan}`,
     plan_name: plan,
     cta_location: location,
     currency: 'USD',
-  });
-  // Also fire GA4 recommended conversion event
-  trackEvent('sign_up', {
-    method: 'trial',
-    plan_name: plan,
-    cta_location: location,
   });
 }
 

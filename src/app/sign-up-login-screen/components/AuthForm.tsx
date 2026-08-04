@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import { trackEvent } from '@/lib/analytics';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
 type RegisterFormData = {
@@ -48,7 +49,8 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  const planFromUrl = searchParams.get('plan') || 'professional';
+  const planFromUrl = searchParams.get('plan') || 'starter';
+  const isPersonalPlan = planFromUrl === 'starter';
   const tabFromUrl = searchParams.get('tab') || defaultTab || 'login';
   const redirectTo = searchParams.get('redirect') || '';
 
@@ -135,7 +137,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
     try {
       const result = await signUp(data.email, data.password, {
         fullName: data.adminName,
-        companyName: data.companyName,
+        companyName: data.companyName.trim() || `${data.adminName.trim()}'s Workspace`,
         plan: planFromUrl,
       });
 
@@ -146,6 +148,12 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       }
 
       const needsEmailConfirmation = result?.user && !result.user.email_confirmed_at && !result.session;
+
+      trackEvent('sign_up', {
+        method: 'email',
+        plan_name: planFromUrl,
+        email_confirmation_required: Boolean(needsEmailConfirmation),
+      });
 
       if (needsEmailConfirmation) {
         setRegisteredEmail(data.email);
@@ -406,15 +414,15 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                     )}
                   </div>
                   <div>
-                    <label htmlFor="register-company" className="label-text">Company Name</label>
+                    <label htmlFor="register-company" className="label-text">{isPersonalPlan ? 'Workspace Name (optional)' : 'Company Name'}</label>
                     <input
                       id="register-company"
-                      {...registerForm.register('companyName', { required: 'Company name is required' })}
+                      {...registerForm.register('companyName', { required: isPersonalPlan ? false : 'Company name is required' })}
                       type="text"
-                      placeholder="My Credit Co."
+                      placeholder={isPersonalPlan ? 'My Credit Workspace' : 'My Credit Co.'}
                       className="input-field"
                       autoComplete="organization"
-                      required
+                      required={!isPersonalPlan}
                     />
                     {registerForm.formState.errors.companyName && (
                       <p className="error-text">{registerForm.formState.errors.companyName.message}</p>

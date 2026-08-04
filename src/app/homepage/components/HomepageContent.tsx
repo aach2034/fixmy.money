@@ -165,7 +165,7 @@ export default function HomepageContent() {
   }, []);
 
   const handleStartTrial = (plan?: string, price?: number, location?: string) => {
-    const p = plan || 'professional';
+    const p = plan || 'starter';
     const loc = location || (plan ? 'pricing_card' : 'cta');
     trackTrialSignup(p, loc);
     if (plan && price !== undefined) {
@@ -247,13 +247,13 @@ export default function HomepageContent() {
       {showStickyCta && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden md:flex items-center gap-3 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl">
           <Sparkles size={16} className="text-blue-400" />
-          <span className="text-sm font-semibold">Start your agency trial today</span>
+          <span className="text-sm font-semibold">Start for $1 · Personal is $39/month</span>
           <button
             type="button"
             onClick={() => handleStartTrial()}
             className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
-            Start Agency Trial
+            Start for $1
           </button>
           <button
             type="button"
@@ -266,14 +266,6 @@ export default function HomepageContent() {
         </div>
       )}
 
-      {/* SERVICE UPDATE */}
-      <div className="border-b border-emerald-200/80 bg-emerald-50 text-emerald-950" role="status">
-        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2 text-center text-xs font-semibold sm:px-6 sm:text-sm lg:px-8">
-          <CheckCircle2 size={15} className="shrink-0 text-emerald-600" aria-hidden="true" />
-          <span>Service update: FixMy.Money is fully operational, including secure trial and subscription billing.</span>
-        </div>
-      </div>
-
       {/* NAVBAR */}
       <header className={`sticky top-0 left-0 right-0 z-40 border-b transition-all duration-200 ${scrolled ? 'border-slate-200 bg-white/95 shadow-sm backdrop-blur-md' : 'border-slate-100 bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -284,7 +276,7 @@ export default function HomepageContent() {
               </span>
               <span className="leading-none">
                 <span className="block text-[19px] font-black tracking-[-0.035em] text-slate-950">FixMy<span className="text-blue-600">.</span>Money</span>
-                <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Agency software</span>
+                <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">AI credit repair software</span>
               </span>
             </Link>
             <nav className="hidden items-center gap-7 xl:flex" aria-label="Main navigation">
@@ -301,7 +293,7 @@ export default function HomepageContent() {
                 onClick={() => handleStartTrial(undefined, undefined, 'header_nav')}
                 className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
               >
-                Start Agency Trial
+                Start for $1
               </button>
             </div>
             {/* Mobile menu button — accessible name + aria attributes */}
@@ -335,7 +327,7 @@ export default function HomepageContent() {
               onClick={() => { setMobileOpen(false); handleStartTrial(); }}
               className="w-full text-sm font-bold bg-blue-600 text-white py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
             >
-              Start Agency Trial
+              Start for $1
             </button>
           </div>
         </div>
@@ -371,13 +363,13 @@ export default function HomepageContent() {
                 </div>
                 <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_12px_35px_rgba(34,211,238,.18)] transition hover:-translate-y-0.5 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
-                    Start agency trial <ArrowRight size={22} />
+                    Start for $1 · Then $39/month <ArrowRight size={22} />
                   </button>
-                  <a href="#starter-kit" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#31566E] px-6 py-4 text-sm font-extrabold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
-                    Get the free agency kit <ArrowRight size={17} />
-                  </a>
+                  <Link href="/demo-mode" onClick={() => trackCtaClick('Try Live Demo', '/demo-mode', 'hero')} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#31566E] px-6 py-4 text-sm font-extrabold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
+                    Try the live demo <ArrowRight size={17} />
+                  </Link>
                 </div>
-                <p className="mt-5 text-sm font-medium leading-6 text-[#8298AD]">AI flags review candidates—not confirmed errors · Human verification and approval stay required</p>
+                <p className="mt-5 text-sm font-medium leading-6 text-cyan-100/80">$1 for 14 days · Cancel anytime · AI drafts remain editable and require human review</p>
               </div>
 
               <div className="relative rounded-[38px] border border-[#2A5671] bg-[#0A2940] p-5 shadow-[0_34px_80px_rgba(0,0,0,.25)] sm:p-8 lg:p-10">
@@ -697,7 +689,7 @@ export default function HomepageContent() {
                 className="inline-flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-xl transition-all hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
               >
                 <Sparkles size={18} />
-                Start Agency Trial
+                Start for $1 · Personal $39/month
               </button>
             </div>
           </div>
@@ -881,7 +873,7 @@ export default function HomepageContent() {
                         : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-200 focus:ring-blue-600 focus:ring-offset-white'
                     }`}
                   >
-                    Start Agency Trial — {plan.name}
+                    Choose {plan.name} — Start for $1
                   </button>
                 </div>
               ))}
@@ -989,7 +981,7 @@ export default function HomepageContent() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-2xl shadow-blue-600/30 transition-all hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
               >
                 <Sparkles size={18} />
-                Start Agency Trial
+                Start for $1 · Personal $39/month
               </button>
               <Link
                 href="/demo"
