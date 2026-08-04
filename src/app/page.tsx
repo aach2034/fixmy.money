@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     siteName: 'FixMy.Money',
     images: [
     {
-      url: '/og-ai-analysis.png',
+      url: '/og-ai-analysis.jpg',
       width: 1731,
       height: 909,
       alt: 'FixMy.Money AI-assisted credit report analysis and dispute workflow'
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
     description:
     'AI-assisted report reading, bureau comparison, inconsistency detection, and human-verified dispute guidance.',
-    images: ['/og-ai-analysis.png'],
+    images: ['/og-ai-analysis.jpg'],
   },
   alternates: {
     canonical: 'https://fixmy.money'

@@ -329,29 +329,33 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               </div>
               <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
                 <div>
-                  <label className="label-text">Email address</label>
+                  <label htmlFor="login-email" className="label-text">Email address</label>
                   <input
+                    id="login-email"
                     {...loginForm.register('email', { required: 'Email is required' })}
                     type="email"
                     placeholder="you@company.com"
                     className="input-field"
                     autoComplete="email"
+                    required
                   />
                   {loginForm.formState.errors.email && (
                     <p className="error-text">{loginForm.formState.errors.email.message}</p>
                   )}
                 </div>
                 <div>
-                  <label className="label-text">Password</label>
+                  <label htmlFor="login-password" className="label-text">Password</label>
                   <div className="relative">
                     <input
+                      id="login-password"
                       {...loginForm.register('password', { required: 'Password is required' })}
                       type={showPass ? 'text' : 'password'}
                       placeholder="Enter your password"
                       className="input-field pr-10"
                       autoComplete="current-password"
+                      required
                     />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <button type="button" aria-label={showPass ? 'Hide password' : 'Show password'} aria-pressed={showPass} onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
@@ -387,26 +391,30 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label-text">Your Name</label>
+                    <label htmlFor="register-name" className="label-text">Your Name</label>
                     <input
+                      id="register-name"
                       {...registerForm.register('adminName', { required: 'Name is required' })}
                       type="text"
                       placeholder="John Smith"
                       className="input-field"
                       autoComplete="name"
+                      required
                     />
                     {registerForm.formState.errors.adminName && (
                       <p className="error-text">{registerForm.formState.errors.adminName.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="label-text">Company Name</label>
+                    <label htmlFor="register-company" className="label-text">Company Name</label>
                     <input
+                      id="register-company"
                       {...registerForm.register('companyName', { required: 'Company name is required' })}
                       type="text"
                       placeholder="My Credit Co."
                       className="input-field"
                       autoComplete="organization"
+                      required
                     />
                     {registerForm.formState.errors.companyName && (
                       <p className="error-text">{registerForm.formState.errors.companyName.message}</p>
@@ -414,29 +422,34 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                   </div>
                 </div>
                 <div>
-                  <label className="label-text">Email address</label>
+                  <label htmlFor="register-email" className="label-text">Email address</label>
                   <input
+                    id="register-email"
                     {...registerForm.register('email', { required: 'Email is required' })}
                     type="email"
                     placeholder="you@company.com"
                     className="input-field"
                     autoComplete="email"
+                    required
                   />
                   {registerForm.formState.errors.email && (
                     <p className="error-text">{registerForm.formState.errors.email.message}</p>
                   )}
                 </div>
                 <div>
-                  <label className="label-text">Password</label>
+                  <label htmlFor="register-password" className="label-text">Password</label>
                   <div className="relative">
                     <input
+                      id="register-password"
                       {...registerForm.register('password', { required: 'Password is required', minLength: { value: 8, message: 'Password must be at least 8 characters' } })}
                       type={showPass ? 'text' : 'password'}
                       placeholder="Min. 8 characters"
                       className="input-field pr-10"
                       autoComplete="new-password"
+                      required
+                      minLength={8}
                     />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <button type="button" aria-label={showPass ? 'Hide password' : 'Show password'} aria-pressed={showPass} onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
@@ -445,16 +458,19 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                   )}
                 </div>
                 <div>
-                  <label className="label-text">Confirm Password</label>
+                  <label htmlFor="register-confirm-password" className="label-text">Confirm Password</label>
                   <div className="relative">
                     <input
+                      id="register-confirm-password"
                       {...registerForm.register('confirmPassword', { required: 'Please confirm your password' })}
                       type={showConfirmPass ? 'text' : 'password'}
                       placeholder="Repeat password"
                       className="input-field pr-10"
                       autoComplete="new-password"
+                      required
+                      minLength={8}
                     />
-                    <button type="button" onClick={() => setShowConfirmPass(!showConfirmPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <button type="button" aria-label={showConfirmPass ? 'Hide confirmation password' : 'Show confirmation password'} aria-pressed={showConfirmPass} onClick={() => setShowConfirmPass(!showConfirmPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
@@ -480,7 +496,10 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                   {loading ? 'Creating account...' : 'Create Account — Start $1 Trial'}
                 </button>
                 <p className="text-xs text-slate-400 text-center">
-                  By creating an account, you agree to our Terms of Service and Privacy Policy.
+                  By creating an account, you agree to our{' '}
+                  <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
+                  {' '}and{' '}
+                  <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>.
                 </p>
               </form>
               <p className="text-center text-sm text-slate-500 mt-4">

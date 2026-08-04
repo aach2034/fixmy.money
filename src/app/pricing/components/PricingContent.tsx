@@ -82,7 +82,7 @@ const BILLING_FAQS = [
   { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
   { q: 'What is the annual discount?', a: 'Annual billing saves approximately 20% compared to monthly billing. Annual plans are billed once per year.' },
   { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
-  { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 30 days.' },
+  { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
   { q: 'What happens to my data if I exceed plan limits?', a: 'If you exceed your active client limit, you will be prompted to upgrade your plan. Existing client records are not deleted. New clients cannot be added until you upgrade or reduce your active client count.' },
 ];
 
@@ -304,7 +304,7 @@ export default function PricingContent() {
               { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
               { label: 'Downgrades', value: 'Take effect at next billing cycle' },
               { label: 'Failed payments', value: 'Retried automatically; account suspended if unresolved' },
-              { label: 'Refunds', value: 'No refunds for partial periods; errors reviewed within 30 days' },
+              { label: 'Refunds', value: 'No refunds for partial periods; billing errors reviewed within 7 days' },
               { label: 'Data export on cancellation', value: 'Available for 30 days after cancellation (Agency+ plans)' },
             ].map((item) => (
               <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 flex gap-3">
