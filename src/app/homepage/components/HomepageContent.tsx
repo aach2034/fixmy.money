@@ -267,11 +267,11 @@ export default function HomepageContent() {
       )}
 
       {/* NAVBAR */}
-      <header className={`sticky top-0 left-0 right-0 z-40 border-b transition-all duration-200 ${scrolled ? 'border-slate-200 bg-white/95 shadow-sm backdrop-blur-md' : 'border-slate-100 bg-white'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-[72px] items-center justify-between gap-6">
+      <header className={`sticky top-0 left-0 right-0 z-40 border-b transition-all duration-300 ${scrolled ? 'border-slate-200/80 bg-white/90 shadow-[0_12px_40px_rgba(15,23,42,.08)] backdrop-blur-xl' : 'border-slate-200/60 bg-white/75 backdrop-blur-xl'}`}>
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10">
+          <div className="flex h-[78px] items-center justify-between gap-6">
             <Link href="/" className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 shadow-sm">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-950 via-violet-950 to-cyan-900 shadow-[0_10px_25px_rgba(15,23,42,.2)]">
                 <Image src="/assets/images/app_logo.png" alt="" width={27} height={31} className="h-[31px] w-auto object-contain" priority unoptimized />
               </span>
               <span className="leading-none">
@@ -279,11 +279,11 @@ export default function HomepageContent() {
                 <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">AI credit repair software</span>
               </span>
             </Link>
-            <nav className="hidden items-center gap-7 xl:flex" aria-label="Main navigation">
+            <nav className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-white/70 p-1.5 shadow-sm xl:flex" aria-label="Main navigation">
               {NAV_LINKS.map(link => (
                 link.href.startsWith('#')
-                  ? <a key={link.href} href={link.href} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded">{link.label}</a>
-                  : <Link key={link.href} href={link.href} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 rounded">{link.label}</Link>
+                  ? <a key={link.href} href={link.href} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-950 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-600">{link.label}</a>
+                  : <Link key={link.href} href={link.href} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-950 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-600">{link.label}</Link>
               ))}
             </nav>
             <div className="hidden items-center gap-2 xl:flex">
@@ -291,7 +291,7 @@ export default function HomepageContent() {
               <button
                 type="button"
                 onClick={() => handleStartTrial(undefined, undefined, 'header_nav')}
-                className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                className="rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_25px_rgba(15,23,42,.18)] transition hover:-translate-y-0.5 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:ring-offset-2"
               >
                 Start for $1
               </button>
@@ -337,16 +337,16 @@ export default function HomepageContent() {
       <main id="main-content">
 
         {/* ── SECTION 1: HERO ── */}
-        <section className="relative overflow-hidden border-b border-fuchsia-300/30 bg-[#09062b] py-14 text-white sm:py-24">
+        <section className="relative overflow-hidden bg-[#09062b] pb-28 pt-14 text-white sm:pb-36 sm:pt-24">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_15%,rgba(34,211,238,.3),transparent_30%),radial-gradient(circle_at_88%_20%,rgba(217,70,239,.28),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(124,58,237,.3),transparent_40%)]" />
           <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
           <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
             <div className="relative grid items-center gap-12 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/30 bg-white/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur-sm sm:text-sm">
-                  <Sparkles size={16} className="text-fuchsia-300" /> Your AI credit-repair workspace
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[.08] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-cyan-100 shadow-[inset_0_1px_rgba(255,255,255,.15)] backdrop-blur-xl sm:text-sm">
+                  <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" /></span> AI workspace ready
                 </div>
-                <h1 className="mt-7 max-w-3xl text-5xl font-black leading-[0.96] tracking-[-0.055em] text-white sm:text-6xl lg:text-[76px]">
+                <h1 className="mt-7 max-w-3xl text-5xl font-black leading-[0.94] tracking-[-0.065em] text-white sm:text-6xl lg:text-[80px]">
                   Turn credit-report chaos into <span className="bg-gradient-to-r from-cyan-300 via-white to-fuchsia-300 bg-clip-text text-transparent">a clear next move.</span>
                 </h1>
                 <p className="mt-7 max-w-2xl text-lg leading-8 text-indigo-100 sm:text-xl">
@@ -376,7 +376,7 @@ export default function HomepageContent() {
                   <p className="text-[10px] font-black uppercase tracking-[.18em] text-cyan-200">AI scan</p>
                   <p className="mt-1 text-sm font-bold text-white">Report organized</p>
                 </div>
-                <div className="rounded-[32px] border border-white/20 bg-white/95 p-3 shadow-[0_35px_100px_rgba(0,0,0,.4)] sm:p-5">
+                <div className="rounded-[32px] border border-white/25 bg-white/90 p-3 shadow-[0_40px_120px_rgba(0,0,0,.5)] ring-1 ring-white/30 backdrop-blur-2xl sm:p-5">
                   <div className="rounded-[25px] bg-slate-950 p-5 sm:p-7">
                     <div className="flex items-center justify-between gap-4">
                       <div><p className="text-xs font-black uppercase tracking-[.2em] text-cyan-300">AI report review</p><h2 className="mt-2 text-xl font-black text-white sm:text-2xl">3 review candidates found</h2></div>
@@ -404,9 +404,9 @@ export default function HomepageContent() {
         </section>
 
         {/* ── THREE-STEP SIGNUP PATH ── */}
-        <section className="relative border-b border-violet-200 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50 py-12" aria-labelledby="signup-steps-heading">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center justify-between gap-8 lg:flex-row">
+        <section className="relative z-10 -mt-16 pb-10" aria-labelledby="signup-steps-heading">
+          <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10">
+            <div className="flex flex-col items-center justify-between gap-8 rounded-[32px] border border-white/70 bg-white/90 p-6 shadow-[0_28px_80px_rgba(40,20,90,.16)] ring-1 ring-slate-200/60 backdrop-blur-xl sm:p-8 lg:flex-row">
               <div className="max-w-sm text-center lg:text-left">
                 <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-violet-700">Start for $1</p>
                 <h2 id="signup-steps-heading" className="mt-2 text-2xl font-black tracking-tight text-slate-950">From signup to your first AI-assisted draft</h2>
@@ -420,7 +420,7 @@ export default function HomepageContent() {
                 ].map((item) => {
                   const StepIcon = item.icon;
                   return (
-                    <li key={item.step} className="relative rounded-2xl border border-white bg-white/90 p-5 shadow-sm">
+                    <li key={item.step} className="group relative rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 transition hover:-translate-y-1 hover:border-violet-200 hover:bg-white hover:shadow-xl">
                       <div className="flex items-center gap-3">
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 text-white shadow-md"><StepIcon size={19} aria-hidden="true" /></span>
                         <span className="text-xs font-black uppercase tracking-[0.16em] text-violet-700">Step {item.step}</span>
@@ -431,7 +431,7 @@ export default function HomepageContent() {
                   );
                 })}
               </ol>
-              <button type="button" onClick={() => handleStartTrial('starter', 39, 'three_step_signup')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-violet-700 px-6 py-4 text-sm font-extrabold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:ring-offset-2">
+              <button type="button" onClick={() => handleStartTrial('starter', 39, 'three_step_signup')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-slate-950 px-7 py-4 text-sm font-extrabold text-white shadow-xl transition hover:-translate-y-1 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:ring-offset-2">
                 Start for $1 <ArrowRight size={18} aria-hidden="true" />
               </button>
             </div>
