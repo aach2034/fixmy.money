@@ -351,7 +351,7 @@ export default function HomepageContent() {
                   AI-generated disputes. <span className="bg-gradient-to-r from-cyan-200 via-white to-fuchsia-200 bg-clip-text text-transparent">A smarter way to repair credit.</span>
                 </h1>
                 <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
-                  AI reads credit reports, surfaces suspected inconsistencies, and creates editable dispute drafts in seconds. Start with yourself and up to three friends or family members—then grow into a real business when you are ready.
+                  Turn an uploaded credit report into organized review candidates and editable, evidence-linked dispute drafts in one guided workflow. Start with yourself and up to three friends or family members—then grow into a real business when you are ready.
                 </p>
                 <div className="mt-7 grid max-w-xl gap-3 text-sm font-semibold text-cyan-50 sm:grid-cols-3">
                   {['AI-generated dispute drafts', 'Cross-bureau analysis', 'Human review built in'].map((benefit) => (
@@ -395,6 +395,41 @@ export default function HomepageContent() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── THREE-STEP SIGNUP PATH ── */}
+        <section className="relative border-b border-violet-200 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50 py-12" aria-labelledby="signup-steps-heading">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center justify-between gap-8 lg:flex-row">
+              <div className="max-w-sm text-center lg:text-left">
+                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-violet-700">Start for $1</p>
+                <h2 id="signup-steps-heading" className="mt-2 text-2xl font-black tracking-tight text-slate-950">From signup to your first AI-assisted draft</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Personal is $39/month after the 14-day trial. Cancel anytime.</p>
+              </div>
+              <ol className="grid flex-1 gap-4 sm:grid-cols-3">
+                {[
+                  { icon: UserPlus, step: '1', title: 'Create your account', body: 'Choose Personal and create your secure workspace.' },
+                  { icon: Upload, step: '2', title: 'Upload a credit report', body: 'AI structures report data and flags items for your review.' },
+                  { icon: Sparkles, step: '3', title: 'Review an AI draft', body: 'Edit, verify, and approve an evidence-linked dispute draft.' },
+                ].map((item) => {
+                  const StepIcon = item.icon;
+                  return (
+                    <li key={item.step} className="relative rounded-2xl border border-white bg-white/90 p-5 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 text-white shadow-md"><StepIcon size={19} aria-hidden="true" /></span>
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-violet-700">Step {item.step}</span>
+                      </div>
+                      <h3 className="mt-4 text-base font-extrabold text-slate-950">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.body}</p>
+                    </li>
+                  );
+                })}
+              </ol>
+              <button type="button" onClick={() => handleStartTrial('starter', 39, 'three_step_signup')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-violet-700 px-6 py-4 text-sm font-extrabold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:ring-offset-2">
+                Start for $1 <ArrowRight size={18} aria-hidden="true" />
+              </button>
             </div>
           </div>
         </section>
