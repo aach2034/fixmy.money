@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { trackTrialSignup, trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
-import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, Lock, Sparkles, Shield, Check, AlertTriangle, Building2, TrendingUp, LayoutDashboard, ClipboardList, UserPlus, Upload, DollarSign, ArrowRight, Search, Database, KeyRound, History, ScanLine } from 'lucide-react';
+import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, Lock, Sparkles, Shield, Check, AlertTriangle, Building2, TrendingUp, LayoutDashboard, ClipboardList, UserPlus, Upload, DollarSign, ArrowRight, Search, Database, KeyRound, History, ScanLine, GraduationCap, BriefcaseBusiness, Rocket } from 'lucide-react';
 import DemoVideoPlayer from './DemoVideoPlayer';
 import LeadCaptureSection from './LeadCaptureSection';
 
@@ -91,6 +91,42 @@ const TRUST_BADGES = [
   { icon: Lock, label: 'Stripe Secure Payments', color: 'text-emerald-700', bg: 'bg-emerald-50' },
   { icon: FileText, label: 'Audit Trail Logging', color: 'text-violet-600', bg: 'bg-violet-50' },
   { icon: AlertTriangle, label: 'Compliance Documentation Tools', color: 'text-amber-600', bg: 'bg-amber-50' },
+];
+
+const AUDIENCE_PATHS = [
+  {
+    icon: GraduationCap,
+    eyebrow: 'Learn for yourself',
+    title: 'Understand your own credit first',
+    body: 'Start with educational resources that explain reports, common inaccuracies, documentation, and your consumer rights. No business account required.',
+    cta: 'Explore free education',
+    href: '/blog',
+    color: 'text-cyan-700',
+    bg: 'bg-cyan-50',
+    border: 'hover:border-cyan-300',
+  },
+  {
+    icon: BriefcaseBusiness,
+    eyebrow: 'Build a real business',
+    title: 'Prepare to serve clients professionally',
+    body: 'Learn the workflow, establish your business properly, understand your responsibilities, and use software built for documented client work.',
+    cta: 'Get the free agency kit',
+    href: '#starter-kit',
+    color: 'text-blue-700',
+    bg: 'bg-blue-50',
+    border: 'hover:border-blue-300',
+  },
+  {
+    icon: Rocket,
+    eyebrow: 'Run and grow',
+    title: 'Modernize an existing agency',
+    body: 'Bring client records, report review, evidence, approvals, disputes, billing, and progress tracking into one accountable workspace.',
+    cta: 'Start an agency trial',
+    href: '/signup?plan=professional',
+    color: 'text-violet-700',
+    bg: 'bg-violet-50',
+    border: 'hover:border-violet-300',
+  },
 ];
 
 export default function HomepageContent() {
@@ -316,13 +352,13 @@ export default function HomepageContent() {
             <div className="relative grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
               <div>
                 <div className="inline-flex items-center gap-4 text-xs font-extrabold uppercase tracking-[0.24em] text-cyan-200 sm:text-sm">
-                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> AI-assisted credit report analysis
+                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Learn the process. Build a legitimate agency.
                 </div>
                 <h1 className="mt-9 max-w-2xl text-5xl font-semibold leading-[0.94] tracking-[-0.045em] text-[#F4F8FC] sm:text-6xl lg:text-[78px]" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>
-                  Spot credit-report inconsistencies. <span className="text-cyan-200">Build stronger disputes.</span>
+                  Understand credit repair. <span className="text-cyan-200">Build a business that helps others.</span>
                 </h1>
                 <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
-                  AI reads imported reports, compares bureau data, and flags suspected inconsistencies. Your team verifies every finding, follows a guided dispute workflow, and keeps the source evidence connected.
+                  Begin with education for your own credit journey. When you are ready to operate a real credit-repair business, use FixMy.Money to manage authorized client work with evidence, human review, and accountable workflows.
                 </p>
                 <div className="mt-7 grid max-w-xl gap-3 text-sm font-semibold text-cyan-50 sm:grid-cols-3">
                   {['Read & structure reports', 'Compare bureau data', 'Guide verified disputes'].map((benefit) => (
@@ -456,6 +492,32 @@ export default function HomepageContent() {
         </section>
 
         <LeadCaptureSection />
+
+        {/* ── CHOOSE YOUR PATH ── */}
+        <section className="border-b border-slate-200 bg-white py-16 sm:py-20" aria-labelledby="choose-your-path-heading">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-blue-700">How can we help you?</p>
+              <h2 id="choose-your-path-heading" className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">Choose the path that fits where you are today</h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">Personal education is free to explore. FixMy.Money subscriptions are for legitimate businesses serving authorized clients.</p>
+            </div>
+            <div className="mt-10 grid gap-5 lg:grid-cols-3">
+              {AUDIENCE_PATHS.map((path) => {
+                const Icon = path.icon;
+                return (
+                  <Link key={path.title} href={path.href} className={`group rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${path.border} focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2`}>
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${path.bg} ${path.color}`}><Icon size={24} aria-hidden="true" /></div>
+                    <p className={`mt-6 text-xs font-extrabold uppercase tracking-[0.18em] ${path.color}`}>{path.eyebrow}</p>
+                    <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950">{path.title}</h3>
+                    <p className="mt-4 text-base leading-7 text-slate-600">{path.body}</p>
+                    <span className="mt-6 inline-flex items-center gap-2 text-sm font-extrabold text-slate-950">{path.cta} <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" aria-hidden="true" /></span>
+                  </Link>
+                );
+              })}
+            </div>
+            <p className="mt-7 text-center text-sm text-slate-500">Creating a business account does not provide additional consumer-dispute rights or guarantee any credit outcome.</p>
+          </div>
+        </section>
 
         {/* ── SECTION 2: PROBLEM ── */}
         <section className="py-20 bg-white border-b border-slate-100">
