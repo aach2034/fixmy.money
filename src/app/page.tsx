@@ -3,20 +3,22 @@ import type { Metadata } from 'next';
 import HomepageContent from './homepage/components/HomepageContent';
 
 export const metadata: Metadata = {
-  title: 'AI Credit Report Analysis & Dispute Software',
+  title: 'AI Credit Repair Software & Dispute Tools',
   description:
-  'Use AI to read imported credit reports, compare bureau data, flag suspected inconsistencies, and guide human-verified dispute workflows.',
+  'AI credit repair software that organizes credit reports, surfaces cross-bureau inconsistencies, and creates editable, evidence-linked dispute drafts.',
   keywords: [
     'AI credit report analysis',
     'credit report inconsistency detection',
     'credit repair dispute software',
     'credit audit software',
     'credit repair agency software',
+    'AI dispute letter generator',
+    'credit repair software for individuals',
   ],
   openGraph: {
-    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
+    title: 'AI Credit Repair Software & Dispute Tools | FixMy.Money',
     description:
-    'Read reports, compare bureaus, flag suspected inconsistencies, and move verified findings into a guided dispute workflow.',
+    'Turn uploaded credit reports into organized review candidates and editable, evidence-linked dispute drafts with AI assistance.',
     type: 'website',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
@@ -31,9 +33,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
+    title: 'AI Credit Repair Software & Dispute Tools | FixMy.Money',
     description:
-    'AI-assisted report reading, bureau comparison, inconsistency detection, and human-verified dispute guidance.',
+    'Organize reports, surface cross-bureau inconsistencies, and create editable dispute drafts with AI assistance.',
     images: ['/og-ai-analysis.jpg'],
   },
   alternates: {

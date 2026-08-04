@@ -13,13 +13,18 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money'),
-  title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
+  title: {
+    default: 'AI Credit Repair Software & Dispute Tools | FixMy.Money',
+    template: '%s | FixMy.Money',
+  },
   description:
-    'Use AI to read imported credit reports, compare bureau data, flag suspected inconsistencies, and guide human-verified dispute workflows.',
+    'AI credit repair software that organizes credit reports, surfaces cross-bureau inconsistencies, and creates editable, evidence-linked dispute drafts.',
   applicationName: 'FixMy.Money',
   category: 'Business software',
   creator: 'FixMy.Money',
   publisher: 'FixMy.Money',
+  alternates: { canonical: '/' },
+  formatDetection: { email: false, address: false, telephone: false },
   robots: {
     index: true,
     follow: true,
@@ -40,8 +45,8 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://fixmy.money',
     siteName: 'FixMy.Money',
-    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
-    description: 'Read reports, compare bureaus, flag suspected inconsistencies, and move verified findings into a guided dispute workflow.',
+    title: 'AI Credit Repair Software & Dispute Tools | FixMy.Money',
+    description: 'Turn uploaded credit reports into organized review candidates and editable, evidence-linked dispute drafts with AI assistance.',
     images: [
     {
       url: '/og-ai-analysis.jpg',
@@ -53,8 +58,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Credit Report Analysis & Dispute Software | FixMy.Money',
-    description: 'AI-assisted report reading, bureau comparison, inconsistency detection, and human-verified dispute guidance.',
+    title: 'AI Credit Repair Software & Dispute Tools | FixMy.Money',
+    description: 'Organize reports, surface cross-bureau inconsistencies, and create editable dispute drafts with AI assistance.',
     images: ['/og-ai-analysis.jpg'],
   }
 };
