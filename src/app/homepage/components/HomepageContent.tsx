@@ -337,62 +337,66 @@ export default function HomepageContent() {
       <main id="main-content">
 
         {/* ── SECTION 1: HERO ── */}
-        <section className="relative overflow-hidden border-b border-violet-400/30 bg-gradient-to-br from-[#06142f] via-[#1c1464] to-[#063a54] py-16 text-white sm:py-24">
-          <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(40,204,229,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(40,204,229,.07) 1px, transparent 1px)', backgroundSize: '88px 88px' }} />
-          <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl" />
+        <section className="relative overflow-hidden border-b border-fuchsia-300/30 bg-[#09062b] py-14 text-white sm:py-24">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_15%,rgba(34,211,238,.3),transparent_30%),radial-gradient(circle_at_88%_20%,rgba(217,70,239,.28),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(124,58,237,.3),transparent_40%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
           <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-            <div className="relative grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
+            <div className="relative grid items-center gap-12 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
               <div>
-                <div className="inline-flex items-center gap-4 text-xs font-extrabold uppercase tracking-[0.24em] text-cyan-200 sm:text-sm">
-                  <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Learn the process. Build a legitimate agency.
+                <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/30 bg-white/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur-sm sm:text-sm">
+                  <Sparkles size={16} className="text-fuchsia-300" /> Your AI credit-repair workspace
                 </div>
-                <h1 className="mt-9 max-w-2xl text-5xl font-semibold leading-[0.94] tracking-[-0.045em] text-[#F4F8FC] sm:text-6xl lg:text-[78px]" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>
-                  AI-generated disputes. <span className="bg-gradient-to-r from-cyan-200 via-white to-fuchsia-200 bg-clip-text text-transparent">A smarter way to repair credit.</span>
+                <h1 className="mt-7 max-w-3xl text-5xl font-black leading-[0.96] tracking-[-0.055em] text-white sm:text-6xl lg:text-[76px]">
+                  Turn credit-report chaos into <span className="bg-gradient-to-r from-cyan-300 via-white to-fuchsia-300 bg-clip-text text-transparent">a clear next move.</span>
                 </h1>
-                <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
-                  Turn an uploaded credit report into organized review candidates and editable, evidence-linked dispute drafts in one guided workflow. Start with yourself and up to three friends or family members—then grow into a real business when you are ready.
+                <p className="mt-7 max-w-2xl text-lg leading-8 text-indigo-100 sm:text-xl">
+                  Upload a report. Let AI organize what does not add up. Review an evidence-linked dispute draft you can edit and approve—without wrestling with spreadsheets or blank-page anxiety.
                 </p>
-                <div className="mt-7 grid max-w-xl gap-3 text-sm font-semibold text-cyan-50 sm:grid-cols-3">
-                  {['AI-generated dispute drafts', 'Cross-bureau analysis', 'Human review built in'].map((benefit) => (
-                    <div key={benefit} className="flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-3 py-3">
+                <div className="mt-7 grid max-w-2xl gap-3 text-sm font-bold text-white sm:grid-cols-3">
+                  {['Report organized by AI', 'Cross-bureau clues surfaced', 'Your review stays in control'].map((benefit, index) => (
+                    <div key={benefit} className={`flex items-center gap-2 rounded-xl border px-3 py-3 backdrop-blur-sm ${index === 0 ? 'border-cyan-300/40 bg-cyan-300/10' : index === 1 ? 'border-violet-300/40 bg-violet-300/10' : 'border-fuchsia-300/40 bg-fuchsia-300/10'}`}>
                       <CheckCircle2 size={16} className="shrink-0 text-cyan-300" aria-hidden="true" />
                       <span>{benefit}</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_12px_35px_rgba(34,211,238,.18)] transition hover:-translate-y-0.5 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
+                  <button type="button" onClick={() => handleStartTrial(undefined, undefined, 'hero')} className="inline-flex items-center justify-center gap-6 rounded-2xl bg-gradient-to-r from-cyan-300 to-cyan-400 px-8 py-4 text-base font-extrabold text-[#031322] shadow-[0_16px_45px_rgba(34,211,238,.32)] transition hover:-translate-y-1 hover:shadow-[0_20px_55px_rgba(34,211,238,.42)] focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
                     Start for $1 · Then $39/month <ArrowRight size={22} />
                   </button>
-                  <Link href="/demo-mode" onClick={() => trackCtaClick('Try Live Demo', '/demo-mode', 'hero')} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#31566E] px-6 py-4 text-sm font-extrabold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
+                  <Link href="/demo-mode" onClick={() => trackCtaClick('Try Live Demo', '/demo-mode', 'hero')} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/5 px-6 py-4 text-sm font-extrabold text-white backdrop-blur-sm transition hover:border-fuchsia-300 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:ring-offset-2 focus:ring-offset-[#031322]">
                     Try the live demo <ArrowRight size={17} />
                   </Link>
                 </div>
-                <p className="mt-5 text-sm font-medium leading-6 text-cyan-100/80">$1 for 14 days · Cancel anytime · AI drafts remain editable and require human review</p>
+                <p className="mt-5 text-sm font-medium leading-6 text-indigo-100/80">$1 for 14 days · Then $39/month · Cancel anytime · Human review required</p>
               </div>
 
-              <div className="relative rounded-[38px] border border-[#2A5671] bg-[#0A2940] p-5 shadow-[0_34px_80px_rgba(0,0,0,.25)] sm:p-8 lg:p-10">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Agency evidence workspace</h2>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-300 sm:text-sm">Approval required</span>
+              <div className="relative mx-auto w-full max-w-2xl lg:rotate-[1deg]">
+                <div className="absolute -left-5 -top-5 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 shadow-xl backdrop-blur-xl sm:-left-10 sm:top-10">
+                  <p className="text-[10px] font-black uppercase tracking-[.18em] text-cyan-200">AI scan</p>
+                  <p className="mt-1 text-sm font-bold text-white">Report organized</p>
                 </div>
-                <div className="mt-8 rounded-[28px] border border-[#153B54] bg-[#031725] p-5 sm:p-8">
-                  <div className="flex items-center gap-5">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-cyan-400 text-cyan-400"><FileText size={31} strokeWidth={1.6} /></div>
-                    <div className="min-w-0 flex-1"><p className="text-lg font-extrabold text-white">Tradeline evidence review</p><p className="mt-1 text-sm text-[#8198AD] sm:text-base">Source page, bureau, facts, and authorization connected</p></div>
-                    <div className="hidden h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-[5px] border-cyan-400 sm:flex"><span className="text-3xl font-extrabold text-white">84</span><span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#8BA0B4]">Ready</span></div>
+                <div className="rounded-[32px] border border-white/20 bg-white/95 p-3 shadow-[0_35px_100px_rgba(0,0,0,.4)] sm:p-5">
+                  <div className="rounded-[25px] bg-slate-950 p-5 sm:p-7">
+                    <div className="flex items-center justify-between gap-4">
+                      <div><p className="text-xs font-black uppercase tracking-[.2em] text-cyan-300">AI report review</p><h2 className="mt-2 text-xl font-black text-white sm:text-2xl">3 review candidates found</h2></div>
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-fuchsia-500 text-white shadow-lg"><ScanLine size={25} /></span>
+                    </div>
+                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                      {[
+                        ['Experian', 'Balance mismatch', 'bg-cyan-400'],
+                        ['Equifax', 'Status conflict', 'bg-violet-500'],
+                        ['TransUnion', 'Date mismatch', 'bg-fuchsia-500'],
+                      ].map(([bureau, issue, color]) => <div key={bureau} className="rounded-2xl border border-white/10 bg-white/[.07] p-4"><span className={`block h-2 w-12 rounded-full ${color}`} /><p className="mt-4 text-sm font-extrabold text-white">{bureau}</p><p className="mt-1 text-xs leading-5 text-slate-400">{issue}</p></div>)}
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+                      <div className="flex items-center gap-3"><Sparkles size={19} className="text-emerald-300" /><div><p className="text-sm font-extrabold text-white">Editable draft ready for review</p><p className="mt-1 text-xs text-emerald-100/70">Evidence links and source pages stay attached.</p></div></div>
+                    </div>
                   </div>
-                  <div className="mt-10 space-y-3">
-                    {[
-                      ['Source page and bureau linked', 'Verified', true],
-                      ['Supporting evidence reviewed', 'Complete', true],
-                      ['Final assertions and approval', 'Required', false],
-                    ].map(([label, status, done]) => <div key={String(label)} className="flex items-center gap-4 rounded-2xl bg-[#0A2132] px-5 py-4"><span className={`flex h-5 w-5 items-center justify-center text-cyan-400 ${done ? '' : 'rounded-full border-2 border-cyan-400'}`}>{done ? <Check size={18} /> : null}</span><span className="min-w-0 flex-1 text-sm font-semibold text-[#BDCCDC] sm:text-base">{label}</span><span className="text-xs font-extrabold uppercase text-cyan-200 sm:text-sm">{status}</span></div>)}
-                  </div>
-                  <div className="mt-12 grid grid-cols-5 gap-2">
-                    {['Import', 'Verify', 'Draft', 'Approve', 'Track'].map((label, index) => <div key={label} className="relative text-center"><div className={`relative z-10 mx-auto flex h-11 w-11 items-center justify-center rounded-full border ${index === 0 ? 'border-cyan-200 bg-cyan-400 text-[#031322]' : 'border-[#31566E] bg-[#092235] text-cyan-200'}`}>{index + 1}</div>{index < 4 && <span className="absolute left-[calc(50%+22px)] top-[21px] h-px w-[calc(100%-44px)] bg-cyan-400/70" />}<p className="mt-3 text-[11px] text-[#8298AD] sm:text-xs">{label}</p></div>)}
-                  </div>
+                </div>
+                <div className="relative -mt-5 ml-auto mr-3 max-w-[330px] rounded-2xl border border-fuchsia-200/50 bg-gradient-to-r from-fuchsia-500 to-violet-600 p-4 shadow-2xl sm:-mr-6 sm:p-5">
+                  <div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-fuchsia-100">Why I built it</p><p className="mt-1 text-sm font-extrabold text-white">My score journey</p></div><div className="flex items-baseline gap-2 text-white"><span className="text-xl font-black line-through decoration-fuchsia-200/70">477</span><ArrowRight size={17} /><span className="text-3xl font-black">795</span></div></div>
+                  <p className="mt-2 text-[10px] leading-4 text-fuchsia-100">Founder’s personal experience. Individual results vary; no score improvement is guaranteed.</p>
                 </div>
               </div>
             </div>
