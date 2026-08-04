@@ -4,7 +4,7 @@ import PricingContent from './components/PricingContent';
 
 export const metadata: Metadata = {
   title: 'Pricing | Fix My Money - Credit Repair Software',
-  description: 'Simple pricing for credit repair agencies. Starter $49, Professional $129, Agency $249. $1 today for 14 days.',
+  description: 'AI credit repair software plans: Personal $39, Start $99, and Grow $199. $1 today for 14 days.',
   keywords: ['pricing', 'plans', 'subscription'],
   openGraph: {
     title: 'Pricing | Fix My Money',

@@ -25,8 +25,8 @@ const COMPARISON_ROWS: {
   {
     category: 'Clients & Team',
     rows: [
-      { feature: 'Active clients', starter: '25', professional: '100', agency: 'Unlimited', enterprise: 'Unlimited' },
-      { feature: 'Team members', starter: '1', professional: '5', agency: '15', enterprise: 'Unlimited' },
+      { feature: 'People or active clients', starter: 'You + 3 friends/family', professional: '300', agency: '600', enterprise: 'Unlimited' },
+      { feature: 'Users', starter: '1', professional: '3', agency: '6', enterprise: 'Unlimited' },
     ],
   },
   {
@@ -37,15 +37,15 @@ const COMPARISON_ROWS: {
       { feature: 'Document storage', starter: '5 GB', professional: '25 GB', agency: '100 GB', enterprise: 'Custom' },
       { feature: 'Credit report upload', starter: true, professional: true, agency: true, enterprise: true },
       { feature: 'Audit log', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Stripe billing integration', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Client billing and payments', starter: false, professional: true, agency: true, enterprise: true },
     ],
   },
   {
     category: 'Evidence Review',
     rows: [
-      { feature: 'Structured report review', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'Evidence-linked draft assistance', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'Named verification and approval', starter: false, professional: true, agency: true, enterprise: true },
+      { feature: 'AI-assisted report analysis', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'AI-generated editable dispute drafts', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Evidence-linked human review', starter: true, professional: true, agency: true, enterprise: true },
     ],
   },
   {
@@ -156,7 +156,7 @@ export default function PricingContent() {
       {/* Pricing Cards */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PLANS.map((plan) => {
               const price = annual ? plan.annualPrice : plan.monthlyPrice;
               return (
@@ -264,7 +264,7 @@ export default function PricingContent() {
                 {COMPARISON_ROWS.map((section) => (
                   <React.Fragment key={section.category}>
                     <tr className="bg-slate-50">
-                      <td colSpan={5} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      <td colSpan={4} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
                         {section.category}
                       </td>
                     </tr>
@@ -279,7 +279,6 @@ export default function PricingContent() {
                         <td className="px-4 py-3 text-center"><CellValue value={row.starter} /></td>
                         <td className="px-4 py-3 text-center bg-blue-50/30"><CellValue value={row.professional} /></td>
                         <td className="px-4 py-3 text-center"><CellValue value={row.agency} /></td>
-                        <td className="px-4 py-3 text-center"><CellValue value={row.enterprise} /></td>
                       </tr>
                     ))}
                   </React.Fragment>

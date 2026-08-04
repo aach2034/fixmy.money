@@ -47,28 +47,28 @@ const COMPARISON = [
 const PLANS = [
   {
     id: 'starter',
-    name: 'Starter',
-    price: 49,
-    description: 'For solo operators and new credit repair businesses.',
-    features: ['25 active clients', '1 team member', 'Client portal', 'Dispute management', '5 GB storage', 'Stripe billing integration', 'Audit log', 'Email support'],
+    name: 'Personal',
+    price: 39,
+    description: 'For learning with your own profile and up to 3 friends or family members.',
+    features: ['Up to 3 friends and family profiles', '1 user', 'AI-generated dispute drafts', 'AI-assisted report analysis', 'Client portal', 'Dispute management', '5 GB storage', 'Audit log', 'Email support'],
     highlight: false,
     badge: null,
   },
   {
     id: 'professional',
-    name: 'Professional',
-    price: 129,
-    description: 'For growing agencies with team-based evidence review.',
-    features: ['100 active clients', '5 team members', 'Everything in Starter', 'Structured report review', 'Evidence-linked draft assistance', 'Named verification and approval', 'Workflow templates', 'Response tracking', 'Priority Support'],
+    name: 'Start',
+    price: 99,
+    description: 'For entrepreneurs starting a legitimate credit repair business.',
+    features: ['Up to 300 active clients', 'Up to 3 team members', 'Everything in Personal', 'AI-generated dispute drafts', 'Client billing and payments', 'Lead and affiliate tools', 'Workflow templates', 'Response tracking', 'Priority support'],
     highlight: true,
     badge: 'Most Popular',
   },
   {
     id: 'agency',
-    name: 'Agency',
-    price: 249,
-    description: 'For larger teams that need stronger oversight and controls.',
-    features: ['Unlimited clients', '15 team members', 'Everything in Professional', 'Role-based review controls', 'Agency Dashboard', '100 GB storage', 'Data export', 'Priority support'],
+    name: 'Grow',
+    price: 199,
+    description: 'For established teams ready to automate and grow.',
+    features: ['Up to 600 active clients', 'Up to 6 team members', 'Everything in Start', 'Advanced AI workflows', 'Role-based review controls', 'Agency Dashboard', '100 GB storage', 'Data export', 'Priority support'],
     highlight: false,
     badge: null,
   },
@@ -80,7 +80,7 @@ const FAQS = [
   { q: 'Does FixMy.Money provide CROA-compliant workflows?', a: 'FixMy.Money supports CROA-aware workflows, documentation, and recordkeeping. Each business remains responsible for its own legal compliance. FixMy.Money provides workflow, documentation, and recordkeeping tools. It does not provide legal advice or guarantee compliance with federal, state, or local law.' },
   { q: 'What makes FixMy.Money different from generic credit repair software?', a: 'FixMy.Money is built around evidence traceability. Source documents, extracted facts, verification, draft assertions, approvals, delivery, responses, and outcomes stay connected in one auditable workflow. AI can propose and organize; a human verifies and approves.' },
   { q: 'Can AI read a credit report and spot inconsistencies?', a: 'Yes. FixMy.Money can read an imported credit report, structure account data, compare information across bureaus, and flag suspected inconsistencies such as conflicting balances, statuses, dates, payment histories, duplicate accounts, and personal information. Every AI finding is a review candidate—not a confirmed error—and must be verified against the source report and supporting evidence before it enters a dispute.' },
-  { q: 'Can I manage multiple clients from one account?', a: 'Yes. Depending on your plan, you can manage 25 clients (Starter), 100 clients (Professional), or unlimited clients (Agency). Each client gets their own portal, dispute tracking, and billing profile.' },
+  { q: 'Can I manage multiple people from one account?', a: 'Yes. Personal supports your own profile and up to 3 friends or family members. Start supports up to 300 active clients, and Grow supports up to 600. Business users remain responsible for authorization and legal compliance.' },
   { q: 'Do you guarantee credit score improvements or item removals?', a: 'No. FixMy.Money is a software platform that provides tools for credit repair professionals. We do not guarantee credit score improvements, item removals, or any specific credit outcomes. Results depend on individual circumstances, bureau responses, and the accuracy of information on credit reports.' },
   { q: 'What happens after my trial ends?', a: "Your account automatically converts to a paid subscription at your chosen plan rate. You\'ll receive an email reminder before the trial ends. Cancel any time from your billing settings." },
   { q: 'Is my client data secure?', a: 'Yes. FixMy.Money uses enterprise-grade encryption, secure cloud infrastructure, and role-based access controls. All data is stored securely and isolated per workspace. We do not sell or share client data.' },
@@ -204,8 +204,8 @@ export default function HomepageContent() {
             description: 'AI-assisted credit report analysis and evidence-first operating software for credit repair agencies. Read imported reports, compare bureaus, flag suspected inconsistencies, verify report facts, approve authorized disputes, and track bureau outcomes.',
             offers: {
               '@type': 'AggregateOffer',
-              lowPrice: '49',
-              highPrice: '249',
+              lowPrice: '39',
+              highPrice: '199',
               priceCurrency: 'USD',
             },
             featureList: [
@@ -345,9 +345,10 @@ export default function HomepageContent() {
       <main id="main-content">
 
         {/* ── SECTION 1: HERO ── */}
-        <section className="relative overflow-hidden border-b border-[#183146] bg-[#031322] py-16 text-white sm:py-24">
+        <section className="relative overflow-hidden border-b border-violet-400/30 bg-gradient-to-br from-[#06142f] via-[#1c1464] to-[#063a54] py-16 text-white sm:py-24">
           <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(40,204,229,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(40,204,229,.07) 1px, transparent 1px)', backgroundSize: '88px 88px' }} />
-          <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
+          <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl" />
           <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
             <div className="relative grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
               <div>
@@ -355,13 +356,13 @@ export default function HomepageContent() {
                   <span className="h-[3px] w-11 bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.65)]" /> Learn the process. Build a legitimate agency.
                 </div>
                 <h1 className="mt-9 max-w-2xl text-5xl font-semibold leading-[0.94] tracking-[-0.045em] text-[#F4F8FC] sm:text-6xl lg:text-[78px]" style={{ fontFamily: 'Georgia, Times New Roman, serif' }}>
-                  Understand credit repair. <span className="text-cyan-200">Build a business that helps others.</span>
+                  AI-generated disputes. <span className="bg-gradient-to-r from-cyan-200 via-white to-fuchsia-200 bg-clip-text text-transparent">A smarter way to repair credit.</span>
                 </h1>
                 <p className="mt-8 max-w-xl text-lg leading-8 text-[#BDCCDC] sm:text-xl">
-                  Begin with education for your own credit journey. When you are ready to operate a real credit-repair business, use FixMy.Money to manage authorized client work with evidence, human review, and accountable workflows.
+                  AI reads credit reports, surfaces suspected inconsistencies, and creates editable dispute drafts in seconds. Start with yourself and up to three friends or family members—then grow into a real business when you are ready.
                 </p>
                 <div className="mt-7 grid max-w-xl gap-3 text-sm font-semibold text-cyan-50 sm:grid-cols-3">
-                  {['Read & structure reports', 'Compare bureau data', 'Guide verified disputes'].map((benefit) => (
+                  {['AI-generated dispute drafts', 'Cross-bureau analysis', 'Human review built in'].map((benefit) => (
                     <div key={benefit} className="flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-3 py-3">
                       <CheckCircle2 size={16} className="shrink-0 text-cyan-300" aria-hidden="true" />
                       <span>{benefit}</span>
@@ -494,7 +495,7 @@ export default function HomepageContent() {
         <LeadCaptureSection />
 
         {/* ── CHOOSE YOUR PATH ── */}
-        <section className="border-b border-slate-200 bg-white py-16 sm:py-20" aria-labelledby="choose-your-path-heading">
+        <section className="border-b border-violet-100 bg-gradient-to-b from-white via-cyan-50/50 to-violet-50/60 py-16 sm:py-20" aria-labelledby="choose-your-path-heading">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-blue-700">How can we help you?</p>

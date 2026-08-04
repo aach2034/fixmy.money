@@ -60,9 +60,9 @@ export function formatDate(timestamp: number): string {
 
 export function getPlanAmount(plan: string): string {
   const amounts: Record<string, string> = {
-    starter: '49',
-    professional: '129',
-    agency: '249',
+    starter: '39',
+    professional: '99',
+    agency: '199',
     // Legacy alias — kept for backward compatibility with existing Stripe subscriptions
     growth: '129',
   };

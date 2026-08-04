@@ -2,7 +2,7 @@
  * Pricing Consistency & Safety Tests
  *
  * Verifies:
- * 1. Centralized pricing config is the only pricing source ($49/$129/$249)
+ * 1. Centralized pricing config is the only pricing source ($39/$99/$199)
  * 2. Trial is consistently 14 days and free (no credit card required)
  * 3. Checkout does NOT create a $1 invoice item
  * 4. Checkout uses `professional`, not legacy `growth`
@@ -11,7 +11,7 @@
  * 7. Organization A cannot read Organization B's client records (RLS smoke test)
  * 8. Private client documents are not publicly accessible (storage privacy)
  * 9. Required Stripe environment variables are present or checkout is safely disabled
- * 10. No old $99/$199/$399 pricing appears in public-facing code
+ * 10. No retired $49/$129/$249 pricing appears in public-facing code
  * 11. No "7-day trial" or "$1 trial" language appears in public-facing code
  *
  * Run: npx vitest run src/__tests__/pricing-consistency.test.ts
@@ -23,19 +23,19 @@ import { PLANS, PLANS_LIST, CHECKOUT_PLANS, TRIAL_CONFIG, getStripePriceId, type
 // ─── 1. Centralized Pricing Config ───────────────────────────────────────────
 
 describe('Centralized Pricing Config — Single Source of Truth', () => {
-  it('Starter plan costs $49/month', () => {
-    expect(PLANS.starter.monthlyPrice).toBe(49);
-    expect(PLANS.starter.stripeAmountCents).toBe(4900);
+  it('Personal plan costs $39/month', () => {
+    expect(PLANS.starter.monthlyPrice).toBe(39);
+    expect(PLANS.starter.stripeAmountCents).toBe(3900);
   });
 
-  it('Professional plan costs $129/month', () => {
-    expect(PLANS.professional.monthlyPrice).toBe(129);
-    expect(PLANS.professional.stripeAmountCents).toBe(12900);
+  it('Start plan costs $99/month', () => {
+    expect(PLANS.professional.monthlyPrice).toBe(99);
+    expect(PLANS.professional.stripeAmountCents).toBe(9900);
   });
 
-  it('Agency plan costs $249/month', () => {
-    expect(PLANS.agency.monthlyPrice).toBe(249);
-    expect(PLANS.agency.stripeAmountCents).toBe(24900);
+  it('Grow plan costs $199/month', () => {
+    expect(PLANS.agency.monthlyPrice).toBe(199);
+    expect(PLANS.agency.stripeAmountCents).toBe(19900);
   });
 
   it('Enterprise plan has no public price (contact sales)', () => {
@@ -44,8 +44,8 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     expect(PLANS.enterprise.stripePriceIdEnvKey).toBeNull();
   });
 
-  it('No plan uses the old $99/$199/$399 pricing', () => {
-    const oldPrices = [99, 199, 399];
+  it('No plan uses the retired $49/$129/$249 pricing', () => {
+    const oldPrices = [49, 129, 249];
     for (const plan of PLANS_LIST) {
       if (plan.monthlyPrice !== null) {
         expect(oldPrices).not.toContain(plan.monthlyPrice);
@@ -84,15 +84,15 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
   });
 
   it('Plan client limits are correct', () => {
-    expect(PLANS.starter.maxClients).toBe(25);
-    expect(PLANS.professional.maxClients).toBe(100);
-    expect(PLANS.agency.maxClients).toBeNull(); // unlimited
+    expect(PLANS.starter.maxClients).toBe(3);
+    expect(PLANS.professional.maxClients).toBe(300);
+    expect(PLANS.agency.maxClients).toBe(600);
   });
 
   it('Plan team member limits are correct', () => {
     expect(PLANS.starter.maxTeamMembers).toBe(1);
-    expect(PLANS.professional.maxTeamMembers).toBe(5);
-    expect(PLANS.agency.maxTeamMembers).toBe(15);
+    expect(PLANS.professional.maxTeamMembers).toBe(3);
+    expect(PLANS.agency.maxTeamMembers).toBe(6);
   });
 
   it('Plan storage limits are correct (GB)', () => {
@@ -258,7 +258,7 @@ describe('Professional Plan ID — not legacy growth', () => {
     }
   });
 
-  it('email service uses professional, not growth, for $129 plan', async () => {
+  it('email service uses professional, not growth, for $99 plan', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const emailPath = path.resolve(
@@ -267,11 +267,11 @@ describe('Professional Plan ID — not legacy growth', () => {
     );
     const source = fs.readFileSync(emailPath, 'utf-8');
 
-    // professional: '129' must be present
-    expect(source).toContain("professional: '129'");
+    // professional: '99' must be present
+    expect(source).toContain("professional: '99'");
     // growth may appear as legacy alias but must not be the primary key
-    // The primary key for $129 must be 'professional'
-    const professionalMatch = source.match(/professional:\s*'129'/);
+    // The primary key for $99 must be 'professional'
+    const professionalMatch = source.match(/professional:\s*'99'/);
     expect(professionalMatch).not.toBeNull();
   });
 });
@@ -650,7 +650,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
 
 // ─── 10. No Old Pricing in Public Code ───────────────────────────────────────
 
-describe('No Old $99/$199/$399 Pricing in Public-Facing Code', () => {
+describe('No Retired $49/$129/$249 Pricing in Public-Facing Code', () => {
   const PUBLIC_FILES = [
     'src/app/homepage/components/HomepageContent.tsx',
     'src/app/pricing/components/PricingContent.tsx',
@@ -660,7 +660,7 @@ describe('No Old $99/$199/$399 Pricing in Public-Facing Code', () => {
   ];
 
   for (const filePath of PUBLIC_FILES) {
-    it(`${filePath} does not contain old $99/$199/$399 prices`, async () => {
+    it(`${filePath} does not contain retired $49/$129/$249 prices`, async () => {
       const fs = await import('fs');
       const path = await import('path');
       const fullPath = path.resolve(process.cwd(), filePath);
@@ -670,17 +670,17 @@ describe('No Old $99/$199/$399 Pricing in Public-Facing Code', () => {
       const source = fs.readFileSync(fullPath, 'utf-8');
 
       // Check for old prices as standalone numbers (not part of larger numbers)
-      // We check for price: 99, monthlyPrice: 99, $99, etc.
+      // Check retired prices as standalone plan amounts.
       const oldPricePatterns = [
-        /monthlyPrice:\s*99\b/,
-        /price:\s*99\b/,
-        /\$99\b/,
-        /monthlyPrice:\s*199\b/,
-        /price:\s*199\b/,
-        /\$199\b/,
-        /monthlyPrice:\s*399\b/,
-        /price:\s*399\b/,
-        /\$399\b/,
+        /monthlyPrice:\s*49\b/,
+        /price:\s*49\b/,
+        /\$49\b/,
+        /monthlyPrice:\s*129\b/,
+        /price:\s*129\b/,
+        /\$129\b/,
+        /monthlyPrice:\s*249\b/,
+        /price:\s*249\b/,
+        /\$249\b/,
       ];
 
       for (const pattern of oldPricePatterns) {
