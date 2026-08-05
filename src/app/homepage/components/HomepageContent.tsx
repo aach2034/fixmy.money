@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { trackTrialSignup, trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
+import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
 import { Menu, X, ChevronDown, CheckCircle2, Users, FileText, Lock, Sparkles, Shield, Check, AlertTriangle, Building2, TrendingUp, LayoutDashboard, ClipboardList, UserPlus, Upload, DollarSign, ArrowRight, Search, Database, KeyRound, History, ScanLine, GraduationCap, BriefcaseBusiness, Rocket } from 'lucide-react';
 import DemoVideoPlayer from './DemoVideoPlayer';
 import LeadCaptureSection from './LeadCaptureSection';
@@ -44,35 +45,10 @@ const COMPARISON = [
   { feature: 'Append-oriented audit trail', fixmy: true, crc: false },
 ];
 
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Personal',
-    price: 39,
-    description: 'For learning with your own profile and up to 3 friends or family members.',
-    features: ['Up to 3 friends and family profiles', '1 user', 'AI-generated dispute drafts', 'AI-assisted report analysis', 'Client portal', 'Dispute management', '5 GB storage', 'Audit log', 'Email support'],
-    highlight: false,
-    badge: null,
-  },
-  {
-    id: 'professional',
-    name: 'Start',
-    price: 99,
-    description: 'For entrepreneurs starting a legitimate credit repair business.',
-    features: ['Up to 300 active clients', 'Up to 3 team members', 'Everything in Personal', 'AI-generated dispute drafts', 'Client billing and payments', 'Lead and affiliate tools', 'Workflow templates', 'Response tracking', 'Priority support'],
-    highlight: true,
-    badge: 'Most Popular',
-  },
-  {
-    id: 'agency',
-    name: 'Grow',
-    price: 199,
-    description: 'For established teams ready to automate and grow.',
-    features: ['Up to 600 active clients', 'Up to 6 team members', 'Everything in Start', 'Advanced AI workflows', 'Role-based review controls', 'Agency Dashboard', '100 GB storage', 'Data export', 'Priority support'],
-    highlight: false,
-    badge: null,
-  },
-];
+const HOMEPAGE_PLANS = CHECKOUT_PLANS.map(plan => ({
+  ...plan,
+  price: plan.monthlyPrice!,
+}));
 
 const FAQS = [
   { q: 'What is FixMy.Money and who is it for?', a: 'FixMy.Money is business software for credit repair professionals — agencies, consultants, and financial coaches who help clients manage their credit profiles. It provides tools for client management, dispute workflows, billing, and documentation. Users are responsible for operating in compliance with CROA, FCRA, TSR, and all applicable laws.' },
@@ -135,16 +111,6 @@ export default function HomepageContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [showStickyCta, setShowStickyCta] = useState(false);
-
-  const plansWithPriceIds = PLANS.map(plan => ({
-    ...plan,
-    priceId:
-      plan.id === 'starter'
-        ? process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID
-        : plan.id === 'professional'
-        ? process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID
-        : process.env.NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID,
-  }));
 
   useEffect(() => {
     let rafId: number;
@@ -873,7 +839,7 @@ export default function HomepageContent() {
               ))}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {plansWithPriceIds.map(plan => (
+              {HOMEPAGE_PLANS.map(plan => (
                 <div
                   key={plan.id}
                   className={`relative rounded-2xl border p-8 flex flex-col transition-all ${

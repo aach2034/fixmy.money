@@ -23,6 +23,18 @@ import { PLANS, PLANS_LIST, CHECKOUT_PLANS, TRIAL_CONFIG, getStripePriceId, type
 // ─── 1. Centralized Pricing Config ───────────────────────────────────────────
 
 describe('Centralized Pricing Config — Single Source of Truth', () => {
+  it('homepage imports checkout plans instead of defining another pricing table', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const homepage = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/app/homepage/components/HomepageContent.tsx'),
+      'utf8'
+    );
+
+    expect(homepage).toContain("import { CHECKOUT_PLANS } from '@/lib/stripe/plans'");
+    expect(homepage).not.toMatch(/const\s+PLANS\s*=\s*\[/);
+  });
+
   it('Personal plan costs $39/month', () => {
     expect(PLANS.starter.monthlyPrice).toBe(39);
     expect(PLANS.starter.stripeAmountCents).toBe(3900);
