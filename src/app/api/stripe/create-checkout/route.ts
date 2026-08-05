@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
         metadata: { plan, userId },
       },
       payment_method_collection: 'always',
-      success_url: `${siteUrl}/dashboard?checkout=success&plan=${plan}`,
+      success_url: `${siteUrl}/dashboard?checkout=success&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/checkout?plan=${plan}&cancelled=1`,
       metadata: { plan, userId },
       custom_text: {

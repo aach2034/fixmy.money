@@ -7,13 +7,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { checkOnboardingStatus } from '@/lib/onboarding/onboardingGate';
 import { CheckCircle2, X, Loader2 } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 const PLAN_LABELS: Record<string, string> = {
-  starter: 'Starter',
-  growth: 'Growth',
-  agency: 'Agency',
-  pro: 'Growth',
-  premium: 'Agency',
+  starter: 'Personal',
+  professional: 'Start',
+  agency: 'Grow',
 };
 
 function DashboardSuccessBanner() {
@@ -21,6 +20,7 @@ function DashboardSuccessBanner() {
   const router = useRouter();
   const isCheckoutSuccess = searchParams.get('checkout') === 'success';
   const planParam = searchParams.get('plan') || '';
+  const sessionId = searchParams.get('session_id') || '';
   const planLabel = PLAN_LABELS[planParam.toLowerCase()] || planParam;
 
   const [showBanner, setShowBanner] = useState(false);
@@ -29,9 +29,28 @@ function DashboardSuccessBanner() {
     if (!isCheckoutSuccess) return;
     setShowBanner(true);
 
+    if (sessionId) {
+      const storageKey = `ga_purchase_${sessionId}`;
+      if (!window.sessionStorage.getItem(storageKey)) {
+        trackEvent('purchase', {
+          transaction_id: sessionId,
+          currency: 'USD',
+          value: 1,
+          plan_name: planParam,
+          items: [{
+            item_id: planParam || 'unknown',
+            item_name: planLabel ? `FixMy.Money ${planLabel}` : 'FixMy.Money paid trial',
+            price: 1,
+            quantity: 1,
+          }],
+        });
+        window.sessionStorage.setItem(storageKey, '1');
+      }
+    }
+
     // Access is activated only by the signed Stripe webhook. The success URL
     // is informational and must never be able to grant itself a subscription.
-  }, [isCheckoutSuccess]);
+  }, [isCheckoutSuccess, planLabel, planParam, sessionId]);
 
   const dismissBanner = () => {
     setShowBanner(false);

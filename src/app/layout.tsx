@@ -1,10 +1,10 @@
 import React, { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import '@fontsource-variable/plus-jakarta-sans';
 import '../styles/tailwind.css';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -77,18 +77,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
 
-        <Script
-          id="google-tag-manager"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-PQQ9V4XT');`,
-          }}
-        />
-
         <script
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-8MPF8KLDVG"
@@ -98,7 +86,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-8MPF8KLDVG');`,
+gtag('config', 'G-8MPF8KLDVG', { send_page_view: false });`,
           }}
         />
 
@@ -134,16 +122,10 @@ gtag('config', 'G-8MPF8KLDVG');`,
 
       </head>
       <body>
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-PQQ9V4XT"
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-            title="Google Tag Manager"
-          />
-        </noscript>
         <AuthProvider>
+          <Suspense fallback={null}>
+            <GoogleAnalytics />
+          </Suspense>
           {children}
           <Toaster />
         </AuthProvider>

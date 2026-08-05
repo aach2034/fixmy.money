@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { CHECKOUT_PLANS, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
+import { trackEvent } from '@/lib/analytics';
 
 interface UserProfile {
   subscription_status: string | null;
@@ -114,6 +115,18 @@ export default function CheckoutContent() {
       }
 
       if (data.url) {
+        const plan = CHECKOUT_PLANS.find(item => item.id === selectedPlan)!;
+        trackEvent('begin_checkout', {
+          currency: 'USD',
+          value: TRIAL_CONFIG.chargeCents / 100,
+          plan_name: selectedPlan,
+          items: [{
+            item_id: selectedPlan,
+            item_name: `FixMy.Money ${plan.name}`,
+            price: TRIAL_CONFIG.chargeCents / 100,
+            quantity: 1,
+          }],
+        });
         window.location.href = data.url;
       } else {
         setError('Could not start checkout. Please try again.');

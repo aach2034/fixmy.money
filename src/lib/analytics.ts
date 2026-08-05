@@ -14,25 +14,13 @@ export function useGoogleAnalytics() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
-    if (!measurementId || measurementId === 'your-google-analytics-id-here') return;
-
-    if (!window.dataLayer) {
-      const script = document.createElement('script');
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-      script.async = true;
-      document.head.appendChild(script);
-      window.dataLayer = [];
-      window.gtag = function (...args: unknown[]) {
-        window.dataLayer.push(args);
-      };
-      window.gtag('js', new Date());
-      window.gtag('config', measurementId);
-    }
-
     const url = pathname + (searchParams.toString() ? `?${searchParams}` : '');
     if (window.gtag) {
-      window.gtag('event', 'page_view', { page_path: url });
+      window.gtag('event', 'page_view', {
+        page_location: window.location.href,
+        page_path: url,
+        page_title: document.title,
+      });
     }
   }, [pathname, searchParams]);
 }
