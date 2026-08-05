@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-08-05T16:20:47.260Z",
+  "scannedPageCount": 86,
+  "publicPageCount": 40,
+  "errorCount": 0,
+  "warningCount": 17,
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "multiple_h1",
+      "path": "/credit-repair-crm",
+      "message": "2 H1 elements were found in the route source."
+    },
+    {
+      "severity": "warning",
+      "code": "multiple_h1",
+      "path": "/credit-repair-software",
+      "message": "2 H1 elements were found in the route source."
+    },
+    {
+      "severity": "warning",
+      "code": "multiple_h1",
+      "path": "/",
+      "message": "2 H1 elements were found in the route source."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-dispute-letter-software",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-audit-log",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-white-label-client-portal",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-billing-software",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-stripe-billing",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-agency-dashboard",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/credit-repair-software-for-small-agencies",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/best-credit-repair-software",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/how-to-start-a-credit-repair-business",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/free-credit-repair-business-starter-kit",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/tools/credit-repair-business-startup-cost-calculator",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/tools/credit-repair-pricing-calculator",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/tools/croa-compliance-checklist",
+      "message": "No static internal link to this public route was found."
+    },
+    {
+      "severity": "warning",
+      "code": "orphaned_page",
+      "path": "/partners",
+      "message": "No static internal link to this public route was found."
+    }
+  ]
+}

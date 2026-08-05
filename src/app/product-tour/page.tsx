@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -23,20 +24,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Product Tour | FixMy.Money Credit Repair Software',
-  description:
-    'Explore every feature of FixMy.Money — the all-in-one credit repair agency platform. See the dashboard, client management, AI dispute generation, CROA workflow, audit log, billing, and more.',
-  alternates: { canonical: 'https://fixmy.money/product-tour' },
-  openGraph: {
-    title: 'Product Tour | FixMy.Money Credit Repair Software',
-    description:
-      'Explore every feature of FixMy.Money — the all-in-one credit repair agency platform.',
-    type: 'website',
-    url: 'https://fixmy.money/product-tour',
-    siteName: 'FixMy.Money',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/product-tour");
 
 const FEATURES = [
   {

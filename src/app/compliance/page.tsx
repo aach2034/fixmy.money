@@ -1,12 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { Shield, AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Compliance Information | FixMy.Money',
-  description: 'Compliance information for FixMy.Money users. Understand CROA, FCRA, TSR, and state law requirements for credit repair businesses.',
-  alternates: { canonical: 'https://fixmy.money/compliance' },
-};
+export const metadata: Metadata = createSeoMetadata("/compliance");
 
 const COMPLIANCE_ITEMS = [
   { title: 'Credit Repair Organizations Act (CROA)', body: 'CROA governs credit repair organizations and requires specific disclosures, prohibits advance fees in certain circumstances, and mandates written contracts. Users of FixMy.Money are solely responsible for CROA compliance in their business operations. FixMy.Money provides CROA-aware workflow tools and documentation templates to support your process.' },

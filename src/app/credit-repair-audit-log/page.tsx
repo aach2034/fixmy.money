@@ -1,22 +1,10 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ClipboardList, ArrowRight, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Credit Repair Audit Log Software | FixMy.Money',
-  description: 'CROA-compliant audit logging for credit repair agencies. Track all user actions, document compliance, and maintain records. 14-day trial for $1.',
-  keywords: ['audit log', 'CROA compliance', 'credit repair compliance', 'activity tracking'],
-  openGraph: {
-    title: 'Credit Repair Audit Log Software | FixMy.Money',
-    description: 'CROA-compliant audit logging for credit repair agencies.',
-    type: 'website',
-    url: 'https://fixmy.money/credit-repair-audit-log',
-    siteName: 'FixMy.Money',
-    images: [{ url: "https://img.rocket.new/generatedImages/rocket_gen_img_159cbc2e8-1769246829345.png", width: 1200, height: 630, alt: 'Audit Log' }]
-  },
-  alternates: { canonical: 'https://fixmy.money/credit-repair-audit-log' }
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-audit-log");
 
 const faqs = [
 { q: 'What does the audit log track?', a: 'All user actions: logins, document uploads, disputes sent, client updates, billing changes, and more.' },

@@ -1,18 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Users, Zap, Brain, FileText, CreditCard, Target, Shield, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Credit Repair Business Software | Agencies & Professionals | FixMy.Money',
-  description: 'Business software for credit repair agencies. Manage clients, disputes, billing, and documents. Built for professionals who help clients manage credit profiles.',
-  alternates: { canonical: 'https://fixmy.money/credit-repair-business-software' },
-  openGraph: {
-    title: 'Credit Repair Business Software | Agencies & Professionals | FixMy.Money',
-    description: 'Business software for credit repair agencies. Manage clients, disputes, billing, and documents.',
-    url: 'https://fixmy.money/credit-repair-business-software',
-    type: 'website',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-business-software");
 
 const features = [
   { icon: Users, title: 'Client Management', description: 'Organize client profiles, track dispute history, manage notes and tasks.' },

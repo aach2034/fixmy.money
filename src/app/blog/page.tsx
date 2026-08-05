@@ -1,22 +1,11 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
 import { ARTICLES } from '@/lib/blog/articles';
 
-export const metadata: Metadata = {
-  title: 'Blog | FixMy.Money — Credit Repair Software for Agencies',
-  description:
-    'Guides, insights, and resources for credit repair professionals. Learn about CROA compliance, dispute workflows, software selection, and running a credit repair agency.',
-  alternates: { canonical: 'https://fixmy.money/blog' },
-  openGraph: {
-    title: 'Blog | FixMy.Money',
-    description: 'Guides and resources for credit repair professionals.',
-    type: 'website',
-    url: 'https://fixmy.money/blog',
-    siteName: 'FixMy.Money',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/blog");
 
 const CATEGORIES = ['All', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
 

@@ -1,21 +1,10 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { Shield, ArrowRight, CheckCircle, Clock, AlertTriangle, FileText, Users, DollarSign, Eye, ChevronRight,  } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'CROA Workflow | FixMy.Money Credit Repair Software',
-  description:
-    'FixMy.Money provides a structured CROA-aware workflow for credit repair agencies — from lead intake through disclosure, agreement, cancellation period, active disputes, and completed services.',
-  alternates: { canonical: 'https://fixmy.money/croa-workflow' },
-  openGraph: {
-    title: 'CROA Workflow | FixMy.Money',
-    description: 'Structured CROA-aware workflow for credit repair agencies.',
-    type: 'website',
-    url: 'https://fixmy.money/croa-workflow',
-    siteName: 'FixMy.Money',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/croa-workflow");
 
 const WORKFLOW_STAGES = [
   {

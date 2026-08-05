@@ -1,20 +1,11 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, BookOpen, Wrench } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 
 
-export const metadata: Metadata = {
-  title: 'Resources for Credit Repair Agencies | Guides & Tools | FixMy.Money',
-  description: 'Free resources for credit repair agencies. Guides, tools, checklists, and calculators to help you launch and scale your credit repair business.',
-  alternates: { canonical: 'https://fixmy.money/resources' },
-  openGraph: {
-    title: 'Resources for Credit Repair Agencies | Guides & Tools | FixMy.Money',
-    description: 'Free resources for credit repair agencies. Guides, tools, checklists, and calculators.',
-    url: 'https://fixmy.money/resources',
-    type: 'website',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/resources");
 
 const guides = [
   {

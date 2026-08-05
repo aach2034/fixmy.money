@@ -1,22 +1,10 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { Users, ArrowRight, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Credit Repair CRM Software | FixMy.Money',
-  description: 'Dedicated CRM for credit repair agencies. Manage clients, disputes, documents, and billing in one platform. 14-day trial for $1.',
-  keywords: ['credit repair CRM', 'client management', 'CRM software', 'credit repair management'],
-  openGraph: {
-    title: 'Credit Repair CRM Software | FixMy.Money',
-    description: 'Dedicated CRM for credit repair agencies.',
-    type: 'website',
-    url: 'https://fixmy.money/credit-repair-crm',
-    siteName: 'FixMy.Money',
-    images: [{ url: 'https://img.rocket.new/generatedImages/rocket_gen_img_11dbd8980-1781307885069.png', width: 1200, height: 630, alt: 'Credit Repair CRM' }]
-  },
-  alternates: { canonical: 'https://fixmy.money/credit-repair-crm' }
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-crm");
 
 const faqs = [
 { q: 'How is this different from Salesforce or HubSpot?', a: 'This CRM is built specifically for credit repair agencies. It includes dispute tracking, CROA compliance tools, automated dispute generation, and billing integration — features generic CRMs don\'t have.' },

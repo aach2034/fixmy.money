@@ -1,17 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Users, FileText, Shield, AlertTriangle, GitBranch, Zap, Brain } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Credit Repair Dispute Software | FixMy.Money',
-  description: 'Credit repair dispute software for agencies. Generate bureau-ready dispute letters, track responses, and manage dispute workflows for Equifax, Experian, and TransUnion.',
-  alternates: { canonical: 'https://fixmy.money/credit-repair-dispute-software' },
-  openGraph: {
-    title: 'Credit Repair Dispute Software | FixMy.Money',
-    description: 'Generate bureau-ready dispute letters, track responses, and manage dispute workflows for Equifax, Experian, and TransUnion.',
-    url: 'https://fixmy.money/credit-repair-dispute-software',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-dispute-software");
 
 const features = [
   { icon: Brain, title: 'AI Dispute Letter Generation', description: 'AI generates bureau-ready dispute letters for each negative item identified in a credit report.' },

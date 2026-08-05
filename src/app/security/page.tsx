@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import {
   Lock,
@@ -18,19 +19,7 @@ import {
   Phone,
 } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Security | FixMy.Money Credit Repair Software',
-  description:
-    'How FixMy.Money protects your agency data and your clients\' data. Encryption, access controls, audit logging, tenant isolation, and responsible disclosure.',
-  alternates: { canonical: 'https://fixmy.money/security' },
-  openGraph: {
-    title: 'Security | FixMy.Money',
-    description: 'How FixMy.Money protects your agency and client data.',
-    type: 'website',
-    url: 'https://fixmy.money/security',
-    siteName: 'FixMy.Money',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/security");
 
 const SECURITY_SECTIONS = [
   {

@@ -1,22 +1,10 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { Brain, ArrowRight, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'AI Credit Repair Dispute Letter Software | FixMy.Money',
-  description: 'AI-assisted dispute letter generation for credit repair agencies. Generate staff-reviewed drafts in seconds. 14-day trial for $1.',
-  keywords: ['dispute letter software', 'AI dispute generation', 'credit repair letters', 'automated disputes'],
-  openGraph: {
-    title: 'AI Credit Repair Dispute Letter Software | FixMy.Money',
-    description: 'AI-assisted dispute letter generation for credit repair agencies.',
-    type: 'website',
-    url: 'https://fixmy.money/credit-repair-dispute-letter-software',
-    siteName: 'FixMy.Money',
-    images: [{ url: "https://img.rocket.new/generatedImages/rocket_gen_img_144993000-1765366615108.png", width: 1200, height: 630, alt: 'Dispute Letter Software' }]
-  },
-  alternates: { canonical: 'https://fixmy.money/credit-repair-dispute-letter-software' }
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-dispute-letter-software");
 
 const faqs = [
 { q: 'How does AI dispute generation work?', a: 'Upload a credit report. AI analyzes it and generates draft dispute letters for each negative item. Your staff reviews, customizes, and approves before sending.' },

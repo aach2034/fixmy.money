@@ -1,17 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { CheckCircle2, ArrowRight, Users, FileText, Shield, AlertTriangle, LayoutDashboard, CreditCard } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Credit Repair Client Portal Software | FixMy.Money',
-  description: 'White-labeled client portal for credit repair agencies. Let clients track dispute progress, upload documents, and communicate with your team from one organized workspace.',
-  alternates: { canonical: 'https://fixmy.money/credit-repair-client-portal' },
-  openGraph: {
-    title: 'Credit Repair Client Portal Software | FixMy.Money',
-    description: 'White-labeled client portal for credit repair agencies. Let clients track dispute progress, upload documents, and communicate with your team.',
-    url: 'https://fixmy.money/credit-repair-client-portal',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-client-portal");
 
 const features = [
   { icon: LayoutDashboard, title: 'Client Progress Dashboard', description: 'Clients see their dispute status, documents, and next steps in a clean, organized dashboard.' },

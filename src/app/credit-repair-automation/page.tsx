@@ -1,31 +1,8 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 
-export const metadata: Metadata = {
-  title: 'Credit Repair Automation | Workflow Automation for Agencies',
-  description:
-  'Automate your entire credit repair workflow. Build custom automation rules for onboarding, disputes, follow-ups, and billing. Reduce manual work by 80%.',
-  keywords: ['credit repair automation', 'workflow automation', 'business automation', 'dispute automation'],
-  openGraph: {
-    title: 'Credit Repair Automation | Workflow Automation for Agencies',
-    description:
-    'Automate your entire credit repair workflow. Build custom automation rules for onboarding, disputes, follow-ups, and billing.',
-    type: 'website',
-    url: 'https://fixmy.money/credit-repair-automation',
-    siteName: 'Fix My Money',
-    images: [
-    {
-      url: "https://img.rocket.new/generatedImages/rocket_gen_img_19f70c0b4-1782845887648.png",
-      width: 1200,
-      height: 630,
-      alt: 'Credit Repair Automation'
-    }]
-
-  },
-  alternates: {
-    canonical: 'https://fixmy.money/credit-repair-automation'
-  }
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-automation");
 
 export default function AutomationPage() {
   return (

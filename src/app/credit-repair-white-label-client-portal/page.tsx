@@ -1,22 +1,10 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { Globe, ArrowRight, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'White-Label Credit Repair Client Portal | FixMy.Money',
-  description: 'White-label client portal for credit repair agencies. Customize branding, track disputes, upload documents. 14-day trial for $1.',
-  keywords: ['white-label portal', 'client portal', 'credit repair portal', 'white-label software'],
-  openGraph: {
-    title: 'White-Label Credit Repair Client Portal | FixMy.Money',
-    description: 'White-label client portal for credit repair agencies.',
-    type: 'website',
-    url: 'https://fixmy.money/credit-repair-white-label-client-portal',
-    siteName: 'FixMy.Money',
-    images: [{ url: "https://img.rocket.new/generatedImages/rocket_gen_img_1afadffe1-1771181949240.png", width: 1200, height: 630, alt: 'White-Label Portal' }]
-  },
-  alternates: { canonical: 'https://fixmy.money/credit-repair-white-label-client-portal' }
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-white-label-client-portal");
 
 const faqs = [
 { q: 'What can I customize in the white-label portal?', a: 'Logo, colors, domain, and branding. Clients see your agency name, not FixMy.Money.' },

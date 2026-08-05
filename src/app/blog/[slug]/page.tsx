@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, Clock, User, ChevronRight } from 'lucide-react';
 import { getArticleBySlug, getRelatedArticles, getAllSlugs } from '@/lib/blog/articles';
+import { articleSeo } from '@/lib/seo/article';
 
 function machineDate(date: string) {
   return new Date(date).toISOString().slice(0, 10);
@@ -21,26 +22,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const article = getArticleBySlug(slug);
   if (!article) return { title: 'Article Not Found | FixMy.Money' };
+  const seo = articleSeo(article);
 
   return {
-    title: article.seoTitle,
-    description: article.metaDescription,
-    keywords: [article.focusKeyword, ...(article.secondaryKeywords ?? [])].filter(Boolean) as string[],
-    alternates: { canonical: article.canonicalUrl },
+    title: seo.seoTitle,
+    description: seo.metaDescription,
+    keywords: [seo.primaryKeyword, ...seo.secondaryKeywords].filter(Boolean),
+    alternates: { canonical: seo.canonicalUrl },
+    robots: seo.indexStatus === 'noindex' ? { index: false, follow: false } : { index: true, follow: true },
     openGraph: {
-      title: article.seoTitle,
-      description: article.metaDescription,
+      title: seo.seoTitle,
+      description: seo.metaDescription,
       type: 'article',
-      url: article.canonicalUrl,
+      url: seo.canonicalUrl,
       siteName: 'FixMy.Money',
-      publishedTime: machineDate(article.publishedDate),
-      modifiedTime: machineDate(article.updatedDate),
+      publishedTime: machineDate(seo.publishedAt),
+      modifiedTime: machineDate(seo.updatedAt),
       authors: [article.author],
     },
     twitter: {
       card: 'summary_large_image',
-      title: article.seoTitle,
-      description: article.metaDescription,
+      title: seo.seoTitle,
+      description: seo.metaDescription,
+      images: seo.ogImageUrl ? [seo.ogImageUrl] : undefined,
     },
   };
 }

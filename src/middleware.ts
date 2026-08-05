@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-guard';
+import { PRIVATE_ROUTE_PREFIXES } from '@/lib/seo/config';
 
 function getProjectRef(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -90,6 +91,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const shouldNoIndex = PRIVATE_ROUTE_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`)) || request.nextUrl.searchParams.has('filter') || request.nextUrl.searchParams.has('page') || request.nextUrl.searchParams.has('sort');
 
   // Client portal routes — redirect to client portal login if not authenticated
   const clientPortalPaths = ['/client-portal/dashboard'];
@@ -241,6 +243,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, { status: 301 });
   }
 
+  if (shouldNoIndex) {
+    supabaseResponse.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  }
   return supabaseResponse;
 }
 

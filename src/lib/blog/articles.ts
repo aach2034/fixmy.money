@@ -16,7 +16,17 @@ export interface ArticleFAQ {
 }
 
 export interface Article {
+  /** CMS-compatible editable SEO fields; legacy camelCase fields remain supported. */
+  seo_title?: string;
+  meta_description?: string;
   slug: string;
+  canonical_url?: string;
+  primary_keyword?: string;
+  secondary_keywords?: string[];
+  og_image_url?: string;
+  index_status?: 'index' | 'noindex';
+  published_at?: string;
+  updated_at?: string;
   title: string;
   seoTitle: string;
   metaDescription: string;

@@ -1,18 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Check, Shield, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Best Credit Repair Software 2026 | FixMy.Money',
-  description: 'Compare credit repair software by evidence review, human approval, client operations, response tracking, billing, security, and total cost.',
-  alternates: { canonical: 'https://fixmy.money/best-credit-repair-software' },
-  openGraph: {
-    title: 'Best Credit Repair Software 2026 | FixMy.Money',
-    description: 'A practical 2026 evaluation framework for credit repair agency software, from evidence review through outcome tracking.',
-    url: 'https://fixmy.money/best-credit-repair-software',
-    type: 'website',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/best-credit-repair-software");
 
 const comparison = [
   { feature: 'Source-linked evidence review', fixmy: true, others: false },

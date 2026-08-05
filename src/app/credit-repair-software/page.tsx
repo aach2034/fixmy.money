@@ -1,17 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Users, Zap, Brain, FileText, CreditCard, Target, Shield, AlertTriangle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Credit Repair Software for Agencies | FixMy.Money',
-  description: 'Credit repair software built for modern agencies. Manage clients, dispute workflows, billing, documents, and progress tracking from one organized workspace.',
-  alternates: { canonical: 'https://fixmy.money/credit-repair-software' },
-  openGraph: {
-    title: 'Credit Repair Software for Agencies | FixMy.Money',
-    description: 'Credit repair software built for modern agencies. Manage clients, dispute workflows, billing, documents, and progress tracking from one organized workspace.',
-    url: 'https://fixmy.money/credit-repair-software',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/credit-repair-software");
 
 const features = [
   { icon: Brain, title: 'AI Credit Analysis', description: 'Upload credit reports and get instant AI-powered analysis identifying negative items and dispute strategies.' },

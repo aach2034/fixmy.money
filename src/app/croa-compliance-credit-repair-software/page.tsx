@@ -1,18 +1,9 @@
 import type { Metadata } from 'next';
+import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'CROA Compliance Credit Repair Software | FixMy.Money',
-  description: 'Credit repair software with CROA-aware workflows and compliance tools. FixMy.Money helps agencies manage clients while supporting compliance with CROA, FCRA, and TSR regulations.',
-  alternates: { canonical: 'https://fixmy.money/croa-compliance-credit-repair-software' },
-  openGraph: {
-    title: 'CROA Compliance Credit Repair Software | FixMy.Money',
-    description: 'Credit repair software with CROA-aware workflows and compliance tools for agencies.',
-    url: 'https://fixmy.money/croa-compliance-credit-repair-software',
-    type: 'website',
-  },
-};
+export const metadata: Metadata = createSeoMetadata("/croa-compliance-credit-repair-software");
 
 const features = [
   { icon: CheckCircle, title: 'CROA-Aware Workflows', description: 'Built-in workflows designed to support CROA compliance practices.' },

@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { PRIVATE_ROUTE_PREFIXES, SEO_SITE } from '@/lib/seo/config';
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -6,37 +7,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: [
-          '/api/',
-          '/dashboard/',
-          '/admin/',
-          '/auth/',
-          '/sign-up-login-screen/',
-          '/workspace-setup/',
-          '/onboarding/',
-          '/checkout/',
-          '/client-portal/dashboard/',
-          '/launch-submissions/',
-          '/billing-subscriptions/',
-          '/client-management/',
-          '/workflow-task-management/',
-          '/revenue-forecasting/',
-          '/financial-health/',
-          '/appointments/',
-          '/live-chat/',
-          '/ai-dispute-analyzer/',
-          '/ai-financial-coach/',
-          '/dispute-letter-management/',
-          '/disputes/',
-          '/finance/',
-          '/debt-elimination/',
-          '/settings/',
-          '/billing/',
-          '/client-pipeline/',
-        ],
+        disallow: PRIVATE_ROUTE_PREFIXES.map(path => `${path}/`),
       },
     ],
-    sitemap: 'https://fixmy.money/sitemap.xml',
-    host: 'https://fixmy.money',
+    sitemap: `${SEO_SITE.url}/sitemap.xml`,
+    host: SEO_SITE.url,
   };
 }
