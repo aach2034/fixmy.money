@@ -38,7 +38,8 @@ export const metadata: Metadata = {
   },
 
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }]
+    icon: [{ url: '/assets/images/fixmy-money-mark-v2.png', type: 'image/png', sizes: '1254x1254' }],
+    apple: [{ url: '/assets/images/fixmy-money-mark-v2.png', type: 'image/png', sizes: '1254x1254' }],
   },
   openGraph: {
     type: 'website',
@@ -114,7 +115,7 @@ gtag('config', 'G-8MPF8KLDVG');`,
                   url: 'https://fixmy.money/',
                   logo: {
                     '@type': 'ImageObject',
-                    url: 'https://fixmy.money/assets/images/fix_my_money_logo-1780535345534.png',
+                    url: 'https://fixmy.money/assets/images/fixmy-money-mark-v2.png',
                   },
                   description: 'Business software for credit repair professionals and agencies.',
                 },

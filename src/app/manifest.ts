@@ -9,6 +9,9 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#09062b',
-    icons: [{ src: '/favicon.ico', sizes: 'any', type: 'image/x-icon' }],
+    icons: [
+      { src: '/assets/images/fixmy-money-mark-v2.png', sizes: '1254x1254', type: 'image/png', purpose: 'any' },
+      { src: '/assets/images/fixmy-money-mark-v2.png', sizes: '1254x1254', type: 'image/png', purpose: 'maskable' },
+    ],
   };
 }

@@ -271,8 +271,8 @@ export default function HomepageContent() {
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10">
           <div className="flex h-[78px] items-center justify-between gap-6">
             <Link href="/" className="flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-950 via-violet-950 to-cyan-900 shadow-[0_10px_25px_rgba(15,23,42,.2)]">
-                <Image src="/assets/images/app_logo.png" alt="" width={27} height={31} className="h-[31px] w-auto object-contain" priority unoptimized />
+              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl shadow-[0_10px_25px_rgba(15,23,42,.2)]">
+                <Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={44} height={44} className="h-11 w-11 object-contain" priority unoptimized />
               </span>
               <span className="leading-none">
                 <span className="block text-[19px] font-black tracking-[-0.035em] text-slate-950">FixMy<span className="text-blue-600">.</span>Money</span>
@@ -1042,8 +1042,8 @@ export default function HomepageContent() {
           <div className="grid grid-cols-2 gap-x-8 gap-y-12 lg:grid-cols-[1.7fr_1fr_1fr_1fr] lg:gap-12">
             <div className="col-span-2 lg:col-span-1">
               <Link href="/" className="inline-flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-950">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                  <Image src="/assets/images/app_logo.png" alt="" width={29} height={34} className="h-[34px] w-auto object-contain" unoptimized />
+                <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                  <Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={44} height={44} className="h-11 w-11 object-contain" unoptimized />
                 </span>
                 <span className="text-xl font-black tracking-[-0.035em] text-white">FixMy<span className="text-cyan-300">.</span>Money</span>
               </Link>
