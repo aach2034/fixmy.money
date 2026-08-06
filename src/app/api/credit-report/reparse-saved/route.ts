@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+  const maintenanceAuthorized = Boolean(
+    process.env.REPARSE_MAINTENANCE_TOKEN &&
+    request.headers.get('x-reparse-maintenance-token') === process.env.REPARSE_MAINTENANCE_TOKEN,
+  );
   let user = sessionUser;
   if (!user) {
     const sitesEmail = request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase();
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest) {
       user = usersPage?.users.find(candidate => candidate.email?.toLowerCase() === sitesEmail) ?? null;
     }
   }
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user && !maintenanceAuthorized) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const contentType = request.headers.get('content-type') ?? '';
   const body = contentType.includes('application/x-www-form-urlencoded')
@@ -35,11 +39,12 @@ export async function POST(request: NextRequest) {
   const reportIds = [...new Set(submittedIds.filter((id: unknown): id is string => typeof id === 'string'))].slice(0, 5);
   if (reportIds.length === 0) return NextResponse.json({ error: 'reportIds are required' }, { status: 400 });
 
-  const { data: reports, error: reportsError } = await admin
+  let reportsQuery = admin
     .from('parsed_credit_reports')
     .select('id, owner_id, client_id, raw_text')
-    .in('id', reportIds)
-    .eq('owner_id', user.id);
+    .in('id', reportIds);
+  if (!maintenanceAuthorized && user) reportsQuery = reportsQuery.eq('owner_id', user.id);
+  const { data: reports, error: reportsError } = await reportsQuery;
   if (reportsError) return NextResponse.json({ error: reportsError.message }, { status: 500 });
   if ((reports ?? []).length !== reportIds.length) {
     return NextResponse.json({ error: 'One or more reports were not found or access was denied' }, { status: 403 });
@@ -47,11 +52,12 @@ export async function POST(request: NextRequest) {
 
   const results = [];
   for (const report of reports ?? []) {
+    const ownerId = maintenanceAuthorized ? report.owner_id : user!.id;
     const { data: oldItems, error: itemsError } = await admin
       .from('negative_items')
       .select('*')
       .eq('report_id', report.id)
-      .eq('owner_id', user.id);
+      .eq('owner_id', ownerId);
     if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
     const ids = (oldItems ?? []).map(item => item.id);
     if ((oldItems ?? []).some(item => PROTECTED_STATUSES.has(item.dispute_status))) {
@@ -68,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     const parsed = parseCreditReport(report.raw_text ?? '', 'myscoreiq');
     const accountRows = parsed.accounts.map(item => ({
-      owner_id: user.id,
+      owner_id: ownerId,
       client_id: report.client_id,
       report_id: report.id,
       source_import_id: report.id,
@@ -96,7 +102,7 @@ export async function POST(request: NextRequest) {
       tag_status: 'unreviewed',
     }));
     const inquiryRows = parsed.inquiries.filter(item => item.type === 'hard').map(item => ({
-      owner_id: user.id,
+      owner_id: ownerId,
       client_id: report.client_id,
       report_id: report.id,
       source_import_id: report.id,
@@ -119,7 +125,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Reparse produced no items for report ${report.id}` }, { status: 422 });
     }
 
-    const { error: deleteError } = await admin.from('negative_items').delete().eq('report_id', report.id).eq('owner_id', user.id);
+    const { error: deleteError } = await admin.from('negative_items').delete().eq('report_id', report.id).eq('owner_id', ownerId);
     if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
     const { error: insertError } = await admin.from('negative_items').insert(replacementRows);
     if (insertError) {
@@ -135,7 +141,7 @@ export async function POST(request: NextRequest) {
       scores: parsed.scores,
       parser_version: '2.1.0',
       updated_at: new Date().toISOString(),
-    }).eq('id', report.id).eq('owner_id', user.id);
+    }).eq('id', report.id).eq('owner_id', ownerId);
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
     results.push({
