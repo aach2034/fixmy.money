@@ -728,6 +728,16 @@ function extractPersonalInfo(text: string): { info: ParsedPersonalInfo; confiden
 function extractScores(text: string): { scores: ParsedScore[]; confidence: number } {
   let scores: ParsedScore[] = [];
   try {
+    const triBureauScore = text.match(/transunion\s+experian\s+equifax\s*\n\s*(?:fico\s*®?\s*score\s*\d*|credit\s+score)\s*:\s*(\d{3})\s+(\d{3})\s+(\d{3})/i);
+    if (triBureauScore) {
+      scores = TRI_BUREAU_ORDER.map((bureau, index) => ({
+        bureau,
+        score: Number(triBureauScore[index + 1]),
+        model: /fico/i.test(triBureauScore[0]) ? 'FICO' : 'Credit Score',
+        date: '',
+      })).filter(item => item.score >= 300 && item.score <= 850);
+    }
+
     // Expanded score patterns for MyScoreIQ tri-bureau layout
     const scorePatterns = [
       { pattern: /(?:equifax|eq)[^\n]*?(?:score|fico|vantage)[^\n]*?(\d{3})/gi, bureau: 'Equifax' },
@@ -746,7 +756,7 @@ function extractScores(text: string): { scores: ParsedScore[]; confidence: numbe
       { pattern: /(\d{3})[^\n]{0,30}transunion/gi, bureau: 'TransUnion' },
     ];
 
-    const seen = new Set<string>();
+    const seen = new Set(scores.map(score => score.bureau));
     for (const { pattern, bureau } of scorePatterns) {
       try {
         const matches = [...text.matchAll(pattern)];
@@ -1011,6 +1021,65 @@ function splitTriBureauColumnAccounts(text: string): string[] {
     const end = nextHeader === undefined ? lines.length : Math.max(start + 1, nextHeader - 1);
     return lines.slice(start, end).join('\n').trim();
   }).filter(block => block.length > 10 && /account\s*(?:#|number|no\.?)/i.test(block));
+}
+
+const TRI_BUREAU_ORDER = ['TransUnion', 'Experian', 'Equifax'] as const;
+
+function triBureauLine(block: string, label: RegExp): string | null {
+  const line = block.split('\n').find(candidate => label.test(candidate.trim()));
+  return line ? line.replace(label, '').trim() : null;
+}
+
+function triBureauTokens(value: string | null, pattern: RegExp): string[] {
+  return value ? (value.match(pattern) ?? []).slice(0, 3) : [];
+}
+
+function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccount[] {
+  if (!/transunion\s+experian\s+equifax/i.test(block)) return [base];
+
+  const accountNumbers = triBureauTokens(
+    triBureauLine(block, /^account\s*(?:#|number|no\.?)\s*:\s*/i),
+    /-|[A-Z0-9*X]{2,}/gi,
+  );
+  if (accountNumbers.length !== 3) return [base];
+
+  const balances = triBureauTokens(triBureauLine(block, /^balance\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
+  const pastDue = triBureauTokens(triBureauLine(block, /^past\s+due\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
+  const highCredit = triBureauTokens(triBureauLine(block, /^high\s+credit\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
+  const creditLimit = triBureauTokens(triBureauLine(block, /^credit\s+limit\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
+  const opened = triBureauTokens(triBureauLine(block, /^date\s+opened\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const reported = triBureauTokens(triBureauLine(block, /^(?:last\s+reported|date\s+reported)\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const lastActive = triBureauTokens(triBureauLine(block, /^date\s+last\s+active\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+
+  const valueAt = (values: string[], index: number) => values.length === 3 ? values[index] : undefined;
+  const amountAt = (values: string[], index: number, fallback: number | null) => {
+    const value = valueAt(values, index);
+    return value === undefined ? fallback : value === '-' ? null : parseAmount(value);
+  };
+  const dateAt = (values: string[], index: number, fallback: string) => {
+    const value = valueAt(values, index);
+    return value === undefined ? fallback : value === '-' ? '' : extractDate(value);
+  };
+
+  return TRI_BUREAU_ORDER.flatMap((bureau, index) => {
+    const accountNumber = accountNumbers[index];
+    if (!accountNumber || accountNumber === '-') return [];
+    return [{
+      ...base,
+      id: `${base.creditorName}-${accountNumber}-${bureau}`.replace(/\s+/g, '-').toLowerCase(),
+      accountNumber,
+      accountNumberMasked: maskAccountNumber(accountNumber),
+      bureau,
+      bureaus: [bureau],
+      balance: amountAt(balances, index, base.balance),
+      pastDue: amountAt(pastDue, index, base.pastDue),
+      highBalance: amountAt(highCredit, index, base.highBalance),
+      creditLimit: amountAt(creditLimit, index, base.creditLimit),
+      dateOpened: dateAt(opened, index, base.dateOpened),
+      dateReported: dateAt(reported, index, base.dateReported),
+      dateLastActivity: dateAt(lastActive, index, base.dateLastActivity),
+    }];
+  });
 }
 
 // ─── Account block parser ─────────────────────────────────────────────────────
@@ -1517,10 +1586,11 @@ function extractAccounts(
 
         const account = extractAccountBlock(block, currentBureau);
         if (account && account.parserConfidence >= 20) {
-          if (!accounts.find(a => a.id === account.id)) {
-            accounts.push(account);
-            readableBlocksAccepted++;
+          const expandedAccounts = expandTriBureauAccount(block, account);
+          for (const expanded of expandedAccounts) {
+            if (!accounts.find(a => a.id === expanded.id)) accounts.push(expanded);
           }
+          readableBlocksAccepted += expandedAccounts.length;
         } else if (!account) {
           const fl = firstLine.slice(0, 80);
           exclusionLog.push({ block: fl, reason: 'Passed isValidCreditBlock but failed account validation (no creditor name or no credit fields)' });

@@ -320,10 +320,47 @@ Inquiries
 `;
     const result = parseCreditReport(report);
     expect(result.provider).toBe('myscoreiq');
-    expect(result.accounts).toHaveLength(2);
-    expect(result.accounts.map(account => account.creditorName)).toEqual(['FIRST BANK', 'SECOND FINANCE']);
-    expect(result.accounts[0].isNegative).toBe(false);
-    expect(result.accounts[1].isNegative).toBe(true);
+    expect(result.accounts).toHaveLength(6);
+    expect(result.accounts.filter(account => account.creditorName === 'FIRST BANK')).toHaveLength(3);
+    expect(result.accounts.filter(account => account.creditorName === 'SECOND FINANCE')).toHaveLength(3);
+    expect(result.accounts.filter(account => account.creditorName === 'FIRST BANK').every(account => !account.isNegative)).toBe(true);
+    expect(result.accounts.filter(account => account.creditorName === 'SECOND FINANCE').every(account => account.isNegative)).toBe(true);
+    expect(result.accounts.map(account => account.bureau)).toEqual([
+      'TransUnion', 'Experian', 'Equifax', 'TransUnion', 'Experian', 'Equifax',
+    ]);
+  });
+
+  it('keeps only the bureaus that actually report a tri-bureau account', () => {
+    const report = `
+MyScoreIQ Three Bureau Credit Report
+Account History
+COLLECTION AGENCY
+TransUnion Experian Equifax
+Account #: - 466213X 466213X
+Account Type: - COLLECTION COLLECTION
+Account Status: - Collection Collection
+Balance: - $75.00 $80.00
+Date Opened: - 01/09/2026 01/10/2026
+Last Reported: - 06/22/2026 06/23/2026
+Inquiries
+`;
+    const result = parseCreditReport(report);
+    expect(result.accounts.map(account => account.bureau)).toEqual(['Experian', 'Equifax']);
+    expect(result.accounts.map(account => account.balance)).toEqual([75, 80]);
+    expect(result.accounts.map(account => account.dateReported)).toEqual(['2026-06-22', '2026-06-23']);
+  });
+
+  it('extracts scores from the MyScoreIQ three-column score row', () => {
+    const report = `
+MyScoreIQ Three Bureau Credit Report
+FICO ® Score
+TransUnion Experian Equifax
+FICO ® Score 8: 540 493 521
+`;
+    const result = parseCreditReport(report);
+    expect(result.scores.map(score => [score.bureau, score.score])).toEqual([
+      ['TransUnion', 540], ['Experian', 493], ['Equifax', 521],
+    ]);
   });
 });
 
