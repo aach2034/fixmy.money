@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { trackEvent } from '@/lib/analytics';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
+type ForgotPasswordFormData = { email: string };
 type RegisterFormData = {
   companyName: string; adminName: string; email: string;
   password: string; confirmPassword: string;
@@ -36,13 +37,14 @@ const WORKFLOW_FEATURES = [
 ];
 
 export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'register' | 'forgot' }) {
-  const [tab, setTab] = useState<'login' | 'register'>('login');
+  const [tab, setTab] = useState<'login' | 'register' | 'forgot'>(defaultTab || 'login');
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [verifyEmailSent, setVerifyEmailSent] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const router = useRouter();
@@ -56,6 +58,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
 
   useEffect(() => {
     if (tabFromUrl === 'register') setTab('register');
+    if (tabFromUrl === 'forgot') setTab('forgot');
   }, [tabFromUrl]);
 
   useEffect(() => {
@@ -94,6 +97,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   }, []);
 
   const loginForm = useForm<LoginFormData>({ defaultValues: { email: '', password: '', remember: false } });
+  const forgotPasswordForm = useForm<ForgotPasswordFormData>({ defaultValues: { email: '' } });
   const registerForm = useForm<RegisterFormData>({ defaultValues: { companyName: '', adminName: '', email: '', password: '', confirmPassword: '' } });
 
   const handleLoginSubmit = async (data: LoginFormData) => {
@@ -178,6 +182,28 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         }
       }
       registerForm.setError('email', { message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (data: ForgotPasswordFormData) => {
+    setLoading(true);
+    try {
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== 'undefined' ? window.location.origin : 'https://fixmy.money');
+
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo: `${siteUrl}/auth/callback?type=recovery&next=/reset-password`,
+      });
+
+      if (error) throw error;
+      setResetEmailSent(true);
+    } catch (error) {
+      console.error('[AuthForm] Password reset request error:', error);
+      // Keep the response generic so the form never reveals whether an account exists.
+      setResetEmailSent(true);
     } finally {
       setLoading(false);
     }
@@ -313,7 +339,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           )}
 
           {/* Tab switcher */}
-          <div className="flex bg-white border border-slate-200 rounded-xl p-1 mb-8 shadow-sm">
+          {tab !== 'forgot' && <div className="flex bg-white border border-slate-200 rounded-xl p-1 mb-8 shadow-sm">
             <button
               onClick={() => setTab('login')}
               className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'login' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
@@ -326,7 +352,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
             >
               Create Account
             </button>
-          </div>
+          </div>}
 
           {/* ── LOGIN FORM ── */}
           {tab === 'login' && (
@@ -352,7 +378,16 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                   )}
                 </div>
                 <div>
-                  <label htmlFor="login-password" className="label-text">Password</label>
+                  <div className="flex items-center justify-between gap-4">
+                    <label htmlFor="login-password" className="label-text">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => { setResetEmailSent(false); setTab('forgot'); }}
+                      className="text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <input
                       id="login-password"
@@ -386,6 +421,74 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                   Create one free
                 </button>
               </p>
+            </div>
+          )}
+
+          {/* ── FORGOT PASSWORD FORM ── */}
+          {tab === 'forgot' && (
+            <div>
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">Reset your password</h1>
+                <p className="text-sm text-slate-500">
+                  Enter your email and we&apos;ll send you a secure reset link.
+                </p>
+              </div>
+
+              {resetEmailSent ? (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
+                      <div>
+                        <p className="font-semibold text-emerald-900">Check your email</p>
+                        <p className="mt-1 text-sm leading-6 text-emerald-800">
+                          If an account exists for that address, a password-reset link is on its way. Check your spam folder if it does not arrive shortly.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTab('login')}
+                    className="w-full rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Return to sign in
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPasswordSubmit)} className="space-y-4">
+                  <div>
+                    <label htmlFor="forgot-email" className="label-text">Email address</label>
+                    <input
+                      id="forgot-email"
+                      {...forgotPasswordForm.register('email', { required: 'Email is required' })}
+                      type="email"
+                      placeholder="you@company.com"
+                      className="input-field"
+                      autoComplete="email"
+                      required
+                    />
+                    {forgotPasswordForm.formState.errors.email && (
+                      <p className="error-text">{forgotPasswordForm.formState.errors.email.message}</p>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full btn-primary py-3 flex items-center justify-center gap-2 rounded-xl"
+                  >
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                    {loading ? 'Sending reset link...' : 'Send reset link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('login')}
+                    className="w-full py-2 text-sm font-semibold text-blue-600 hover:underline"
+                  >
+                    Back to sign in
+                  </button>
+                </form>
+              )}
             </div>
           )}
 

@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
       const supabase = await createClient();
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) {
+        if (type === 'recovery') {
+          return NextResponse.redirect(`${origin}/reset-password`);
+        }
         if (type === 'signup') {
           // New signup: always go to checkout first, then onboarding.
           // Checkout sets up the subscription; onboarding gate enforces setup before dashboard.
