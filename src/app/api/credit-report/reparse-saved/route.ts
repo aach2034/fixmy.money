@@ -10,10 +10,16 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await sessionClient.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await request.json().catch(() => ({}));
-  const reportIds = Array.isArray(body.reportIds)
-    ? [...new Set(body.reportIds.filter((id: unknown): id is string => typeof id === 'string'))].slice(0, 5)
-    : [];
+  const contentType = request.headers.get('content-type') ?? '';
+  const body = contentType.includes('application/x-www-form-urlencoded')
+    ? Object.fromEntries(await request.formData())
+    : await request.json().catch(() => ({}));
+  const submittedIds = Array.isArray(body.reportIds)
+    ? body.reportIds
+    : typeof body.reportIds === 'string'
+      ? body.reportIds.split(',')
+      : [];
+  const reportIds = [...new Set(submittedIds.filter((id: unknown): id is string => typeof id === 'string'))].slice(0, 5);
   if (reportIds.length === 0) return NextResponse.json({ error: 'reportIds are required' }, { status: 400 });
 
   const admin = createAdminClient(
