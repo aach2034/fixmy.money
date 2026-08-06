@@ -65,6 +65,48 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // Allow public pages to render in local previews that do not have Supabase
+  // credentials. Protected routes still fail closed by redirecting to login.
+  const hasSupabaseConfig = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+  if (!hasSupabaseConfig) {
+    const { pathname } = request.nextUrl;
+    const protectedPaths = [
+      '/dashboard',
+      '/client-management',
+      '/client-pipeline',
+      '/dispute-letter-management',
+      '/disputes',
+      '/ai-dispute-analyzer',
+      '/ai-financial-coach',
+      '/workflow-task-management',
+      '/revenue-forecasting',
+      '/billing-subscriptions',
+      '/financial-health',
+      '/debt-elimination',
+      '/knowledge-base',
+      '/appointments',
+      '/affiliate-program',
+      '/workspace-setup',
+      '/onboarding',
+      '/checkout',
+      '/live-chat',
+      '/launch-submissions',
+      '/finance',
+      '/admin',
+      '/client-portal/dashboard',
+    ];
+
+    if (protectedPaths.some((path) => pathname.startsWith(path))) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.startsWith('/client-portal') ? '/client-portal/login' : '/login';
+      return NextResponse.redirect(url);
+    }
+
+    return NextResponse.next({ request });
+  }
+
   injectTokenFromHeader(request);
   let supabaseResponse = NextResponse.next({ request });
 

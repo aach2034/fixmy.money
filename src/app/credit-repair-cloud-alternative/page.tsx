@@ -1,10 +1,13 @@
-import React from 'react';
 import type { Metadata } from 'next';
-import { createSeoMetadata } from "@/lib/seo/config";
-import CreditRepairCloudAlternativeContent from './components/CreditRepairCloudAlternativeContent';
+import ComparisonLandingPage from '@/components/ComparisonLandingPage';
+import { comparisonPages } from '@/lib/comparisons/pages';
 
-export const metadata: Metadata = createSeoMetadata("/credit-repair-cloud-alternative");
+export const metadata: Metadata = {
+  title: 'Credit Repair Cloud Alternative',
+  description: comparisonPages['credit-repair-cloud-alternative'].description,
+  alternates: { canonical: 'https://fixmy.money/credit-repair-cloud-alternative' },
+};
 
 export default function CreditRepairCloudAlternativePage() {
-  return <CreditRepairCloudAlternativeContent />;
+  return <ComparisonLandingPage page={comparisonPages['credit-repair-cloud-alternative']} />;
 }
