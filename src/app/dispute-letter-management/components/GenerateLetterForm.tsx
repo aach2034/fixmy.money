@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { CheckSquare, Square, Loader2, Download, Printer, X, AlertTriangle, FileText, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getChatCompletion } from '@/lib/ai/chatCompletion';
+import { deduplicateDisputeRows } from '@/lib/creditReport/disputeItems';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -524,7 +525,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           return !selectedBureauKey || selectedBureauKey === 'all' || bureaus.includes(selectedBureauKey);
         });
 
-        let items: DisputeItem[] = availableNegativeRows.map((d: any) => ({
+        let items: DisputeItem[] = deduplicateDisputeRows(availableNegativeRows).map((d: any) => ({
           id: d.id,
           label: `${d.creditor_name ?? 'Unknown'} — ${itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Item'}`,
           type: itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Derogatory Item',

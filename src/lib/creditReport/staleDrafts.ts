@@ -42,10 +42,17 @@ export function repairUnsupportedFutureDateDraft(
   const clientItems = items.filter(item => item.client_id === draft.client_id);
   const everyClaimIsFalse = claims.every(claim => {
     const creditor = normalizedCreditor(claim.creditor);
-    const matchingItem = clientItems.find(item => normalizedCreditor(item.creditor_name) === creditor);
-    return matchingItem
-      ? isFalseFutureDateClaim(matchingItem.date_reported, claim.explanation, today)
-      : false;
+    const matchingItems = clientItems.filter(item => normalizedCreditor(item.creditor_name) === creditor);
+
+    // A creditor can appear once per bureau. The rationale stored on legacy
+    // drafts does not identify the bureau, so using the first matching row can
+    // compare an Experian or TransUnion claim with Equifax's date. Only repair
+    // the draft when every bureau record for that creditor disproves the
+    // future-date claim. Any genuinely future or missing date keeps the draft
+    // available for human review instead of destroying potentially valid work.
+    return matchingItems.length > 0 && matchingItems.every(item =>
+      isFalseFutureDateClaim(item.date_reported, claim.explanation, today)
+    );
   });
   if (!everyClaimIsFalse) return null;
 
