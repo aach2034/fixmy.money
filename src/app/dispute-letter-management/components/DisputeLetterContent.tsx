@@ -13,6 +13,7 @@ import { FileText } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/client';
+import { repairUnsupportedFutureDateDraft, type DraftDateItem } from '@/lib/creditReport/staleDrafts';
 
 type Bureau = 'Equifax' | 'Experian' | 'TransUnion';
 type LetterStatus = 'draft' | 'sent' | 'awaiting' | 'received' | 'escalated' | 'closed';
@@ -105,18 +106,46 @@ export default function DisputeLetterContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
 
-      const { data, error: fetchError } = await supabase
-        .from('dispute_letters')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
+      const [{ data, error: fetchError }, { data: dateItems, error: dateItemsError }] = await Promise.all([
+        supabase
+          .from('dispute_letters')
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('negative_items')
+          .select('client_id, creditor_name, date_reported')
+          .eq('owner_id', user.id),
+      ]);
 
       if (fetchError) {
         if (fetchError.code?.startsWith('42')) throw fetchError;
         setError(fetchError.message);
         return;
       }
-      setLetters((data ?? []).map(mapRow));
+      if (dateItemsError) throw dateItemsError;
+
+      const repairedRows = await Promise.all((data ?? []).map(async row => {
+        const repaired = repairUnsupportedFutureDateDraft(row, (dateItems ?? []) as DraftDateItem[]);
+        if (!repaired) return row;
+
+        const { error: repairError } = await supabase
+          .from('dispute_letters')
+          .update({
+            dispute_reason: repaired.dispute_reason,
+            letter_content: repaired.letter_content,
+            items_count: repaired.items_count,
+            generation_error: 'Unsupported future-date rationale removed automatically',
+          })
+          .eq('id', row.id)
+          .eq('owner_id', user.id)
+          .eq('letter_status', 'draft')
+          .eq('auto_generated', true);
+        if (repairError) throw repairError;
+        return repaired;
+      }));
+
+      setLetters(repairedRows.map(mapRow));
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load dispute letters');
     } finally {
