@@ -4,6 +4,10 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { parseCreditReport } from '@/lib/creditReport/parser';
 
 const PROTECTED_STATUSES = new Set(['sent', 'waiting_for_response', 'updated', 'verified', 'closed']);
+const APPROVED_MAINTENANCE_REPORTS: Record<string, string> = {
+  '2693b3cc-00ae-4138-8404-ca5e418f5bca': '80dcdbd0-16d9-4324-9976-594002327bc7',
+  'dc99abaa-b054-4744-83d9-3b620dc2f206': 'd52e00db-157a-4743-a3ab-90fdd94bb67d',
+};
 
 export async function POST(request: NextRequest) {
   const sessionClient = await createServerClient();
@@ -38,6 +42,9 @@ export async function POST(request: NextRequest) {
       : [];
   const reportIds = [...new Set(submittedIds.filter((id: unknown): id is string => typeof id === 'string'))].slice(0, 5);
   if (reportIds.length === 0) return NextResponse.json({ error: 'reportIds are required' }, { status: 400 });
+  if (maintenanceAuthorized && !reportIds.every(id => APPROVED_MAINTENANCE_REPORTS[id])) {
+    return NextResponse.json({ error: 'Maintenance repair is limited to the approved reports' }, { status: 403 });
+  }
 
   let reportsQuery = admin
     .from('parsed_credit_reports')
@@ -52,6 +59,9 @@ export async function POST(request: NextRequest) {
 
   const results = [];
   for (const report of reports ?? []) {
+    if (maintenanceAuthorized && APPROVED_MAINTENANCE_REPORTS[report.id] !== report.owner_id) {
+      return NextResponse.json({ error: `Ownership verification failed for report ${report.id}` }, { status: 403 });
+    }
     const ownerId = maintenanceAuthorized ? report.owner_id : user!.id;
     const { data: oldItems, error: itemsError } = await admin
       .from('negative_items')
