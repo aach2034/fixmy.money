@@ -14,11 +14,19 @@ export interface StoredDraft {
   dispute_reason?: string | null;
   letter_content?: string | null;
   items_count?: number | null;
+  generation_error?: string | null;
 }
 
 const CLAIMED_ITEM = /^#\d+\s+(.+?)\s+\([^)]+\):\s*(.+)$/;
 export const INVALID_DATE_DRAFT_NOTICE = 'This AI rationale was removed because its future-date claims were not supported by the saved reporting dates. Regenerate the draft before using it.';
 export const INVALID_DATE_LETTER_NOTICE = 'This draft is blocked because its date-based dispute reasons were not supported by the saved reporting dates. Regenerate the letter before printing or sending it.';
+export const INVALID_DATE_GENERATION_ERROR = 'Unsupported future-date rationale removed automatically';
+
+export function isUnsupportedDateDraft(draft: StoredDraft): boolean {
+  return draft.generation_error === INVALID_DATE_GENERATION_ERROR
+    || draft.dispute_reason === INVALID_DATE_DRAFT_NOTICE
+    || draft.letter_content === INVALID_DATE_LETTER_NOTICE;
+}
 
 function normalizedCreditor(value: unknown): string {
   return typeof value === 'string'

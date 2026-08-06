@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { INVALID_DATE_DRAFT_NOTICE, repairUnsupportedFutureDateDraft } from '../lib/creditReport/staleDrafts';
+import {
+  INVALID_DATE_DRAFT_NOTICE,
+  INVALID_DATE_GENERATION_ERROR,
+  INVALID_DATE_LETTER_NOTICE,
+  isUnsupportedDateDraft,
+  repairUnsupportedFutureDateDraft,
+} from '../lib/creditReport/staleDrafts';
 
 const rationale = `Several candidates have issues with future reporting dates, which are strong dispute opportunities.
 
@@ -7,6 +13,13 @@ const rationale = `Several candidates have issues with future reporting dates, w
 #2 5115 PARK PLACE) (Strong): The reported date is in the future, making it a verifiable error.`;
 
 describe('stored future-date draft repair', () => {
+  it('recognizes both legacy notices and the non-destructive generation flag', () => {
+    expect(isUnsupportedDateDraft({ id: 'legacy-rationale', dispute_reason: INVALID_DATE_DRAFT_NOTICE })).toBe(true);
+    expect(isUnsupportedDateDraft({ id: 'legacy-letter', letter_content: INVALID_DATE_LETTER_NOTICE })).toBe(true);
+    expect(isUnsupportedDateDraft({ id: 'flagged', generation_error: INVALID_DATE_GENERATION_ERROR })).toBe(true);
+    expect(isUnsupportedDateDraft({ id: 'ready', letter_content: 'Valid letter' })).toBe(false);
+  });
+
   it('blocks an existing draft when every claimed future date is already valid', () => {
     const repaired = repairUnsupportedFutureDateDraft({
       id: 'letter-1', client_id: 'client-1', auto_generated: true, letter_status: 'draft',
