@@ -7,7 +7,20 @@ const PROTECTED_STATUSES = new Set(['sent', 'waiting_for_response', 'updated', '
 
 export async function POST(request: NextRequest) {
   const sessionClient = await createServerClient();
-  const { data: { user } } = await sessionClient.auth.getUser();
+  const { data: { user: sessionUser } } = await sessionClient.auth.getUser();
+
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+  let user = sessionUser;
+  if (!user) {
+    const sitesEmail = request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase();
+    if (sitesEmail) {
+      const { data: usersPage } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      user = usersPage?.users.find(candidate => candidate.email?.toLowerCase() === sitesEmail) ?? null;
+    }
+  }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const contentType = request.headers.get('content-type') ?? '';
@@ -22,10 +35,6 @@ export async function POST(request: NextRequest) {
   const reportIds = [...new Set(submittedIds.filter((id: unknown): id is string => typeof id === 'string'))].slice(0, 5);
   if (reportIds.length === 0) return NextResponse.json({ error: 'reportIds are required' }, { status: 400 });
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
   const { data: reports, error: reportsError } = await admin
     .from('parsed_credit_reports')
     .select('id, owner_id, client_id, raw_text')
