@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasPlausibleCreditorName, selectReliableAuditItems } from '../lib/creditReport/auditItems';
+import { getReportingBureaus, hasPlausibleCreditorName, selectReliableAuditItems } from '../lib/creditReport/auditItems';
 
 describe('credit audit item quality gate', () => {
   it('rejects PDF stream fragments and garbled creditor names', () => {
@@ -21,5 +21,18 @@ describe('credit audit item quality gate', () => {
     ]);
 
     expect(reliable.map(item => item.creditor_name)).toEqual(['YENDO INC', 'DISCOVER BANK']);
+  });
+
+  it('uses every supplied reporting bureau instead of only the primary bureau', () => {
+    expect(getReportingBureaus({
+      bureau: 'Equifax',
+      bureaus_reporting: ['Equifax', 'Experian', 'TransUnion'],
+    })).toEqual(['Equifax', 'Experian', 'TransUnion']);
+  });
+
+  it('normalizes bureau abbreviations and falls back to the primary bureau', () => {
+    expect(getReportingBureaus({ bureau: 'TU' })).toEqual(['TransUnion']);
+    expect(getReportingBureaus({ bureau: 'Equifax', bureaus_reporting: ['EQ', 'EX', 'TU', 'TU'] }))
+      .toEqual(['Equifax', 'Experian', 'TransUnion']);
   });
 });

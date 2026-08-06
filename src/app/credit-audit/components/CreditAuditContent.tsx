@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, Download, Loader2, TrendingDown, FileText, Clock, Users, BarChart2 } from 'lucide-react';
-import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
+import { getReportingBureaus, selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
 
 interface AuditClient {
   id: string;
@@ -77,7 +77,7 @@ export default function CreditAuditContent() {
 
       const { data: savedItems, error: itemsError } = await supabase
         .from('negative_items')
-        .select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, is_negative, parser_confidence, account_number_masked, date_reported')
+        .select('creditor_name, negative_category, bureau, bureaus_reporting, balance, dispute_reason, negative_reason, dispute_status, is_negative, parser_confidence, account_number_masked, date_reported')
         .eq('owner_id', user.id)
         .eq('client_id', client.id)
         // The import table also stores positive tradelines for review. Audits
@@ -91,10 +91,12 @@ export default function CreditAuditContent() {
       let collectionCount = 0, latePaymentCount = 0, inquiryCount = 0, chargeOffCount = 0, bankruptcyCount = 0;
 
       for (const item of negativeItems) {
-        const bureau = item.bureau ?? 'Unknown';
-        if (!bureauMap[bureau]) bureauMap[bureau] = { count: 0, items: [] };
-        bureauMap[bureau].count++;
-        bureauMap[bureau].items.push(`${item.creditor_name ?? 'Unknown'} (${item.negative_category ?? 'item'})`);
+        const reportingBureaus = getReportingBureaus(item);
+        for (const bureau of reportingBureaus) {
+          if (!bureauMap[bureau]) bureauMap[bureau] = { count: 0, items: [] };
+          bureauMap[bureau].count++;
+          bureauMap[bureau].items.push(`${item.creditor_name ?? 'Unknown'} (${item.negative_category ?? 'item'})`);
+        }
 
         const type = item.negative_category ?? '';
         if (type === 'collection') collectionCount++;
@@ -113,7 +115,7 @@ export default function CreditAuditContent() {
       const priorityItems = negativeItems.slice(0, 5).map((d: any) => ({
         creditor: d.creditor_name ?? 'Unknown',
         type: d.negative_category ?? 'item',
-        bureau: d.bureau ?? 'Unknown',
+        bureau: getReportingBureaus(d).join(', ') || d.bureau || 'Unknown',
         amount: d.balance != null ? `$${Number(d.balance).toLocaleString()}` : '—',
         reason: d.dispute_reason || d.negative_reason || 'Review for inaccuracies',
       }));

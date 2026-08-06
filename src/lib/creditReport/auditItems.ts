@@ -2,6 +2,7 @@ export interface SavedAuditItem {
   creditor_name?: string | null;
   negative_category?: string | null;
   bureau?: string | null;
+  bureaus_reporting?: string[] | null;
   balance?: number | string | null;
   dispute_reason?: string | null;
   negative_reason?: string | null;
@@ -10,6 +11,26 @@ export interface SavedAuditItem {
   parser_confidence?: number | null;
   account_number_masked?: string | null;
   date_reported?: string | null;
+}
+
+const BUREAU_NAMES: Record<string, string> = {
+  equifax: 'Equifax',
+  eq: 'Equifax',
+  experian: 'Experian',
+  ex: 'Experian',
+  transunion: 'TransUnion',
+  'trans union': 'TransUnion',
+  tu: 'TransUnion',
+};
+
+export function getReportingBureaus(item: SavedAuditItem): string[] {
+  const supplied = Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [];
+  const values = supplied.length > 0 ? supplied : [item.bureau];
+
+  return [...new Set(values
+    .map(value => typeof value === 'string' ? BUREAU_NAMES[value.trim().toLowerCase()] : undefined)
+    .filter((value): value is string => Boolean(value))
+  )];
 }
 
 const PDF_GARBAGE = /(?:endstream|endobj|xref|startxref|\/xobject|\/dctdecode|\/flatedecode|\bjfif\b|\btrailer\b)/i;
