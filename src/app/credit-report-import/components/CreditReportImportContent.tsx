@@ -8,6 +8,7 @@ import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/Affilia
 import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliates/reportProviders';
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, isImageBasedPdf } from '@/lib/creditReport/pdfUtils';
+import { currentIsoDate, isFalseFutureDateClaim } from '@/lib/creditReport/dateValidation';
 
 type SavedReportItem = {
   id: string;
@@ -882,6 +883,7 @@ export default function CreditReportImportContent() {
       let generatedLetters = 0;
       if (savedItems.length > 0) {
         setSaveStage('AI is ranking the strongest items…');
+        const analysisDate = currentIsoDate();
         const candidates = savedItems.slice(0, 20).map((item, index) => ({
           candidate: index + 1,
           bureau: item.bureau,
@@ -902,7 +904,7 @@ export default function CreditReportImportContent() {
             messages: [
               {
                 role: 'system',
-                content: 'You review parsed credit-report items for a credit-repair business. Select and rank at most 5 candidates that present the strongest specific, factual, and verifiable dispute opportunities. Do not select an item merely because it is negative, and never invent an inaccuracy or promise an outcome. Return JSON only: {"summary":"2 concise sentences","selections":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","why":"why this item was selected","disputeReason":"a narrow factual reason using only supplied facts","requestedAction":"investigate and correct or delete if unverifiable"}]}.',
+                content: `You review parsed credit-report items for a credit-repair business. Today's date is ${analysisDate}. Select and rank at most 5 candidates that present the strongest specific, factual, and verifiable dispute opportunities. A reporting date is in the future only when it is later than ${analysisDate}; never compare it with your training cutoff. Do not select an item merely because it is negative, and never invent an inaccuracy or promise an outcome. Return JSON only: {"summary":"2 concise sentences","selections":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","why":"why this item was selected","disputeReason":"a narrow factual reason using only supplied facts","requestedAction":"investigate and correct or delete if unverifiable"}]}.`,
               },
               {
                 role: 'user',
@@ -917,6 +919,14 @@ export default function CreditReportImportContent() {
         const opinion = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '').trim()) as { summary: string; selections: AISelection[] };
         const selections = (opinion.selections ?? [])
           .filter(selection => Number.isInteger(selection.candidate) && selection.candidate >= 1 && selection.candidate <= savedItems.length)
+          .filter(selection => {
+            const item = savedItems[selection.candidate - 1];
+            return !isFalseFutureDateClaim(
+              item?.date_reported,
+              `${selection.why || ''} ${selection.disputeReason || ''}`,
+              analysisDate,
+            );
+          })
           .slice(0, 5);
 
         if (selections.length > 0) {

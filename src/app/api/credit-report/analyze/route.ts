@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChatCompletion } from '@/lib/ai/chatCompletion';
 import { redactPII, validateNoFullPII } from '@/lib/ai/redaction';
+import { currentIsoDate, isFalseFutureDateClaim } from '@/lib/creditReport/dateValidation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 });
     }
 
-    const systemPrompt = `You are an expert credit report analyst. Analyze the provided credit report and extract all negative items. 
+    const analysisDate = currentIsoDate();
+    const systemPrompt = `You are an expert credit report analyst. Today's date is ${analysisDate}. Analyze the provided credit report and extract all negative items. 
 Return ONLY valid JSON in this exact format:
 {
   "total_negative_accounts": number,
@@ -46,7 +48,7 @@ Return ONLY valid JSON in this exact format:
   "summary": "string (2-3 sentence summary of the credit report findings)"
 }
 
-Be thorough and identify ALL negative items. For dispute_reason, be specific about FCRA violations, inaccuracies, or statute of limitations issues.
+Be thorough and identify ALL negative items. For dispute_reason, be specific about FCRA violations, inaccuracies, or statute of limitations issues. A reporting date is in the future only if it is later than ${analysisDate}; never compare report dates with your training cutoff.
 IMPORTANT: Never include full Social Security numbers or full account numbers in your response. Use last 4 digits only.`;
 
     // ── Redact PII from file name before logging ───────────────────────────
@@ -144,6 +146,17 @@ IMPORTANT: Never include full Social Security numbers or full account numbers in
         raw_response: content,
       };
     }
+
+    analysisData.negative_items = Array.isArray(analysisData.negative_items)
+      ? analysisData.negative_items.map((item: Record<string, unknown>) => {
+          if (!isFalseFutureDateClaim(item.date_reported, item.dispute_reason, analysisDate)) return item;
+          return {
+            ...item,
+            dispute_reason: 'No date-based inaccuracy is established by the supplied reporting date. Review the account details manually.',
+            priority: 'low',
+          };
+        })
+      : [];
 
     // ── Sanitize AI response — ensure no full SSNs/account numbers leak back ──
     const responseStr = JSON.stringify(analysisData);
