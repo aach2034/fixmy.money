@@ -14,3 +14,5 @@ dist
 # Local tooling
 .wrangler
 .pnpm-store
+playwright-report
+test-results

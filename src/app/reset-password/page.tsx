@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-12 flex items-center justify-center">
+    <div className="min-h-screen bg-slate-50 px-6 py-12 flex items-center justify-center">
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2">
           <AppLogo size={36} />
@@ -131,6 +131,6 @@ export default function ResetPasswordPage() {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }

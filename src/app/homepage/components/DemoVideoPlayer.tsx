@@ -179,6 +179,7 @@ export default function DemoVideoPlayer({
                   className="inline-flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900"
                   style={{
                     background: '#2563EB',
+                    color: '#FFFFFF',
                     boxShadow: '0 4px 20px rgba(37,99,235,0.35)',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#1d4ed8')}

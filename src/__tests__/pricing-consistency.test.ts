@@ -463,8 +463,8 @@ describe('Demo Mode Isolation — Cannot Access Production Data', () => {
   it('/demo-mode is NOT in the middleware protected paths', async () => {
     const fs = await import('fs');
     const path = await import('path');
-    const middlewarePath = path.resolve(process.cwd(), 'src/middleware.ts');
-    const source = fs.readFileSync(middlewarePath, 'utf-8');
+    const proxyPath = path.resolve(process.cwd(), 'src/proxy.ts');
+    const source = fs.readFileSync(proxyPath, 'utf-8');
 
     // Extract the protectedPaths array content
     const protectedMatch = source.match(/const protectedPaths\s*=\s*\[([\s\S]*?)\];/);

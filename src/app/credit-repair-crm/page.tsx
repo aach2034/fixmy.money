@@ -26,7 +26,7 @@ export default function CreditRepairCRMPage() {
         </div>
       </header>
 
-      <main>
+      <div>
         {/* Hero */}
         <section className="py-20 bg-gradient-to-br from-slate-900 to-blue-950">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -113,7 +113,7 @@ export default function CreditRepairCRMPage() {
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     </div>);
 
 }

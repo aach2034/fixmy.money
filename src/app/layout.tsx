@@ -64,12 +64,20 @@ gtag('config', 'G-8MPF8KLDVG', { send_page_view: false });`,
 
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-slate-950 focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>
           <Suspense fallback={null}>
             <GoogleAnalytics />
             <SeoRuntime />
           </Suspense>
-          {children}
+          <main id="main-content" tabIndex={-1}>
+            {children}
+          </main>
           <SeoInternalLinks />
           <Toaster />
         </AuthProvider>

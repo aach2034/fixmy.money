@@ -84,7 +84,7 @@ export default function EvidenceFirstAgencyStarterKitPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 print:max-w-none print:px-0 print:py-6">
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 print:max-w-none print:px-0 print:py-6">
         <section className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950 print:break-inside-avoid">
           <strong>Use this as an operational worksheet, not legal advice.</strong> Your business is
           responsible for its own contracts, disclosures, fees, communications, authorization,
@@ -142,7 +142,7 @@ export default function EvidenceFirstAgencyStarterKitPage() {
           © 2026 FixMy.Money · Evidence-first operating software for credit-repair agencies ·
           No guaranteed credit outcomes.
         </footer>
-      </main>
+      </div>
     </div>
   );
 }

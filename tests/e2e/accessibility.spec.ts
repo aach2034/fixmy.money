@@ -12,6 +12,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 const PUBLIC_ROUTES = [
   '/',
@@ -24,7 +25,7 @@ const PUBLIC_ROUTES = [
   '/croa-workflow',
   '/demo-mode',
   '/blog',
-  '/sign-up-login-screen',
+  '/login',
 ];
 
 const BLOG_ROUTES = [
@@ -50,10 +51,25 @@ test?.describe('Desktop Accessibility', () => {
       await page?.goto(route);
       await page?.waitForLoadState('networkidle');
 
-      // Check for missing image alt attributes
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+      const seriousViolations = violations.filter(
+        ({ impact }) => impact === 'critical' || impact === 'serious'
+      );
+      expect(
+        seriousViolations,
+        seriousViolations
+          .map(({ id, impact, help, nodes }) => `${impact}: ${id} - ${help} (${nodes.length} nodes)`)
+          .join('\n')
+      ).toEqual([]);
+
+      // Keep fast structural checks so failures point to the exact missing primitive.
       const imagesWithoutAlt = await page?.evaluate(() => {
         const imgs = Array.from(document.querySelectorAll('img'));
-        return imgs?.filter((img) => !img?.alt && !img?.getAttribute('aria-label') && !img?.getAttribute('aria-hidden'))?.map((img) => img?.src?.slice(0, 80));
+        return imgs
+          ?.filter((img) => !img?.hasAttribute('alt') && !img?.getAttribute('aria-label') && !img?.getAttribute('aria-hidden'))
+          ?.map((img) => img?.src?.slice(0, 80));
       });
       expect(imagesWithoutAlt)?.toHaveLength(0);
 
@@ -118,7 +134,7 @@ test?.describe('Mobile 375px', () => {
 test?.describe('Mobile 390px', () => {
   test?.use({ viewport: { width: 390, height: 844 } });
 
-  for (const route of ['/pricing', '/blog', '/demo-mode', '/sign-up-login-screen']) {
+  for (const route of ['/pricing', '/blog', '/demo-mode', '/login']) {
     test(`${route} — no horizontal overflow at 390px`, async ({ page }) => {
       await page?.goto(route);
       await page?.waitForLoadState('networkidle');
@@ -165,7 +181,7 @@ test?.describe('Focus States', () => {
   });
 
   test('login form fields are focusable', async ({ page }) => {
-    await page?.goto('/sign-up-login-screen');
+    await page?.goto('/login');
 
     const emailInput = page?.locator('input[type="email"]')?.first();
     await emailInput?.focus();

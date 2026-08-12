@@ -260,26 +260,26 @@ test.describe('Unknown blog slug returns 404', () => {
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 
-test.describe('Login (/sign-up-login-screen)', () => {
+test.describe('Login (/login)', () => {
   test('loads without error', async ({ page }) => {
-    const response = await page.goto('/sign-up-login-screen');
-    expect(response?.status()).toBeLessThan(400);
+    const response = await page.goto('/login');
+    expect(response?.status()).toBe(200);
   });
 
   test('has login form', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     const emailInput = page.locator('input[type="email"], input[name="email"]').first();
     await expect(emailInput).toBeVisible();
   });
 
   test('has password field', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     const passwordInput = page.locator('input[type="password"]').first();
     await expect(passwordInput).toBeVisible();
   });
 
   test('has submit button', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     const submitBtn = page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In"), button:has-text("Login")').first();
     await expect(submitBtn).toBeVisible();
   });
@@ -289,17 +289,10 @@ test.describe('Login (/sign-up-login-screen)', () => {
 
 test.describe('Signup', () => {
   test('signup route loads', async ({ page }) => {
-    // Try common signup routes
-    const routes = ['/sign-up-login-screen', '/signup', '/register'];
-    let loaded = false;
-    for (const route of routes) {
-      const response = await page.goto(route);
-      if (response && response.status() < 400) {
-        loaded = true;
-        break;
-      }
-    }
-    expect(loaded).toBe(true);
+    const response = await page.goto('/signup');
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: /create.*account|start.*trial/i })).toBeVisible();
+    await expect(page.locator('input[type="email"]')).toBeVisible();
   });
 });
 
@@ -307,7 +300,7 @@ test.describe('Signup', () => {
 
 test.describe('Forgot Password', () => {
   test('forgot password route or link exists', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     // Look for forgot password link
     const forgotLink = page.locator('a:has-text("Forgot"), a:has-text("Reset"), text=/forgot.*password/i').first();
     // Either the link exists on the login page, or there's a separate route
@@ -328,13 +321,9 @@ test.describe('Protected dashboard redirect', () => {
   test('unauthenticated user is redirected from /dashboard', async ({ page }) => {
     await page.goto('/dashboard');
     // Should redirect to login page
-    await page.waitForURL(/sign-up-login-screen|login|signin|auth/i, { timeout: 5000 }).catch(() => {});
-    const currentUrl = page.url();
-    const isRedirected = /sign-up-login-screen|login|signin|auth/i.test(currentUrl) || currentUrl !== `${page.context().browser()?.version()}`;
-    // Either redirected to auth page, or dashboard shows auth gate
-    const authGate = page.locator('input[type="email"], input[type="password"], text=/sign in|log in|login/i').first();
-    const authGateVisible = await authGate.isVisible().catch(() => false);
-    expect(isRedirected || authGateVisible).toBe(true);
+    await page.waitForURL(/\/login(?:\?|$)/, { timeout: 5000 });
+    expect(new URL(page.url()).pathname).toBe('/login');
+    await expect(page.locator('input[type="email"]')).toBeVisible();
   });
 });
 
@@ -357,7 +346,8 @@ test.describe('Admin health authorization (/admin/health)', () => {
 test.describe('API Health (/api/health)', () => {
   test('returns JSON response', async ({ page }) => {
     const response = await page.goto('/api/health');
-    expect(response?.status()).toBeLessThan(500);
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()['content-type']).toContain('application/json');
   });
 });
 
@@ -373,12 +363,8 @@ test.describe('Mobile Navigation', () => {
 
   test('mobile menu button is accessible on homepage', async ({ page }) => {
     await page.goto('/');
-    // Look for hamburger menu or mobile nav toggle
-    const mobileMenu = page.locator(
-      'button[aria-label*="menu"], button[aria-label*="Menu"], button[aria-label*="navigation"], [data-testid="mobile-menu"], button:has(svg)'
-    ).first();
-    // Mobile menu may or may not be visible depending on layout
-    // Key requirement: no horizontal overflow
+    const mobileMenu = page.locator('button[aria-label*="navigation" i]').first();
+    await expect(mobileMenu).toBeVisible();
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     const viewportWidth = 375;
     expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 20); // Allow small tolerance
@@ -418,7 +404,7 @@ test.describe('Keyboard Navigation', () => {
   });
 
   test('login form is keyboard navigable', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     // Tab to email field
     await page.keyboard.press('Tab');
     const emailFocused = await page.evaluate(() => {

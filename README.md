@@ -1,6 +1,13 @@
-# Next.js
+# FixMy.Money
 
-A modern Next.js 15 application built with TypeScript and Tailwind CSS.
+A Next.js 15 application built with TypeScript, Tailwind CSS, Supabase, and Stripe.
+
+## Runtime
+
+- Node.js 24.14.0 or newer
+- pnpm 11.16.0
+
+The repository includes `.nvmrc`, `.node-version`, `packageManager`, and `engines` metadata so local development and CI use the same supported runtime as production builds.
 
 ## 🚀 Features
 
@@ -12,16 +19,12 @@ A modern Next.js 15 application built with TypeScript and Tailwind CSS.
 
 1. Install dependencies:
   ```bash
-  npm install
-  # or
-  yarn install
+  pnpm install
   ```
 
 2. Start the development server:
   ```bash
-  npm run dev
-  # or
-  yarn dev
+  pnpm dev
   ```
 3. Open [http://localhost:4028](http://localhost:4028) with your browser to see the result.
 
@@ -64,6 +67,11 @@ This project uses Tailwind CSS for styling with the following features:
 - `npm run lint` - Run ESLint to check code quality
 - `npm run lint:fix` - Fix ESLint issues automatically
 - `npm run format` - Format code with Prettier
+- `pnpm test` - Run deterministic unit and regression tests
+- `pnpm test:integration` - Run isolated Supabase and Stripe integration tests
+- `pnpm test:all` - Run both suites; requires non-production test credentials
+
+Integration tests require a dedicated Supabase test project and Stripe test-mode credentials. They intentionally reject production Supabase URLs and Stripe live-mode keys.
 
 ## 📱 Deployment
 

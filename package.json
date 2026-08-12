@@ -2,6 +2,10 @@
   "name": "fix-my-money",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.16.0",
+  "engines": {
+    "node": ">=24.14.0"
+  },
   "rocketCritical": {
     "dependencies": [
       "next",
@@ -49,6 +53,8 @@
     "serve": "next start",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "pnpm test && pnpm test:integration",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
@@ -88,6 +94,7 @@
     "stripe": "22.5.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@cloudflare/vite-plugin": "1.37.1",
     "@eslint/eslintrc": "^3",
     "@netlify/plugin-nextjs": "^5.11.1",

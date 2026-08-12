@@ -24,7 +24,7 @@ export default async function AdminSeoPage() {
   const registryReport = getSeoHealthReport();
   const report = { ...registryReport, errorCount: sourceAudit.errorCount, warningCount: sourceAudit.warningCount, issues: sourceAudit.issues };
 
-  return <main className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
+  return <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
     <div className="mx-auto max-w-7xl">
       <h1 className="text-3xl font-bold">SEO status</h1>
       <p className="mt-2 text-slate-400">Central metadata, canonical, indexing, and content health for public pages.</p>
@@ -40,5 +40,5 @@ export default async function AdminSeoPage() {
         <table className="w-full text-left text-sm"><thead className="text-slate-400"><tr><th className="p-4">Route</th><th className="p-4">Title</th><th className="p-4">Primary keyword</th><th className="p-4">Canonical</th></tr></thead><tbody>{PUBLIC_SEO_PAGES.map(page => <tr key={page.path} className="border-t border-slate-800"><td className="p-4"><code>{page.path}</code></td><td className="p-4">{page.title}</td><td className="p-4">{page.primaryKeyword}</td><td className="p-4 text-slate-400">{canonicalUrl(page.path)}</td></tr>)}</tbody></table>
       </section>
     </div>
-  </main>;
+  </div>;
 }

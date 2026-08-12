@@ -48,7 +48,7 @@ const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
 );
 const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // PHASE 1 GUARD: If FixMy.Money is misconfigured to use the Partix database,
   // return a 503 with a clear message instead of silently contaminating Partix data.
   if (isPartixDatabase()) {

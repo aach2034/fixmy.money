@@ -31,7 +31,7 @@ const skipIfNoCredentials = () => {
 // ─── Helper: sign in ──────────────────────────────────────────────────────────
 
 async function signIn(page: Page): Promise<void> {
-  await page.goto('/sign-up-login-screen');
+  await page.goto('/login');
   await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
   await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
   await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
@@ -45,19 +45,19 @@ test.describe('Email Login', () => {
   test.beforeEach(skipIfNoCredentials);
 
   test('user can sign in with email and password', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
     await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
     await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
 
     // Should redirect away from login page
-    await page.waitForURL(/(?!.*sign-up-login-screen)/, { timeout: 10000 }).catch(() => {});
+    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
     const currentUrl = page.url();
-    expect(currentUrl).not.toMatch(/sign-up-login-screen/);
+    expect(new URL(currentUrl).pathname).not.toBe('/login');
   });
 
   test('wrong password shows error', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
     await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
     await page.locator('input[type="password"]').first().fill('WrongPassword_XYZ_999!');
     await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
@@ -65,7 +65,7 @@ test.describe('Email Login', () => {
     // Should show error message
     await page.waitForTimeout(2000);
     const errorMsg = page.locator('text=/invalid|incorrect|wrong|error|failed/i').first();
-    const isOnLoginPage = page.url().includes('sign-up-login-screen');
+    const isOnLoginPage = new URL(page.url()).pathname === '/login';
     expect(isOnLoginPage || await errorMsg.isVisible().catch(() => false)).toBe(true);
   });
 });
@@ -84,10 +84,10 @@ test.describe('Logout', () => {
 
     if (signOutVisible) {
       await signOutBtn.click();
-      await page.waitForURL(/sign-up-login-screen|login|\/$/i, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/login|\/$/i, { timeout: 5000 }).catch(() => {});
       // Should be redirected to login or home
       const currentUrl = page.url();
-      const isLoggedOut = /sign-up-login-screen|login/.test(currentUrl) ||
+      const isLoggedOut = /\/login(?:\?|$)/.test(currentUrl) ||
         await page.locator('input[type="email"]').first().isVisible().catch(() => false);
       expect(isLoggedOut).toBe(true);
     } else {
@@ -121,7 +121,7 @@ test.describe('Session Persistence', () => {
     await page.waitForLoadState('networkidle');
 
     // Should still be authenticated (not redirected to login)
-    const isOnLogin = page.url().includes('sign-up-login-screen');
+    const isOnLogin = new URL(page.url()).pathname === '/login';
     expect(isOnLogin).toBe(false);
   });
 });
@@ -130,7 +130,7 @@ test.describe('Session Persistence', () => {
 
 test.describe('Password Reset Request', () => {
   test('password reset form is accessible', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
+    await page.goto('/login');
 
     // Look for forgot password link
     const forgotLink = page.locator('a:has-text("Forgot"), a:has-text("Reset"), text=/forgot.*password/i').first();
@@ -169,7 +169,7 @@ test.describe('User without workspace', () => {
 
 // ─── Google OAuth Configuration ───────────────────────────────────────────────
 
-test.describe('Google OAuth Configuration', () => {
+test.describe('OAuth Configuration', () => {
   test('OAuth callback route exists', async ({ page }) => {
     // The callback route should exist (even if it redirects)
     const response = await page.goto('/auth/callback');
@@ -178,24 +178,13 @@ test.describe('Google OAuth Configuration', () => {
     expect(response?.status()).not.toBe(500);
   });
 
-  test('Google OAuth button is present on login page', async ({ page }) => {
-    await page.goto('/sign-up-login-screen');
-    // Look for Google OAuth button
+  test('Google OAuth is not advertised while the provider is disabled', async ({ page }) => {
+    await page.goto('/login');
     const googleBtn = page.locator('button:has-text("Google"), a:has-text("Google"), [aria-label*="Google"]').first();
-    const googleVisible = await googleBtn.isVisible().catch(() => false);
-    // Document whether Google OAuth is configured
-    if (googleVisible) {
-      // Verify it links to OAuth flow (not just a placeholder)
-      const href = await googleBtn.getAttribute('href');
-      const onclick = await googleBtn.getAttribute('onclick');
-      // Should have some action configured
-      expect(href || onclick || true).toBeTruthy(); // At minimum, button exists
-    }
-    // Note: Full Google OAuth testing requires a real Google account
-    // This test verifies the button exists and the callback route is configured
+    await expect(googleBtn).toHaveCount(0);
   });
 
-  test('Supabase OAuth callback URL is documented', async ({ page }) => {
+  test('invalid OAuth callback fails without a server error', async ({ page }) => {
     /**
      * VERIFIED CONFIGURATION:
      * Supabase callback URL: https://agxzfdyvewptjwdfuvwq.supabase.co/auth/v1/callback
@@ -209,7 +198,8 @@ test.describe('Google OAuth Configuration', () => {
      *
      * Manual verification required — cannot be automated without real OAuth credentials.
      */
-    expect(true).toBe(true); // Documentation test
+    const response = await page.goto('/auth/callback?code=invalid-e2e-code');
+    expect(response?.status()).toBeLessThan(500);
   });
 });
 
@@ -236,7 +226,7 @@ test.describe('Team Invitation', () => {
 // ─── Removed Workspace Member ─────────────────────────────────────────────────
 
 test.describe('Removed workspace member', () => {
-  test('removed member access is documented', async ({ page }) => {
+  test('removed member loses workspace access', async () => {
     /**
      * VERIFIED: RLS policies in migration 20260604150000_rls_tenant_isolation.sql
      * enforce workspace membership at the database level.
@@ -254,6 +244,6 @@ test.describe('Removed workspace member', () => {
      *
      * This is covered in cross-tenant-security.test.ts (Vitest).
      */
-    expect(true).toBe(true); // Documentation test
+    test.skip(true, 'Requires two seeded users and a dedicated non-production Supabase project');
   });
 });

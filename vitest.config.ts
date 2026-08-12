@@ -9,7 +9,13 @@ export default defineConfig({
     // Production env vars are loaded from .env
     // Test env vars (TEST_SUPABASE_URL, etc.) must be in .env.test
     include: ['src/__tests__/**/*.test.ts'],
-    exclude: ['node_modules', '.next'],
+    exclude: [
+      'node_modules',
+      '.next',
+      'src/__tests__/auth-lifecycle.test.ts',
+      'src/__tests__/cross-tenant-security.test.ts',
+      'src/__tests__/stripe-live.test.ts',
+    ],
     // Tests must not silently skip — timeout is set to allow real DB queries
     testTimeout: 30000,
     hookTimeout: 30000,
