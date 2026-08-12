@@ -120,8 +120,8 @@ test?.describe('Mobile 375px', () => {
 
   for (const route of PUBLIC_ROUTES) {
     test(`${route} — no horizontal overflow at 375px`, async ({ page }) => {
-      await page?.goto(route);
-      await page?.waitForLoadState('networkidle');
+      await page?.goto(route, { waitUntil: 'domcontentloaded' });
+      await page?.locator('body')?.waitFor({ state: 'visible' });
 
       const overflow = await page?.evaluate(() => {
         return document.body?.scrollWidth > window.innerWidth;
@@ -136,8 +136,8 @@ test?.describe('Mobile 390px', () => {
 
   for (const route of ['/pricing', '/blog', '/demo-mode', '/login']) {
     test(`${route} — no horizontal overflow at 390px`, async ({ page }) => {
-      await page?.goto(route);
-      await page?.waitForLoadState('networkidle');
+      await page?.goto(route, { waitUntil: 'domcontentloaded' });
+      await page?.locator('body')?.waitFor({ state: 'visible' });
 
       const overflow = await page?.evaluate(() => {
         return document.body?.scrollWidth > window.innerWidth;
