@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
+import { hasActiveSubscription } from '@/lib/subscription/access';
 import { LayoutDashboard, Users, FileText, CreditCard, ChevronLeft, ChevronRight, Settings, LogOut, ChevronDown, ScanSearch, Target, Bell, User, Shield, CheckCircle2, X, Menu, MessageSquare, BookOpen, BarChart3, Calendar, Link2 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -48,6 +49,15 @@ const NAV_SECTIONS = [
   },
 ];
 
+const BILLING_ONLY_SECTIONS = [
+  {
+    label: 'Account',
+    items: [
+      { href: '/billing-subscriptions', label: 'Choose a Plan', icon: CreditCard },
+    ],
+  },
+];
+
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',
   growth: 'Professional',
@@ -75,6 +85,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [profile, setProfile] = useState<{
     full_name: string | null;
     email: string | null;
@@ -84,20 +95,27 @@ export default function Sidebar() {
   } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    let active = true;
+    setProfile(null);
+    setProfileLoaded(false);
+    if (!user) return () => { active = false; };
     const fetchProfile = async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('user_profiles')
           .select('full_name, email, subscription_status, subscription_plan, company_name')
           .eq('id', user.id)
           .single();
-        setProfile(data);
+        if (error) throw error;
+        if (active) setProfile(data);
       } catch (err) {
         console.error('[Sidebar] profile fetch error:', err);
+      } finally {
+        if (active) setProfileLoaded(true);
       }
     };
     fetchProfile();
+    return () => { active = false; };
   }, [user]);
 
   const isActive = (href: string) => {
@@ -128,6 +146,8 @@ export default function Sidebar() {
 
   const statusLabel = PLAN_LABELS[subPlan] || PLAN_LABELS[subStatus] || 'Free';
   const statusColor = STATUS_COLORS[subStatus] || STATUS_COLORS['inactive'];
+  const hasWorkspaceAccess = profileLoaded && hasActiveSubscription(profile?.subscription_status);
+  const visibleNavSections = hasWorkspaceAccess ? NAV_SECTIONS : BILLING_ONLY_SECTIONS;
 
   const SidebarContent = () => (
     <aside className={`relative flex flex-col bg-white border-r border-slate-200 h-full transition-all duration-200 shrink-0 ${collapsed ? 'w-16' : 'w-60'}`}>
@@ -148,7 +168,7 @@ export default function Sidebar() {
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${statusColor}`}>
               <CheckCircle2 size={10} />
-              {statusLabel} Plan
+              {profileLoaded ? `${statusLabel} Plan` : 'Checking plan…'}
             </span>
             {(subStatus === 'trial_active' || subStatus === 'trialing') && (
               <span className="text-xs text-slate-400">Trial active</span>
@@ -159,7 +179,21 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-        {NAV_SECTIONS.map(section => (
+        {!hasWorkspaceAccess && !collapsed && (
+          <div className="mx-1 mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+            <p className="text-sm font-bold text-slate-900">Unlock your workspace</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              Choose a plan to access clients, reports, disputes, and letters.
+            </p>
+            <Link
+              href="/billing-subscriptions"
+              className="mt-3 flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700"
+            >
+              View plans
+            </Link>
+          </div>
+        )}
+        {visibleNavSections.map(section => (
           <div key={section.label}>
             {!collapsed && (
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-2 mb-1.5">{section.label}</p>
@@ -230,17 +264,19 @@ export default function Sidebar() {
         </div>
 
         {/* Notifications */}
-        <div className="relative group mb-0.5">
-          <Link href="/notifications" className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}>
-            <Bell size={17} className="shrink-0" />
-            {!collapsed && <span className="flex-1 text-left">Notifications</span>}
-          </Link>
-          {collapsed && (
-            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-              Notifications
-            </div>
-          )}
-        </div>
+        {hasWorkspaceAccess && (
+          <div className="relative group mb-0.5">
+            <Link href="/notifications" className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}>
+              <Bell size={17} className="shrink-0" />
+              {!collapsed && <span className="flex-1 text-left">Notifications</span>}
+            </Link>
+            {collapsed && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                Notifications
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Profile Menu */}
         <div className="relative">

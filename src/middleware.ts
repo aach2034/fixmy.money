@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-guard';
 import { PRIVATE_ROUTE_PREFIXES } from '@/lib/seo/config';
+import { ACTIVE_SUBSCRIPTION_STATUSES } from '@/lib/subscription/access';
 
 function getProjectRef(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -45,7 +46,6 @@ const ONBOARDING_GATED_PATHS = [
 const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
   (path) => !['/billing-subscriptions', '/onboarding', '/admin'].includes(path)
 );
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'trial_active']);
 const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export async function middleware(request: NextRequest) {
