@@ -5,6 +5,7 @@
 
 import { safeNormalizeText, type SupportedProvider } from './parser';
 import { extractCreditReportDate } from './dateValidation';
+import { isReliableInquiry } from './auditItems';
 
 // ─── Normalized Schema ────────────────────────────────────────────────────────
 
@@ -463,14 +464,19 @@ class GenericAdapter extends BaseAdapter {
     for (const row of rows) {
       const dateMatch = row.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
       const bureauMatch = row.match(/\b(TransUnion|Equifax|Experian)\b/i);
-      if (dateMatch || bureauMatch) {
-        inquiries.push({
+      if (dateMatch && bureauMatch) {
+        const inquiry: NormalizedInquiry = {
           creditor: row.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}/, '').replace(/TransUnion|Equifax|Experian/i, '').trim().slice(0, 80),
           bureau: bureauMatch ? bureauMatch[1] : 'Unknown',
           date: dateMatch ? dateMatch[1] : '',
           type: 'hard',
           purpose: '',
-        });
+        };
+        if (isReliableInquiry({
+          creditor_name: inquiry.creditor,
+          bureau: inquiry.bureau,
+          date_reported: inquiry.date,
+        })) inquiries.push(inquiry);
       }
     }
 

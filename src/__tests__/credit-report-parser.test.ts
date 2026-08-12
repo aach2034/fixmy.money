@@ -640,3 +640,74 @@ Collection
     expect(result.diagnostics?.normalizedTextLength).toBeGreaterThan(0);
   });
 });
+
+describe('HTML report and inquiry evidence safety', () => {
+  it('converts report HTML into text without leaking tags or scripts', () => {
+    const normalized = safeNormalizeText(`
+      <table><tr><th width="20%">Creditor</th><td>Discover Bank</td></tr></table>
+      <script>window.bad = 'not report data'</script>
+    `);
+
+    expect(normalized).toContain('Creditor');
+    expect(normalized).toContain('Discover Bank');
+    expect(normalized).not.toMatch(/<\/?(?:table|tr|th|td|script)\b/i);
+    expect(normalized).not.toContain('window.bad');
+  });
+
+  it('does not promote educational inquiry prose into a hard inquiry', () => {
+    const result = parseCreditReport(`
+      <div>Credit Report</div>
+      <h2>Hard Inquiries</h2>
+      <div>on a credit file carries much less importance than late payments, the amount owed and the length of time credit has been established</div>
+      <div>Public Records</div>
+    `);
+
+    expect(result.inquiries).toEqual([]);
+  });
+
+  it('keeps a dated hard inquiry tied to a recognized bureau', () => {
+    const result = parseCreditReport(`
+      Credit Report
+      Hard Inquiries
+      Discover Bank 01/15/2024 Equifax
+
+
+
+      Public Records
+    `);
+
+    expect(result.inquiries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ creditor: 'Discover Bank', bureau: 'Equifax', type: 'hard' }),
+    ]));
+  });
+
+  it('parses an HTML account table without treating glossary values as accounts', () => {
+    const result = parseCreditReport(`
+      <html><body>
+        <h1>Equifax Credit Report</h1>
+        <h2>Account Information</h2>
+        <table>
+          <tr><th>Creditor Name</th><td>CAPITAL ONE</td></tr>
+          <tr><th>Account Number</th><td>XXXX1234</td></tr>
+          <tr><th>Account Type</th><td>Revolving</td></tr>
+          <tr><th>Account Status</th><td>Current</td></tr>
+          <tr><th>Balance</th><td>$250</td></tr>
+          <tr><th>Date Opened</th><td>01/02/2020</td></tr>
+          <tr><th>Bureau</th><td>Equifax</td></tr>
+        </table>
+        <h2>Account type definitions</h2>
+        <div>Revolving account</div>
+        <div>Individual Account</div>
+        <div>Paid or paying as agreed</div>
+      </body></html>
+    `);
+
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({
+      creditorName: 'CAPITAL ONE',
+      accountNumberMasked: '****1234',
+      bureau: 'Equifax',
+      balance: 250,
+    });
+  });
+});

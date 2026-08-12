@@ -33,6 +33,41 @@ export function getReportingBureaus(item: SavedAuditItem): string[] {
   )];
 }
 
+export function hasPlausibleInquiryDate(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const date = value.trim();
+  let year = 0;
+  let month = 0;
+  let day = 0;
+
+  const iso = date.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const us = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (iso) {
+    year = Number(iso[1]);
+    month = Number(iso[2]);
+    day = Number(iso[3]);
+  } else if (us) {
+    month = Number(us[1]);
+    day = Number(us[2]);
+    year = Number(us[3]);
+    if (year < 100) year += year >= 70 ? 1900 : 2000;
+  } else {
+    return false;
+  }
+
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return year >= 1900 && year <= 2100 &&
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+}
+
+export function isReliableInquiry(item: Pick<SavedAuditItem, 'creditor_name' | 'bureau' | 'bureaus_reporting' | 'date_reported'>): boolean {
+  return hasPlausibleCreditorName(item.creditor_name) &&
+    hasPlausibleInquiryDate(item.date_reported) &&
+    getReportingBureaus(item).length > 0;
+}
+
 const PDF_GARBAGE = /(?:endstream|endobj|xref|startxref|\/xobject|\/dctdecode|\/flatedecode|\bjfif\b|\btrailer\b)/i;
 const SECTION_LABEL = /^(?:for more details|account history|personal information|credit report|hard inquiries?|soft inquiries?|inquiries?|page \d+)\.?$/i;
 
@@ -52,9 +87,7 @@ function isUsableItem(item: SavedAuditItem): boolean {
   if (!hasPlausibleCreditorName(item.creditor_name)) return false;
 
   if (item.negative_category === 'hard_inquiry') {
-    // Inquiry rows do not receive an account parser-confidence score, so a
-    // usable creditor and reported date are the minimum reliable evidence.
-    return Boolean(item.date_reported?.trim());
+    return isReliableInquiry(item);
   }
 
   // Account rows are persisted even when the parser is uncertain. The audit is

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getReportingBureaus, hasPlausibleCreditorName, selectReliableAuditItems } from '../lib/creditReport/auditItems';
+import { getReportingBureaus, hasPlausibleCreditorName, hasPlausibleInquiryDate, isReliableInquiry, selectReliableAuditItems } from '../lib/creditReport/auditItems';
 
 describe('credit audit item quality gate', () => {
   it('rejects PDF stream fragments and garbled creditor names', () => {
@@ -18,9 +18,18 @@ describe('credit audit item quality gate', () => {
       { creditor_name: 'CAPITAL ONE', negative_category: 'other', bureau: 'Experian', is_negative: false, parser_confidence: 90 },
       { creditor_name: 'DISCOVER BANK', negative_category: 'hard_inquiry', bureau: 'TransUnion', date_reported: '2026-01-10' },
       { creditor_name: 'UNKNOWN LENDER', negative_category: 'hard_inquiry', bureau: 'TransUnion', date_reported: '' },
+      { creditor_name: 'EDUCATIONAL PROSE ABOUT CREDIT FILES', negative_category: 'hard_inquiry', bureau: 'Unknown', date_reported: '2026-01-10' },
     ]);
 
     expect(reliable.map(item => item.creditor_name)).toEqual(['YENDO INC', 'DISCOVER BANK']);
+  });
+
+  it('requires a real calendar date and recognized bureau for inquiries', () => {
+    expect(hasPlausibleInquiryDate('2024-02-29')).toBe(true);
+    expect(hasPlausibleInquiryDate('02/29/2024')).toBe(true);
+    expect(hasPlausibleInquiryDate('2024-02-30')).toBe(false);
+    expect(isReliableInquiry({ creditor_name: 'DISCOVER BANK', bureau: 'Equifax', date_reported: '01/15/2024' })).toBe(true);
+    expect(isReliableInquiry({ creditor_name: 'DISCOVER BANK', bureau: 'Unknown', date_reported: '01/15/2024' })).toBe(false);
   });
 
   it('uses every supplied reporting bureau instead of only the primary bureau', () => {

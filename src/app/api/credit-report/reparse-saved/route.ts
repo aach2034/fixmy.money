@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { parseCreditReport } from '@/lib/creditReport/parser';
+import { isReliableInquiry } from '@/lib/creditReport/auditItems';
 
 const PROTECTED_STATUSES = new Set(['sent', 'waiting_for_response', 'updated', 'verified', 'closed']);
 const APPROVED_MAINTENANCE_REPORTS: Record<string, string> = {
@@ -124,7 +125,11 @@ export async function POST(request: NextRequest) {
       is_selected: false,
       tag_status: 'unreviewed',
     }));
-    const inquiryRows = parsed.inquiries.filter(item => item.type === 'hard').map(item => ({
+    const inquiryRows = parsed.inquiries.filter(item => item.type === 'hard' && isReliableInquiry({
+      creditor_name: item.creditor,
+      bureau: item.bureau,
+      date_reported: item.date,
+    })).map(item => ({
       owner_id: ownerId,
       client_id: report.client_id,
       report_id: report.id,
@@ -162,7 +167,7 @@ export async function POST(request: NextRequest) {
       collections_count: parsed.collections.length,
       inquiries_count: parsed.inquiries.length,
       scores: parsed.scores,
-      parser_version: '2.1.0',
+      parser_version: parsed.parserVersion,
       updated_at: new Date().toISOString(),
     }).eq('id', report.id).eq('owner_id', ownerId);
     if (updateError) return customerSafeError('The items were updated, but the report summary could not be refreshed. Please try again.');

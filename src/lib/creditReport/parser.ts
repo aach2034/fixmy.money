@@ -1,4 +1,5 @@
 import { extractCreditReportDate } from './dateValidation';
+import { isReliableInquiry } from './auditItems';
 
 export type SupportedProvider =
   | 'smartcredit' | 'myscoreiq' | 'identityiq' | 'myfreescorenow' | 'privacyguard' |'experian' | 'transunion' | 'equifax' | 'annualcreditreport' | 'creditkarma' | 'unknown';
@@ -92,6 +93,28 @@ export function safeNormalizeText(raw: string): string {
     // Step 1: Replace lone surrogates (invalid UTF-16) before any other processing
     // This prevents "Invalid Unicode character sequence" errors in regex engines
     let safe = raw.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
+
+    // HTML exports must become text before section and row detection. Keeping
+    // tags lets table markup masquerade as creditor or inquiry data.
+    const isHtmlExport = /<(?:!doctype|html|head|body|table|thead|tbody|tr|td|th|div|span|p|br|script|style)\b/i.test(safe);
+    if (isHtmlExport) {
+      safe = safe
+        .replace(/<!--[\s\S]*?-->/g, ' ')
+        .replace(/<(?:script|style|noscript|template)\b[^>]*>[\s\S]*?<\/(?:script|style|noscript|template)>/gi, ' ')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(?:td|th)\s*>/gi, '\t')
+        .replace(/<\/(?:p|div|li|tr|section|article|header|footer|h[1-6])\s*>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&#(\d+);/g, (_, value: string) => String.fromCodePoint(Number(value)))
+        .replace(/&#x([0-9a-f]+);/gi, (_, value: string) => String.fromCodePoint(parseInt(value, 16)))
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;|&apos;/gi, "'");
+      safe = safe.split('\n').map(line => line.trim()).filter(Boolean).join('\n');
+    }
 
     // Step 2: Apply NFKC normalization (compatibility decomposition + canonical composition)
     // This resolves ligatures, fullwidth chars, superscripts, etc. from PDF extraction
@@ -903,9 +926,9 @@ export function isValidAccount(account: Partial<ParsedAccount>): boolean {
 
   console.debug(`[ValidAccount] Credit fields for "${creditor}": balance=${hasBalance}, accountNumber=${hasAccountNumber}, status=${hasStatus}, dateOpened=${hasDateOpened}, accountType=${hasAccountType}, pastDue=${hasPastDue}, remarks=${hasRemarks}, paymentHistory=${hasPaymentHistory} → total=${creditFieldCount}`);
 
-  // Require at least 1 credit field — lowered from previous implicit requirement
-  if (creditFieldCount < 1) {
-    console.debug(`[ValidAccount] REJECT — "${creditor}" has 0 credit fields`);
+  // Single labels and glossary rows are not enough evidence for an account.
+  if (creditFieldCount < 2) {
+    console.debug(`[ValidAccount] REJECT — "${creditor}" has fewer than 2 credit fields`);
     return false;
   }
 
@@ -1146,8 +1169,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       return null;
     }
 
-    const accountNumMatch = block.match(/(?:account\s*(?:number|#|no\.?)?)[:\s]+([A-Z0-9*X\-]{4,})/i)
-      || block.match(/(?:acct)[:\s]+([A-Z0-9*X\-]{4,})/i);
+    const accountNumMatch = block.match(/(?:account\s*(?:number|#|no\.?)|account\s*:|acct\s*:)\s*:?[\t ]*\n?[\t ]*([A-Z0-9*X\-]{4,})/i);
     const accountNumber = accountNumMatch?.[1] ?? '';
 
     const typeMatch = block.match(/(?:account type|type of account|type|kob|industry)[:\s]+([^\n]+)/i);
@@ -1317,7 +1339,8 @@ function splitIntoBlocks(text: string): string[] {
             accountStartPattern.test(trimmed) &&
             !/[:\d$]/.test(trimmed) &&
             trimmed.length > 3 &&
-            trimmed.length < 60
+            trimmed.length < 60 &&
+            !ACCOUNT_FIELD_LABEL_RE.test(trimmed)
           ) {
             blocks.push(current.join('\n'));
             current = [line];
@@ -1659,15 +1682,21 @@ function extractInquiries(text: string): { inquiries: ParsedInquiry[]; confidenc
         const creditorMatch = line.match(/^([A-Za-z][A-Za-z\s&,.']{2,40}?)(?:\s+\d|\s+(?:equifax|experian|transunion))/i);
         const creditor = creditorMatch?.[1]?.trim() ?? line.split(/\s{2,}/)[0]?.trim() ?? '';
 
-        if (creditor && creditor.length > 2 && !/^(?:hard|soft|inquir|date|bureau|company)/i.test(creditor)) {
-          inquiries.push({
+        const inquiry: ParsedInquiry = {
             creditor,
             date: dateMatch ? extractDate(dateMatch[1]) : '',
             bureau,
             type: isHard ? 'hard' : 'soft',
             purpose: '',
             rawText: line,
-          });
+        };
+
+        if (!/^(?:hard|soft|inquir|date|bureau|company)/i.test(creditor) && isReliableInquiry({
+          creditor_name: inquiry.creditor,
+          bureau: inquiry.bureau,
+          date_reported: inquiry.date,
+        })) {
+          inquiries.push(inquiry);
         }
       } catch {
         // skip this line
@@ -2175,7 +2204,7 @@ export function parseCreditReport(
     return {
       provider,
       providerConfidence,
-      parserVersion: '3.6.0',
+      parserVersion: '3.7.0',
       parsedAt: new Date().toISOString(),
       reportDate,
       rawText: safeText,
@@ -2233,7 +2262,7 @@ export function parseCreditReport(
     return {
       provider: forceProvider ?? 'unknown',
       providerConfidence: 0,
-      parserVersion: '3.6.0',
+      parserVersion: '3.7.0',
       parsedAt: new Date().toISOString(),
       reportDate,
       rawText: safeText,

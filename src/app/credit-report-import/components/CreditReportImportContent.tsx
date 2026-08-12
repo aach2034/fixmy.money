@@ -9,6 +9,7 @@ import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliate
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, isImageBasedPdf } from '@/lib/creditReport/pdfUtils';
 import { currentIsoDate, isFalseFutureDateClaim } from '@/lib/creditReport/dateValidation';
+import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
 
 type SavedReportItem = {
   id: string;
@@ -20,6 +21,7 @@ type SavedReportItem = {
   balance: number | null;
   date_reported: string | null;
   parser_confidence: number | null;
+  is_negative?: boolean | null;
 };
 
 type AISelection = {
@@ -43,14 +45,19 @@ function buildAutomaticDraft(params: {
   letterId: string;
   selections: Array<{ item: SavedReportItem; opinion: AISelection }>;
 }) {
+  const clean = (value: unknown, fallback = '') => safeNormalizeText(String(value ?? ''))
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || fallback;
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const address = params.client.address
     ? `${params.client.address}\n${params.client.city || ''}, ${params.client.state || ''} ${params.client.zip || ''}`
     : '[Client Address — add and verify before use]';
-  const items = params.selections.map(({ item, opinion }, index) => `Item ${index + 1}: ${item.creditor_name || 'Reported account'}${item.account_number_masked ? ` (Account: ${item.account_number_masked})` : ''}
-   Type: ${(item.negative_category || 'reported item').replaceAll('_', ' ')}
-   Dispute Reason: ${opinion.disputeReason}
-   Requested Action: ${opinion.requestedAction}`).join('\n\n');
+  const items = params.selections.map(({ item, opinion }, index) => `Item ${index + 1}: ${clean(item.creditor_name, 'Reported account')}${item.account_number_masked ? ` (Account: ${clean(item.account_number_masked)})` : ''}
+   Type: ${clean(item.negative_category, 'reported item').replaceAll('_', ' ')}
+   Dispute Reason: ${clean(opinion.disputeReason, 'Review the reported information for accuracy')}
+   Requested Action: ${clean(opinion.requestedAction, 'Investigate and correct or delete if unverifiable')}`).join('\n\n');
 
   return `${params.client.name}
 ${address}
@@ -836,9 +843,13 @@ export default function CreditReportImportContent() {
         savedItems.push(...((insertedAccounts ?? []).filter((item: any) => item.is_negative === true) as SavedReportItem[]));
       }
 
-      // Save hard inquiries without requiring a confidence approval step.
+      // Persist only inquiries backed by a creditor, date, and recognized bureau.
       {
-        const inquiryRows = parsedReport.inquiries.filter(i => i.type === 'hard').map(inq => ({
+        const inquiryRows = parsedReport.inquiries.filter(inq => inq.type === 'hard' && isReliableInquiry({
+          creditor_name: inq.creditor,
+          bureau: inq.bureau,
+          date_reported: inq.date,
+        })).map(inq => ({
             owner_id: user.id,
             client_id: selectedClientId,
             report_id: reportRecord.id,
@@ -882,10 +893,11 @@ export default function CreditReportImportContent() {
       if (clientUpdateError) throw new Error(`Report items saved, but client information failed to save: ${clientUpdateError.message}`);
 
       let generatedLetters = 0;
-      if (savedItems.length > 0) {
+      const reliableSavedItems = selectReliableAuditItems(savedItems) as SavedReportItem[];
+      if (reliableSavedItems.length > 0) {
         setSaveStage('AI is ranking the strongest items…');
         const analysisDate = currentIsoDate();
-        const candidates = savedItems.slice(0, 20).map((item, index) => ({
+        const candidates = reliableSavedItems.slice(0, 20).map((item, index) => ({
           candidate: index + 1,
           bureau: item.bureau,
           category: item.negative_category,
@@ -919,9 +931,9 @@ export default function CreditReportImportContent() {
         const raw = completion?.choices?.[0]?.message?.content || '';
         const opinion = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '').trim()) as { summary: string; selections: AISelection[] };
         const selections = (opinion.selections ?? [])
-          .filter(selection => Number.isInteger(selection.candidate) && selection.candidate >= 1 && selection.candidate <= savedItems.length)
+          .filter(selection => Number.isInteger(selection.candidate) && selection.candidate >= 1 && selection.candidate <= reliableSavedItems.length)
           .filter(selection => {
-            const item = savedItems[selection.candidate - 1];
+            const item = reliableSavedItems[selection.candidate - 1];
             return !isFalseFutureDateClaim(
               item?.date_reported,
               `${selection.why || ''} ${selection.disputeReason || ''}`,
@@ -942,7 +954,7 @@ export default function CreditReportImportContent() {
 
           const byBureau = new Map<string, Array<{ item: SavedReportItem; opinion: AISelection }>>();
           selections.forEach(selection => {
-            const item = savedItems[selection.candidate - 1];
+            const item = reliableSavedItems[selection.candidate - 1];
             const bureau = item.bureau || 'Equifax';
             byBureau.set(bureau, [...(byBureau.get(bureau) || []), { item, opinion: selection }]);
           });
