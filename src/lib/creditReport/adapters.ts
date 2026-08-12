@@ -4,6 +4,7 @@
 // No adapter is allowed to crash on malformed input — all errors are captured as warnings.
 
 import { safeNormalizeText, type SupportedProvider } from './parser';
+import { extractCreditReportDate } from './dateValidation';
 
 // ─── Normalized Schema ────────────────────────────────────────────────────────
 
@@ -301,17 +302,7 @@ class GenericAdapter extends BaseAdapter {
   }
 
   private extractReportDate(text: string): string {
-    const patterns = [
-      /report\s+date[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /as\s+of[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /date\s+generated[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /(\d{1,2}\/\d{1,2}\/\d{4})/,
-    ];
-    for (const p of patterns) {
-      const m = text.match(p);
-      if (m) return m[1];
-    }
-    return '';
+    return extractCreditReportDate(text);
   }
 
   private extractClientInfo(text: string, lines: string[]): NormalizedClientInfo {

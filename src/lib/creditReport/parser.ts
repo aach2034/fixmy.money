@@ -1,3 +1,5 @@
+import { extractCreditReportDate } from './dateValidation';
+
 export type SupportedProvider =
   | 'smartcredit' | 'myscoreiq' | 'identityiq' | 'myfreescorenow' | 'privacyguard' |'experian' | 'transunion' | 'equifax' | 'annualcreditreport' | 'creditkarma' | 'unknown';
 
@@ -245,6 +247,7 @@ export interface ParsedCreditReport {
   providerConfidence: number;
   parserVersion: string;
   parsedAt: string;
+  reportDate: string;
   rawText: string;
   personalInfo: ParsedPersonalInfo;
   scores: ParsedScore[];
@@ -1786,6 +1789,7 @@ export function parseCreditReport(
     try { safeText = (rawText ?? '').replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' '); } catch { safeText = ''; }
   }
   const normalizedTextLength = safeText.length;
+  const reportDate = extractCreditReportDate(safeText);
 
   const warnings: ParserWarning[] = [];
   const sectionsParsed: string[] = [];
@@ -2173,6 +2177,7 @@ export function parseCreditReport(
       providerConfidence,
       parserVersion: '3.6.0',
       parsedAt: new Date().toISOString(),
+      reportDate,
       rawText: safeText,
       personalInfo,
       scores,
@@ -2230,6 +2235,7 @@ export function parseCreditReport(
       providerConfidence: 0,
       parserVersion: '3.6.0',
       parsedAt: new Date().toISOString(),
+      reportDate,
       rawText: safeText,
       personalInfo: { name: '', nameVariations: [], ssn: '', dob: '', currentAddress: null, previousAddresses: [], employers: [], phones: [] },
       scores: [],

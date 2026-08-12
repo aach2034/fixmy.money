@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isFalseFutureDateClaim } from '../lib/creditReport/dateValidation';
+import {
+  extractCreditReportDate,
+  isFalseFutureDateClaim,
+  normalizeCreditReportDate,
+} from '../lib/creditReport/dateValidation';
 
 describe('credit report date validation', () => {
   it('rejects a future-date claim for a reporting date on or before today', () => {
@@ -24,5 +28,24 @@ describe('credit report date validation', () => {
       'Review the reported balance for accuracy.',
       '2026-08-06',
     )).toBe(false);
+  });
+
+  it('normalizes common credit-report date formats without timezone conversion', () => {
+    expect(normalizeCreditReportDate('07/07/2026')).toBe('2026-07-07');
+    expect(normalizeCreditReportDate('July 7, 2026')).toBe('2026-07-07');
+    expect(normalizeCreditReportDate('2026-07-07')).toBe('2026-07-07');
+  });
+
+  it('extracts and normalizes a labeled report date instead of an unrelated date', () => {
+    const report = `Date of Birth: 01/02/1980\nReport Date: 07/07/2026\nDate Opened: 08/01/2026`;
+    expect(extractCreditReportDate(report)).toBe('2026-07-07');
+  });
+
+  it('rejects false future claims when the saved reporting date uses US format', () => {
+    expect(isFalseFutureDateClaim(
+      '07/07/2026',
+      'The account has a reporting date in the future.',
+      '2026-08-12',
+    )).toBe(true);
   });
 });

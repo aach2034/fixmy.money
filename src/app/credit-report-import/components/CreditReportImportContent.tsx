@@ -776,6 +776,7 @@ export default function CreditReportImportContent() {
         provider: parsedReport.provider,
         provider_confidence: parsedReport.providerConfidence,
         parser_version: parsedReport.parserVersion,
+        report_date: parsedReport.reportDate,
         overall_confidence: parsedReport.overallConfidence,
         sections_parsed: parsedReport.sectionsParsed,
         sections_missed: parsedReport.sectionsMissed,
@@ -1162,6 +1163,7 @@ export default function CreditReportImportContent() {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Provider: <span className="font-medium capitalize">{parsedReport.provider === 'unknown' ? 'Not detected' : parsedReport.provider}</span> ·
                   Confidence: <span className={`font-medium ${parsedReport.overallConfidence >= 70 ? 'text-success' : parsedReport.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{parsedReport.overallConfidence}%</span>
+                  {parsedReport.reportDate && <> · Report Date: <span className="font-medium">{parsedReport.reportDate}</span></>}
                 </p>
               </div>
               <div className="flex items-center gap-2">
