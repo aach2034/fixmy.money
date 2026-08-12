@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deduplicateDisputeRows } from '../lib/creditReport/disputeItems';
+import { deduplicateDisputeRows, getDisputeItemDates } from '../lib/creditReport/disputeItems';
 import { hasCompleteMailingAddress } from '../app/dispute-wizard/components/DisputeWizardContent';
 
 describe('dispute wizard account deduplication', () => {
@@ -34,6 +34,18 @@ describe('dispute wizard account deduplication', () => {
 });
 
 describe('dispute wizard letter generation requirements', () => {
+  it('preserves each distinct account date for the wizard and letter', () => {
+    expect(getDisputeItemDates({
+      date_opened: '2026-03-09',
+      date_reported: '',
+      date_last_activity: '2026-06-16',
+    })).toEqual({
+      dateOpened: '2026-03-09',
+      dateReported: '',
+      dateLastActivity: '2026-06-16',
+    });
+  });
+
   it('requires a complete mailing address before generating a real letter', () => {
     expect(hasCompleteMailingAddress('123 Main Street', 'Atlanta', 'GA', '30301')).toBe(true);
     expect(hasCompleteMailingAddress('', 'Atlanta', 'GA', '30301')).toBe(false);

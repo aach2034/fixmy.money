@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   INVALID_DATE_GENERATION_ERROR,
   isUnsupportedDateDraft,
+  repairUnsupportedMissingReportingDateDraft,
   repairUnsupportedFutureDateDraft,
   type DraftDateItem,
 } from '@/lib/creditReport/staleDrafts';
@@ -151,20 +152,21 @@ export default function DisputeLetterContent() {
       if (dateItemsError) throw dateItemsError;
 
       const repairedRows = await Promise.all((data ?? []).map(async row => {
-        const repaired = repairUnsupportedFutureDateDraft(row, (dateItems ?? []) as DraftDateItem[]);
+        const repaired = repairUnsupportedMissingReportingDateDraft(row)
+          ?? repairUnsupportedFutureDateDraft(row, (dateItems ?? []) as DraftDateItem[]);
         if (!repaired) return row;
 
         const { error: repairError } = await supabase
           .from('dispute_letters')
           .update({
-            generation_error: INVALID_DATE_GENERATION_ERROR,
+            generation_error: repaired.generation_error ?? INVALID_DATE_GENERATION_ERROR,
           })
           .eq('id', row.id)
           .eq('owner_id', user.id)
           .eq('letter_status', 'draft')
           .eq('auto_generated', true);
         if (repairError) throw repairError;
-        return { ...row, generation_error: INVALID_DATE_GENERATION_ERROR };
+        return { ...row, generation_error: repaired.generation_error ?? INVALID_DATE_GENERATION_ERROR };
       }));
 
       setLetters(repairedRows.map(mapRow));

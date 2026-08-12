@@ -10,8 +10,17 @@ export interface DisputeSourceRow {
   amount?: number | string | null;
   date_opened?: string | null;
   date_reported?: string | null;
+  date_last_activity?: string | null;
   status?: string | null;
   parser_confidence?: number | null;
+}
+
+export function getDisputeItemDates(row: DisputeSourceRow) {
+  return {
+    dateOpened: String(row.date_opened ?? '').trim(),
+    dateReported: String(row.date_reported ?? '').trim(),
+    dateLastActivity: String(row.date_last_activity ?? '').trim(),
+  };
 }
 
 function normalized(value: unknown): string {

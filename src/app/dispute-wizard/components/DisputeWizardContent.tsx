@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { ChevronRight, ChevronLeft, User, Building2, FileText, AlertTriangle, CheckCircle2, Paperclip, Send, Clock, Info, Loader2 } from 'lucide-react';
 
 import { useSearchParams } from 'next/navigation';
-import { deduplicateDisputeRows } from '@/lib/creditReport/disputeItems';
+import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 
 
@@ -20,8 +20,17 @@ interface WizardDisputeItem {
   rankingReason: string;
   creditorName: string;
   accountNumber: string;
+  dateOpened: string;
+  dateReported: string;
+  dateLastActivity: string;
   source: 'negative_items' | 'client_disputes';
 }
+
+const accountDateSummary = (item: Pick<WizardDisputeItem, 'dateOpened' | 'dateReported' | 'dateLastActivity'>) => [
+  item.dateOpened && `Opened: ${item.dateOpened}`,
+  item.dateReported && `Reported: ${item.dateReported}`,
+  item.dateLastActivity && `Last activity: ${item.dateLastActivity}`,
+].filter(Boolean).join(' | ');
 
 const BUREAUS = ['Equifax', 'Experian', 'TransUnion'];
 
@@ -202,6 +211,7 @@ export default function DisputeWizardContent() {
             rankingReason: d.dispute_reason ?? d.negative_reason ?? '',
             creditorName: d.creditor_name ?? 'Unknown',
             accountNumber: d.account_number_masked ?? '',
+            ...getDisputeItemDates(d),
             source: 'negative_items',
           })));
         } else {
@@ -223,6 +233,7 @@ export default function DisputeWizardContent() {
             rankingReason: d.dispute_reason ?? d.negative_reason ?? d.negative_item_type ?? '',
             creditorName: d.creditor_name ?? 'Unknown',
             accountNumber: d.account_number ?? '',
+            ...getDisputeItemDates(d),
             source: 'client_disputes',
           })));
         }
@@ -280,12 +291,13 @@ export default function DisputeWizardContent() {
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       const clientAddr = `${clientAddress.trim()}\n${clientCity.trim()}, ${clientState.trim().toUpperCase()} ${clientZip.trim()}`;
 
-      const itemsSection = selectedDisputeItems.map((item, i) =>
-        `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
+      const itemsSection = selectedDisputeItems.map((item, i) => {
+        const dates = accountDateSummary(item);
+        return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
    Type: ${item.type} | Amount: ${item.amount}
-   Dispute Reason: ${finalReason}
-   Requested Action: ${instruction}`
-      ).join('\n\n');
+   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Reason: ${finalReason}
+   Requested Action: ${instruction}`;
+      }).join('\n\n');
 
       const letterContent = `${selectedClient.name}
 ${clientAddr}
@@ -580,6 +592,7 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
                           <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{ranking.removalPotential} removal potential</span>
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">{item.type} · {item.amount}</p>
+                        {accountDateSummary(item) && <p className="mt-1 text-xs text-muted-foreground">{accountDateSummary(item)}</p>}
                         <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Why ranked here:</span> {ranking.why}</p>
                       </div>
                     </button>

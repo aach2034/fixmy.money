@@ -1,4 +1,5 @@
 import { currentIsoDate, isFalseFutureDateClaim } from './dateValidation';
+import { isUnsupportedMissingReportingDateClaim } from './dateValidation';
 
 export interface DraftDateItem {
   client_id?: string | null;
@@ -21,11 +22,22 @@ const CLAIMED_ITEM = /^#\d+\s+(.+?)\s+\([^)]+\):\s*(.+)$/;
 export const INVALID_DATE_DRAFT_NOTICE = 'This AI rationale was removed because its future-date claims were not supported by the saved reporting dates. Regenerate the draft before using it.';
 export const INVALID_DATE_LETTER_NOTICE = 'This draft is blocked because its date-based dispute reasons were not supported by the saved reporting dates. Regenerate the letter before printing or sending it.';
 export const INVALID_DATE_GENERATION_ERROR = 'Unsupported future-date rationale removed automatically';
+export const INVALID_MISSING_REPORTING_DATE_GENERATION_ERROR = 'Unsupported missing-reporting-date rationale removed automatically';
 
 export function isUnsupportedDateDraft(draft: StoredDraft): boolean {
   return draft.generation_error === INVALID_DATE_GENERATION_ERROR
+    || draft.generation_error === INVALID_MISSING_REPORTING_DATE_GENERATION_ERROR
     || draft.dispute_reason === INVALID_DATE_DRAFT_NOTICE
     || draft.letter_content === INVALID_DATE_LETTER_NOTICE;
+}
+
+export function repairUnsupportedMissingReportingDateDraft(draft: StoredDraft): StoredDraft | null {
+  if (!draft.auto_generated || draft.letter_status !== 'draft') return null;
+  if (!isUnsupportedMissingReportingDateClaim(draft.dispute_reason)) return null;
+  return {
+    ...draft,
+    generation_error: INVALID_MISSING_REPORTING_DATE_GENERATION_ERROR,
+  };
 }
 
 function normalizedCreditor(value: unknown): string {

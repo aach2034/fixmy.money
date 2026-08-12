@@ -8,7 +8,7 @@ import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/Affilia
 import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliates/reportProviders';
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, isImageBasedPdf } from '@/lib/creditReport/pdfUtils';
-import { currentIsoDate, isFalseFutureDateClaim } from '@/lib/creditReport/dateValidation';
+import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
 
 type SavedReportItem = {
@@ -19,7 +19,9 @@ type SavedReportItem = {
   negative_category: string | null;
   negative_reason: string | null;
   balance: number | null;
+  date_opened?: string | null;
   date_reported: string | null;
+  date_last_activity?: string | null;
   parser_confidence: number | null;
   is_negative?: boolean | null;
 };
@@ -54,10 +56,17 @@ function buildAutomaticDraft(params: {
   const address = params.client.address
     ? `${params.client.address}\n${params.client.city || ''}, ${params.client.state || ''} ${params.client.zip || ''}`
     : '[Client Address — add and verify before use]';
-  const items = params.selections.map(({ item, opinion }, index) => `Item ${index + 1}: ${clean(item.creditor_name, 'Reported account')}${item.account_number_masked ? ` (Account: ${clean(item.account_number_masked)})` : ''}
+  const items = params.selections.map(({ item, opinion }, index) => {
+    const dates = [
+      item.date_opened && `Opened: ${clean(item.date_opened)}`,
+      item.date_reported && `Reported: ${clean(item.date_reported)}`,
+      item.date_last_activity && `Last activity: ${clean(item.date_last_activity)}`,
+    ].filter(Boolean).join(' | ');
+    return `Item ${index + 1}: ${clean(item.creditor_name, 'Reported account')}${item.account_number_masked ? ` (Account: ${clean(item.account_number_masked)})` : ''}
    Type: ${clean(item.negative_category, 'reported item').replaceAll('_', ' ')}
-   Dispute Reason: ${clean(opinion.disputeReason, 'Review the reported information for accuracy')}
-   Requested Action: ${clean(opinion.requestedAction, 'Investigate and correct or delete if unverifiable')}`).join('\n\n');
+   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Reason: ${clean(opinion.disputeReason, 'Review the reported information for accuracy')}
+   Requested Action: ${clean(opinion.requestedAction, 'Investigate and correct or delete if unverifiable')}`;
+  }).join('\n\n');
 
   return `${params.client.name}
 ${address}
@@ -838,7 +847,7 @@ export default function CreditReportImportContent() {
       });
       const savedItems: SavedReportItem[] = [];
       if (accountRows.length > 0) {
-        const { data: insertedAccounts, error: accountInsertError } = await supabase.from('negative_items').insert(accountRows).select('id, bureau, creditor_name, account_number_masked, negative_category, negative_reason, balance, date_reported, parser_confidence, is_negative');
+        const { data: insertedAccounts, error: accountInsertError } = await supabase.from('negative_items').insert(accountRows).select('id, bureau, creditor_name, account_number_masked, negative_category, negative_reason, balance, date_opened, date_reported, date_last_activity, parser_confidence, is_negative');
         if (accountInsertError) throw new Error(`Report saved, but account items failed to save: ${accountInsertError.message}`);
         savedItems.push(...((insertedAccounts ?? []).filter((item: any) => item.is_negative === true) as SavedReportItem[]));
       }
@@ -902,7 +911,9 @@ export default function CreditReportImportContent() {
           bureau: item.bureau,
           category: item.negative_category,
           balance: item.balance,
+          dateOpened: item.date_opened,
           dateReported: item.date_reported,
+          dateLastActivity: item.date_last_activity,
           reportedIssue: item.negative_reason,
           parserConfidence: item.parser_confidence,
         }));
@@ -917,7 +928,7 @@ export default function CreditReportImportContent() {
             messages: [
               {
                 role: 'system',
-                content: `You review parsed credit-report items for a credit-repair business. Today's date is ${analysisDate}. Select and rank at most 5 candidates that present the strongest specific, factual, and verifiable dispute opportunities. A reporting date is in the future only when it is later than ${analysisDate}; never compare it with your training cutoff. Do not select an item merely because it is negative, and never invent an inaccuracy or promise an outcome. Return JSON only: {"summary":"2 concise sentences","selections":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","why":"why this item was selected","disputeReason":"a narrow factual reason using only supplied facts","requestedAction":"investigate and correct or delete if unverifiable"}]}.`,
+                content: `You review parsed credit-report items for a credit-repair business. Today's date is ${analysisDate}. Select and rank at most 5 candidates that present the strongest specific, factual, and verifiable dispute opportunities. dateOpened, dateReported, and dateLastActivity are separate fields and must never be conflated. An empty dateReported field alone is not a dispute opportunity and must not be selected. A reporting date is in the future only when it is later than ${analysisDate}; never compare it with your training cutoff. Do not select an item merely because it is negative, and never invent an inaccuracy or promise an outcome. Return JSON only: {"summary":"2 concise sentences","selections":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","why":"why this item was selected","disputeReason":"a narrow factual reason using only supplied facts","requestedAction":"investigate and correct or delete if unverifiable"}]}.`,
               },
               {
                 role: 'user',
@@ -934,9 +945,10 @@ export default function CreditReportImportContent() {
           .filter(selection => Number.isInteger(selection.candidate) && selection.candidate >= 1 && selection.candidate <= reliableSavedItems.length)
           .filter(selection => {
             const item = reliableSavedItems[selection.candidate - 1];
-            return !isFalseFutureDateClaim(
+            const explanation = `${selection.why || ''} ${selection.disputeReason || ''}`;
+            return !isUnsupportedMissingReportingDateClaim(explanation) && !isFalseFutureDateClaim(
               item?.date_reported,
-              `${selection.why || ''} ${selection.disputeReason || ''}`,
+              explanation,
               analysisDate,
             );
           })

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractCreditReportDate,
   isFalseFutureDateClaim,
+  isUnsupportedMissingReportingDateClaim,
   normalizeCreditReportDate,
 } from '../lib/creditReport/dateValidation';
 
@@ -47,5 +48,11 @@ describe('credit report date validation', () => {
       'The account has a reporting date in the future.',
       '2026-08-12',
     )).toBe(true);
+  });
+
+  it('rejects missing-reporting-date rationales as unsupported dispute claims', () => {
+    expect(isUnsupportedMissingReportingDateClaim('The reporting date is missing, making the information unverifiable.')).toBe(true);
+    expect(isUnsupportedMissingReportingDateClaim('No date reported appears for this account.')).toBe(true);
+    expect(isUnsupportedMissingReportingDateClaim('The date last active differs from the consumer statement.')).toBe(false);
   });
 });

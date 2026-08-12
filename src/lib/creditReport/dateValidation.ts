@@ -1,4 +1,5 @@
 const FUTURE_DATE_CLAIM = /\b(?:future(?:-dated)?|in the future|after (?:today|the current date)|has not (?:yet )?occurred)\b/i;
+const MISSING_REPORTING_DATE_CLAIM = /(?:\b(?:reporting date|reported date|date reported)\b.{0,60}\b(?:missing|blank|absent|omitted|not (?:provided|reported|listed|shown|available))\b|\b(?:missing|blank|absent|omitted|no)\b.{0,60}\b(?:reporting date|reported date|date reported)\b)/i;
 
 const MONTHS: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
@@ -70,4 +71,8 @@ export function isFalseFutureDateClaim(
   const reported = normalizeCreditReportDate(dateReported);
   const reference = normalizeCreditReportDate(today);
   return Boolean(reported && reference && reported <= reference);
+}
+
+export function isUnsupportedMissingReportingDateClaim(explanation: unknown): boolean {
+  return typeof explanation === 'string' && MISSING_REPORTING_DATE_CLAIM.test(explanation);
 }

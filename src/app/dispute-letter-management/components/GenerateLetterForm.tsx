@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { CheckSquare, Square, Loader2, Download, Printer, X, AlertTriangle, FileText, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getChatCompletion } from '@/lib/ai/chatCompletion';
-import { deduplicateDisputeRows } from '@/lib/creditReport/disputeItems';
+import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -41,8 +41,17 @@ interface DisputeItem {
   creditorName: string;
   accountNumber: string;
   reportingStatus?: string;
+  dateOpened: string;
+  dateReported: string;
+  dateLastActivity: string;
   source: 'negative_items' | 'client_disputes';
 }
+
+const accountDateSummary = (item: Pick<DisputeItem, 'dateOpened' | 'dateReported' | 'dateLastActivity'>) => [
+  item.dateOpened && `Opened: ${item.dateOpened}`,
+  item.dateReported && `Reported: ${item.dateReported}`,
+  item.dateLastActivity && `Last activity: ${item.dateLastActivity}`,
+].filter(Boolean).join(' | ');
 
 interface ValidationIssue {
   field: string;
@@ -188,12 +197,14 @@ function buildFallbackLetter(params: {
     const statusLine = item.reportingStatus
       ? `\n   Reporting Status: ${item.reportingStatus}`
       : '';
+    const dates = accountDateSummary(item);
+    const dateLine = dates ? `\n   Report Dates: ${dates}` : '';
     return `Item ${i + 1}:
    Creditor / Furnisher: ${item.creditorName}
    ${acctDisplay}
    Item Type: ${item.type}
    Amount Reported: ${item.amount}
-   Dispute Reason: ${item.disputeReason || 'This item is inaccurate, incomplete, or unverifiable and must be investigated.'}${statusLine}`;
+   Dispute Reason: ${item.disputeReason || 'This item is inaccurate, incomplete, or unverifiable and must be investigated.'}${statusLine}${dateLine}`;
   }).join('\n\n');
 
   const docsSection = `SUPPORTING DOCUMENTS ENCLOSED:
@@ -535,7 +546,8 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           template: 'FCRA Section 611',
           creditorName: d.creditor_name ?? 'Unknown Creditor',
           accountNumber: d.account_number_masked ?? '',
-          reportingStatus: d.account_status ?? '',
+          reportingStatus: d.status ?? d.account_status ?? '',
+          ...getDisputeItemDates(d),
           source: 'negative_items',
         }));
 
@@ -560,8 +572,9 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
             template: d.dispute_letter_template ?? 'FCRA Section 611',
             creditorName: d.creditor_name ?? 'Unknown Creditor',
             accountNumber: d.account_number ?? '',
-            reportingStatus: d.reporting_status ?? '',
-            source: 'client_disputes',
+          reportingStatus: d.reporting_status ?? '',
+          ...getDisputeItemDates(d),
+          source: 'client_disputes',
           }));
         }
         setDisputeItems(items);
@@ -623,7 +636,8 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
    Item Type: ${item.type}
    Amount: ${item.amount}
    Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}
-   ${item.reportingStatus ? `Reporting Status: ${item.reportingStatus}` : ''}`
+   ${item.reportingStatus ? `Reporting Status: ${item.reportingStatus}` : ''}
+   ${accountDateSummary(item) ? `Report Dates: ${accountDateSummary(item)}` : ''}`
     ).join('\n\n');
 
     return `You are a professional credit dispute letter writer. Generate a complete, formal, legally-grounded credit dispute letter using EXACTLY the following information. Do NOT use placeholder brackets like [YOUR ADDRESS] — use the actual data provided.

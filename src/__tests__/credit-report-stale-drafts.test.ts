@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   INVALID_DATE_DRAFT_NOTICE,
   INVALID_DATE_GENERATION_ERROR,
+  INVALID_MISSING_REPORTING_DATE_GENERATION_ERROR,
   INVALID_DATE_LETTER_NOTICE,
   isUnsupportedDateDraft,
+  repairUnsupportedMissingReportingDateDraft,
   repairUnsupportedFutureDateDraft,
 } from '../lib/creditReport/staleDrafts';
 
@@ -17,7 +19,25 @@ describe('stored future-date draft repair', () => {
     expect(isUnsupportedDateDraft({ id: 'legacy-rationale', dispute_reason: INVALID_DATE_DRAFT_NOTICE })).toBe(true);
     expect(isUnsupportedDateDraft({ id: 'legacy-letter', letter_content: INVALID_DATE_LETTER_NOTICE })).toBe(true);
     expect(isUnsupportedDateDraft({ id: 'flagged', generation_error: INVALID_DATE_GENERATION_ERROR })).toBe(true);
+    expect(isUnsupportedDateDraft({ id: 'missing-date', generation_error: INVALID_MISSING_REPORTING_DATE_GENERATION_ERROR })).toBe(true);
     expect(isUnsupportedDateDraft({ id: 'ready', letter_content: 'Valid letter' })).toBe(false);
+  });
+
+  it('blocks an auto-generated draft that treats an empty reporting-date cell as a dispute', () => {
+    const repaired = repairUnsupportedMissingReportingDateDraft({
+      id: 'letter-2',
+      auto_generated: true,
+      letter_status: 'draft',
+      dispute_reason: 'The reporting date is missing, making the information unverifiable.',
+    });
+
+    expect(repaired?.generation_error).toBe(INVALID_MISSING_REPORTING_DATE_GENERATION_ERROR);
+    expect(repairUnsupportedMissingReportingDateDraft({
+      id: 'manual',
+      auto_generated: false,
+      letter_status: 'draft',
+      dispute_reason: 'The reporting date is missing.',
+    })).toBeNull();
   });
 
   it('blocks an existing draft when every claimed future date is already valid', () => {
