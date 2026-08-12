@@ -104,7 +104,7 @@ export default async function BlogArticlePage({ params }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleStructuredData) }}
@@ -145,7 +145,7 @@ export default async function BlogArticlePage({ params }: Props) {
       </div>
 
       {/* Article Header */}
-      <header className="py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
+      <header className="a11y-dark py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xs font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full">
@@ -194,9 +194,9 @@ export default async function BlogArticlePage({ params }: Props) {
                   ))}
                 </ol>
               </div>
-              <div className="mt-4 bg-blue-600 rounded-2xl p-5 text-white">
+              <div className="mt-4 bg-blue-700 rounded-2xl p-5 text-white">
                 <p className="text-sm font-bold mb-2">Ready to get started?</p>
-                <p className="text-xs text-blue-100 mb-3">14-day trial for $1. Payment method required.</p>
+                <p className="text-xs text-white mb-3">14-day trial for $1. Payment method required.</p>
                 <Link href="/sign-up-login-screen?tab=register" className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
                   Start $1 Trial
                 </Link>
@@ -301,7 +301,7 @@ export default async function BlogArticlePage({ params }: Props) {
             </div>
 
             {/* CTA */}
-            <div className="mt-8 bg-gradient-to-br from-slate-900 to-blue-950 rounded-2xl p-6 text-white">
+            <div className="a11y-dark mt-8 bg-gradient-to-br from-slate-900 to-blue-950 rounded-2xl p-6 text-white">
               <h3 className="text-lg font-extrabold mb-2">{article.cta.heading}</h3>
               <p className="text-slate-300 text-sm mb-4">{article.cta.body}</p>
               <div className="flex flex-wrap gap-3">

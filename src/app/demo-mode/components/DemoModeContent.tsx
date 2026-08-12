@@ -635,10 +635,10 @@ export default function DemoModeContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light min-h-screen bg-slate-50 flex flex-col" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <h1 className="sr-only">FixMy.Money interactive product demo</h1>
       {/* Top Bar */}
-      <div className="bg-slate-900 text-white px-4 py-2 flex items-center justify-between sticky top-0 z-50">
+      <div className="a11y-dark bg-slate-900 text-white px-4 py-2 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <button
             className="lg:hidden text-slate-400 hover:text-white"

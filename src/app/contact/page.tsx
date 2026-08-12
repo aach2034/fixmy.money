@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -34,7 +34,7 @@ export default function ContactPage() {
       </nav>
 
       {/* Hero */}
-      <section className="py-16 px-4 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
+      <section className="a11y-dark py-16 px-4 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Get in Touch</h1>
           <p className="text-xl text-slate-300">We&apos;re here to help. Reach out anytime.</p>
@@ -70,7 +70,7 @@ export default function ContactPage() {
               </p>
               <Link
                 href="/demo"
-                className="inline-flex items-center gap-2 text-sm font-bold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-500 transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-bold bg-emerald-700 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-800 transition-colors"
               >
                 Schedule Demo <ArrowRight size={14} />
               </Link>
@@ -99,7 +99,7 @@ export default function ContactPage() {
               <p className="text-sm text-slate-600 mb-4 leading-relaxed">
                 Found a security vulnerability? Please report it responsibly. We take all security reports seriously.
               </p>
-              <a href="mailto:security@fixmy.money" className="text-amber-600 font-semibold hover:text-amber-700 text-sm">
+              <a href="mailto:security@fixmy.money" className="text-amber-800 font-semibold hover:text-amber-900 text-sm">
                 security@fixmy.money
               </a>
             </div>
@@ -123,7 +123,7 @@ export default function ContactPage() {
           </div>
 
           {/* Founding Agency */}
-          <div className="bg-slate-900 rounded-2xl p-6 text-center">
+          <div className="a11y-dark bg-slate-900 rounded-2xl p-6 text-center">
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-full mb-4">
               Now Accepting Founding Agencies
             </div>

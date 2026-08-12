@@ -286,3 +286,24 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* Keep muted copy readable across the public site's light and dark surfaces. */
+.a11y-light .text-slate-400,
+.a11y-light .text-slate-500 {
+  color: #475569;
+}
+
+.a11y-light .a11y-dark .text-slate-400,
+.a11y-light .a11y-dark .text-slate-500,
+.a11y-light .a11y-dark .text-slate-600,
+.a11y-light .a11y-dark .text-slate-700,
+.a11y-dark .text-slate-400,
+.a11y-dark .text-slate-500,
+.a11y-dark .text-slate-600,
+.a11y-dark .text-slate-700 {
+  color: #cbd5e1;
+}
+
+.a11y-dark .bg-violet-500 {
+  background-color: #6d28d9;
+}

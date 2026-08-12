@@ -109,7 +109,7 @@ export default function PricingContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -125,7 +125,7 @@ export default function PricingContent() {
       </nav>
 
       {/* Hero */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
+      <section className="a11y-dark py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
             Transparent Pricing
@@ -368,7 +368,7 @@ export default function PricingContent() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 px-4 bg-slate-900 text-center">
+      <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
           <p className="text-slate-400 mb-8">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>

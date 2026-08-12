@@ -143,7 +143,7 @@ const COMPLIANCE_FEATURES = [
 
 export default function CROAWorkflowPage() {
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* Nav */}
       <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -159,7 +159,7 @@ export default function CROAWorkflowPage() {
       </nav>
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-slate-950 to-[#0d1f3c] py-20 px-4">
+      <section className="a11y-dark bg-gradient-to-br from-slate-950 to-[#0d1f3c] py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
             <Shield size={13} />
@@ -308,7 +308,7 @@ export default function CROAWorkflowPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 px-4 bg-slate-900 text-center">
+      <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">
             Build your credit repair agency on solid operational foundations
