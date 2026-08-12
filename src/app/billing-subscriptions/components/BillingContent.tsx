@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { PLANS } from '@/lib/stripe/plans';
+import { hasActiveSubscription } from '@/lib/subscription/access';
 
 type Subscription = {
   stripe_customer_id: string | null;
@@ -23,8 +24,6 @@ type ClientBilling = {
   subscription_status: 'paid' | 'overdue' | 'pending' | null;
 };
 
-const ACTIVE = new Set(['active', 'trialing', 'trial_active']);
-
 export default function BillingContent() {
   const { user } = useAuth();
   const supabase = useMemo(() => createClient(), []);
@@ -38,13 +37,15 @@ export default function BillingContent() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const [profile, clientRows] = await Promise.all([
-        supabase.from('user_profiles').select('stripe_customer_id, subscription_status, subscription_plan, trial_end').eq('id', user.id).single(),
-        supabase.from('staff_clients').select('id, name, email, plan, subscription_status').eq('owner_id', user.id).order('name'),
-      ]);
+      const profile = await supabase.from('user_profiles').select('stripe_customer_id, subscription_status, subscription_plan, trial_end').eq('id', user.id).single();
       if (profile.error) toast.error('Could not load your subscription.');
       setSubscription(profile.data as Subscription | null);
-      setClients((clientRows.data ?? []) as ClientBilling[]);
+      if (hasActiveSubscription(profile.data?.subscription_status)) {
+        const clientRows = await supabase.from('staff_clients').select('id, name, email, plan, subscription_status').eq('owner_id', user.id).order('name');
+        setClients((clientRows.data ?? []) as ClientBilling[]);
+      } else {
+        setClients([]);
+      }
       setLoading(false);
     })();
   }, [supabase, user]);
@@ -76,7 +77,7 @@ export default function BillingContent() {
   };
 
   const status = subscription?.subscription_status || 'inactive';
-  const isActive = ACTIVE.has(status);
+  const isActive = hasActiveSubscription(status);
   const paid = clients.filter(c => c.subscription_status === 'paid').length;
   const overdue = clients.filter(c => c.subscription_status === 'overdue').length;
   const pending = clients.filter(c => !c.subscription_status || c.subscription_status === 'pending').length;
@@ -121,7 +122,7 @@ export default function BillingContent() {
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      {isActive && <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Client billing tracker</p><h2 className="text-lg font-bold text-slate-900 mt-1">Payments your clients owe your business</h2><p className="text-sm text-slate-500 mt-1">Only real client records from this workspace appear here.</p></div>
           <Link href="/client-management" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"><Plus size={15}/>Add client</Link>
@@ -134,7 +135,7 @@ export default function BillingContent() {
         {clients.length ? <div className="mt-5 divide-y divide-slate-100">
           {clients.map(client => <div key={client.id} className="py-3 flex items-center gap-3"><div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><Users size={16}/></div><div className="flex-1"><p className="text-sm font-semibold text-slate-900">{client.name}</p><p className="text-xs text-slate-500">{client.email || 'No email'} · {client.plan || 'No service plan'}</p></div><span className={`text-xs font-bold rounded-full px-2.5 py-1 ${client.subscription_status === 'paid' ? 'bg-emerald-100 text-emerald-700' : client.subscription_status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{client.subscription_status || 'pending'}</span></div>)}
         </div> : <div className="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center"><Users className="mx-auto text-slate-300"/><p className="font-semibold text-slate-700 mt-3">No client billing records yet</p><p className="text-sm text-slate-500 mt-1">Add a client to begin tracking their payment status.</p></div>}
-      </section>
+      </section>}
     </div>
   );
 }
