@@ -710,4 +710,41 @@ describe('HTML report and inquiry evidence safety', () => {
       balance: 250,
     });
   });
+
+  it('preserves HTML tri-bureau columns and assigns negative status per bureau', () => {
+    const result = parseCreditReport(`
+      <html><body>
+        <h1>MyScoreIQ Three Bureau Credit Report</h1>
+        <h2>Account History</h2>
+        <div class="sub_header">TEST BANK</div>
+        <table>
+          <tr><th></th><th>TransUnion</th><th>Experian</th><th>Equifax</th></tr>
+          <tr><td>Account #:</td><td>XXXX1111</td><td>XXXX2222</td><td>XXXX3333</td></tr>
+          <tr><td>Account Type:</td><td>Revolving</td><td>Revolving</td><td>Revolving</td></tr>
+          <tr><td>Account Status:</td><td>Open</td><td>Open</td><td>Open</td></tr>
+          <tr><td>Balance:</td><td>$25.00</td><td>$100.00</td><td>$50.00</td></tr>
+          <tr><td>Past Due:</td><td>$0.00</td><td>$100.00</td><td>$0.00</td></tr>
+          <tr><td>Payment Status:</td><td>Current</td><td>60 days past due</td><td>NotsatisfyingF20_TRADE</td></tr>
+          <tr><td>Date Opened:</td><td>01/02/2020</td><td>01/02/2020</td><td>01/02/2020</td></tr>
+          <tr><td>Last Reported:</td><td>06/01/2026</td><td>06/02/2026</td><td>06/03/2026</td></tr>
+        </table>
+        <h2>Inquiries</h2>
+        <table>
+          <tr><th>Creditor Name</th><th>Type of Business</th><th>Date of inquiry</th><th>Credit Bureau</th></tr>
+          <tr><td>TEST LENDER</td><td>Bank</td><td>05/04/2026</td><td>Experian</td></tr>
+        </table>
+        <h2>Public Information</h2>
+      </body></html>
+    `);
+
+    expect(result.accounts).toHaveLength(3);
+    expect(result.accounts.map(account => [account.bureau, account.status, account.isNegative])).toEqual([
+      ['TransUnion', 'Current', false],
+      ['Experian', '60 days past due', true],
+      ['Equifax', 'Open', false],
+    ]);
+    expect(result.inquiries).toEqual([
+      expect.objectContaining({ creditor: 'TEST LENDER', bureau: 'Experian', date: '2026-05-04', type: 'hard' }),
+    ]);
+  });
 });

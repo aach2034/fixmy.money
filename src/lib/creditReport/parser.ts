@@ -101,6 +101,7 @@ export function safeNormalizeText(raw: string): string {
       safe = safe
         .replace(/<!--[\s\S]*?-->/g, ' ')
         .replace(/<(?:script|style|noscript|template)\b[^>]*>[\s\S]*?<\/(?:script|style|noscript|template)>/gi, ' ')
+        .replace(/[\r\n]+/g, ' ')
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/<\/(?:td|th)\s*>/gi, '\t')
         .replace(/<\/(?:p|div|li|tr|section|article|header|footer|h[1-6])\s*>/gi, '\n')
@@ -113,7 +114,7 @@ export function safeNormalizeText(raw: string): string {
         .replace(/&gt;/gi, '>')
         .replace(/&quot;/gi, '"')
         .replace(/&#39;|&apos;/gi, "'");
-      safe = safe.split('\n').map(line => line.trim()).filter(Boolean).join('\n');
+      safe = safe.replace(/ *\t */g, '\t').split('\n').map(line => line.trim()).filter(Boolean).join('\n');
     }
 
     // Step 2: Apply NFKC normalization (compatibility decomposition + canonical composition)
@@ -151,7 +152,7 @@ export function safeNormalizeText(raw: string): string {
     safe = safe.replace(/\n{4,}/g, '\n\n\n');
 
     // Step 11: Collapse runs of spaces/tabs within a line (but not newlines)
-    safe = safe.replace(/[ \t]{3,}/g, '  ');
+    safe = safe.replace(/ {3,}/g, '  ');
 
     return safe;
   } catch {
@@ -1058,6 +1059,13 @@ function triBureauTokens(value: string | null, pattern: RegExp): string[] {
   return value ? (value.match(pattern) ?? []).slice(0, 3) : [];
 }
 
+function triBureauCells(block: string, label: RegExp): string[] {
+  const line = block.split('\n').find(candidate => label.test(candidate.trim()));
+  if (!line) return [];
+  const cells = line.replace(label, '').split(/\t+/).map(value => value.trim());
+  return cells.length === 3 ? cells : [];
+}
+
 function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccount[] {
   if (!/transunion\s+experian\s+equifax/i.test(block)) return [base];
 
@@ -1074,6 +1082,11 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
   const opened = triBureauTokens(triBureauLine(block, /^date\s+opened\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const reported = triBureauTokens(triBureauLine(block, /^(?:last\s+reported|date\s+reported)\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const lastActive = triBureauTokens(triBureauLine(block, /^date\s+last\s+active\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const accountTypes = triBureauCells(block, /^account\s+type\s*:\s*/i);
+  const accountStatuses = triBureauCells(block, /^account\s+status\s*:\s*/i);
+  const paymentStatuses = triBureauCells(block, /^(?:payment|pay)\s+status\s*:\s*/i);
+  const responsibilities = triBureauCells(block, /^(?:bureau\s+code|responsibility)\s*:\s*/i);
+  const comments = triBureauCells(block, /^(?:comments?|remarks?)\s*:\s*/i);
 
   const valueAt = (values: string[], index: number) => values.length === 3 ? values[index] : undefined;
   const amountAt = (values: string[], index: number, fallback: number | null) => {
@@ -1084,24 +1097,75 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
     const value = valueAt(values, index);
     return value === undefined ? fallback : value === '-' ? '' : extractDate(value);
   };
+  const textAt = (values: string[], index: number, fallback: string) => {
+    const value = valueAt(values, index);
+    return value === undefined ? fallback : value === '-' ? '' : value;
+  };
 
   return TRI_BUREAU_ORDER.flatMap((bureau, index) => {
     const accountNumber = accountNumbers[index];
     if (!accountNumber || accountNumber === '-') return [];
+    const accountType = textAt(accountTypes, index, base.accountType);
+    const cleanStatus = (value: string) => /satisfyingf20_trade/i.test(value) ? '' : value;
+    const accountStatus = cleanStatus(textAt(accountStatuses, index, base.status));
+    const rawPaymentStatus = textAt(paymentStatuses, index, '');
+    const paymentStatus = cleanStatus(rawPaymentStatus);
+    const status = paymentStatus || accountStatus;
+    const responsibility = textAt(responsibilities, index, base.responsibility);
+    const comment = textAt(comments, index, '');
+    const remarks = comment ? [comment] : [];
+    const balance = amountAt(balances, index, base.balance);
+    const pastDueAmount = amountAt(pastDue, index, base.pastDue);
+    const dateOpened = dateAt(opened, index, base.dateOpened);
+    const partial: Partial<ParsedAccount> = {
+      creditorName: base.creditorName,
+      accountNumber,
+      accountType,
+      status,
+      balance,
+      pastDue: pastDueAmount,
+      remarks,
+      latePayments: [],
+      paymentHistory: '',
+    };
+    const collection = isCollectionAccount(partial);
+    const negative = isNegativeAccount(partial) || collection;
+    const negativeReason = negative ? (collection ? 'Collection account' : detectNegativeReason(partial)) : '';
+    const parserConfidence = [
+      20,
+      accountNumber ? 20 : 0,
+      accountType && accountType !== 'Unknown' ? 15 : 0,
+      status ? 15 : 0,
+      balance !== null ? 15 : 0,
+      dateOpened ? 15 : 0,
+    ].reduce((sum, value) => sum + value, 0);
+
     return [{
       ...base,
       id: `${base.creditorName}-${accountNumber}-${bureau}`.replace(/\s+/g, '-').toLowerCase(),
       accountNumber,
       accountNumberMasked: maskAccountNumber(accountNumber),
+      accountType,
+      status,
+      responsibility,
+      remarks,
       bureau,
       bureaus: [bureau],
-      balance: amountAt(balances, index, base.balance),
-      pastDue: amountAt(pastDue, index, base.pastDue),
+      balance,
+      pastDue: pastDueAmount,
       highBalance: amountAt(highCredit, index, base.highBalance),
       creditLimit: amountAt(creditLimit, index, base.creditLimit),
-      dateOpened: dateAt(opened, index, base.dateOpened),
+      dateOpened,
       dateReported: dateAt(reported, index, base.dateReported),
       dateLastActivity: dateAt(lastActive, index, base.dateLastActivity),
+      isNegative: negative,
+      negativeReason,
+      isCollection: collection,
+      isChargeOff: /charge.?off|charged off/i.test(`${accountType} ${status} ${remarks.join(' ')}`),
+      isLate: /\blate\b|\bpast due\b|\bdelinquent\b/i.test(`${status} ${remarks.join(' ')}`),
+      latePayments: [],
+      paymentHistory: '',
+      parserConfidence,
     }];
   });
 }
@@ -1126,10 +1190,15 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     // Find creditor name — look for first line that looks like a name
     // (not a label like "Account Type:", "Balance:", etc.)
     let creditorName = '';
+    const hasTriBureauHeader = lines.slice(1, 4).some(line => line.replace(/\s+/g, ' ').toLowerCase() === 'transunion experian equifax');
+
+    if (hasTriBureauHeader && isReadableText(lines[0])) {
+      creditorName = lines[0];
+    }
 
     // First try explicit label extraction
-    const creditorLabelMatch = block.match(/(?:creditor\s*name|account\s*name|furnisher|original\s*creditor)[:\s]+([^\n]+)/i);
-    if (creditorLabelMatch) {
+    const creditorLabelMatch = creditorName ? null : block.match(/(?:creditor\s*name|account\s*name|furnisher)[:\s]+([^\n]+)/i);
+    if (creditorLabelMatch && !creditorName) {
       const candidate = creditorLabelMatch[1].trim();
       if (isReadableText(candidate) && candidate.length > 1) {
         creditorName = candidate;
@@ -1155,6 +1224,8 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
         }
       }
     }
+
+    creditorName = creditorName.replace(/\s*\(\s*original\s+creditor\s*:.*\)\s*$/i, '').trim();
 
     if (!creditorName || !isReadableText(creditorName)) {
       console.debug('[ExtractAccountBlock] SKIP — no readable creditor name found. First 6 lines:', lines.slice(0, 6));
@@ -1654,13 +1725,20 @@ function extractAccounts(
 function extractInquiries(text: string): { inquiries: ParsedInquiry[]; confidence: number } {
   let inquiries: ParsedInquiry[] = [];
   try {
+    const reportLines = text.split('\n');
+    const inquiryStart = reportLines.findIndex(line => /^(?:hard inquiries|regular inquiries|credit inquiries|inquiries)$/i.test(line.trim()));
+    let inquiryText = '';
+    if (inquiryStart >= 0) {
+      const nextSection = reportLines.findIndex((line, index) => index > inquiryStart && /^(?:public information|public records?|creditor contacts?)$/i.test(line.trim()));
+      inquiryText = reportLines.slice(inquiryStart + 1, nextSection >= 0 ? nextSection : undefined).join('\n');
+    }
+
     const inquirySectionPatterns = [
       /(?:hard inquiries|regular inquiries|requests viewed by others|credit inquiries|inquiries shared with others|companies that requested your credit file|hard pulls|account review inquiries)[:\s]*([\s\S]+?)(?:\n{3,}|public records|end of report|personal information|$)/i,
       /(?:inquiries)[:\s]*([\s\S]+?)(?:\n{3,}|public records|end of report|$)/i,
     ];
 
-    let inquiryText = '';
-    for (const pattern of inquirySectionPatterns) {
+    for (const pattern of inquiryText ? [] : inquirySectionPatterns) {
       try {
         const match = text.match(pattern);
         if (match) { inquiryText = match[1]; break; }
@@ -1678,9 +1756,14 @@ function extractInquiries(text: string): { inquiries: ParsedInquiry[]; confidenc
         const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
         const bureau = extractBureau(line);
         const isHard = /hard/i.test(line) || !/soft/i.test(line);
+        const cells = line.split(/\t+/).map(value => value.trim()).filter(Boolean);
 
         const creditorMatch = line.match(/^([A-Za-z][A-Za-z\s&,.']{2,40}?)(?:\s+\d|\s+(?:equifax|experian|transunion))/i);
-        const creditor = creditorMatch?.[1]?.trim() ?? line.split(/\s{2,}/)[0]?.trim() ?? '';
+        const creditor = cells.length >= 3 && dateMatch
+          ? cells[0]
+          : dateMatch
+            ? line.replace(dateMatch[0], ' ').replace(/\b(?:equifax|experian|transunion|hard|soft)\b/gi, ' ').replace(/\s+/g, ' ').trim()
+            : creditorMatch?.[1]?.trim() ?? line.split(/\s{2,}/)[0]?.trim() ?? '';
 
         const inquiry: ParsedInquiry = {
             creditor,
@@ -2204,7 +2287,7 @@ export function parseCreditReport(
     return {
       provider,
       providerConfidence,
-      parserVersion: '3.7.0',
+      parserVersion: '3.8.0',
       parsedAt: new Date().toISOString(),
       reportDate,
       rawText: safeText,
@@ -2262,7 +2345,7 @@ export function parseCreditReport(
     return {
       provider: forceProvider ?? 'unknown',
       providerConfidence: 0,
-      parserVersion: '3.7.0',
+      parserVersion: '3.8.0',
       parsedAt: new Date().toISOString(),
       reportDate,
       rawText: safeText,
