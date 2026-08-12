@@ -223,6 +223,20 @@ describe('Checkout Route — Paid Trial Safety', () => {
     expect(source).toContain('ACTIVE_STATUSES');
     expect(source).toContain('subscription_status');
   });
+
+  it('uses dynamic payment methods and tags the checkout integration', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const routePath = path.resolve(
+      process.cwd(),
+      'src/app/api/stripe/create-checkout/route.ts'
+    );
+    const source = fs.readFileSync(routePath, 'utf-8');
+
+    expect(source).not.toContain('payment_method_types');
+    expect(source).toContain('integration_identifier');
+    expect(source).toContain('createIntegrationIdentifier');
+  });
 });
 
 // ─── 4. Professional Plan ID Usage ───────────────────────────────────────────
@@ -788,6 +802,30 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
       expect(source).toContain('STRIPE_WEBHOOK_SECRET');
       expect(source).not.toContain('NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET');
     }
+  });
+
+  it('email calls require a user session or server credential', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const emailPath = path.resolve(process.cwd(), 'src/lib/email/emailService.ts');
+    const source = fs.readFileSync(emailPath, 'utf-8');
+
+    expect(source).toContain('accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY');
+    expect(source).not.toContain('Authorization: `Bearer ${SUPABASE_ANON_KEY}`');
+  });
+
+  it('email edge function preserves JWT verification and restricts service calls', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const functionPath = path.resolve(
+      process.cwd(),
+      'supabase/functions/send-email/index.ts'
+    );
+    const source = fs.readFileSync(functionPath, 'utf-8');
+
+    expect(source).toContain('const isServiceRole = authHeader ===');
+    expect(source).toContain('Invalid or expired session');
+    expect(source).toContain('Recipient is not one of your clients');
   });
 });
 

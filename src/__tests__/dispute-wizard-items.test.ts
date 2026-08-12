@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deduplicateDisputeRows } from '../lib/creditReport/disputeItems';
+import { hasCompleteMailingAddress } from '../app/dispute-wizard/components/DisputeWizardContent';
 
 describe('dispute wizard account deduplication', () => {
   it('collapses repeated rows for the same creditor, account, and category', () => {
@@ -29,5 +30,14 @@ describe('dispute wizard account deduplication', () => {
     ]);
 
     expect(rows.map(row => row.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('dispute wizard letter generation requirements', () => {
+  it('requires a complete mailing address before generating a real letter', () => {
+    expect(hasCompleteMailingAddress('123 Main Street', 'Atlanta', 'GA', '30301')).toBe(true);
+    expect(hasCompleteMailingAddress('', 'Atlanta', 'GA', '30301')).toBe(false);
+    expect(hasCompleteMailingAddress('123 Main Street', 'Atlanta', 'G', '30301')).toBe(false);
+    expect(hasCompleteMailingAddress('123 Main Street', 'Atlanta', 'GA', '303')).toBe(false);
   });
 });

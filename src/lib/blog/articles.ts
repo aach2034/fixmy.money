@@ -2120,8 +2120,24 @@ FixMy.Money is designed to be the central tracking system for credit repair agen
   ...ADDITIONAL_SEO_ARTICLES,
 ];
 
+const LEGACY_BLOG_SLUG_ALIASES: Record<string, string> = {
+  'credit-repair-crm-features': 'credit-repair-crm-buyers-guide',
+  'how-to-document-completed-services': 'how-croa-billing-workflows-work',
+};
+
 export function getArticleBySlug(slug: string): Article | undefined {
-  return ARTICLES.find(a => a.slug === slug);
+  const article = ARTICLES.find(a => a.slug === slug);
+  if (article) return article;
+
+  const canonicalSlug = LEGACY_BLOG_SLUG_ALIASES[slug];
+  const aliasedArticle = canonicalSlug ? ARTICLES.find(a => a.slug === canonicalSlug) : undefined;
+  if (!aliasedArticle) return undefined;
+
+  return {
+    ...aliasedArticle,
+    slug,
+    canonicalUrl: `${BASE_URL}/blog/${slug}`,
+  };
 }
 
 export function getRelatedArticles(slugs: string[]): Article[] {
@@ -2129,5 +2145,5 @@ export function getRelatedArticles(slugs: string[]): Article[] {
 }
 
 export function getAllSlugs(): string[] {
-  return ARTICLES.map(a => a.slug);
+  return [...ARTICLES.map(a => a.slug), ...Object.keys(LEGACY_BLOG_SLUG_ALIASES)];
 }

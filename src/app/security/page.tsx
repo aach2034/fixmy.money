@@ -35,7 +35,7 @@ const SECURITY_SECTIONS = [
   {
     icon: UserCheck,
     title: 'Authentication',
-    body: 'FixMy.Money uses Supabase Auth for secure authentication. This includes email verification, session management, secure password handling, and support for Google OAuth. We recommend enabling two-factor authentication for all team accounts.',
+    body: 'FixMy.Money uses Supabase Auth for email verification, session management, and secure password handling. Authentication and authorization are enforced independently so a valid session never grants access to another workspace.',
   },
   {
     icon: Shield,
@@ -84,8 +84,8 @@ const SECURITY_SECTIONS = [
   },
   {
     icon: Phone,
-    title: 'Two-Factor Authentication',
-    body: 'Two-factor authentication is available through Google OAuth. We recommend all team members enable 2FA on their Google accounts when using Google sign-in. Native TOTP 2FA is on our roadmap.',
+    title: 'Account Security',
+    body: 'Use a unique password and protect access to your email account, which is required for verification and password recovery. Native TOTP multi-factor authentication is planned but is not currently offered in the application.',
   },
   {
     icon: AlertTriangle,

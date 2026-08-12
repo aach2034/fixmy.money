@@ -11,6 +11,28 @@ function getStripeInstance(): Stripe {
   return new Stripe(secretKey);
 }
 
+function stripeObjectId(value: string | { id: string } | null | undefined): string | undefined {
+  return typeof value === 'string' ? value : value?.id;
+}
+
+function subscriptionPeriodEnd(subscription: Stripe.Subscription): number | null {
+  const periodEnds = subscription.items.data
+    .map(item => item.current_period_end)
+    .filter((value): value is number => typeof value === 'number');
+  return periodEnds.length > 0 ? Math.max(...periodEnds) : null;
+}
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | undefined {
+  return stripeObjectId(invoice.parent?.subscription_details?.subscription);
+}
+
+function invoicePaymentIntentId(invoice: Stripe.Invoice): string | undefined {
+  const invoicePayment = invoice.payments?.data.find(
+    payment => payment.payment.type === 'payment_intent'
+  );
+  return stripeObjectId(invoicePayment?.payment.payment_intent);
+}
+
 async function getCustomerInfo(customerId: string): Promise<{ email: string; name: string }> {
   try {
     const stripe = getStripeInstance();
@@ -308,8 +330,9 @@ export async function POST(req: NextRequest) {
         if (wasTrialing && isNowActive && subscription.customer) {
           const { email, name } = await getCustomerInfo(subscription.customer as string);
           if (email) {
-            const renewalDate = subscription.current_period_end
-              ? formatDate(subscription.current_period_end)
+            const periodEnd = subscriptionPeriodEnd(subscription);
+            const renewalDate = periodEnd
+              ? formatDate(periodEnd)
               : '';
             await sendTransactionalEmail({
               type: 'subscription_started',
@@ -343,9 +366,10 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.created': {
         const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoiceSubscriptionId(invoice);
         await logBillingEvent('invoice.created', {
           stripeCustomerId: invoice.customer as string,
-          stripeSubscriptionId: invoice.subscription as string || undefined,
+          stripeSubscriptionId: subscriptionId,
           stripeInvoiceId: invoice.id,
           amount: invoice.amount_due,
           currency: invoice.currency,
@@ -357,9 +381,10 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.finalized': {
         const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoiceSubscriptionId(invoice);
         await logBillingEvent('invoice.finalized', {
           stripeCustomerId: invoice.customer as string,
-          stripeSubscriptionId: invoice.subscription as string || undefined,
+          stripeSubscriptionId: subscriptionId,
           stripeInvoiceId: invoice.id,
           amount: invoice.amount_due,
           currency: invoice.currency,
@@ -371,16 +396,18 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.customer && invoice.subscription) {
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        const paymentIntentId = invoicePaymentIntentId(invoice);
+        if (invoice.customer && subscriptionId) {
           await updateUserSubscription(invoice.customer as string, {
             subscription_status: 'active',
           });
         }
         await logBillingEvent('invoice.payment_succeeded', {
           stripeCustomerId: invoice.customer as string,
-          stripeSubscriptionId: invoice.subscription as string || undefined,
+          stripeSubscriptionId: subscriptionId,
           stripeInvoiceId: invoice.id,
-          stripePaymentIntentId: invoice.payment_intent as string || undefined,
+          stripePaymentIntentId: paymentIntentId,
           amount: invoice.amount_paid,
           currency: invoice.currency,
           status: 'succeeded',
@@ -391,6 +418,8 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        const paymentIntentId = invoicePaymentIntentId(invoice);
         if (invoice.customer) {
           await updateUserSubscription(invoice.customer as string, {
             subscription_status: 'past_due',
@@ -398,9 +427,9 @@ export async function POST(req: NextRequest) {
         }
         await logBillingEvent('invoice.payment_failed', {
           stripeCustomerId: invoice.customer as string,
-          stripeSubscriptionId: invoice.subscription as string || undefined,
+          stripeSubscriptionId: subscriptionId,
           stripeInvoiceId: invoice.id,
-          stripePaymentIntentId: invoice.payment_intent as string || undefined,
+          stripePaymentIntentId: paymentIntentId,
           amount: invoice.amount_due,
           currency: invoice.currency,
           status: 'failed',
@@ -448,13 +477,14 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.upcoming': {
         const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.customer && invoice.subscription) {
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        if (invoice.customer && subscriptionId) {
           const { email, name } = await getCustomerInfo(invoice.customer as string);
           if (email) {
             let plan = 'starter';
             try {
               const stripe = getStripeInstance();
-              const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
               plan = subscription.metadata?.plan || 'starter';
             } catch { /* non-blocking */ }
 

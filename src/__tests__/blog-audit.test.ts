@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { ARTICLES } from '../lib/blog/articles';
+import { ARTICLES, getAllSlugs, getArticleBySlug } from '../lib/blog/articles';
 
 // Long enough to be substantive while keeping operational guides scannable.
 const MIN_WORD_COUNT = 800;
@@ -106,6 +106,17 @@ describe('Blog Article Audit', () => {
     const urls = ARTICLES.map((a) => a.canonicalUrl);
     const unique = new Set(urls);
     expect(unique.size).toBe(ARTICLES.length);
+  });
+
+  it('keeps legacy public blog URLs available', () => {
+    for (const slug of ['credit-repair-crm-features', 'how-to-document-completed-services']) {
+      const article = getArticleBySlug(slug);
+      expect(article).toBeTruthy();
+      expect(article?.slug).toBe(slug);
+      expect(article?.canonicalUrl).toContain(slug);
+      expect(article?.disclaimer).toMatch(/informational|legal advice/i);
+      expect(getAllSlugs()).toContain(slug);
+    }
   });
 
   // ── Per-article checks ────────────────────────────────────────────────────

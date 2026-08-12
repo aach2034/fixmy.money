@@ -118,6 +118,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         providerConfidence: reportData.provider_confidence ?? 0,
         parserVersion: reportData.parser_version ?? '3.0.0',
         parsedAt: reportData.created_at,
+        reportDate: reportData.report_date ?? '',
         rawText: reportData.raw_text ?? '',
         personalInfo: reportData.personal_info ?? { name: '', nameVariations: [], ssn: '', dob: '', currentAddress: null, previousAddresses: [], employers: [], phones: [] },
         scores: reportData.scores ?? [],

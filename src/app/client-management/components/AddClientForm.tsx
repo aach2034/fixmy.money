@@ -219,7 +219,6 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
 
               // Build dispute records — one per negative item per bureau
               const disputeRows: any[] = [];
-              const letterRows: any[] = [];
               const responseDueDate = new Date();
               responseDueDate.setDate(responseDueDate.getDate() + 30);
               const dueDateStr = responseDueDate.toISOString().split('T')[0];
@@ -254,59 +253,12 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
                     days_remaining: 30,
                     auto_generated: true,
                   });
-
-                  // Also create a draft dispute letter per bureau
-                  const bureauShort: Record<string, string> = {
-                    Equifax: 'EQ',
-                    Experian: 'EX',
-                    TransUnion: 'TU',
-                  };
-                  const shortCode = bureauShort[bureau] ?? bureau.substring(0, 2).toUpperCase();
-                  const letterNum = Math.floor(Math.random() * 9000) + 1000;
-                  letterRows.push({
-                    owner_id: user.id,
-                    client_id: newClient.id,
-                    workspace_id: workspace?.id ?? null,
-                    analysis_id: analysisRecord?.id ?? null,
-                    letter_id: `${shortCode}-${letterNum}`,
-                    client_name: `${data.firstName} ${data.lastName}`.trim(),
-                    bureau,
-                    items_count: 1,
-                    round: 1,
-                    sent_date: new Date().toISOString().split('T')[0],
-                    response_due_date: dueDateStr,
-                    days_remaining: 30,
-                    letter_status: 'draft',
-                    assigned_staff: data.assignedStaff,
-                    template: item.dispute_letter_template ?? 'FCRA Section 611',
-                    dispute_reason: item.dispute_reason ?? '',
-                    creditor_name: item.creditor_name ?? '',
-                    account_number: item.account_number ?? '',
-                    negative_item_type: item.type ?? 'other',
-                    amount: item.amount ?? null,
-                    priority: item.priority ?? 'medium',
-                    auto_generated: true,
-                  });
                 }
               }
 
               // Insert client_disputes
               if (disputeRows.length > 0) {
                 await supabase.from('client_disputes').insert(disputeRows);
-              }
-
-              // Insert draft dispute letters (deduplicated by bureau)
-              if (letterRows.length > 0) {
-                // Group by bureau and merge items_count
-                const byBureau: Record<string, any> = {};
-                for (const row of letterRows) {
-                  if (!byBureau[row.bureau]) {
-                    byBureau[row.bureau] = { ...row };
-                  } else {
-                    byBureau[row.bureau].items_count += 1;
-                  }
-                }
-                await supabase.from('dispute_letters').insert(Object.values(byBureau));
               }
 
               // Update client active_disputes count
@@ -327,14 +279,15 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
 
       // Send welcome email (non-blocking)
       if (data.email) {
-        sendTransactionalEmail({
+        const { data: sessionData } = await supabase.auth.getSession();
+        void sendTransactionalEmail({
           type: 'client_notification',
           to: data.email,
           clientName: `${data.firstName} ${data.lastName}`,
           clientEmail: data.email,
           assignedStaff: data.assignedStaff,
           clientPlan: data.plan,
-        });
+        }, sessionData.session?.access_token);
       }
 
       onClose();

@@ -27,14 +27,24 @@ interface SendEmailOptions {
   clientPlan?: string;
 }
 
-export async function sendTransactionalEmail(options: SendEmailOptions): Promise<void> {
+export async function sendTransactionalEmail(
+  options: SendEmailOptions,
+  accessToken?: string
+): Promise<void> {
   const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/send-email`;
+  const authorizationToken = accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!authorizationToken) {
+    console.error(`[EmailService] Cannot send ${options.type}: no authenticated token is available.`);
+    return;
+  }
 
   const response = await fetch(edgeFunctionUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${authorizationToken}`,
     },
     body: JSON.stringify(options),
   });
@@ -47,7 +57,7 @@ export async function sendTransactionalEmail(options: SendEmailOptions): Promise
   }
 
   const result = await response.json();
-  console.log(`[EmailService] Sent ${options.type} email to ${options.to}, id: ${result.id}`);
+  console.log(`[EmailService] Sent ${options.type} email, id: ${result.id}`);
 }
 
 export function formatDate(timestamp: number): string {

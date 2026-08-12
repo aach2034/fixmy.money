@@ -13,6 +13,13 @@ function getStripeInstance(): Stripe {
 }
 
 const ACTIVE_STATUSES = ['trialing', 'active', 'trial_active'];
+const INTEGRATION_ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
+
+function createIntegrationIdentifier(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const suffix = Array.from(bytes, byte => INTEGRATION_ALPHABET[byte % INTEGRATION_ALPHABET.length]).join('');
+  return `fixmymoney_checkout_${suffix}`;
+}
 
 /** Validate that the requested plan is a self-serve checkout plan */
 function isValidCheckoutPlan(plan: string): plan is PlanId {
@@ -170,7 +177,7 @@ export async function POST(req: NextRequest) {
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customer.id,
-      payment_method_types: ['card'],
+      integration_identifier: createIntegrationIdentifier(),
       mode: 'subscription',
       line_items: lineItems,
       subscription_data: {

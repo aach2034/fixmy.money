@@ -67,7 +67,7 @@ function BlockedAction({ label }: { label: string }) {
                 Close
               </button>
               <Link href="/sign-up-login-screen?tab=register" className="flex-1 text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-lg text-center hover:bg-blue-700">
-                Start $1 Trial
+                Sign Up for $1 Trial
               </Link>
             </div>
           </div>
@@ -648,7 +648,7 @@ export default function DemoModeContent() {
         <div className="flex items-center gap-3">
           <DemoBadge />
           <Link href="/sign-up-login-screen?tab=register" className="hidden sm:flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-            Start $1 Trial <ArrowRight size={12} />
+            Sign Up for $1 Trial <ArrowRight size={12} />
           </Link>
           <Link href="/" className="text-slate-400 hover:text-white text-xs flex items-center gap-1">
             <X size={14} /> Exit Demo
@@ -681,7 +681,7 @@ export default function DemoModeContent() {
           </nav>
           <div className="p-3 border-t border-slate-100">
             <Link href="/sign-up-login-screen?tab=register" className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2.5 rounded-lg transition-colors">
-              Start $1 Trial <ArrowRight size={12} />
+              Sign Up for $1 Trial <ArrowRight size={12} />
             </Link>
           </div>
         </aside>
@@ -725,7 +725,7 @@ export default function DemoModeContent() {
       <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
         <p className="text-sm font-semibold">Ready to use FixMy.Money with your real clients?</p>
         <Link href="/sign-up-login-screen?tab=register" className="flex items-center gap-1.5 bg-white text-blue-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors">
-          Start $1 Trial <ArrowRight size={12} />
+          Sign Up for $1 Trial <ArrowRight size={12} />
         </Link>
       </div>
     </div>

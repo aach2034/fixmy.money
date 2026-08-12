@@ -51,6 +51,22 @@ const bureauConfig: Record<Bureau, { className: string; short: string }> = {
 
 type SortField = 'clientName' | 'bureau' | 'sentDate' | 'daysRemaining' | 'itemsCount';
 
+function csvEscape(value: string | number | boolean | null | undefined) {
+  const text = String(value ?? '');
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function mapRow(row: any): DisputeLetter {
   return {
     id: row.id,
@@ -163,15 +179,74 @@ export default function DisputeLetterContent() {
 
   const handleDeleteLetter = async (id: string, letterId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
       const { error: delError } = await supabase
         .from('dispute_letters')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('owner_id', user.id);
       if (delError) throw delError;
       setLetters(prev => prev.filter(l => l.id !== id));
       toast.error(`Letter ${letterId} deleted`);
     } catch (err: any) {
       toast.error('Failed to delete letter');
+    }
+  };
+
+  const handleExportLetters = () => {
+    const rows = [
+      ['Letter ID', 'Client', 'Bureau', 'Items', 'Round', 'Sent Date', 'Response Due', 'Days Remaining', 'Status', 'Template'],
+      ...filtered.map(letter => [
+        letter.letterId,
+        letter.clientName,
+        letter.bureau,
+        String(letter.itemsCount),
+        String(letter.round),
+        letter.sentDate,
+        letter.responseDueDate,
+        String(letter.daysRemaining),
+        letter.status,
+        letter.template,
+      ]),
+    ];
+    downloadCsv(`fixmy-money-dispute-letters-${new Date().toISOString().split('T')[0]}.csv`, rows);
+    toast.success(`Exported ${filtered.length} letter${filtered.length === 1 ? '' : 's'}`);
+  };
+
+  const handleDuplicateLetter = async (letter: DisputeLetter) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const suffix = Math.floor(Math.random() * 9000) + 1000;
+      const { data, error: insertError } = await supabase
+        .from('dispute_letters')
+        .insert({
+          owner_id: user.id,
+          client_id: letter.clientId || null,
+          letter_id: `${letter.letterId}-COPY-${suffix}`,
+          client_name: letter.clientName,
+          bureau: letter.bureau,
+          items_count: letter.itemsCount,
+          round: letter.round,
+          sent_date: null,
+          response_due_date: null,
+          days_remaining: 0,
+          letter_status: 'draft',
+          assigned_staff: letter.assignedStaff,
+          template: letter.template,
+          letter_content: letter.letterContent,
+          dispute_reason: letter.aiRationale,
+          auto_generated: false,
+          generated_at: new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+      if (insertError) throw insertError;
+      setLetters(prev => [mapRow(data), ...prev]);
+      toast.success(`Letter ${letter.letterId} duplicated as a draft`);
+    } catch {
+      toast.error('Could not duplicate this letter. Please try again.');
     }
   };
 
@@ -264,6 +339,32 @@ export default function DisputeLetterContent() {
     toast.success(`${ids.length} paper letter${ids.length === 1 ? '' : 's'} marked as mailed`);
   };
 
+  const deleteSelectedDrafts = async () => {
+    const draftIds = Array.from(selectedRows).filter(id => letters.find(letter => letter.id === id)?.status === 'draft');
+    if (!draftIds.length) {
+      toast.error('Only draft letters can be deleted in bulk.');
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Please sign in again before deleting letters.');
+      return;
+    }
+    const { error: deleteError } = await supabase
+      .from('dispute_letters')
+      .delete()
+      .in('id', draftIds)
+      .eq('owner_id', user.id)
+      .eq('letter_status', 'draft');
+    if (deleteError) {
+      toast.error('Could not delete the selected drafts.');
+      return;
+    }
+    setLetters(prev => prev.filter(letter => !draftIds.includes(letter.id)));
+    setSelectedRows(new Set());
+    toast.success(`${draftIds.length} draft letter${draftIds.length === 1 ? '' : 's'} deleted`);
+  };
+
   const SortIcon = ({ field }: { field: SortField }) => (
     <span className="ml-1 inline-flex flex-col">
       <ChevronUp size={10} className={sortField === field && sortDir === 'asc' ? 'text-primary' : 'text-muted-foreground/40'} />
@@ -332,7 +433,7 @@ export default function DisputeLetterContent() {
           <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} letters · print, mail, and track paper correspondence</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn-secondary flex items-center gap-1.5">
+          <button onClick={handleExportLetters} className="btn-secondary flex items-center gap-1.5">
             <Download size={15} /> Export
           </button>
           <button onClick={() => setGenerateOpen(true)} className="btn-primary flex items-center gap-1.5">
@@ -433,7 +534,7 @@ export default function DisputeLetterContent() {
           <button className="text-sm font-medium hover:text-white/80 transition-colors" onClick={markSelectedMailed}>
             Mark Selected Mailed
           </button>
-          <button className="text-sm font-medium text-danger hover:text-red-300 transition-colors" onClick={() => toast.error(`Deleted ${selectedRows.size} drafts`)}>
+          <button className="text-sm font-medium text-danger hover:text-red-300 transition-colors" onClick={deleteSelectedDrafts}>
             Delete Drafts
           </button>
           <button onClick={() => setSelectedRows(new Set())} className="ml-2 p-1 hover:bg-white/10 rounded transition-colors">
@@ -544,7 +645,7 @@ export default function DisputeLetterContent() {
                             </button>
                           )}
                           <button
-                            onClick={() => toast.success(`Letter ${letter.letterId} duplicated`)}
+                            onClick={() => handleDuplicateLetter(letter)}
                             className="p-1.5 hover:bg-muted rounded-lg transition-colors"
                             title="Duplicate letter"
                           >

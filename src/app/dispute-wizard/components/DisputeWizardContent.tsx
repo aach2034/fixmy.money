@@ -55,6 +55,9 @@ const INSTRUCTIONS = [
   'Cease and desist all collection activity',
 ];
 
+export const hasCompleteMailingAddress = (street: string, city: string, state: string, zip: string) =>
+  Boolean(street.trim() && city.trim() && state.trim().length === 2 && zip.trim().length >= 5);
+
 const STEPS = [
   { id: 1, label: 'Select Client', icon: User },
   { id: 2, label: 'Select Bureau', icon: Building2 },
@@ -238,7 +241,7 @@ export default function DisputeWizardContent() {
     if (step === 1) return !!selectedClient;
     if (step === 2) return !!selectedBureau && !itemsLoading;
     if (step === 3) return selectedItems.size > 0;
-    if (step === 4) return !!disputeReason;
+    if (step === 4) return !!disputeReason && (disputeReason !== 'Other (specify in notes)' || customReason.trim().length >= 10);
     if (step === 5) return !!instruction;
     return true;
   };
@@ -246,6 +249,10 @@ export default function DisputeWizardContent() {
   const handleGenerate = async () => {
     if (!selectedClient || !selectedBureau || selectedItems.size === 0) {
       toast.error('Missing required information');
+      return;
+    }
+    if (!hasCompleteMailingAddress(clientAddress, clientCity, clientState, clientZip)) {
+      toast.error('Enter the client mailing address before generating a letter.');
       return;
     }
     setGenerating(true);
@@ -271,9 +278,7 @@ export default function DisputeWizardContent() {
       };
 
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const clientAddr = clientAddress
-        ? `${clientAddress}\n${clientCity}, ${clientState} ${clientZip}`
-        : '[Client Address — Update in Client Management]';
+      const clientAddr = `${clientAddress.trim()}\n${clientCity.trim()}, ${clientState.trim().toUpperCase()} ${clientZip.trim()}`;
 
       const itemsSection = selectedDisputeItems.map((item, i) =>
         `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
@@ -330,9 +335,9 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
         bureau: selectedBureau,
         items_count: selectedItems.size,
         round,
-        sent_date: new Date().toISOString().split('T')[0],
-        response_due_date: responseDueDate.toISOString().split('T')[0],
-        days_remaining: 30,
+        sent_date: null,
+        response_due_date: null,
+        days_remaining: 0,
         letter_status: 'draft',
         template: 'FCRA Section 611',
         auto_generated: false,
@@ -340,7 +345,7 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
         generated_at: new Date().toISOString(),
       });
 
-      if (insertError) throw new Error(insertError.message);
+      if (insertError) throw new Error('We could not save the generated letter. Please try again.');
 
       const negativeItemIds = selectedDisputeItems
         .filter(item => item.source === 'negative_items')
@@ -351,7 +356,7 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
           .update({ dispute_status: 'generated' })
           .in('id', negativeItemIds)
           .eq('owner_id', user.id);
-        if (statusError) throw new Error(statusError.message);
+        if (statusError) throw new Error('The letter was saved, but the selected items could not be marked as generated.');
       }
 
       // Auto-create follow-up task
@@ -369,7 +374,7 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
       setGeneratedLetterId(letterId);
       toast.success(`Letter ${letterId} generated and ready to use`);
     } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to generate letter');
+      toast.error(err?.message ?? 'Failed to generate the letter. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -475,11 +480,11 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
             )}
             {selectedClient && (
               <div className="space-y-2 pt-2 border-t border-border">
-                <p className="text-xs font-medium text-muted-foreground">Client address for letter header (optional — can be added later)</p>
+                <p className="text-xs font-medium text-muted-foreground">Client mailing address for the letter header</p>
                 <input className="input-field" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
                 <div className="grid grid-cols-3 gap-2">
                   <input className="input-field" placeholder="City" value={clientCity} onChange={e => setClientCity(e.target.value)} />
-                  <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value)} />
+                  <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value.toUpperCase())} />
                   <input className="input-field" placeholder="ZIP" value={clientZip} onChange={e => setClientZip(e.target.value)} />
                 </div>
               </div>
@@ -498,6 +503,17 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
                 </div>
                 <p className="text-sm text-foreground font-medium">{selectedClient.name}</p>
                 <span className="text-xs text-muted-foreground ml-auto">from report import</span>
+              </div>
+            )}
+            {fromReport && selectedClient && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Client mailing address required before generation</p>
+                <input className="input-field" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
+                <div className="grid grid-cols-3 gap-2">
+                  <input className="input-field" placeholder="City" value={clientCity} onChange={e => setClientCity(e.target.value)} />
+                  <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value.toUpperCase())} />
+                  <input className="input-field" placeholder="ZIP" value={clientZip} onChange={e => setClientZip(e.target.value)} />
+                </div>
               </div>
             )}
             <p className="text-sm text-muted-foreground">Which bureau will receive this dispute letter?</p>
@@ -602,6 +618,9 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
             {disputeReason === 'Other (specify in notes)' && (
               <textarea className="input-field resize-none" rows={3} placeholder="Describe the dispute reason in detail…" value={customReason} onChange={e => setCustomReason(e.target.value)} />
             )}
+            {disputeReason === 'Other (specify in notes)' && customReason.trim().length > 0 && customReason.trim().length < 10 && (
+              <p className="error-text">Add at least 10 characters so the letter has a clear dispute reason.</p>
+            )}
           </div>
         )}
 
@@ -682,6 +701,14 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground">Documents</span>
                 <span className="font-medium text-foreground">{attachedDocs.length} listed</span>
+              </div>
+              <div className="flex justify-between gap-4 py-2">
+                <span className="text-muted-foreground">Mailing Address</span>
+                <span className="font-medium text-foreground text-right max-w-xs">
+                  {hasCompleteMailingAddress(clientAddress, clientCity, clientState, clientZip)
+                    ? `${clientAddress}, ${clientCity}, ${clientState.toUpperCase()} ${clientZip}`
+                    : 'Required before generation'}
+                </span>
               </div>
             </div>
             <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">

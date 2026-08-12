@@ -9,6 +9,18 @@ const APPROVED_MAINTENANCE_REPORTS: Record<string, string> = {
   'dc99abaa-b054-4744-83d9-3b620dc2f206': 'd52e00db-157a-4743-a3ab-90fdd94bb67d',
 };
 
+type ReparseRequestBody = {
+  reportIds?: unknown;
+};
+
+function isReparseRequestBody(value: unknown): value is ReparseRequestBody {
+  return typeof value === 'object' && value !== null;
+}
+
+function customerSafeError(message: string, status = 500) {
+  return NextResponse.json({ error: message }, { status });
+}
+
 export async function POST(request: NextRequest) {
   const sessionClient = await createServerClient();
   const { data: { user: sessionUser } } = await sessionClient.auth.getUser();
@@ -32,9 +44,10 @@ export async function POST(request: NextRequest) {
   if (!user && !maintenanceAuthorized) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const contentType = request.headers.get('content-type') ?? '';
-  const body = contentType.includes('application/x-www-form-urlencoded')
+  const parsedBody = contentType.includes('application/x-www-form-urlencoded')
     ? Object.fromEntries(await request.formData())
-    : await request.json().catch(() => ({}));
+    : await request.json().catch((): ReparseRequestBody => ({}));
+  const body: ReparseRequestBody = isReparseRequestBody(parsedBody) ? parsedBody : {};
   const submittedIds = Array.isArray(body.reportIds)
     ? body.reportIds
     : typeof body.reportIds === 'string'
@@ -52,7 +65,7 @@ export async function POST(request: NextRequest) {
     .in('id', reportIds);
   if (!maintenanceAuthorized && user) reportsQuery = reportsQuery.eq('owner_id', user.id);
   const { data: reports, error: reportsError } = await reportsQuery;
-  if (reportsError) return NextResponse.json({ error: reportsError.message }, { status: 500 });
+  if (reportsError) return customerSafeError('We could not load the saved report. Please try again.');
   if ((reports ?? []).length !== reportIds.length) {
     return NextResponse.json({ error: 'One or more reports were not found or access was denied' }, { status: 403 });
   }
@@ -68,7 +81,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('report_id', report.id)
       .eq('owner_id', ownerId);
-    if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    if (itemsError) return customerSafeError('We could not load the current report items. Please try again.');
     const ids = (oldItems ?? []).map(item => item.id);
     if ((oldItems ?? []).some(item => PROTECTED_STATUSES.has(item.dispute_status))) {
       return NextResponse.json({ error: `Report ${report.id} contains protected dispute items` }, { status: 409 });
@@ -78,7 +91,7 @@ export async function POST(request: NextRequest) {
         .from('dispute_round_items')
         .select('id', { count: 'exact', head: true })
         .in('negative_item_id', ids);
-      if (linksError) return NextResponse.json({ error: linksError.message }, { status: 500 });
+      if (linksError) return customerSafeError('We could not confirm whether this report is already in a dispute round. Please try again.');
       if ((count ?? 0) > 0) return NextResponse.json({ error: `Report ${report.id} is linked to a dispute round` }, { status: 409 });
     }
 
@@ -136,11 +149,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: deleteError } = await admin.from('negative_items').delete().eq('report_id', report.id).eq('owner_id', ownerId);
-    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    if (deleteError) return customerSafeError('We could not replace the old parsed items. Please try again.');
     const { error: insertError } = await admin.from('negative_items').insert(replacementRows);
     if (insertError) {
       if ((oldItems ?? []).length > 0) await admin.from('negative_items').insert(oldItems!);
-      return NextResponse.json({ error: `Reparse failed and original items were restored: ${insertError.message}` }, { status: 500 });
+      return customerSafeError('The reparse failed, so we restored the original report items. Please try again.');
     }
 
     const { error: updateError } = await admin.from('parsed_credit_reports').update({
@@ -152,7 +165,7 @@ export async function POST(request: NextRequest) {
       parser_version: '2.1.0',
       updated_at: new Date().toISOString(),
     }).eq('id', report.id).eq('owner_id', ownerId);
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+    if (updateError) return customerSafeError('The items were updated, but the report summary could not be refreshed. Please try again.');
 
     results.push({
       reportId: report.id,
