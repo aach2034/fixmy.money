@@ -48,8 +48,8 @@ const ALL_ROUTES = [...PUBLIC_ROUTES, ...BLOG_ROUTES];
 test?.describe('Desktop Accessibility', () => {
   for (const route of ALL_ROUTES) {
     test(`${route} — no critical accessibility violations`, async ({ page }) => {
-      await page?.goto(route);
-      await page?.waitForLoadState('networkidle');
+      await page?.goto(route, { waitUntil: 'domcontentloaded' });
+      await page?.locator('body')?.waitFor({ state: 'visible' });
 
       const { violations } = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

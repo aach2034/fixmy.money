@@ -202,7 +202,7 @@ export default function AboutPage() {
               <span className="text-sm font-semibold text-slate-500 w-32 shrink-0">Contact</span>
               <div className="text-sm text-slate-700 space-y-1">
                 <div><a href="mailto:support@fixmy.money" className="text-blue-600 hover:underline">support@fixmy.money</a> — General support</div>
-                <div><a href="mailto:security@fixmy.money" className="text-blue-600 hover:underline">security@fixmy.money</a> — Security disclosures</div>
+                <div><a href="mailto:security@fixmy.money" className="text-blue-700 underline underline-offset-2">security@fixmy.money</a> — Security disclosures</div>
                 <div><a href="mailto:adam@fixmy.money" className="text-blue-600 hover:underline">adam@fixmy.money</a> — Founder direct</div>
               </div>
             </div>
