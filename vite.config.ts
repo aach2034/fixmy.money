@@ -15,7 +15,7 @@ export default defineConfig(async () => {
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: {
           main: "./worker/index.ts",
-          compatibility_flags: ["nodejs_compat"],
+          compatibility_flags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
         },
       }),
     ],
