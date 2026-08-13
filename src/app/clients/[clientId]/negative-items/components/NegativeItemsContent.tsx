@@ -5,6 +5,7 @@ import { CheckCircle2, Plus, Loader2, ArrowRight, ChevronDown, ChevronUp, FileTe
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
 import DisputeReasonSelect from '@/components/DisputeReasonSelect';
 import ImportWizard from '@/components/ImportWizard';
 
@@ -96,14 +97,33 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
       setClientName(clientData?.name ?? 'Client');
 
-      const { data } = await supabase
+      const { data: latestReport, error: reportError } = await supabase
+        .from('parsed_credit_reports')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (reportError) throw reportError;
+
+      let itemsQuery = supabase
         .from('negative_items')
         .select('*')
         .eq('client_id', clientId)
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
-      setItems((data ?? []).map(mapRow));
+      if (latestReport?.id) {
+        itemsQuery = itemsQuery.or(`report_id.eq.${latestReport.id},report_id.is.null`);
+      }
+
+      const { data, error: itemsError } = await itemsQuery;
+      if (itemsError) throw itemsError;
+
+      const reliableItems = selectReliableAuditItems((data ?? []) as SavedAuditItem[]);
+      setItems((reliableItems as any[]).map(mapRow));
     } catch (err: any) {
       toast.error('Failed to load negative items');
     } finally {

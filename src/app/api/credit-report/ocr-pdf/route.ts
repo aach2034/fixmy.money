@@ -141,7 +141,6 @@ export async function POST(request: NextRequest) {
                 type: 'input_file',
                 filename: file.name || 'credit-report.pdf',
                 file_data: pdfDataUri,
-                detail: 'high',
               },
               {
                 type: 'input_text',

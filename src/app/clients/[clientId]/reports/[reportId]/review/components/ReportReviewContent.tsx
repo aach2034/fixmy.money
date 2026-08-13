@@ -24,6 +24,18 @@ interface EditableAccount extends ParsedAccount {
   _dbId: string; // the negative_items row id
 }
 
+interface InvestigationIssue {
+  id: string;
+  issue_type: string | null;
+  issue_label: string | null;
+  affected_bureaus: string[] | null;
+  affected_furnisher: string | null;
+  why_flagged: string | null;
+  confidence_level: number | null;
+  evidence_strength: string | null;
+  evidence_still_needed: string[] | null;
+}
+
 export default function ReportReviewContent({ clientId, reportId }: ReportReviewContentProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -36,6 +48,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const [accounts, setAccounts] = useState<EditableAccount[]>([]);
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [sectionConf, setSectionConf] = useState<SectionConfidence | null>(null);
+  const [investigationIssues, setInvestigationIssues] = useState<InvestigationIssue[]>([]);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -154,6 +167,30 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
 
       setSectionConf(parsed.sectionConfidence);
       setReport(parsed);
+
+      try {
+        const { data: snapshots } = await supabase
+          .from('report_snapshots')
+          .select('id')
+          .eq('parsed_report_id', reportId)
+          .eq('owner_id', user.id);
+        const snapshotIds = (snapshots ?? []).map((snapshot: any) => snapshot.id);
+        if (snapshotIds.length > 0) {
+          const { data: issues } = await supabase
+            .from('detected_issues')
+            .select('id, issue_type, issue_label, affected_bureaus, affected_furnisher, why_flagged, confidence_level, evidence_strength, evidence_still_needed')
+            .eq('owner_id', user.id)
+            .in('report_snapshot_id', snapshotIds)
+            .order('confidence_level', { ascending: false })
+            .limit(8);
+          setInvestigationIssues((issues ?? []) as InvestigationIssue[]);
+        } else {
+          setInvestigationIssues([]);
+        }
+      } catch (issueError) {
+        console.warn('[ReportReview] Investigation issues unavailable:', issueError);
+        setInvestigationIssues([]);
+      }
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to load report');
     } finally {
@@ -355,6 +392,43 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           </div>
         ))}
       </div>
+
+      {/* Investigation issues */}
+      {investigationIssues.length > 0 && (
+        <div className="card p-5 space-y-4 border border-amber-200 bg-amber-50/40">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Potential Reporting Issues</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">These are investigation prompts, not legal conclusions. Confirm evidence before generating factual claims.</p>
+            </div>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">{investigationIssues.length} flagged</span>
+          </div>
+          <div className="space-y-2">
+            {investigationIssues.map(issue => (
+              <div key={issue.id} className="rounded-xl border border-amber-200 bg-white p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{issue.issue_label || 'Potential reporting discrepancy'}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{issue.why_flagged || 'Review the reported data and supporting evidence.'}</p>
+                  </div>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">{issue.evidence_strength || 'insufficient'} evidence</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                  <span>Type: {(issue.issue_type || 'potential_issue').replaceAll('_', ' ')}</span>
+                  <span>Bureaus: {(issue.affected_bureaus ?? []).join(', ') || 'Unknown'}</span>
+                  <span>Furnisher: {issue.affected_furnisher || 'Unknown'}</span>
+                  <span>Confidence: {issue.confidence_level ?? 0}%</span>
+                </div>
+                {(issue.evidence_still_needed ?? []).length > 0 && (
+                  <p className="mt-2 text-xs text-amber-900">
+                    Evidence needed: {(issue.evidence_still_needed ?? []).slice(0, 2).join('; ')}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Negative classification notice */}
       {negativeItems.length === 0 && allActive.filter(a => a.accountType !== 'Hard Inquiry').length > 0 && (

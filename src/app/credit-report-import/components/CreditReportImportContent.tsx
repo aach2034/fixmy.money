@@ -8,6 +8,7 @@ import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/Affilia
 import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliates/reportProviders';
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, isImageBasedPdf } from '@/lib/creditReport/pdfUtils';
+import { ocrPdfLocally } from '@/lib/creditReport/localOcr';
 import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
 
@@ -436,7 +437,7 @@ export default function CreditReportImportContent() {
     setClientsLoaded(true);
   };
 
-  const parseText = async (text: string, provider?: SupportedProvider, meta?: OcrMetadata) => {
+  const parseText = async (text: string, provider?: SupportedProvider, meta?: OcrMetadata): Promise<ParsedCreditReport | null> => {
     setParsing(true);
     try {
       const forceProvider = provider && provider !== 'unknown' ? provider : undefined;
@@ -460,7 +461,7 @@ export default function CreditReportImportContent() {
         setParsedReport(result);
         toast.warning('Provider not detected. Please select your report provider for accurate parsing.');
         await loadClients();
-        return;
+        return result;
       }
 
       setParsedReport(result);
@@ -478,8 +479,10 @@ export default function CreditReportImportContent() {
       }
 
       await loadClients();
+      return result;
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to parse report');
+      return null;
     } finally {
       setParsing(false);
     }
@@ -503,6 +506,62 @@ export default function CreditReportImportContent() {
       totalChars: 0,
     });
 
+    const runLocalFallback = async (): Promise<{ text: string; meta: OcrMetadata } | null> => {
+      setOcrStatus(prev => prev ? {
+        ...prev,
+        stage: 'ocr',
+        errorMessage: undefined,
+      } : prev);
+
+      try {
+        const localResult = await ocrPdfLocally(file, progress => {
+          setOcrProgress({ current: progress.currentPage, total: progress.totalPages });
+          setOcrStatus(prev => prev ? {
+            ...prev,
+            stage: progress.status === 'rendering' ? 'rendering' : 'ocr',
+            totalPages: progress.totalPages,
+            pagesRendered: progress.currentPage,
+            pagesOcrProcessed: Math.max(0, progress.currentPage - 1),
+          } : prev);
+        });
+
+        const success = localResult.text.trim().length >= 50 && localResult.pagesSucceeded > 0;
+        setOcrStatus({
+          stage: success ? 'parsing' : 'failed',
+          totalPages: localResult.totalPages,
+          pagesRendered: localResult.totalPages,
+          pagesOcrProcessed: localResult.pagesSucceeded,
+          pagesOcrFailed: localResult.pagesFailed,
+          totalChars: localResult.text.length,
+          errorMessage: success ? undefined : 'Local OCR could not find readable text in this PDF.',
+        });
+
+        if (!success) return null;
+
+        return {
+          text: localResult.text,
+          meta: {
+            isImageBasedPdf: true,
+            ocrWasUsed: true,
+            totalPdfPages: localResult.totalPages,
+            pagesWithEmbeddedText: 0,
+            pagesRequiringOcr: localResult.totalPages,
+            ocrPagesSucceeded: localResult.pagesSucceeded,
+            ocrPagesFailed: localResult.pagesFailed,
+            binaryBlocksSkipped: 0,
+          },
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Local OCR failed';
+        setOcrStatus(prev => prev ? {
+          ...prev,
+          stage: 'failed',
+          errorMessage: `PDF OCR failed: ${message.slice(0, 240)}`,
+        } : prev);
+        return null;
+      }
+    };
+
     try {
       setOcrStatus(prev => prev ? { ...prev, stage: 'ocr' } : prev);
 
@@ -514,31 +573,18 @@ export default function CreditReportImportContent() {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        const errMsg = errData?.error ?? 'OCR request failed';
-        setOcrStatus(prev => prev ? {
-          ...prev,
-          stage: 'failed',
-          errorMessage: errMsg,
-        } : prev);
-        return null;
+      const data = await response.json().catch(() => null);
+
+      if (data?.ocrUnavailable) {
+        toast.info('Using secure on-device OCR for this PDF. Keep this tab open while it is processed.');
+        return await runLocalFallback();
       }
 
-      const data = await response.json();
-
-      // OCR service unavailable (Tesseract or pdfjs not installed)
-      if (data.ocrUnavailable) {
-        setOcrStatus({
-          stage: 'unavailable',
-          totalPages: data.totalPages ?? 0,
-          pagesRendered: 0,
-          pagesOcrProcessed: 0,
-          pagesOcrFailed: 0,
-          totalChars: 0,
-          errorMessage: 'OCR is not currently available. This credit report is image-based, so text cannot be extracted until OCR is enabled.',
-        });
-        return null;
+      if (!response.ok) {
+        const errMsg = data?.error ?? `OCR request failed (${response.status})`;
+        console.warn('[CreditReport/OCR] Server OCR failed, using local fallback:', errMsg);
+        toast.info('Server OCR was unavailable. Continuing with secure on-device OCR.');
+        return await runLocalFallback();
       }
 
       // Update status with results
@@ -632,13 +678,8 @@ export default function CreditReportImportContent() {
 
       return { text: data.combinedText, meta };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'OCR request failed';
-      setOcrStatus(prev => prev ? {
-        ...prev,
-        stage: 'failed',
-        errorMessage: msg.slice(0, 300),
-      } : prev);
-      return null;
+      console.warn('[CreditReport/OCR] Server OCR unavailable, using local fallback:', err);
+      return await runLocalFallback();
     } finally {
       setOcrRunning(false);
       setOcrProgress(null);
@@ -727,7 +768,21 @@ export default function CreditReportImportContent() {
         };
         setOcrMeta(meta);
         setRawText(text);
-        await parseText(text, selectedProvider, meta);
+        const embeddedResult = await parseText(text, selectedProvider, meta);
+
+        if (embeddedResult && embeddedResult.accounts.length === 0 && embeddedResult.overallConfidence < 50) {
+          setShowProviderModal(false);
+          toast.info('The PDF text layer is incomplete. Retrying with OCR.');
+          const ocrResult = await runOcrOnPdf(file);
+          if (ocrResult?.text && ocrResult.text.trim().length > 100) {
+            const normalizedOcrText = safeNormalizeText(ocrResult.text);
+            setRawText(normalizedOcrText);
+            setOcrMeta(ocrResult.meta);
+            setOcrStatus(prev => prev ? { ...prev, stage: 'parsing' } : prev);
+            await parseText(normalizedOcrText, selectedProvider, ocrResult.meta);
+            setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
+          }
+        }
       } else {
         // Non-PDF file (TXT, HTML, DOC) — decode directly
         setOcrStatus(null);
@@ -901,9 +956,33 @@ export default function CreditReportImportContent() {
         .eq('owner_id', user.id);
       if (clientUpdateError) throw new Error(`Report items saved, but client information failed to save: ${clientUpdateError.message}`);
 
+      try {
+        setSaveStage('Building investigation cases...');
+        const { data: sessionData } = await supabase.auth.getSession();
+        const evidenceResponse = await fetch('/api/credit-report/evidence-engine', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            parsedReportId: reportRecord.id,
+            clientId: selectedClientId,
+          }),
+        });
+        if (!evidenceResponse.ok) {
+          const payload = await evidenceResponse.json().catch(() => null);
+          throw new Error(payload?.error ?? 'Evidence engine indexing failed');
+        }
+      } catch (engineError: any) {
+        console.warn('[CreditReportImport] Evidence engine indexing skipped:', engineError?.message ?? engineError);
+        toast.warning('Report saved, but investigation indexing needs to be retried from the report review.');
+      }
+
       let generatedLetters = 0;
       const reliableSavedItems = selectReliableAuditItems(savedItems) as SavedReportItem[];
-      if (reliableSavedItems.length > 0) {
+      const shouldCreateAutomaticDrafts = false;
+      if (shouldCreateAutomaticDrafts && reliableSavedItems.length > 0) {
         setSaveStage('AI is ranking the strongest items…');
         const analysisDate = currentIsoDate();
         const candidates = reliableSavedItems.slice(0, 20).map((item, index) => ({
@@ -1018,16 +1097,7 @@ export default function CreditReportImportContent() {
         return;
       }
 
-      // Route to dispute wizard when there were no AI-selected draft candidates.
-      const negativeCount = parsedReport.negativeAccounts.length;
-      if (negativeCount > 0) {
-        const clientName = clients.find(c => c.id === selectedClientId)?.name ?? '';
-        router.push(
-          `/dispute-wizard?clientId=${encodeURIComponent(selectedClientId)}&reportId=${encodeURIComponent(reportRecord.id)}&clientName=${encodeURIComponent(clientName)}&fromReport=true`
-        );
-      } else {
-        router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
-      }
+      router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save report');
     } finally {
@@ -1345,13 +1415,13 @@ export default function CreditReportImportContent() {
                 className="btn-primary flex items-center gap-2 text-sm"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                {saving ? saveStage : 'Save, Rank & Create Drafts'}
+                {saving ? saveStage : 'Save & Build Investigation Cases'}
                 <ArrowRight size={14} />
               </button>
             </div>
 
             {/* Note: review before sending */}
-            <p className="text-xs text-muted-foreground text-right">AI ranks the strongest factual opportunities and creates editable drafts. Nothing is sent automatically.</p>
+            <p className="text-xs text-muted-foreground text-right">The report is saved into investigation cases first. Dispute drafts should be generated only after facts and evidence are reviewed.</p>
           </div>
         </div>
       )}

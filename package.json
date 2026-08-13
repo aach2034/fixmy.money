@@ -44,7 +44,7 @@
   },
   "scripts": {
     "dev": "vinext dev --port 4028",
-    "build": "vinext build",
+    "build": "node scripts/prepare-ocr-assets.mjs && vinext build",
     "build:next": "next build",
     "start": "vinext start --port 4028",
     "lint": "eslint src scripts tests",
@@ -81,6 +81,7 @@
     "@supabase/supabase-js": "2.107.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
+    "@tesseract.js-data/eng": "1.0.0",
     "lucide-react": "^1.19.0",
     "next": "15.5.21",
     "pdfjs-dist": "4.10.38",
@@ -91,7 +92,8 @@
     "recharts": "^2.15.2",
     "sharp": "0.35.0",
     "sonner": "^1.7.4",
-    "stripe": "22.5.0"
+    "stripe": "22.5.0",
+    "tesseract.js": "6.0.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
