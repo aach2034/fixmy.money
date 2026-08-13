@@ -39,6 +39,13 @@ export function trackEvent(eventName: string, eventParams: Record<string, unknow
  * @param location - Where on the page the CTA was clicked (e.g. 'hero', 'pricing', 'sticky_bar', 'footer_cta')
  */
 export function trackTrialSignup(plan: string = 'starter', location: string = 'unknown') {
+  trackEvent('trial_start_click', {
+    event_category: 'conversion',
+    event_label: `trial_start_${plan}`,
+    plan_name: plan,
+    cta_location: location,
+    currency: 'USD',
+  });
   trackEvent('begin_checkout', {
     event_category: 'conversion',
     event_label: `trial_signup_${plan}`,
@@ -53,6 +60,12 @@ export function trackTrialSignup(plan: string = 'starter', location: string = 'u
  * @param teamSize - The team size selected in the form
  */
 export function trackDemoRequest(teamSize: string = '') {
+  trackEvent('book_demo_click', {
+    event_category: 'conversion',
+    event_label: 'demo_request',
+    lead_type: 'demo_booking',
+    team_size: teamSize,
+  });
   trackEvent('generate_lead', {
     event_category: 'conversion',
     event_label: 'demo_request',
@@ -65,6 +78,13 @@ export function trackLeadMagnetSignup(
   offer: string = 'evidence-first-agency-starter-kit',
   location: string = 'homepage_lead_capture'
 ) {
+  trackEvent('starter_kit_submit', {
+    event_category: 'conversion',
+    event_label: offer,
+    lead_type: 'lead_magnet',
+    offer_name: offer,
+    cta_location: location,
+  });
   trackEvent('generate_lead', {
     event_category: 'conversion',
     event_label: offer,
