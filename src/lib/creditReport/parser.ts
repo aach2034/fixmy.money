@@ -1005,7 +1005,8 @@ function isPlausibleCreditorName(value: string): boolean {
   if (/^(?:department|account|balance|status|type|comments?|remarks?)$/i.test(trimmed)) return false;
   if (/^(?:current|open|closed|paid|unpaid|unknown|individual|joint|authorized user)$/i.test(trimmed)) return false;
   if (/^(?:revolving|revolving account|installment|installment account|individual account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
-  if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)$/i.test(trimmed)) return false;
+  if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)/i.test(trimmed)) return false;
+  if (/^paid or paying as agreed$/i.test(trimmed)) return false;
   if (/^(?:pay(?:ment)?|pavment)\s+s(?:ta|at|a)t?s?\b/i.test(trimmed)) return false;
   if (/^(?:year|month|extended payment history|\+?\s*expand history)/i.test(trimmed)) return false;
   if ((trimmed.match(/\b\d{2}\b/g) ?? []).length >= 4) return false;
@@ -2135,7 +2136,7 @@ function normalizeAccountNumberForKey(value: string): string {
   return visible.length >= 4 ? visible : '';
 }
 
-function accountFamily(accountType: string): string {
+function accountFamily(accountType = 'unknown'): string {
   const type = accountType.toLowerCase();
   if (/collection|debt buyer/.test(type)) return 'collection';
   if (/revolving|credit card|open account/.test(type)) return 'revolving';
@@ -2144,7 +2145,7 @@ function accountFamily(accountType: string): string {
 }
 
 function collectionAgencyFamily(account: ParsedAccount): string {
-  const name = normalizeCanonicalToken(account.creditorName);
+  const name = normalizeCanonicalToken(account.creditorName ?? '');
   if (/\b(?:credit collection|credit coll)\b/.test(name)) return 'credit collection';
   if (/\b(?:credence resource mana|credence rm|credence)\b/.test(name)) return 'credence';
   if (/\b(?:national credit system|natlcrsys)\b/.test(name)) return 'national credit system';
@@ -2161,11 +2162,11 @@ function collectionAgencyFamily(account: ParsedAccount): string {
 
 function canonicalAccountKey(account: ParsedAccount): string {
   const original = normalizeCanonicalToken(account.originalCreditor ?? '');
-  const furnisher = normalizeCanonicalToken(account.creditorName);
-  const accountNumber = normalizeAccountNumberForKey(account.accountNumber || account.accountNumberMasked);
+  const furnisher = normalizeCanonicalToken(account.creditorName ?? '');
+  const accountNumber = normalizeAccountNumberForKey(account.accountNumber || account.accountNumberMasked || '');
   const balance = account.balance == null ? 'na' : String(Math.round(account.balance));
   const opened = account.dateOpened || 'na';
-  const family = accountFamily(account.accountType);
+  const family = accountFamily(account.accountType || 'unknown');
 
   if (original && (account.isCollection || isCollectionAccount(account) || family === 'collection')) {
     return `collection:${collectionAgencyFamily(account)}|orig:${original}`;
@@ -2195,9 +2196,10 @@ function mergeCanonicalAccounts(tradelines: ParsedAccount[]): ParsedAccount[] {
     const best = ranked[0];
     const bureaus = Array.from(new Set(group.flatMap(account => account.bureaus?.length ? account.bureaus : [account.bureau]).filter(Boolean)));
     const original = displayOriginalCreditor(best.originalCreditor ?? '');
-    const creditorName = original && !normalizeCanonicalToken(best.creditorName).includes(normalizeCanonicalToken(original))
+    const bestCreditorName = best.creditorName ?? '';
+    const creditorName = original && !normalizeCanonicalToken(bestCreditorName).includes(normalizeCanonicalToken(original))
       ? `${best.creditorName} / ${original}`
-      : best.creditorName;
+      : bestCreditorName;
     const isCollection = group.some(account => account.isCollection || isCollectionAccount(account));
     const isChargeOff = group.some(account => account.isChargeOff);
     const isLate = group.some(account => account.isLate);
@@ -2214,7 +2216,7 @@ function mergeCanonicalAccounts(tradelines: ParsedAccount[]): ParsedAccount[] {
       canonicalKey,
       tradelines: group,
       creditorName,
-      furnisherName: best.furnisherName || best.creditorName,
+      furnisherName: best.furnisherName || bestCreditorName,
       bureau: bureaus.length === 1 ? bureaus[0] : 'Multiple',
       bureaus,
       isNegative,
