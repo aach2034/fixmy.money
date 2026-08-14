@@ -1004,8 +1004,9 @@ function isPlausibleCreditorName(value: string): boolean {
   if (/^(?:transunion|experian|equifax)(?:\s+(?:transunion|experian|equifax))*$/i.test(trimmed)) return false;
   if (/^(?:department|account|balance|status|type|comments?|remarks?)$/i.test(trimmed)) return false;
   if (/^(?:current|open|closed|paid|unpaid|unknown|individual|joint|authorized user)$/i.test(trimmed)) return false;
-  if (/^(?:revolving|revolving account|installment|installment account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
+  if (/^(?:revolving|revolving account|installment|installment account|individual account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
   if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)$/i.test(trimmed)) return false;
+  if (/^(?:pay(?:ment)?|pavment)\s+s(?:ta|at|a)t?s?\b/i.test(trimmed)) return false;
   if (/^(?:year|month|extended payment history|\+?\s*expand history)/i.test(trimmed)) return false;
   if ((trimmed.match(/\b\d{2}\b/g) ?? []).length >= 4) return false;
   if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) && (trimmed.includes(':') || !/\bagency\b/i.test(trimmed))) return false;
@@ -2224,7 +2225,7 @@ function mergeCanonicalAccounts(tradelines: ParsedAccount[]): ParsedAccount[] {
       rawText: group.map(account => account.rawText).filter(Boolean).join('\n\n--- Bureau Tradeline ---\n\n'),
       parserConfidence: Math.round(group.reduce((sum, account) => sum + account.parserConfidence, 0) / group.length),
     };
-  });
+  }).filter(account => isPlausibleCreditorName(account.creditorName));
 }
 
 export interface OcrMetadata {
