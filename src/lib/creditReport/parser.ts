@@ -1099,9 +1099,15 @@ function triBureauHeaderLengthAt(lines: string[], index: number): number {
 
 function isLikelyTriBureauCreditorLine(line: string): boolean {
   const trimmed = line.trim();
+  const normalized = normalizeLineForHeader(trimmed);
   if (!trimmed || trimmed.length < 2 || trimmed.length > 120) return false;
+  if (normalized === 'transunion experian equifax' || normalized === 'transunion' || normalized === 'experian' || normalized === 'equifax') return false;
   if (!isReadableText(trimmed)) return false;
-  if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) || SECTION_HEADER_RE.test(trimmed)) return false;
+  if (/^(?:year|month|extended payment history|\+?\s*expand history)/i.test(trimmed)) return false;
+  if (/^(?:year|month)\b.*(?:\||\b\d{2}\b.*\b\d{2}\b)/i.test(trimmed)) return false;
+  if ((trimmed.match(/\b\d{2}\b/g) ?? []).length >= 4) return false;
+  if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) && (trimmed.includes(':') || !/\bagency\b/i.test(trimmed))) return false;
+  if (SECTION_HEADER_RE.test(trimmed)) return false;
   if (/^(?:current|open|closed|paid|unknown|individual|joint|authorized user|revolving|installment|mortgage|collection|account|balance)$/i.test(trimmed)) return false;
   if (/^(?:-|n\/?a|none|\$?[\d,]+(?:\.\d{2})?|\d{1,2}\/\d{1,2}\/\d{2,4})$/i.test(trimmed)) return false;
   return /[A-Za-z]{2,}/.test(trimmed);
@@ -1128,7 +1134,12 @@ function splitTriBureauColumnAccounts(text: string): string[] {
     // is distinguished by an Account # field immediately below it.
     const lookaheadStart = i + triBureauHeaderLengthAt(lines, i);
     const lookahead = lines.slice(lookaheadStart, lookaheadStart + 80).join('\n');
-    if (/^account\s*(?:#|number|no\.?)[\s:]/im.test(lookahead)) headers.push(i);
+    const creditorLineIndex = lineBeforeTriBureauHeader(lines, i);
+    if (
+      creditorLineIndex < i
+      && isLikelyTriBureauCreditorLine(lines[creditorLineIndex] ?? '')
+      && /^account\s*(?:#|number|no\.?)[\s:]/im.test(lookahead)
+    ) headers.push(i);
   }
 
   return headers.map((headerIndex, position) => {

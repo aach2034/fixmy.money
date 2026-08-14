@@ -455,6 +455,43 @@ Inquiries
     expect(result.accounts.map(account => account.creditorName)).not.toContain('CURRENT');
   });
 
+  it('does not parse extended payment-history grids as tri-bureau accounts', () => {
+    const report = `
+MyScoreIQ Three Bureau Credit Report
+Account History
+REAL COLLECTION (Original Creditor: TEST UTILITY)
+TransUnion  Experian  Equifax
+Account #:  XXXX  -  -
+Account Type:  Open account  -  -
+Account Status:  Collection account  -  -
+Balance:  $250.00  -  -
+Payment Status:  Placed for collection  -  -
+Date Opened:  03/01/2026  -  -
+Extended Payment History
+Year  26 26 26 26 26 25 25 25 25 24 24 24
+TransUnion
+Experian
+Equifax
++ Expand history
+NEXT BANK
+TransUnion  Experian  Equifax
+Account #:  -  -  12345XXXX
+Account Type:  -  -  Revolving
+Account Status:  -  -  Current
+Balance:  -  -  $10.00
+Date Opened:  -  -  01/01/2020
+Inquiries
+`;
+
+    const result = parseCreditReport(report, 'myscoreiq');
+    expect(result.accounts.map(account => account.creditorName)).toEqual([
+      'REAL COLLECTION / TEST UTILITY',
+      'NEXT BANK',
+    ]);
+    expect(result.accounts.map(account => account.creditorName)).not.toContain(expect.stringMatching(/^Year\b/));
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('Extended Payment History');
+  });
+
   it('extracts scores from the MyScoreIQ three-column score row', () => {
     const report = `
 MyScoreIQ Three Bureau Credit Report
