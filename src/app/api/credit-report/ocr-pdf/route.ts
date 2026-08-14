@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
+import {
+  OCR_STORAGE_BUCKET,
+  isOwnedOcrStoragePath,
+  sanitizeOcrFileName,
+} from '@/lib/creditReport/ocrTransport';
 
 // ─── Server-Side PDF OCR Route (OpenAI Vision) ────────────────────────────────
-// Accepts a PDF file via FormData, converts it to base64, and sends it to
-// OpenAI gpt-4o which reads image-based PDFs natively via Vision.
-// No canvas binaries, no Tesseract.js — just the OpenAI API.
+// Accepts small PDFs directly or downloads larger PDFs from private temporary
+// storage, then sends the document to OpenAI for native PDF extraction.
 
 export interface OcrPageStatus {
   pageNumber: number;
@@ -78,6 +84,8 @@ async function getPdfPageCount(data: Uint8Array): Promise<number> {
 }
 
 export async function POST(request: NextRequest) {
+  let cleanupStoragePath: string | null = null;
+
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -98,25 +106,73 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const contentType = request.headers.get('content-type') ?? '';
+    let fileName = 'credit-report.pdf';
+    let fileSize = 0;
+    let arrayBuffer: ArrayBuffer;
 
-    if (!file) {
-      return NextResponse.json({ error: 'No PDF file provided' }, { status: 400 });
+    if (contentType.includes('application/json')) {
+      const payload = await request.json().catch(() => null) as {
+        storagePath?: unknown;
+        fileName?: unknown;
+      } | null;
+      const storagePath = typeof payload?.storagePath === 'string' ? payload.storagePath : '';
+
+      const sessionClient = await createServerSupabaseClient();
+      const { data: { user } } = await sessionClient.auth.getUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (!isOwnedOcrStoragePath(storagePath, user.id)) {
+        return NextResponse.json({ error: 'Invalid temporary PDF path' }, { status: 403 });
+      }
+
+      const admin = getAdminClient();
+      const { data: storedPdf, error: downloadError } = await admin.storage
+        .from(OCR_STORAGE_BUCKET)
+        .download(storagePath);
+
+      if (downloadError || !storedPdf) {
+        return NextResponse.json({ error: 'Temporary PDF could not be read' }, { status: 400 });
+      }
+
+      cleanupStoragePath = storagePath;
+      fileName = sanitizeOcrFileName(
+        typeof payload?.fileName === 'string' ? payload.fileName : storagePath.split('/').pop() ?? '',
+      );
+      fileSize = storedPdf.size;
+      arrayBuffer = await storedPdf.arrayBuffer();
+    } else if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const file = formData.get('file') as File | null;
+
+      if (!file) {
+        return NextResponse.json({ error: 'No PDF file provided' }, { status: 400 });
+      }
+
+      fileName = sanitizeOcrFileName(file.name);
+      fileSize = file.size;
+      arrayBuffer = await file.arrayBuffer();
+    } else {
+      return NextResponse.json({ error: 'Upload a PDF file' }, { status: 400 });
     }
 
-    if (file.size > 50 * 1024 * 1024) {
+    if (fileSize > 50 * 1024 * 1024) {
       return NextResponse.json({ error: 'File too large (max 50MB)' }, { status: 400 });
     }
 
-    // Convert PDF to base64 data URI
-    const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = new Uint8Array(arrayBuffer);
+    const pdfSignature = new TextDecoder().decode(pdfBytes.slice(0, 5));
+    if (pdfSignature !== '%PDF-') {
+      return NextResponse.json({ error: 'The uploaded file is not a valid PDF' }, { status: 400 });
+    }
+
+    // Convert PDF to base64 data URI
     const base64 = Buffer.from(pdfBytes).toString('base64');
     const pdfDataUri = `data:application/pdf;base64,${base64}`;
     const actualPageCount = await getPdfPageCount(pdfBytes);
 
-    console.log(`[CreditReport/OCR-PDF] Sending PDF to OpenAI Vision (gpt-4o), size: ${(file.size / 1024).toFixed(1)}KB`);
+    console.log(`[CreditReport/OCR-PDF] Sending PDF to OpenAI, size: ${(fileSize / 1024).toFixed(1)}KB`);
 
     // Use the Responses API's native input_file flow. For PDFs, OpenAI extracts
     // both embedded text and every page image, which is substantially more
@@ -139,7 +195,7 @@ export async function POST(request: NextRequest) {
             content: [
               {
                 type: 'input_file',
-                filename: file.name || 'credit-report.pdf',
+                filename: fileName,
                 file_data: pdfDataUri,
               },
               {
@@ -235,5 +291,14 @@ export async function POST(request: NextRequest) {
       } as OcrPdfResult,
       { status: 500 }
     );
+  } finally {
+    if (cleanupStoragePath) {
+      const { error } = await getAdminClient().storage
+        .from(OCR_STORAGE_BUCKET)
+        .remove([cleanupStoragePath]);
+      if (error) {
+        console.warn('[CreditReport/OCR-PDF] Temporary PDF cleanup failed.');
+      }
+    }
   }
 }

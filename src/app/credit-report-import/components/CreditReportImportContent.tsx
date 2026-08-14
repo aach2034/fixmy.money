@@ -9,6 +9,11 @@ import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliate
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, isImageBasedPdf } from '@/lib/creditReport/pdfUtils';
 import { ocrPdfLocally } from '@/lib/creditReport/localOcr';
+import {
+  OCR_STORAGE_BUCKET,
+  createOcrStoragePath,
+  shouldRelayOcrPdf,
+} from '@/lib/creditReport/ocrTransport';
 import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
 
@@ -565,13 +570,43 @@ export default function CreditReportImportContent() {
     try {
       setOcrStatus(prev => prev ? { ...prev, stage: 'ocr' } : prev);
 
-      const formData = new FormData();
-      formData.append('file', file);
+      let response: Response;
 
-      const response = await fetch('/api/credit-report/ocr-pdf', {
-        method: 'POST',
-        body: formData,
-      });
+      if (shouldRelayOcrPdf(file.size)) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Sign in again before processing this PDF.');
+
+        const storagePath = createOcrStoragePath(user.id, file.name);
+        toast.info('Preparing this larger PDF for secure server OCR.');
+
+        const { error: uploadError } = await supabase.storage
+          .from(OCR_STORAGE_BUCKET)
+          .upload(storagePath, file, {
+            contentType: 'application/pdf',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Temporary PDF upload failed: ${uploadError.message}`);
+        }
+
+        try {
+          response = await fetch('/api/credit-report/ocr-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ storagePath, fileName: file.name }),
+          });
+        } finally {
+          await supabase.storage.from(OCR_STORAGE_BUCKET).remove([storagePath]);
+        }
+      } else {
+        const formData = new FormData();
+        formData.append('file', file);
+        response = await fetch('/api/credit-report/ocr-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+      }
 
       const data = await response.json().catch(() => null);
 
