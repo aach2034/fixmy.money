@@ -1,6 +1,14 @@
 export const OCR_STORAGE_BUCKET = 'evidence-documents';
 export const OCR_INLINE_UPLOAD_LIMIT_BYTES = 4 * 1024 * 1024;
 
+export function isPendingOpenAiResponseStatus(status: unknown): boolean {
+  return status === 'queued' || status === 'in_progress';
+}
+
+export function isValidOpenAiResponseId(responseId: string): boolean {
+  return /^resp_[a-zA-Z0-9_-]{8,200}$/.test(responseId);
+}
+
 export function shouldRelayOcrPdf(fileSize: number): boolean {
   return fileSize > OCR_INLINE_UPLOAD_LIMIT_BYTES;
 }

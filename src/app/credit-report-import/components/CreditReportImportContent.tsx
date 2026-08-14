@@ -567,6 +567,27 @@ export default function CreditReportImportContent() {
       }
     };
 
+    const waitForBackgroundOcr = async (job: {
+      jobId: string;
+      jobToken: string;
+      totalPages: number;
+    }): Promise<{ response: Response; data: any }> => {
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const response = await fetch('/api/credit-report/ocr-pdf', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(job),
+        });
+        const data = await response.json().catch(() => null);
+
+        if (response.status === 202 && data?.pending) continue;
+        return { response, data };
+      }
+
+      throw new Error('OCR is taking longer than expected. Please try this PDF again.');
+    };
+
     try {
       setOcrStatus(prev => prev ? { ...prev, stage: 'ocr' } : prev);
 
@@ -608,7 +629,22 @@ export default function CreditReportImportContent() {
         });
       }
 
-      const data = await response.json().catch(() => null);
+      let data = await response.json().catch(() => null);
+
+      if (
+        response.status === 202
+        && data?.pending
+        && typeof data.jobId === 'string'
+        && typeof data.jobToken === 'string'
+        && typeof data.totalPages === 'number'
+      ) {
+        toast.info('Secure OCR is processing this PDF. Keep this tab open while it finishes.');
+        ({ response, data } = await waitForBackgroundOcr({
+          jobId: data.jobId,
+          jobToken: data.jobToken,
+          totalPages: data.totalPages,
+        }));
+      }
 
       if (data?.ocrUnavailable) {
         toast.info('Using secure on-device OCR for this PDF. Keep this tab open while it is processed.');
@@ -636,62 +672,6 @@ export default function CreditReportImportContent() {
       } : prev);
 
       if (!data.success || !data.combinedText || data.combinedText.trim().length < 50) {
-        // ── Retry at higher resolution if OCR returned very little text ────
-        // This handles cases where the initial 300 DPI render was still not
-        // sufficient (e.g. very small fonts, degraded scans).
-        if (data.totalChars !== undefined && data.totalChars < 200 && data.totalPages > 0) {
-          toast.info('Resolution may be too low — retrying OCR at higher resolution…');
-          setOcrStatus(prev => prev ? {
-            ...prev,
-            stage: 'ocr',
-            errorMessage: undefined,
-          } : prev);
-
-          try {
-            const retryFormData = new FormData();
-            retryFormData.append('file', file);
-            const retryResponse = await fetch('/api/credit-report/ocr-pdf', {
-              method: 'POST',
-              headers: { 'x-ocr-high-res': '1' },
-              body: retryFormData,
-            });
-
-            if (retryResponse.ok) {
-              const retryData = await retryResponse.json();
-              if (retryData.success && retryData.combinedText && retryData.combinedText.trim().length >= 50) {
-                setOcrStatus(prev => prev ? {
-                  ...prev,
-                  stage: 'parsing',
-                  totalPages: retryData.totalPages ?? 0,
-                  pagesRendered: retryData.pagesRendered ?? 0,
-                  pagesOcrProcessed: retryData.pagesOcrProcessed ?? 0,
-                  pagesOcrFailed: retryData.pagesOcrFailed ?? 0,
-                  totalChars: retryData.totalChars ?? 0,
-                  providerDetected: retryData.providerHint,
-                  errorMessage: undefined,
-                } : prev);
-
-                const retryMeta: OcrMetadata = {
-                  isImageBasedPdf: true,
-                  ocrWasUsed: true,
-                  totalPdfPages: retryData.totalPages ?? 0,
-                  pagesWithEmbeddedText: 0,
-                  pagesRequiringOcr: retryData.totalPages ?? 0,
-                  ocrPagesSucceeded: retryData.pagesOcrProcessed ?? 0,
-                  ocrPagesFailed: retryData.pagesOcrFailed ?? 0,
-                  binaryBlocksSkipped: 0,
-                };
-
-                setOcrRunning(false);
-                setOcrProgress(null);
-                return { text: retryData.combinedText, meta: retryMeta };
-              }
-            }
-          } catch {
-            // Retry failed — fall through to original failure handling
-          }
-        }
-
         setOcrStatus(prev => prev ? {
           ...prev,
           stage: 'failed',

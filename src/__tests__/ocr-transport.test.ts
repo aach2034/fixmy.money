@@ -3,6 +3,8 @@ import {
   OCR_INLINE_UPLOAD_LIMIT_BYTES,
   createOcrStoragePath,
   isOwnedOcrStoragePath,
+  isPendingOpenAiResponseStatus,
+  isValidOpenAiResponseId,
   sanitizeOcrFileName,
   shouldRelayOcrPdf,
 } from '@/lib/creditReport/ocrTransport';
@@ -35,5 +37,19 @@ describe('OCR PDF transport', () => {
 
   it('normalizes unsafe and missing PDF extensions', () => {
     expect(sanitizeOcrFileName(' report<>name ')).toBe('report_name_.pdf');
+  });
+
+  it('recognizes OpenAI response states that still need polling', () => {
+    expect(isPendingOpenAiResponseStatus('queued')).toBe(true);
+    expect(isPendingOpenAiResponseStatus('in_progress')).toBe(true);
+    expect(isPendingOpenAiResponseStatus('completed')).toBe(false);
+    expect(isPendingOpenAiResponseStatus('failed')).toBe(false);
+  });
+
+  it('accepts only safe OpenAI response IDs', () => {
+    expect(isValidOpenAiResponseId('resp_12345678')).toBe(true);
+    expect(isValidOpenAiResponseId('resp_abc-DEF_123456')).toBe(true);
+    expect(isValidOpenAiResponseId('../responses/resp_12345678')).toBe(false);
+    expect(isValidOpenAiResponseId('resp_short')).toBe(false);
   });
 });
