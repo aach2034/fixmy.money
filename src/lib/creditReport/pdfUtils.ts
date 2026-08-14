@@ -12,7 +12,43 @@ export interface PdfExtractionResult {
   pagesRequiringOcr: number;
   binaryBlocksSkipped: number;
   readableTextLength: number;
+  nativeExtractionQuality: number;
   extractionMethod: 'text' | 'image_based' | 'empty';
+  pages: PdfPageText[];
+}
+
+export interface TextQualityMetrics {
+  characters: number;
+  words: number;
+  readableCharacterRatio: number;
+  creditSignals: string[];
+  score: number;
+  meaningful: boolean;
+}
+
+export interface PdfPageText {
+  pageNumber: number;
+  text: string;
+  quality: TextQualityMetrics;
+}
+
+export interface ExtractedPdfPage extends PdfPageText {
+  source: 'native' | 'ocr' | 'failed';
+  ocrConfidence?: number;
+  rotation?: number;
+}
+
+export interface ExtractionValidation {
+  valid: boolean;
+  errorCode?: 'OCR_FAILED';
+  characters: number;
+  words: number;
+  readableCharacterRatio: number;
+  creditSignals: string[];
+  successfulPages: number;
+  failedPages: number;
+  unaccountedPages: number;
+  quality: number;
 }
 
 export interface PdfPageImage {
@@ -56,22 +92,114 @@ export function joinPdfTextItems(items: readonly unknown[]): string {
   return lines.join('\n');
 }
 
+const CREDIT_REPORT_SIGNALS: Array<[string, RegExp]> = [
+  ['bureau', /\b(?:experian|equifax|trans\s*union|transunion)\b/i],
+  ['account', /\baccount(?:s|\s+number)?\b/i],
+  ['balance', /\bbalance\b/i],
+  ['status', /\bstatus\b/i],
+  ['date_opened', /\bdate\s+opened\b/i],
+  ['creditor', /\bcreditor\b/i],
+  ['payment', /\bpayment(?:s|\s+history)?\b/i],
+  ['collection', /\bcollection(?:s)?\b/i],
+  ['charge_off', /\bcharge(?:d)?[ -]?off\b/i],
+];
+
+export function stripPdfPageMarkers(text: string): string {
+  return text.replace(/^--- Page \d+ ---\s*$/gim, '').trim();
+}
+
+export function measureTextQuality(rawText: string): TextQualityMetrics {
+  const text = stripPdfPageMarkers(rawText ?? '');
+  const nonWhitespace = text.match(/\S/g) ?? [];
+  const readable = text.match(/[\p{L}\p{N}\s.,:;!?()#$%&*+\-/]/gu) ?? [];
+  const words = text.match(/[\p{L}\p{N}][\p{L}\p{N}'*.\-/]{1,}/gu) ?? [];
+  const readableCharacterRatio = text.length > 0 ? readable.length / text.length : 0;
+  const creditSignals = CREDIT_REPORT_SIGNALS
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([name]) => name);
+  const score = Math.round(Math.min(100,
+    Math.min(35, nonWhitespace.length / 4)
+    + Math.min(25, words.length * 1.5)
+    + readableCharacterRatio * 25
+    + Math.min(15, creditSignals.length * 3),
+  ));
+  const meaningful = nonWhitespace.length >= 40
+    && words.length >= 6
+    && readableCharacterRatio >= 0.7;
+
+  return {
+    characters: nonWhitespace.length,
+    words: words.length,
+    readableCharacterRatio,
+    creditSignals,
+    score,
+    meaningful,
+  };
+}
+
+export function combineExtractedPdfPages(pages: ExtractedPdfPage[]): string {
+  return [...pages]
+    .sort((a, b) => a.pageNumber - b.pageNumber)
+    .map(page => `--- Page ${page.pageNumber} ---\n${page.source === 'failed' ? '' : page.text.trim()}`)
+    .join('\n\n');
+}
+
+export function validateCreditReportExtraction(
+  pages: ExtractedPdfPage[],
+  totalPages: number,
+): ExtractionValidation {
+  const pageNumbers = new Set(pages.map(page => page.pageNumber));
+  const unaccountedPages = Math.max(0, totalPages - pageNumbers.size);
+  const successfulPages = pages.filter(page => page.source !== 'failed' && page.quality.meaningful).length;
+  const failedPages = pages.filter(page => page.source === 'failed' || !page.quality.meaningful).length;
+  const text = pages.filter(page => page.source !== 'failed').map(page => page.text).join('\n');
+  const quality = measureTextQuality(text);
+  const minimumCharacters = Math.max(120, totalPages * 20);
+  const minimumWords = Math.max(20, totalPages * 3);
+  const valid = totalPages > 0
+    && unaccountedPages === 0
+    && successfulPages > 0
+    && quality.characters >= minimumCharacters
+    && quality.words >= minimumWords
+    && quality.readableCharacterRatio >= 0.7
+    && quality.creditSignals.length >= 3;
+
+  return {
+    valid,
+    errorCode: valid ? undefined : 'OCR_FAILED',
+    characters: quality.characters,
+    words: quality.words,
+    readableCharacterRatio: quality.readableCharacterRatio,
+    creditSignals: quality.creditSignals,
+    successfulPages,
+    failedPages: failedPages + unaccountedPages,
+    unaccountedPages,
+    quality: quality.score,
+  };
+}
+
 export async function extractTextFromPdfDocument(pdf: PdfJsDocument): Promise<{
   text: string;
   pagesWithText: number;
+  pages: PdfPageText[];
 }> {
-  const pages: string[] = [];
+  const pages: PdfPageText[] = [];
   let pagesWithText = 0;
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
     const pageText = joinPdfTextItems(content.items);
-    if (pageText.trim()) pagesWithText++;
-    pages.push(`--- Page ${pageNumber} ---\n${pageText}`);
+    const quality = measureTextQuality(pageText);
+    if (quality.meaningful) pagesWithText++;
+    pages.push({ pageNumber, text: pageText, quality });
   }
 
-  return { text: pages.join('\n\n'), pagesWithText };
+  return {
+    text: pages.map(page => `--- Page ${page.pageNumber} ---\n${page.text}`).join('\n\n'),
+    pagesWithText,
+    pages,
+  };
 }
 
 // ─── Binary / image stream detection ─────────────────────────────────────────
@@ -111,9 +239,10 @@ export function isBinaryPdfBlock(str: string): boolean {
  * - If letter ratio < 0.15 → image-based (mostly numbers/symbols from binary)
  */
 export function isImageBasedPdf(rawText: string): boolean {
-  if (!rawText || rawText.trim().length < 100) return true;
+  const markerFreeText = stripPdfPageMarkers(rawText ?? '');
+  if (!markerFreeText || markerFreeText.length < 100) return true;
 
-  const sample = rawText.slice(0, 5000);
+  const sample = markerFreeText.slice(0, 5000);
   const total = sample.length;
 
   // Count printable ASCII characters
@@ -134,7 +263,7 @@ export function isImageBasedPdf(rawText: string): boolean {
   if (letterRatio < 0.1) return true;
 
   // Check for JFIF/JPEG/PNG binary signatures in the text
-  if (/JFIF|Exif\x00\x00|PNG\r\n\x1a\n/.test(rawText.slice(0, 1000))) return true;
+  if (/JFIF|Exif\x00\x00|PNG\r\n\x1a\n/.test(markerFreeText.slice(0, 1000))) return true;
 
   // Check if the "text" is mostly PDF internal syntax (no real words)
   const words = (sample.match(/[A-Za-z]{3,}/g) ?? []).length;
@@ -159,10 +288,17 @@ export async function extractPdfText(file: File): Promise<PdfExtractionResult> {
     const pdf = await loadingTask.promise;
     const extracted = await extractTextFromPdfDocument(pdf);
     const text = extracted.text;
-    const imageBased = isImageBasedPdf(text);
-    const readableTextLength = (text.match(/[A-Za-z0-9\s.,!?;:()\-$%]/g) ?? []).length;
+    const meaningfulText = extracted.pages
+      .filter(page => page.quality.meaningful)
+      .map(page => page.text)
+      .join('\n');
+    const imageBased = extracted.pagesWithText === 0 || isImageBasedPdf(meaningfulText);
+    const nativeExtractionQuality = extracted.pages.length > 0
+      ? Math.round(extracted.pages.reduce((sum, page) => sum + page.quality.score, 0) / extracted.pages.length)
+      : 0;
+    const readableTextLength = measureTextQuality(meaningfulText).characters;
 
-    return {
+    const result: PdfExtractionResult = {
       text,
       isImageBased: imageBased,
       pageCount: pdf.numPages,
@@ -170,8 +306,12 @@ export async function extractPdfText(file: File): Promise<PdfExtractionResult> {
       pagesRequiringOcr: Math.max(0, pdf.numPages - extracted.pagesWithText),
       binaryBlocksSkipped: 0,
       readableTextLength,
-      extractionMethod: imageBased ? 'image_based' : (text.trim().length < 20 ? 'empty' : 'text'),
+      nativeExtractionQuality,
+      extractionMethod: extracted.pagesWithText === 0 ? 'image_based' : 'text',
+      pages: extracted.pages,
     };
+    await pdf.destroy?.();
+    return result;
   } catch {
     // A malformed or encrypted PDF should follow the existing OCR/manual-text
     // recovery path instead of surfacing binary data as a parsed report.
@@ -183,7 +323,9 @@ export async function extractPdfText(file: File): Promise<PdfExtractionResult> {
       pagesRequiringOcr: 1,
       binaryBlocksSkipped: 0,
       readableTextLength: 0,
+      nativeExtractionQuality: 0,
       extractionMethod: 'image_based',
+      pages: [],
     };
   }
 }

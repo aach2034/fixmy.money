@@ -1881,6 +1881,13 @@ export interface OcrMetadata {
   ocrPagesSucceeded: number;
   ocrPagesFailed: number;
   binaryBlocksSkipped: number;
+  fileHash?: string;
+  nativeExtractionQuality?: number;
+  meanOcrConfidence?: number | null;
+  extractionQuality?: number;
+  processingDurationMs?: number;
+  openAiGenerationCount?: number;
+  cacheHit?: boolean;
 }
 
 export function parseCreditReport(

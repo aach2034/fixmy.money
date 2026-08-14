@@ -7,12 +7,13 @@ import { useRouter } from 'next/navigation';
 import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
 import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliates/reportProviders';
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
-import { extractPdfText, isImageBasedPdf } from '@/lib/creditReport/pdfUtils';
-import { ocrPdfLocally } from '@/lib/creditReport/localOcr';
+import { extractPdfText, validateCreditReportExtraction, type PdfExtractionResult } from '@/lib/creditReport/pdfUtils';
+import { hashPdfFile, ocrPdfLocally } from '@/lib/creditReport/localOcr';
 import {
   OCR_STORAGE_BUCKET,
-  createOcrStoragePath,
-  shouldRelayOcrPdf,
+  createOcrCachePath,
+  isValidCachedOcrExtraction,
+  type CachedOcrExtraction,
 } from '@/lib/creditReport/ocrTransport';
 import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
@@ -222,7 +223,7 @@ function SectionConfidenceBreakdown({ sc }: { sc: SectionConfidence }) {
             </div>
           ))}
           <div className="pt-2 border-t border-border flex items-center gap-3">
-            <span className="text-xs font-semibold text-foreground w-44 shrink-0">Overall confidence</span>
+            <span className="text-xs font-semibold text-foreground w-44 shrink-0">Overall parser confidence</span>
             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full ${sc.overall >= 70 ? 'bg-success' : sc.overall >= 40 ? 'bg-warning' : 'bg-danger'}`}
@@ -301,10 +302,14 @@ function ParseStageFailures({ failures }: { failures: ParseStageError[] }) {
 interface OcrStatus {
   stage: 'detecting' | 'rendering' | 'ocr' | 'parsing' | 'done' | 'failed' | 'unavailable';
   totalPages: number;
-  pagesRendered: number;
+  nativePages: number;
   pagesOcrProcessed: number;
   pagesOcrFailed: number;
   totalChars: number;
+  nativeExtractionQuality?: number;
+  meanOcrConfidence?: number | null;
+  extractionQuality?: number;
+  cacheHit?: boolean;
   providerDetected?: string;
   sectionsParsed?: string[];
   sectionsFailed?: string[];
@@ -317,7 +322,7 @@ function OcrStatusPanel({ status }: { status: OcrStatus }) {
     rendering: 'Rendering PDF pages…',
     ocr: 'Running OCR on pages…',
     parsing: 'Parsing credit report sections…',
-    done: 'OCR complete',
+    done: 'Extraction complete',
     failed: 'OCR failed',
     unavailable: 'OCR unavailable',
   };
@@ -352,18 +357,38 @@ function OcrStatusPanel({ status }: { status: OcrStatus }) {
             <p className="font-semibold text-foreground">{status.totalPages}</p>
           </div>
           <div className="bg-card rounded-lg p-2 border border-border">
-            <p className="text-muted-foreground">Pages rendered</p>
-            <p className="font-semibold text-foreground">{status.pagesRendered}</p>
+            <p className="text-muted-foreground">Native pages</p>
+            <p className="font-semibold text-foreground">{status.nativePages}</p>
           </div>
           <div className="bg-card rounded-lg p-2 border border-border">
-            <p className="text-muted-foreground">OCR processed</p>
+            <p className="text-muted-foreground">OCR pages</p>
             <p className="font-semibold text-foreground">{status.pagesOcrProcessed}</p>
           </div>
           <div className="bg-card rounded-lg p-2 border border-border">
-            <p className="text-muted-foreground">OCR text chars</p>
+            <p className="text-muted-foreground">Failed pages</p>
+            <p className="font-semibold text-foreground">{status.pagesOcrFailed}</p>
+          </div>
+          <div className="bg-card rounded-lg p-2 border border-border">
+            <p className="text-muted-foreground">Extracted characters</p>
             <p className="font-semibold text-foreground">{status.totalChars.toLocaleString()}</p>
           </div>
+          <div className="bg-card rounded-lg p-2 border border-border">
+            <p className="text-muted-foreground">OCR confidence</p>
+            <p className="font-semibold text-foreground">{status.meanOcrConfidence == null ? 'N/A' : `${status.meanOcrConfidence}%`}</p>
+          </div>
+          <div className="bg-card rounded-lg p-2 border border-border">
+            <p className="text-muted-foreground">Extraction quality</p>
+            <p className="font-semibold text-foreground">{status.extractionQuality == null ? 'N/A' : `${status.extractionQuality}%`}</p>
+          </div>
+          <div className="bg-card rounded-lg p-2 border border-border">
+            <p className="text-muted-foreground">Native text quality</p>
+            <p className="font-semibold text-foreground">{status.nativeExtractionQuality == null ? 'N/A' : `${status.nativeExtractionQuality}%`}</p>
+          </div>
         </div>
+      )}
+
+      {status.cacheHit && (
+        <p className="text-xs text-muted-foreground">Reused a verified extraction for this file.</p>
       )}
 
       {status.providerDetected && (
@@ -447,6 +472,24 @@ export default function CreditReportImportContent() {
     try {
       const forceProvider = provider && provider !== 'unknown' ? provider : undefined;
       const result = parseCreditReport(text, forceProvider, meta ?? ocrMeta ?? undefined);
+      const extractionMeta = meta ?? ocrMeta;
+      if (extractionMeta?.fileHash) {
+        console.info('[CreditReport/Extraction]', {
+          documentId: extractionMeta.fileHash.slice(0, 16),
+          sha256: extractionMeta.fileHash,
+          totalPages: extractionMeta.totalPdfPages,
+          nativePages: extractionMeta.pagesWithEmbeddedText,
+          ocrPages: extractionMeta.ocrPagesSucceeded,
+          failedPages: extractionMeta.ocrPagesFailed,
+          extractedCharacters: text.length,
+          ocrConfidence: extractionMeta.meanOcrConfidence ?? null,
+          parserConfidence: result.overallConfidence,
+          processingDurationMs: extractionMeta.processingDurationMs ?? null,
+          openAiGenerationCount: extractionMeta.openAiGenerationCount ?? 0,
+          finalStatus: 'parsed',
+          cacheHit: extractionMeta.cacheHit ?? false,
+        });
+      }
 
       // Update OCR status panel with provider and sections info (if OCR was used)
       setOcrStatus(prev => {
@@ -493,208 +536,148 @@ export default function CreditReportImportContent() {
     }
   };
 
-  /**
-   * Runs server-side OCR on an image-based PDF.
-   * Sends the raw PDF file to /api/credit-report/ocr-pdf which handles:
-   * - PDF page rendering (pdfjs-dist + canvas, server-side)
-   * - Tesseract OCR on each page
-   * - Returns combined text + per-page status
-   */
-  const runOcrOnPdf = async (file: File): Promise<{ text: string; meta: OcrMetadata } | null> => {
+  const runOcrOnPdf = async (
+    file: File,
+    extraction: PdfExtractionResult,
+  ): Promise<{ text: string; meta: OcrMetadata } | null> => {
+    const startedAt = performance.now();
     setOcrRunning(true);
     setOcrStatus({
       stage: 'rendering',
-      totalPages: 0,
-      pagesRendered: 0,
+      totalPages: extraction.pageCount,
+      nativePages: extraction.pagesWithText,
       pagesOcrProcessed: 0,
       pagesOcrFailed: 0,
       totalChars: 0,
+      nativeExtractionQuality: extraction.nativeExtractionQuality,
     });
 
-    const runLocalFallback = async (): Promise<{ text: string; meta: OcrMetadata } | null> => {
-      setOcrStatus(prev => prev ? {
-        ...prev,
-        stage: 'ocr',
-        errorMessage: undefined,
-      } : prev);
-
-      try {
-        const localResult = await ocrPdfLocally(file, progress => {
-          setOcrProgress({ current: progress.currentPage, total: progress.totalPages });
-          setOcrStatus(prev => prev ? {
-            ...prev,
-            stage: progress.status === 'rendering' ? 'rendering' : 'ocr',
-            totalPages: progress.totalPages,
-            pagesRendered: progress.currentPage,
-            pagesOcrProcessed: Math.max(0, progress.currentPage - 1),
-          } : prev);
-        });
-
-        const success = localResult.text.trim().length >= 50 && localResult.pagesSucceeded > 0;
-        setOcrStatus({
-          stage: success ? 'parsing' : 'failed',
-          totalPages: localResult.totalPages,
-          pagesRendered: localResult.totalPages,
-          pagesOcrProcessed: localResult.pagesSucceeded,
-          pagesOcrFailed: localResult.pagesFailed,
-          totalChars: localResult.text.length,
-          errorMessage: success ? undefined : 'Local OCR could not find readable text in this PDF.',
-        });
-
-        if (!success) return null;
-
-        return {
-          text: localResult.text,
-          meta: {
-            isImageBasedPdf: true,
-            ocrWasUsed: true,
-            totalPdfPages: localResult.totalPages,
-            pagesWithEmbeddedText: 0,
-            pagesRequiringOcr: localResult.totalPages,
-            ocrPagesSucceeded: localResult.pagesSucceeded,
-            ocrPagesFailed: localResult.pagesFailed,
-            binaryBlocksSkipped: 0,
-          },
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Local OCR failed';
-        setOcrStatus(prev => prev ? {
-          ...prev,
-          stage: 'failed',
-          errorMessage: `PDF OCR failed: ${message.slice(0, 240)}`,
-        } : prev);
-        return null;
-      }
-    };
-
-    const waitForBackgroundOcr = async (job: {
-      jobId: string;
-      jobToken: string;
-      totalPages: number;
-    }): Promise<{ response: Response; data: any }> => {
-      for (let attempt = 0; attempt < 120; attempt += 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const response = await fetch('/api/credit-report/ocr-pdf', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(job),
-        });
-        const data = await response.json().catch(() => null);
-
-        if (response.status === 202 && data?.pending) continue;
-        return { response, data };
-      }
-
-      throw new Error('OCR is taking longer than expected. Please try this PDF again.');
-    };
-
     try {
-      setOcrStatus(prev => prev ? { ...prev, stage: 'ocr' } : prev);
+      const fileHash = await hashPdfFile(file);
+      const { data: { user } } = await supabase.auth.getUser();
+      const cachePath = user ? createOcrCachePath(user.id, fileHash) : null;
+      let cached: CachedOcrExtraction | null = null;
 
-      let response: Response;
-
-      if (shouldRelayOcrPdf(file.size)) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Sign in again before processing this PDF.');
-
-        const storagePath = createOcrStoragePath(user.id, file.name);
-        toast.info('Preparing this larger PDF for secure server OCR.');
-
-        const { error: uploadError } = await supabase.storage
-          .from(OCR_STORAGE_BUCKET)
-          .upload(storagePath, file, {
-            contentType: 'application/pdf',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(`Temporary PDF upload failed: ${uploadError.message}`);
+      if (cachePath) {
+        const { data } = await supabase.storage.from(OCR_STORAGE_BUCKET).download(cachePath);
+        if (data) {
+          try {
+            const parsed = JSON.parse(await data.text()) as unknown;
+            if (isValidCachedOcrExtraction(parsed, fileHash)) cached = parsed;
+          } catch {
+            cached = null;
+          }
         }
-
-        try {
-          response = await fetch('/api/credit-report/ocr-pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ storagePath, fileName: file.name }),
-          });
-        } finally {
-          await supabase.storage.from(OCR_STORAGE_BUCKET).remove([storagePath]);
-        }
-      } else {
-        const formData = new FormData();
-        formData.append('file', file);
-        response = await fetch('/api/credit-report/ocr-pdf', {
-          method: 'POST',
-          body: formData,
-        });
       }
 
-      let data = await response.json().catch(() => null);
-
-      if (
-        response.status === 202
-        && data?.pending
-        && typeof data.jobId === 'string'
-        && typeof data.jobToken === 'string'
-        && typeof data.totalPages === 'number'
-      ) {
-        toast.info('Secure OCR is processing this PDF. Keep this tab open while it finishes.');
-        ({ response, data } = await waitForBackgroundOcr({
-          jobId: data.jobId,
-          jobToken: data.jobToken,
-          totalPages: data.totalPages,
-        }));
-      }
-
-      if (data?.ocrUnavailable) {
-        toast.info('Using secure on-device OCR for this PDF. Keep this tab open while it is processed.');
-        return await runLocalFallback();
-      }
-
-      if (!response.ok) {
-        const errMsg = data?.error ?? `OCR request failed (${response.status})`;
-        console.warn('[CreditReport/OCR] Server OCR failed, using local fallback:', errMsg);
-        toast.info('Server OCR was unavailable. Continuing with secure on-device OCR.');
-        return await runLocalFallback();
-      }
-
-      // Update status with results
-      setOcrStatus(prev => prev ? {
-        ...prev,
-        stage: data.success ? 'parsing' : 'failed',
-        totalPages: data.totalPages ?? 0,
-        pagesRendered: data.pagesRendered ?? 0,
-        pagesOcrProcessed: data.pagesOcrProcessed ?? 0,
-        pagesOcrFailed: data.pagesOcrFailed ?? 0,
-        totalChars: data.totalChars ?? 0,
-        providerDetected: data.providerHint,
-        errorMessage: data.success ? undefined : (data.error ?? 'OCR returned no readable text'),
-      } : prev);
-
-      if (!data.success || !data.combinedText || data.combinedText.trim().length < 50) {
+      const result = cached ?? await ocrPdfLocally(file, progress => {
+        setOcrProgress({ current: progress.currentPage, total: progress.totalPages });
         setOcrStatus(prev => prev ? {
           ...prev,
-          stage: 'failed',
-          errorMessage: 'OCR could not extract readable text from this PDF. The pages may be too low resolution or the content may not be text.',
+          stage: progress.status === 'rendering' ? 'rendering' : 'ocr',
+          totalPages: progress.totalPages,
+          nativePages: progress.nativePages,
+          pagesOcrProcessed: progress.ocrPages,
+          pagesOcrFailed: progress.failedPages,
         } : prev);
-        return null;
+      }, extraction.pages);
+
+      const validation = validateCreditReportExtraction(result.pages, result.totalPages);
+      const nativePages = result.pages.filter(page => page.source === 'native').length;
+      const ocrPages = result.pages.filter(page => page.source === 'ocr').length;
+      const failedPages = result.pages.filter(page => page.source === 'failed').length;
+      const meanOcrConfidence = result.meanOcrConfidence;
+      const processingDurationMs = Math.round(performance.now() - startedAt);
+
+      setOcrStatus({
+        stage: validation.valid ? 'parsing' : 'failed',
+        totalPages: result.totalPages,
+        nativePages,
+        pagesOcrProcessed: ocrPages,
+        pagesOcrFailed: failedPages + validation.unaccountedPages,
+        totalChars: validation.characters,
+        nativeExtractionQuality: extraction.nativeExtractionQuality,
+        meanOcrConfidence,
+        extractionQuality: validation.quality,
+        cacheHit: Boolean(cached),
+        errorMessage: validation.valid
+          ? undefined
+          : 'OCR_FAILED: Readable credit-report text could not be verified before parsing.',
+      });
+
+      console.info('[CreditReport/Extraction]', {
+        documentId: fileHash.slice(0, 16),
+        sha256: fileHash,
+        totalPages: result.totalPages,
+        nativePages,
+        ocrPages,
+        failedPages: failedPages + validation.unaccountedPages,
+        extractedCharacters: validation.characters,
+        ocrConfidence: meanOcrConfidence,
+        parserConfidence: null,
+        processingDurationMs,
+        openAiGenerationCount: 0,
+        finalStatus: validation.valid ? 'ready_for_parser' : 'OCR_FAILED',
+        cacheHit: Boolean(cached),
+      });
+
+      if (!validation.valid) return null;
+
+      if (!cached && cachePath) {
+        const cacheValue: CachedOcrExtraction = {
+          version: 1,
+          sha256: fileHash,
+          createdAt: new Date().toISOString(),
+          text: result.text,
+          totalPages: result.totalPages,
+          nativePages,
+          ocrPages,
+          failedPages,
+          meanOcrConfidence,
+          nativeExtractionQuality: extraction.nativeExtractionQuality,
+          extractionQuality: validation.quality,
+          processingDurationMs: result.processingDurationMs,
+          pages: result.pages,
+        };
+        await supabase.storage.from(OCR_STORAGE_BUCKET).upload(
+          cachePath,
+          new Blob([JSON.stringify(cacheValue)], { type: 'application/json' }),
+          { contentType: 'application/json', upsert: true },
+        );
       }
 
-      const meta: OcrMetadata = {
-        isImageBasedPdf: true,
-        ocrWasUsed: true,
-        totalPdfPages: data.totalPages ?? 0,
-        pagesWithEmbeddedText: 0,
-        pagesRequiringOcr: data.totalPages ?? 0,
-        ocrPagesSucceeded: data.pagesOcrProcessed ?? 0,
-        ocrPagesFailed: data.pagesOcrFailed ?? 0,
-        binaryBlocksSkipped: 0,
+      return {
+        text: result.text,
+        meta: {
+          isImageBasedPdf: extraction.pagesWithText === 0,
+          ocrWasUsed: ocrPages > 0,
+          totalPdfPages: result.totalPages,
+          pagesWithEmbeddedText: nativePages,
+          pagesRequiringOcr: Math.max(0, result.totalPages - nativePages),
+          ocrPagesSucceeded: ocrPages,
+          ocrPagesFailed: failedPages,
+          binaryBlocksSkipped: extraction.binaryBlocksSkipped,
+          fileHash,
+          nativeExtractionQuality: extraction.nativeExtractionQuality,
+          meanOcrConfidence,
+          extractionQuality: validation.quality,
+          processingDurationMs,
+          openAiGenerationCount: 0,
+          cacheHit: Boolean(cached),
+        },
       };
-
-      return { text: data.combinedText, meta };
-    } catch (err: unknown) {
-      console.warn('[CreditReport/OCR] Server OCR unavailable, using local fallback:', err);
-      return await runLocalFallback();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Local OCR failed';
+      setOcrStatus(prev => prev ? {
+        ...prev,
+        stage: 'failed',
+        errorMessage: `OCR_FAILED: ${message.slice(0, 220)}`,
+      } : prev);
+      console.warn('[CreditReport/Extraction]', {
+        finalStatus: 'OCR_FAILED',
+        openAiGenerationCount: 0,
+      });
+      return null;
     } finally {
       setOcrRunning(false);
       setOcrProgress(null);
@@ -720,84 +703,32 @@ export default function CreditReportImportContent() {
 
       if (isPdf) {
         // ── PDF handling: detect image-based vs text-based ──────────────────
-        setOcrStatus({ stage: 'detecting', totalPages: 0, pagesRendered: 0, pagesOcrProcessed: 0, pagesOcrFailed: 0, totalChars: 0 });
+        setOcrStatus({ stage: 'detecting', totalPages: 0, nativePages: 0, pagesOcrProcessed: 0, pagesOcrFailed: 0, totalChars: 0 });
         const extraction = await extractPdfText(file);
 
-        if (extraction.isImageBased || extraction.extractionMethod === 'image_based') {
-          // Image-based PDF detected — run server-side OCR
-          toast.info('This appears to be an image-based credit report. Running OCR to read the pages.');
-          setOcrStatus(prev => prev ? { ...prev, stage: 'rendering' } : prev);
+        if (extraction.isImageBased) {
+          toast.info('Scanned report detected. Reading each page with on-device OCR.');
+        } else if (extraction.pagesRequiringOcr > 0) {
+          toast.info('Mixed PDF detected. Reading only the image-only pages with OCR.');
+        }
 
-          const ocrResult = await runOcrOnPdf(file);
-
-          if (ocrResult && ocrResult.text && ocrResult.text.trim().length > 100) {
-            // OCR succeeded — normalize and parse
-            const normalizedOcrText = safeNormalizeText(ocrResult.text);
-            setRawText(normalizedOcrText);
-            setOcrMeta(ocrResult.meta);
-
-            // Detect provider hint from OCR result to pre-select provider
-            const providerHint = ocrResult.meta as OcrMetadata & { providerHint?: string };
-            const detectedProvider = (providerHint as any)?.providerHint as SupportedProvider | undefined;
-
-            toast.success(
-              `OCR complete — ${ocrResult.meta.ocrPagesSucceeded} of ${ocrResult.meta.totalPdfPages} pages read (${ocrResult.text.length.toLocaleString()} characters extracted).`
-            );
-
-            setOcrStatus(prev => prev ? { ...prev, stage: 'parsing' } : prev);
-            await parseText(normalizedOcrText, detectedProvider ?? selectedProvider, ocrResult.meta);
-
-            setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
-          } else {
-            // OCR unavailable or returned no text — status already set by runOcrOnPdf
-            // Only show error if ocrStatus doesn't already have a message
-            if (!ocrStatus || ocrStatus.stage !== 'unavailable') {
-              toast.warning('OCR could not extract text from this PDF. The file may be too low resolution or corrupted.');
-            }
-          }
+        const extractionResult = await runOcrOnPdf(file, extraction);
+        if (!extractionResult) {
+          toast.warning('OCR_FAILED: Readable credit-report text could not be verified.');
           return;
         }
 
-        setOcrStatus(null);
+        const normalizedText = safeNormalizeText(extractionResult.text);
+        setRawText(normalizedText);
+        setOcrMeta(extractionResult.meta);
+        toast.success(
+          `Extraction complete: ${extractionResult.meta.pagesWithEmbeddedText} native, ${extractionResult.meta.ocrPagesSucceeded} OCR, ${extractionResult.meta.ocrPagesFailed} failed pages.`,
+        );
+        setOcrStatus(prev => prev ? { ...prev, stage: 'parsing' } : prev);
+        await parseText(normalizedText, selectedProvider, extractionResult.meta);
+        setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
+        return;
 
-        // Text-based PDF — use extracted text
-        const text = safeNormalizeText(extraction.text);
-
-        if (!text || text.trim().length < 20) {
-          toast.info('Binary PDF detected — no readable text found.');
-          toast.warning('For best results, use a text-based export from your credit report provider, or paste the report text below.');
-          setParsing(false);
-          return;
-        }
-
-        // Track binary blocks skipped
-        const meta: OcrMetadata = {
-          isImageBasedPdf: false,
-          ocrWasUsed: false,
-          totalPdfPages: extraction.pageCount,
-          pagesWithEmbeddedText: extraction.pagesWithText,
-          pagesRequiringOcr: extraction.pagesRequiringOcr,
-          ocrPagesSucceeded: 0,
-          ocrPagesFailed: 0,
-          binaryBlocksSkipped: extraction.binaryBlocksSkipped,
-        };
-        setOcrMeta(meta);
-        setRawText(text);
-        const embeddedResult = await parseText(text, selectedProvider, meta);
-
-        if (embeddedResult && embeddedResult.accounts.length === 0 && embeddedResult.overallConfidence < 50) {
-          setShowProviderModal(false);
-          toast.info('The PDF text layer is incomplete. Retrying with OCR.');
-          const ocrResult = await runOcrOnPdf(file);
-          if (ocrResult?.text && ocrResult.text.trim().length > 100) {
-            const normalizedOcrText = safeNormalizeText(ocrResult.text);
-            setRawText(normalizedOcrText);
-            setOcrMeta(ocrResult.meta);
-            setOcrStatus(prev => prev ? { ...prev, stage: 'parsing' } : prev);
-            await parseText(normalizedOcrText, selectedProvider, ocrResult.meta);
-            setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
-          }
-        }
       } else {
         // Non-PDF file (TXT, HTML, DOC) — decode directly
         setOcrStatus(null);
@@ -1264,6 +1195,7 @@ export default function CreditReportImportContent() {
         </div>
       ) : (
         <div className="space-y-5">
+          {ocrStatus && <OcrStatusPanel status={ocrStatus} />}
           {/* Parse result header */}
           <div className="card p-5 space-y-4">
             <div className="flex items-start justify-between gap-3">
@@ -1271,7 +1203,7 @@ export default function CreditReportImportContent() {
                 <h2 className="text-base font-semibold text-foreground">Parse Results</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Provider: <span className="font-medium capitalize">{parsedReport.provider === 'unknown' ? 'Not detected' : parsedReport.provider}</span> ·
-                  Confidence: <span className={`font-medium ${parsedReport.overallConfidence >= 70 ? 'text-success' : parsedReport.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{parsedReport.overallConfidence}%</span>
+                  Parser confidence: <span className={`font-medium ${parsedReport.overallConfidence >= 70 ? 'text-success' : parsedReport.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{parsedReport.overallConfidence}%</span>
                   {parsedReport.reportDate && <> · Report Date: <span className="font-medium">{parsedReport.reportDate}</span></>}
                 </p>
               </div>

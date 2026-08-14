@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   OCR_INLINE_UPLOAD_LIMIT_BYTES,
+  createOcrCachePath,
   createOcrStoragePath,
+  isValidCachedOcrExtraction,
   isOwnedOcrStoragePath,
   isPendingOpenAiResponseStatus,
   isValidOpenAiResponseId,
@@ -51,5 +53,33 @@ describe('OCR PDF transport', () => {
     expect(isValidOpenAiResponseId('resp_abc-DEF_123456')).toBe(true);
     expect(isValidOpenAiResponseId('../responses/resp_12345678')).toBe(false);
     expect(isValidOpenAiResponseId('resp_short')).toBe(false);
+  });
+
+  it('reuses only complete, page-accounted SHA-256 extraction caches', () => {
+    const hash = 'a'.repeat(64);
+    const text = 'Experian account balance status date opened creditor payment '.repeat(4);
+    const cache = {
+      version: 1,
+      sha256: hash,
+      createdAt: new Date().toISOString(),
+      text,
+      totalPages: 2,
+      nativePages: 0,
+      ocrPages: 1,
+      failedPages: 1,
+      meanOcrConfidence: 88,
+      nativeExtractionQuality: 0,
+      extractionQuality: 90,
+      processingDurationMs: 1000,
+      pages: [
+        { pageNumber: 1, text, source: 'ocr', quality: { characters: 100, words: 20, readableCharacterRatio: 1, creditSignals: ['bureau', 'account'], score: 90, meaningful: true } },
+        { pageNumber: 2, text: '', source: 'failed', quality: { characters: 0, words: 0, readableCharacterRatio: 0, creditSignals: [], score: 0, meaningful: false } },
+      ],
+    };
+
+    expect(createOcrCachePath('owner-id', hash)).toBe(`owner-id/ocr-cache/v1-${hash}.json`);
+    expect(isValidCachedOcrExtraction(cache, hash)).toBe(true);
+    expect(isValidCachedOcrExtraction({ ...cache, pages: cache.pages.slice(0, 1) }, hash)).toBe(false);
+    expect(isValidCachedOcrExtraction(cache, 'b'.repeat(64))).toBe(false);
   });
 });
