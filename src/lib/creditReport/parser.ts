@@ -950,6 +950,10 @@ export function isValidAccount(account: Partial<ParsedAccount>): boolean {
     console.debug('[ValidAccount] REJECT — creditor contains PDF stream keyword:', creditor);
     return false;
   }
+  if (!isPlausibleCreditorName(creditor)) {
+    console.debug('[ValidAccount] REJECT — creditor looks like an account value, not a creditor:', creditor);
+    return false;
+  }
 
   const hasBalance = account.balance !== null && account.balance !== undefined;
   const hasAccountNumber = !!(account.accountNumber && account.accountNumber.trim().length > 0);
@@ -991,6 +995,22 @@ const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name
 
 // Labels that indicate a new section (not an account)
 const SECTION_HEADER_RE = /^(?:personal\s+information|inquiries|public\s+records?|credit\s+score|summary|table\s+of\s+contents|hard\s+inquiries|soft\s+inquiries|account\s+information|credit\s+accounts?|tradelines?|open\s+accounts?|closed\s+accounts?|negative\s+accounts?|potentially\s+negative|equifax\s+accounts?|experian\s+accounts?|transunion\s+accounts?)/i;
+
+function isPlausibleCreditorName(value: string): boolean {
+  const trimmed = safeNormalizeText(value).trim();
+  const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ');
+  if (!trimmed || trimmed.length < 2) return false;
+  if (!/[A-Za-z]{2,}/.test(trimmed)) return false;
+  if (/^(?:transunion|experian|equifax)(?:\s+(?:transunion|experian|equifax))*$/i.test(trimmed)) return false;
+  if (/^(?:department|account|balance|status|type|comments?|remarks?)$/i.test(trimmed)) return false;
+  if (/^(?:current|open|closed|paid|unpaid|unknown|individual|joint|authorized user)$/i.test(trimmed)) return false;
+  if (/^(?:revolving|revolving account|installment|installment account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
+  if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)$/i.test(trimmed)) return false;
+  if (/^(?:year|month|extended payment history|\+?\s*expand history)/i.test(trimmed)) return false;
+  if ((trimmed.match(/\b\d{2}\b/g) ?? []).length >= 4) return false;
+  if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) && (trimmed.includes(':') || !/\bagency\b/i.test(trimmed))) return false;
+  return normalized.length > 1;
+}
 
 function reassembleAccountBlocks(text: string): string[] {
   const lines = text.split('\n');
@@ -1101,6 +1121,7 @@ function isLikelyTriBureauCreditorLine(line: string): boolean {
   const trimmed = line.trim();
   const normalized = normalizeLineForHeader(trimmed);
   if (!trimmed || trimmed.length < 2 || trimmed.length > 120) return false;
+  if (!isPlausibleCreditorName(trimmed)) return false;
   if (normalized === 'transunion experian equifax' || normalized === 'transunion' || normalized === 'experian' || normalized === 'equifax') return false;
   if (!isReadableText(trimmed)) return false;
   if (/^(?:year|month|extended payment history|\+?\s*expand history)/i.test(trimmed)) return false;
@@ -1218,7 +1239,7 @@ function extractTriBureauBaseAccount(block: string, bureau: string): ParsedAccou
     const candidate = lines[i];
     if (!candidate) continue;
     if (SECTION_HEADER_RE.test(candidate) || ACCOUNT_FIELD_LABEL_RE.test(candidate)) continue;
-    if (isReadableText(candidate)) {
+    if (isReadableText(candidate) && isPlausibleCreditorName(candidate)) {
       creditorName = candidate;
       break;
     }
@@ -1411,7 +1432,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     let creditorName = '';
     const hasTriBureauHeader = lines.slice(1, 4).some(line => line.replace(/\s+/g, ' ').toLowerCase() === 'transunion experian equifax');
 
-    if (hasTriBureauHeader && isReadableText(lines[0])) {
+    if (hasTriBureauHeader && isReadableText(lines[0]) && isPlausibleCreditorName(lines[0])) {
       creditorName = lines[0];
     }
 
@@ -1419,7 +1440,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     const creditorLabelMatch = creditorName ? null : block.match(/(?:creditor\s*name|account\s*name|furnisher)[:\s]+([^\n]+)/i);
     if (creditorLabelMatch && !creditorName) {
       const candidate = creditorLabelMatch[1].trim();
-      if (isReadableText(candidate) && candidate.length > 1) {
+      if (isReadableText(candidate) && candidate.length > 1 && isPlausibleCreditorName(candidate)) {
         creditorName = candidate;
         console.debug('[ExtractAccountBlock] Creditor from label match:', creditorName);
       }
@@ -1436,7 +1457,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
         if (/^\d+$/.test(line) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(line)) continue;
         // Skip lines that look like dollar amounts
         if (/^\$[\d,]+$/.test(line)) continue;
-        if (isReadableText(line)) {
+        if (isReadableText(line) && isPlausibleCreditorName(line)) {
           creditorName = line;
           console.debug('[ExtractAccountBlock] Creditor from line scan:', creditorName);
           break;

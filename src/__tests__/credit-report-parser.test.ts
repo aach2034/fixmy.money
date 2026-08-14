@@ -492,6 +492,52 @@ Inquiries
     expect(result.accounts.map(account => account.creditorName)).not.toContain('Extended Payment History');
   });
 
+  it('does not promote account values into canonical creditor names', () => {
+    const report = `
+MyScoreIQ Three Bureau Credit Report
+Account History
+
+department
+Account #:  BAD1234
+Account Type:  COLLECTION
+Account Status:  Collection account
+Balance:  $250.00
+Date Opened:  03/01/2026
+Bureau: Experian
+
+COLLECTION
+Account #:  BAD5678
+Account Type:  Open account
+Account Status:  Unpaid
+Balance:  $99.00
+Date Opened:  04/01/2026
+Bureau: TransUnion
+
+Revolving account
+Account #:  BAD9012
+Account Type:  Revolving
+Account Status:  Charge-off
+Balance:  $120.00
+Date Opened:  01/01/2020
+Bureau: Equifax
+
+REAL BANK
+Account #:  GOOD1234
+Account Type:  Revolving
+Account Status:  Charge-off
+Balance:  $120.00
+Date Opened:  01/01/2020
+Bureau: Equifax
+Inquiries
+`;
+
+    const result = parseCreditReport(report, 'myscoreiq');
+    expect(result.accounts.map(account => account.creditorName)).toEqual(['REAL BANK']);
+    expect(result.accounts.map(account => account.creditorName)).not.toEqual(
+      expect.arrayContaining(['department', 'COLLECTION', 'Revolving account', 'INSTALLMENT']),
+    );
+  });
+
   it('extracts scores from the MyScoreIQ three-column score row', () => {
     const report = `
 MyScoreIQ Three Bureau Credit Report
