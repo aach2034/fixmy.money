@@ -1068,23 +1068,50 @@ function normalizeLineForHeader(line: string): string {
   return line.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+function nextNonEmptyNormalizedLines(lines: string[], start: number, count: number): string[] {
+  const values: string[] = [];
+  for (let i = start; i < lines.length && values.length < count; i += 1) {
+    const normalized = normalizeLineForHeader(lines[i] ?? '');
+    if (normalized) values.push(normalized);
+  }
+  return values;
+}
+
 function isTriBureauHeaderAt(lines: string[], index: number): boolean {
   const current = normalizeLineForHeader(lines[index] ?? '');
   if (current === 'transunion experian equifax') return true;
-  return current === 'transunion'
-    && normalizeLineForHeader(lines[index + 1] ?? '') === 'experian'
-    && normalizeLineForHeader(lines[index + 2] ?? '') === 'equifax';
+  const next = nextNonEmptyNormalizedLines(lines, index, 3);
+  return next[0] === 'transunion'
+    && next[1] === 'experian'
+    && next[2] === 'equifax';
 }
 
 function triBureauHeaderLengthAt(lines: string[], index: number): number {
-  return normalizeLineForHeader(lines[index] ?? '') === 'transunion experian equifax' ? 1 : 3;
+  if (normalizeLineForHeader(lines[index] ?? '') === 'transunion experian equifax') return 1;
+  let consumed = 0;
+  let found = 0;
+  for (let i = index; i < lines.length && found < 3; i += 1) {
+    consumed += 1;
+    if (normalizeLineForHeader(lines[i] ?? '')) found += 1;
+  }
+  return consumed;
+}
+
+function isLikelyTriBureauCreditorLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.length < 2 || trimmed.length > 120) return false;
+  if (!isReadableText(trimmed)) return false;
+  if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) || SECTION_HEADER_RE.test(trimmed)) return false;
+  if (/^(?:current|open|closed|paid|unknown|individual|joint|authorized user|revolving|installment|mortgage|collection|account|balance)$/i.test(trimmed)) return false;
+  if (/^(?:-|n\/?a|none|\$?[\d,]+(?:\.\d{2})?|\d{1,2}\/\d{1,2}\/\d{2,4})$/i.test(trimmed)) return false;
+  return /[A-Za-z]{2,}/.test(trimmed);
 }
 
 function lineBeforeTriBureauHeader(lines: string[], headerIndex: number): number {
   for (let i = headerIndex - 1; i >= 0; i -= 1) {
     const trimmed = lines[i].trim();
     if (!trimmed) continue;
-    if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) || SECTION_HEADER_RE.test(trimmed)) continue;
+    if (!isLikelyTriBureauCreditorLine(trimmed)) continue;
     return i;
   }
   return Math.max(0, headerIndex - 1);
@@ -1100,7 +1127,7 @@ function splitTriBureauColumnAccounts(text: string): string[] {
     // Personal-info and summary tables use the same header. An account header
     // is distinguished by an Account # field immediately below it.
     const lookaheadStart = i + triBureauHeaderLengthAt(lines, i);
-    const lookahead = lines.slice(lookaheadStart, lookaheadStart + 16).join('\n');
+    const lookahead = lines.slice(lookaheadStart, lookaheadStart + 80).join('\n');
     if (/^account\s*(?:#|number|no\.?)[\s:]/im.test(lookahead)) headers.push(i);
   }
 
@@ -1147,6 +1174,9 @@ function triBureauValues(block: string, label: RegExp, tokenPattern?: RegExp): s
 
     const spacedCells = sameLine.split(/\s{2,}/).map(value => value.trim()).filter(Boolean);
     if (spacedCells.length === 3) return spacedCells;
+
+    const dashDelimitedCells = sameLine.split(/\s+-\s+/).map(value => value.trim()).filter(Boolean);
+    if (dashDelimitedCells.length === 2 && sameLine.endsWith('-')) return [dashDelimitedCells[0], '-', '-'];
   }
 
   const stacked: string[] = [];

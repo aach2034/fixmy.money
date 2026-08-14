@@ -396,6 +396,65 @@ Inquiries
     });
   });
 
+  it('does not miss MyScoreIQ OCR blocks when Account # appears deep below the bureau header', () => {
+    const report = `
+MyScoreIQ Three Bureau Credit Report
+Account History
+CREDIT COLL (Original Creditor: 06 PROGRESSIVE)
+TransUnion  Experian  Equifax
+Account Type:  Open account  -  -
+Account Type - Detail:  Collection Account  -  -
+Bureau Code:  Individual  -  -
+Account Status:  Open  -  -
+Monthly Payment:  $0.00  -  -
+Date Opened:  02/02/2026  -  -
+Balance:  $557.00  -  -
+High Credit:  $557.00  -  -
+Credit Limit:  -  -  -
+Past Due:  $557.00  -  -
+Payment Status:  Placed for collection  -  -
+Last Reported:  07/01/2026  -  -
+Comments:  Collection account  -  -
+Date Last Active:  02/02/2026  -  -
+Account #:
+XXXX
+-
+-
+SYNCOM (Original Creditor: 09 ALLURE AT SOUTHPARK)
+TransUnion  Experian  Equifax
+Account Type:  Open account  -  -
+Account Status:  Collection account  -  -
+Balance:  $7314.00  -  -
+Past Due:  $7314.00  -  -
+Payment Status:  Seriously past due  -  -
+Date Opened:  02/02/2026  -  -
+Account #:  XXXX  -  -
+CURRENT
+YENDO INC
+TransUnion  Experian  Equifax
+Account #:  -  -  12345XXXX
+Account Type:  -  -  Installment
+Account Status:  -  -  Current
+Balance:  -  -  $100.00
+Date Opened:  -  -  01/01/2025
+Inquiries
+`;
+
+    const result = parseCreditReport(report, 'myscoreiq');
+    expect(result.bureauTradelines?.map(account => account.creditorName)).toEqual([
+      'CREDIT COLL',
+      'SYNCOM',
+      'YENDO INC',
+    ]);
+    expect(result.accounts).toHaveLength(3);
+    expect(result.collections.map(account => account.creditorName)).toEqual([
+      'CREDIT COLL / PROGRESSIVE',
+      'SYNCOM / ALLURE AT SOUTHPARK',
+    ]);
+    expect(result.negativeAccounts).toHaveLength(2);
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('CURRENT');
+  });
+
   it('extracts scores from the MyScoreIQ three-column score row', () => {
     const report = `
 MyScoreIQ Three Bureau Credit Report
