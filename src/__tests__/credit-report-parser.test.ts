@@ -320,12 +320,13 @@ Inquiries
 `;
     const result = parseCreditReport(report);
     expect(result.provider).toBe('myscoreiq');
-    expect(result.accounts).toHaveLength(6);
-    expect(result.accounts.filter(account => account.creditorName === 'FIRST BANK')).toHaveLength(3);
-    expect(result.accounts.filter(account => account.creditorName === 'SECOND FINANCE')).toHaveLength(3);
-    expect(result.accounts.filter(account => account.creditorName === 'FIRST BANK').every(account => !account.isNegative)).toBe(true);
-    expect(result.accounts.filter(account => account.creditorName === 'SECOND FINANCE').every(account => account.isNegative)).toBe(true);
-    expect(result.accounts.map(account => account.bureau)).toEqual([
+    expect(result.bureauTradelines).toHaveLength(6);
+    expect(result.accounts).toHaveLength(2);
+    expect(result.bureauTradelines?.filter(account => account.creditorName === 'FIRST BANK')).toHaveLength(3);
+    expect(result.bureauTradelines?.filter(account => account.creditorName === 'SECOND FINANCE')).toHaveLength(3);
+    expect(result.accounts.find(account => account.creditorName === 'FIRST BANK')?.isNegative).toBe(false);
+    expect(result.accounts.find(account => account.creditorName === 'SECOND FINANCE')?.isNegative).toBe(true);
+    expect(result.bureauTradelines?.map(account => account.bureau)).toEqual([
       'TransUnion', 'Experian', 'Equifax', 'TransUnion', 'Experian', 'Equifax',
     ]);
   });
@@ -345,9 +346,54 @@ Last Reported: - 06/22/2026 06/23/2026
 Inquiries
 `;
     const result = parseCreditReport(report);
-    expect(result.accounts.map(account => account.bureau)).toEqual(['Experian', 'Equifax']);
-    expect(result.accounts.map(account => account.balance)).toEqual([75, 80]);
-    expect(result.accounts.map(account => account.dateReported)).toEqual(['2026-06-22', '2026-06-23']);
+    expect(result.bureauTradelines?.map(account => account.bureau)).toEqual(['Experian', 'Equifax']);
+    expect(result.bureauTradelines?.map(account => account.balance)).toEqual([75, 80]);
+    expect(result.bureauTradelines?.map(account => account.dateReported)).toEqual(['2026-06-22', '2026-06-23']);
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0].bureaus).toEqual(['Experian', 'Equifax']);
+  });
+
+  it('parses OCR-stacked tri-bureau account values', () => {
+    const report = `
+MyScoreIQ Three Bureau Credit Report
+Account History
+CREDIT COLLECTION SERV  (Original Creditor: PROGRESSIVE)
+TransUnion
+Experian
+Equifax
+Account #:
+-
+211191XX
+211191XX
+Account Type:
+-
+COLLECTION
+COLLECTION
+Account Status:
+-
+Seriously past due date / assigned to attorney, collection agency, or credit grantor's internal collection department
+Unpaid
+Balance:
+-
+$557.00
+$557.00
+Date Opened:
+-
+02/02/2026
+02/02/2026
+Inquiries
+`;
+    const result = parseCreditReport(report);
+    expect(result.bureauTradelines).toHaveLength(2);
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({
+      creditorName: 'CREDIT COLLECTION SERV / PROGRESSIVE',
+      isNegative: true,
+      isCollection: true,
+      negativeReason: 'Collection account',
+      bureaus: ['Experian', 'Equifax'],
+      balance: 557,
+    });
   });
 
   it('extracts scores from the MyScoreIQ three-column score row', () => {

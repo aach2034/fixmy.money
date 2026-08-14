@@ -193,6 +193,9 @@ export interface ParsedScore {
 
 export interface ParsedAccount {
   id: string;
+  canonicalKey?: string;
+  tradelines?: ParsedAccount[];
+  originalCreditor?: string;
   creditorName: string;
   furnisherName: string;
   accountNumber: string;
@@ -296,6 +299,8 @@ export interface ParsedCreditReport {
   negativeClassificationRan: boolean;
   unparsedBlocks: string[];
   diagnostics?: ParserDiagnostics;
+  bureauTradelines?: ParsedAccount[];
+  canonicalAccounts?: ParsedAccount[];
 }
 
 // ─── Comprehensive negative detection keywords ────────────────────────────────
@@ -317,7 +322,9 @@ const NEGATIVE_KEYWORDS = [
   'chargeoff',
   'charged off',
   'profit and loss',
+  'profit and loss writeoff',
   'written off',
+  'writeoff',
   'write-off',
   'derogatory',
   'potentially negative',
@@ -333,7 +340,6 @@ const NEGATIVE_KEYWORDS = [
   'seriously delinquent',
   'foreclosure',
   'repossession',
-  'repo',
   'voluntary surrender',
   'involuntary repossession',
   'bankruptcy',
@@ -359,6 +365,31 @@ const NEGATIVE_KEYWORDS = [
 
 const NEGATIVE_PAYMENT_CODES = ['30', '60', '90', '120', 'co', 'col', 'rf', 'r', 'f', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+const COLLECTION_NAME_HINTS = [
+  'collection',
+  'collections',
+  'debt recovery',
+  'debt buyer',
+  'credit coll',
+  'credit collection',
+  'credence',
+  'national recovery',
+  'national credit system',
+  'natlcrsys',
+  'synergetic',
+  'syncom',
+  'southwest credit',
+  'sw crdt',
+  'portfolio recovery',
+  'portfolio recov',
+  'jefferson capital',
+  'columbia debt',
+  'cdr genesis',
+  '1st crd srvc',
+  '1st credit service',
+  'indebted',
+];
+
 export function isNegativeAccount(account: Partial<ParsedAccount>): boolean {
   try {
     const allText = [
@@ -367,9 +398,11 @@ export function isNegativeAccount(account: Partial<ParsedAccount>): boolean {
       ...(account.remarks ?? []),
       account.paymentHistory ?? '',
       account.negativeReason ?? '',
+      account.rawText ?? '',
     ].join(' ').toLowerCase();
 
     if (NEGATIVE_KEYWORDS.some(kw => allText.includes(kw))) return true;
+    if (/\brepo(?:ssession|ssessed)?\b/i.test(allText)) return true;
     if ((account.pastDue ?? 0) > 0) return true;
     if ((account.latePayments ?? []).length > 0) return true;
 
@@ -391,6 +424,7 @@ export function detectNegativeReason(account: Partial<ParsedAccount>): string {
       account.status ?? '',
       account.accountType ?? '',
       ...(account.remarks ?? []),
+      account.rawText ?? '',
     ].join(' ').toLowerCase();
 
     if (allText.includes('collection')) return 'Collection account';
@@ -400,7 +434,7 @@ export function detectNegativeReason(account: Partial<ParsedAccount>): string {
     if (allText.includes('60 days')) return '60 days late';
     if (allText.includes('30 days')) return '30 days late';
     if (allText.includes('late')) return 'Late payment';
-    if (allText.includes('repossession') || allText.includes('repo')) return 'Repossession';
+    if (/\brepo(?:ssession|ssessed)?\b/i.test(allText)) return 'Repossession';
     if (allText.includes('foreclosure')) return 'Foreclosure';
     if (allText.includes('bankruptcy')) return 'Included in bankruptcy';
     if (allText.includes('settled for less') || allText.includes('legally paid in full for less')) return 'Settled for less than full balance';
@@ -425,18 +459,22 @@ export function isCollectionAccount(account: Partial<ParsedAccount>): boolean {
       account.status ?? '',
       account.creditorName ?? '',
       account.furnisherName ?? '',
+      account.originalCreditor ?? '',
       ...(account.remarks ?? []),
+      account.rawText ?? '',
     ].join(' ').toLowerCase();
 
     return (
       allText.includes('collection') ||
       allText.includes('debt buyer') ||
+      allText.includes('placed for collection') ||
       allText.includes('medical collection') ||
       allText.includes('placed for collection') ||
       allText.includes('assigned to collection') ||
       allText.includes('transferred to collection') ||
       allText.includes('collection account') ||
-      allText.includes('collection agency')
+      allText.includes('collection agency') ||
+      COLLECTION_NAME_HINTS.some(hint => allText.includes(hint))
     );
   } catch {
     return false;
@@ -1026,24 +1064,50 @@ function reassembleAccountBlocks(text: string): string[] {
 // MyScoreIQ tri-bureau exports repeat a column header for every tradeline:
 // creditor name, "TransUnion Experian Equifax", then the account fields. The
 // generic reassembler treats the entire Account History section as one block.
+function normalizeLineForHeader(line: string): string {
+  return line.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function isTriBureauHeaderAt(lines: string[], index: number): boolean {
+  const current = normalizeLineForHeader(lines[index] ?? '');
+  if (current === 'transunion experian equifax') return true;
+  return current === 'transunion'
+    && normalizeLineForHeader(lines[index + 1] ?? '') === 'experian'
+    && normalizeLineForHeader(lines[index + 2] ?? '') === 'equifax';
+}
+
+function triBureauHeaderLengthAt(lines: string[], index: number): number {
+  return normalizeLineForHeader(lines[index] ?? '') === 'transunion experian equifax' ? 1 : 3;
+}
+
+function lineBeforeTriBureauHeader(lines: string[], headerIndex: number): number {
+  for (let i = headerIndex - 1; i >= 0; i -= 1) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue;
+    if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) || SECTION_HEADER_RE.test(trimmed)) continue;
+    return i;
+  }
+  return Math.max(0, headerIndex - 1);
+}
+
 function splitTriBureauColumnAccounts(text: string): string[] {
   const lines = text.split('\n');
   const headers: number[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const normalized = lines[i].trim().replace(/\s+/g, ' ').toLowerCase();
-    if (normalized !== 'transunion experian equifax') continue;
+    if (!isTriBureauHeaderAt(lines, i)) continue;
 
     // Personal-info and summary tables use the same header. An account header
     // is distinguished by an Account # field immediately below it.
-    const lookahead = lines.slice(i + 1, i + 10).join('\n');
+    const lookaheadStart = i + triBureauHeaderLengthAt(lines, i);
+    const lookahead = lines.slice(lookaheadStart, lookaheadStart + 16).join('\n');
     if (/^account\s*(?:#|number|no\.?)[\s:]/im.test(lookahead)) headers.push(i);
   }
 
   return headers.map((headerIndex, position) => {
-    const start = Math.max(0, headerIndex - 1); // creditor name
+    const start = lineBeforeTriBureauHeader(lines, headerIndex);
     const nextHeader = headers[position + 1];
-    const end = nextHeader === undefined ? lines.length : Math.max(start + 1, nextHeader - 1);
+    const end = nextHeader === undefined ? lines.length : lineBeforeTriBureauHeader(lines, nextHeader);
     return lines.slice(start, end).join('\n').trim();
   }).filter(block => block.length > 10 && /account\s*(?:#|number|no\.?)/i.test(block));
 }
@@ -1066,27 +1130,120 @@ function triBureauCells(block: string, label: RegExp): string[] {
   return cells.length === 3 ? cells : [];
 }
 
-function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccount[] {
-  if (!/transunion\s+experian\s+equifax/i.test(block)) return [base];
+function triBureauValues(block: string, label: RegExp, tokenPattern?: RegExp): string[] {
+  const lines = block.split('\n');
+  const lineIndex = lines.findIndex(candidate => label.test(candidate.trim()));
+  if (lineIndex < 0) return [];
 
-  const accountNumbers = triBureauTokens(
-    triBureauLine(block, /^account\s*(?:#|number|no\.?)\s*:\s*/i),
-    /-|[A-Z0-9*X]{2,}/gi,
-  );
+  const sameLine = lines[lineIndex].replace(label, '').trim();
+  if (sameLine) {
+    const tabCells = sameLine.split(/\t+/).map(value => value.trim()).filter(Boolean);
+    if (tabCells.length === 3) return tabCells;
+
+    if (tokenPattern) {
+      const tokens = sameLine.match(tokenPattern) ?? [];
+      if (tokens.length >= 3) return tokens.slice(0, 3);
+    }
+
+    const spacedCells = sameLine.split(/\s{2,}/).map(value => value.trim()).filter(Boolean);
+    if (spacedCells.length === 3) return spacedCells;
+  }
+
+  const stacked: string[] = [];
+  for (let i = lineIndex + 1; i < lines.length && stacked.length < 3; i += 1) {
+    const value = lines[i].trim();
+    if (!value) continue;
+    if (ACCOUNT_FIELD_LABEL_RE.test(value)) break;
+    if (isTriBureauHeaderAt(lines, i)) break;
+    stacked.push(value);
+  }
+
+  return stacked.length === 3 ? stacked : [];
+}
+
+function isTriBureauBlock(block: string): boolean {
+  const lines = block.split('\n');
+  return lines.some((_, index) => isTriBureauHeaderAt(lines, index))
+    && /^account\s*(?:#|number|no\.?)\s*:/im.test(block);
+}
+
+function extractTriBureauBaseAccount(block: string, bureau: string): ParsedAccount | null {
+  const lines = block.split('\n').map(line => line.trim()).filter(Boolean);
+  const headerIndex = lines.findIndex((_, index) => isTriBureauHeaderAt(lines, index));
+  if (headerIndex <= 0) return null;
+
+  let creditorName = '';
+  for (let i = headerIndex - 1; i >= 0; i -= 1) {
+    const candidate = lines[i];
+    if (!candidate) continue;
+    if (SECTION_HEADER_RE.test(candidate) || ACCOUNT_FIELD_LABEL_RE.test(candidate)) continue;
+    if (isReadableText(candidate)) {
+      creditorName = candidate;
+      break;
+    }
+  }
+
+  const originalCreditorMatch = creditorName.match(/\(\s*original\s+creditor\s*:\s*([^)]+)\)/i)
+    ?? block.match(/\(\s*original\s+creditor\s*:\s*([^)]+)\)/i);
+  const originalCreditor = originalCreditorMatch?.[1]?.trim() ?? '';
+  creditorName = creditorName.replace(/\s*\(\s*original\s+creditor\s*:.*\)\s*$/i, '').trim();
+
+  if (!creditorName || !isReadableText(creditorName)) return null;
+
+  const bureaus = extractBureaus(block);
+  return {
+    id: `${creditorName}-tri-bureau-${bureau || 'unknown'}`.replace(/\s+/g, '-').toLowerCase(),
+    creditorName,
+    originalCreditor,
+    furnisherName: creditorName,
+    accountNumber: '',
+    accountNumberMasked: '',
+    accountType: 'Unknown',
+    responsibility: 'Individual',
+    status: '',
+    balance: null,
+    highBalance: null,
+    creditLimit: null,
+    pastDue: null,
+    dateOpened: '',
+    dateClosed: '',
+    dateReported: '',
+    dateLastActivity: '',
+    bureaus: bureaus.length > 0 ? bureaus : [bureau || 'Unknown'],
+    bureau: bureaus[0] ?? bureau ?? 'Unknown',
+    paymentHistory: '',
+    remarks: [],
+    isNegative: false,
+    negativeReason: '',
+    disputeStatus: '',
+    isCollection: false,
+    isChargeOff: false,
+    isLate: false,
+    latePayments: [],
+    rawText: block,
+    parserConfidence: 20,
+  };
+}
+
+function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccount[] {
+  const lines = block.split('\n');
+  if (!lines.some((_, index) => isTriBureauHeaderAt(lines, index))) return [base];
+
+  const accountNumbers = triBureauValues(block, /^account\s*(?:#|number|no\.?)\s*:\s*/i, /-|[A-Z0-9*X]{2,}/gi);
   if (accountNumbers.length !== 3) return [base];
 
-  const balances = triBureauTokens(triBureauLine(block, /^balance\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
-  const pastDue = triBureauTokens(triBureauLine(block, /^past\s+due\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
-  const highCredit = triBureauTokens(triBureauLine(block, /^high\s+credit\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
-  const creditLimit = triBureauTokens(triBureauLine(block, /^credit\s+limit\s*:\s*/i), /-|\$[\d,]+(?:\.\d{2})?/g);
-  const opened = triBureauTokens(triBureauLine(block, /^date\s+opened\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
-  const reported = triBureauTokens(triBureauLine(block, /^(?:last\s+reported|date\s+reported)\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
-  const lastActive = triBureauTokens(triBureauLine(block, /^date\s+last\s+active\s*:\s*/i), /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
-  const accountTypes = triBureauCells(block, /^account\s+type\s*:\s*/i);
-  const accountStatuses = triBureauCells(block, /^account\s+status\s*:\s*/i);
-  const paymentStatuses = triBureauCells(block, /^(?:payment|pay)\s+status\s*:\s*/i);
-  const responsibilities = triBureauCells(block, /^(?:bureau\s+code|responsibility)\s*:\s*/i);
-  const comments = triBureauCells(block, /^(?:comments?|remarks?)\s*:\s*/i);
+  const balances = triBureauValues(block, /^balance\s*:\s*/i, /-|\$[\d,]+(?:\.\d{2})?/g);
+  const pastDue = triBureauValues(block, /^past\s+due\s*:\s*/i, /-|\$[\d,]+(?:\.\d{2})?/g);
+  const highCredit = triBureauValues(block, /^high\s+credit\s*:\s*/i, /-|\$[\d,]+(?:\.\d{2})?/g);
+  const creditLimit = triBureauValues(block, /^credit\s+limit\s*:\s*/i, /-|\$[\d,]+(?:\.\d{2})?/g);
+  const opened = triBureauValues(block, /^date\s+opened\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const reported = triBureauValues(block, /^(?:last\s+reported|date\s+reported)\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const lastActive = triBureauValues(block, /^date\s+last\s+active\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const accountTypes = triBureauValues(block, /^account\s+type\s*:\s*/i);
+  const accountStatuses = triBureauValues(block, /^account\s+status\s*:\s*/i);
+  const paymentStatuses = triBureauValues(block, /^(?:payment|pay)\s+status\s*:\s*/i);
+  const responsibilities = triBureauValues(block, /^(?:bureau\s+code|responsibility)\s*:\s*/i);
+  const comments = triBureauValues(block, /^(?:comments?|remarks?)\s*:\s*/i);
 
   const valueAt = (values: string[], index: number) => values.length === 3 ? values[index] : undefined;
   const amountAt = (values: string[], index: number, fallback: number | null) => {
@@ -1117,8 +1274,27 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
     const balance = amountAt(balances, index, base.balance);
     const pastDueAmount = amountAt(pastDue, index, base.pastDue);
     const dateOpened = dateAt(opened, index, base.dateOpened);
+    const dateReported = dateAt(reported, index, base.dateReported);
+    const dateLastActivity = dateAt(lastActive, index, base.dateLastActivity);
+    const bureauRawText = [
+      base.creditorName,
+      base.originalCreditor ? `(Original Creditor: ${base.originalCreditor})` : '',
+      `Bureau: ${bureau}`,
+      `Account #: ${accountNumber}`,
+      `Account Type: ${accountType}`,
+      accountStatus ? `Account Status: ${accountStatus}` : '',
+      paymentStatus ? `Payment Status: ${paymentStatus}` : '',
+      balance !== null ? `Balance: ${balance}` : '',
+      pastDueAmount && pastDueAmount > 0 ? `Past Due: ${pastDueAmount}` : '',
+      dateOpened ? `Date Opened: ${dateOpened}` : '',
+      dateReported ? `Last Reported: ${dateReported}` : '',
+      dateLastActivity ? `Date Last Active: ${dateLastActivity}` : '',
+      comment ? `Comments: ${comment}` : '',
+    ].filter(Boolean).join('\n');
     const partial: Partial<ParsedAccount> = {
       creditorName: base.creditorName,
+      originalCreditor: base.originalCreditor,
+      furnisherName: base.furnisherName,
       accountNumber,
       accountType,
       status,
@@ -1127,6 +1303,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       remarks,
       latePayments: [],
       paymentHistory: '',
+      rawText: bureauRawText,
     };
     const collection = isCollectionAccount(partial);
     const negative = isNegativeAccount(partial) || collection;
@@ -1156,8 +1333,8 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       highBalance: amountAt(highCredit, index, base.highBalance),
       creditLimit: amountAt(creditLimit, index, base.creditLimit),
       dateOpened,
-      dateReported: dateAt(reported, index, base.dateReported),
-      dateLastActivity: dateAt(lastActive, index, base.dateLastActivity),
+      dateReported,
+      dateLastActivity,
       isNegative: negative,
       negativeReason,
       isCollection: collection,
@@ -1165,6 +1342,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       isLate: /\blate\b|\bpast due\b|\bdelinquent\b/i.test(`${status} ${remarks.join(' ')}`),
       latePayments: [],
       paymentHistory: '',
+      rawText: bureauRawText,
       parserConfidence,
     }];
   });
@@ -1225,6 +1403,9 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       }
     }
 
+    const originalCreditorMatch = creditorName.match(/\(\s*original\s+creditor\s*:\s*([^)]+)\)/i)
+      ?? block.match(/\(\s*original\s+creditor\s*:\s*([^)]+)\)/i);
+    const originalCreditor = originalCreditorMatch?.[1]?.trim() ?? '';
     creditorName = creditorName.replace(/\s*\(\s*original\s+creditor\s*:.*\)\s*$/i, '').trim();
 
     if (!creditorName || !isReadableText(creditorName)) {
@@ -1308,6 +1489,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       creditorName,
       accountNumber,
       accountType,
+      originalCreditor,
       status,
       balance,
       pastDue,
@@ -1335,6 +1517,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     return {
       id: `${creditorName}-${accountNumber}-${bureau}`.replace(/\s+/g, '-').toLowerCase(),
       creditorName,
+      originalCreditor,
       furnisherName: creditorName,
       accountNumber,
       accountNumberMasked: maskAccountNumber(accountNumber),
@@ -1679,7 +1862,8 @@ function extractAccounts(
           continue;
         }
 
-        const account = extractAccountBlock(block, currentBureau);
+        const account = extractAccountBlock(block, currentBureau)
+          ?? (isTriBureauBlock(block) ? extractTriBureauBaseAccount(block, currentBureau) : null);
         if (account && account.parserConfidence >= 20) {
           const expandedAccounts = expandTriBureauAccount(block, account);
           for (const expanded of expandedAccounts) {
@@ -1871,6 +2055,115 @@ function runSecondPassNegativeClassification(accounts: ParsedAccount[]): ParsedA
 }
 
 // ─── Main parser ──────────────────────────────────────────────────────────────
+
+function normalizeCanonicalToken(value: string): string {
+  return safeNormalizeText(value)
+    .toLowerCase()
+    .replace(/\b(?:original creditor|na|n a|inc|llc|ltd|corp|corporation|company|services|service|systems|system|associates|assoc)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b\d{1,3}\s+(?=[a-z0-9])/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeAccountNumberForKey(value: string): string {
+  const cleaned = value.toLowerCase().replace(/[^a-z0-9x*]/g, '');
+  const visible = cleaned.replace(/[x*]+/g, '');
+  return visible.length >= 4 ? visible : '';
+}
+
+function accountFamily(accountType: string): string {
+  const type = accountType.toLowerCase();
+  if (/collection|debt buyer/.test(type)) return 'collection';
+  if (/revolving|credit card|open account/.test(type)) return 'revolving';
+  if (/installment|auto|loan/.test(type)) return 'installment';
+  return normalizeCanonicalToken(accountType || 'unknown');
+}
+
+function collectionAgencyFamily(account: ParsedAccount): string {
+  const name = normalizeCanonicalToken(account.creditorName);
+  if (/\b(?:credit collection|credit coll)\b/.test(name)) return 'credit collection';
+  if (/\b(?:credence resource mana|credence rm|credence)\b/.test(name)) return 'credence';
+  if (/\b(?:national credit system|natlcrsys)\b/.test(name)) return 'national credit system';
+  if (/\b(?:synergetic communicati|syncom)\b/.test(name)) return 'synergetic';
+  if (/\b(?:southwest credit|sw crdt)\b/.test(name)) return 'southwest credit';
+  if (/\b(?:portfolio recovery|portfolio recov)\b/.test(name)) return 'portfolio recovery';
+  if (/\b(?:jefferson capital syst|jefferson capital)\b/.test(name)) return 'jefferson capital';
+  if (/\b(?:columbia debt recovery|columbia debt)\b/.test(name)) return 'columbia debt recovery';
+  if (/\b(?:cdr genesis)\b/.test(name)) return 'cdr genesis';
+  if (/\b(?:1st crd srvc|1st credit)\b/.test(name)) return '1st credit service';
+  if (/\b(?:indebted usa|indebted)\b/.test(name)) return 'indebted';
+  return name;
+}
+
+function canonicalAccountKey(account: ParsedAccount): string {
+  const original = normalizeCanonicalToken(account.originalCreditor ?? '');
+  const furnisher = normalizeCanonicalToken(account.creditorName);
+  const accountNumber = normalizeAccountNumberForKey(account.accountNumber || account.accountNumberMasked);
+  const balance = account.balance == null ? 'na' : String(Math.round(account.balance));
+  const opened = account.dateOpened || 'na';
+  const family = accountFamily(account.accountType);
+
+  if (original && (account.isCollection || isCollectionAccount(account) || family === 'collection')) {
+    return `collection:${collectionAgencyFamily(account)}|orig:${original}`;
+  }
+  if (accountNumber) return `acct:${furnisher}|${accountNumber}`;
+  if (original) return `orig:${original}|furnisher:${furnisher}|bal:${balance}|open:${opened}|family:${family}`;
+  return `name:${furnisher}|bal:${balance}|open:${opened}|family:${family}`;
+}
+
+function displayOriginalCreditor(value: string): string {
+  return safeNormalizeText(value).replace(/^\d{1,3}\s+/, '').replace(/\s+/g, ' ').trim();
+}
+
+function mergeCanonicalAccounts(tradelines: ParsedAccount[]): ParsedAccount[] {
+  const groups = new Map<string, ParsedAccount[]>();
+  for (const tradeline of tradelines) {
+    const key = canonicalAccountKey(tradeline);
+    groups.set(key, [...(groups.get(key) ?? []), { ...tradeline, canonicalKey: key }]);
+  }
+
+  return Array.from(groups.entries()).map(([canonicalKey, group]) => {
+    const ranked = [...group].sort((a, b) => {
+      if (a.isNegative !== b.isNegative) return a.isNegative ? -1 : 1;
+      if (a.isCollection !== b.isCollection) return a.isCollection ? -1 : 1;
+      return b.parserConfidence - a.parserConfidence;
+    });
+    const best = ranked[0];
+    const bureaus = Array.from(new Set(group.flatMap(account => account.bureaus?.length ? account.bureaus : [account.bureau]).filter(Boolean)));
+    const original = displayOriginalCreditor(best.originalCreditor ?? '');
+    const creditorName = original && !normalizeCanonicalToken(best.creditorName).includes(normalizeCanonicalToken(original))
+      ? `${best.creditorName} / ${original}`
+      : best.creditorName;
+    const isCollection = group.some(account => account.isCollection || isCollectionAccount(account));
+    const isChargeOff = group.some(account => account.isChargeOff);
+    const isLate = group.some(account => account.isLate);
+    const isNegative = group.some(account => account.isNegative) || isCollection || isChargeOff || isLate;
+    const negativeReason = isCollection
+      ? 'Collection account'
+      : isChargeOff
+        ? 'Charge-off'
+        : (group.find(account => account.negativeReason)?.negativeReason ?? (isNegative ? detectNegativeReason(best) : ''));
+
+    return {
+      ...best,
+      id: canonicalKey.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase(),
+      canonicalKey,
+      tradelines: group,
+      creditorName,
+      furnisherName: best.furnisherName || best.creditorName,
+      bureau: bureaus.length === 1 ? bureaus[0] : 'Multiple',
+      bureaus,
+      isNegative,
+      negativeReason,
+      isCollection,
+      isChargeOff,
+      isLate,
+      rawText: group.map(account => account.rawText).filter(Boolean).join('\n\n--- Bureau Tradeline ---\n\n'),
+      parserConfidence: Math.round(group.reduce((sum, account) => sum + account.parserConfidence, 0) / group.length),
+    };
+  });
+}
 
 export interface OcrMetadata {
   isImageBasedPdf: boolean;
@@ -2074,9 +2367,11 @@ export function parseCreditReport(
     }
 
     // Second-pass negative classification
+    let bureauTradelines: ParsedAccount[] = rawAccounts;
     let accounts: ParsedAccount[] = rawAccounts;
     try {
-      accounts = runSecondPassNegativeClassification(rawAccounts);
+      bureauTradelines = runSecondPassNegativeClassification(rawAccounts);
+      accounts = mergeCanonicalAccounts(bureauTradelines);
     } catch (e: any) {
       stageFailures.push({ stage: 'negative_classification', message: e?.message ?? 'negative classification threw', fatal: false });
       warnings.push({ section: 'Negative Classification', message: `Second-pass classification failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
@@ -2321,6 +2616,8 @@ export function parseCreditReport(
       negativeClassificationRan,
       unparsedBlocks,
       diagnostics,
+      bureauTradelines,
+      canonicalAccounts: accounts,
     };
   } catch (fatalErr: any) {
     stageFailures.push({ stage: 'account_parsing', message: fatalErr?.message ?? 'fatal parser error', fatal: true });
