@@ -1007,6 +1007,7 @@ function isPlausibleCreditorName(value: string): boolean {
   if (/^(?:revolving|revolving account|installment|installment account|individual account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
   if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)/i.test(trimmed)) return false;
   if (/^paid or paying as agreed$/i.test(trimmed)) return false;
+  if (/^(?:no\.?\s+of\s+months|months?\s+reviewed|terms?)\b/i.test(trimmed)) return false;
   if (/^(?:pay(?:ment)?|pavment)\s+s(?:ta|at|a)t?s?\b/i.test(trimmed)) return false;
   if (/^(?:year|month|extended payment history|\+?\s*expand history)/i.test(trimmed)) return false;
   if ((trimmed.match(/\b\d{2}\b/g) ?? []).length >= 4) return false;
@@ -2441,6 +2442,7 @@ export function parseCreditReport(
       stageFailures.push({ stage: 'negative_classification', message: e?.message ?? 'negative classification threw', fatal: false });
       warnings.push({ section: 'Negative Classification', message: `Second-pass classification failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
+    accounts = accounts.filter(account => isPlausibleCreditorName(account.creditorName ?? ''));
 
     if (accounts.length > 0) {
       sectionsParsed.push('Accounts');

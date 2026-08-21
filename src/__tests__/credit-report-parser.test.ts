@@ -529,6 +529,14 @@ Balance:  $75.00
 Date Opened:  05/01/2026
 Bureau: Experian
 
+No. of Months (terms): - 1 Month -
+Account #:  BAD7778
+Account Type:  COLLECTION
+Account Status:  Collection account
+Balance:  $75.00
+Date Opened:  05/01/2026
+Bureau: Experian
+
 Revolving account
 Account #:  BAD9012
 Account Type:  Revolving
@@ -550,7 +558,7 @@ Inquiries
     const result = parseCreditReport(report, 'myscoreiq');
     expect(result.accounts.map(account => account.creditorName)).toEqual(['REAL BANK']);
     expect(result.accounts.map(account => account.creditorName)).not.toEqual(
-      expect.arrayContaining(['department', 'COLLECTION', 'Payment Sats: pr Unpaid', 'Seriously past due date / assigned to', 'Revolving account', 'INSTALLMENT']),
+      expect.arrayContaining(['department', 'COLLECTION', 'Payment Sats: pr Unpaid', 'Seriously past due date / assigned to', 'No. of Months (terms): - 1 Month -', 'Revolving account', 'INSTALLMENT']),
     );
   });
 
