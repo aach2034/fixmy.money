@@ -505,8 +505,24 @@ Balance:  $250.00
 Date Opened:  03/01/2026
 Bureau: Experian
 
+--- Page 4 ---
+Account #:  BADPAGE
+Account Type:  COLLECTION
+Account Status:  Collection account
+Balance:  $250.00
+Date Opened:  03/01/2026
+Bureau: Experian
+
 COLLECTION
 Account #:  BAD5678
+Account Type:  Open account
+Account Status:  Unpaid
+Balance:  $99.00
+Date Opened:  04/01/2026
+Bureau: TransUnion
+
+COLLECTION Multiple
+Account #:  BAD5679
 Account Type:  Open account
 Account Status:  Unpaid
 Balance:  $99.00
@@ -558,7 +574,7 @@ Inquiries
     const result = parseCreditReport(report, 'myscoreiq');
     expect(result.accounts.map(account => account.creditorName)).toEqual(['REAL BANK']);
     expect(result.accounts.map(account => account.creditorName)).not.toEqual(
-      expect.arrayContaining(['department', 'COLLECTION', 'Payment Sats: pr Unpaid', 'Seriously past due date / assigned to', 'No. of Months (terms): - 1 Month -', 'Revolving account', 'INSTALLMENT']),
+      expect.arrayContaining(['department', '--- Page 4 ---', 'COLLECTION', 'COLLECTION Multiple', 'Payment Sats: pr Unpaid', 'Seriously past due date / assigned to', 'No. of Months (terms): - 1 Month -', 'Revolving account', 'INSTALLMENT']),
     );
   });
 

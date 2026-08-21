@@ -999,12 +999,16 @@ const SECTION_HEADER_RE = /^(?:personal\s+information|inquiries|public\s+records
 function isPlausibleCreditorName(value: string): boolean {
   const trimmed = safeNormalizeText(value).trim();
   const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ');
+  const displayNormalized = normalized.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (!trimmed || trimmed.length < 2) return false;
+  if (/[\r\n]/.test(trimmed)) return false;
   if (!/[A-Za-z]{2,}/.test(trimmed)) return false;
+  if (/^-{2,}\s*page\s+\d+\s*-{2,}$/i.test(trimmed) || /^page\s+\d+$/i.test(trimmed)) return false;
   if (/^(?:transunion|experian|equifax)(?:\s+(?:transunion|experian|equifax))*$/i.test(trimmed)) return false;
   if (/^(?:department|account|balance|status|type|comments?|remarks?)$/i.test(trimmed)) return false;
   if (/^(?:current|open|closed|paid|unpaid|unknown|individual|joint|authorized user)$/i.test(trimmed)) return false;
   if (/^(?:revolving|revolving account|installment|installment account|individual account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
+  if (/^(?:collection|collection account|revolving|revolving account|installment|installment account|open account)(?:\s+(?:multiple|experian|equifax|transunion))?$/i.test(displayNormalized)) return false;
   if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)/i.test(trimmed)) return false;
   if (/^paid or paying as agreed$/i.test(trimmed)) return false;
   if (/^(?:no\.?\s+of\s+months|months?\s+reviewed|terms?)\b/i.test(trimmed)) return false;
