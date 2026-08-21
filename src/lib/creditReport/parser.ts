@@ -1005,6 +1005,7 @@ function isPlausibleCreditorName(value: string): boolean {
   if (!/[A-Za-z]{2,}/.test(trimmed)) return false;
   if (/^-{2,}\s*page\s+\d+\s*-{2,}$/i.test(trimmed) || /^page\s+\d+$/i.test(trimmed)) return false;
   if (/^date\s+last\s+active\b/i.test(trimmed)) return false;
+  if (/^\(?\s*to\s+account\s+closed\s+by\s+credit\b/i.test(trimmed)) return false;
   if (/\binformation\s+on\s+accounts\s+you\s+have\s+opened\b/i.test(trimmed)) return false;
   if (/\bFCR[AA]?\b|\bFCBA\b|\bdisputes?\b.*\bgrantor\b/i.test(trimmed)) return false;
   if (/^(?:transunion|experian|equifax)(?:\s+(?:transunion|experian|equifax))*$/i.test(trimmed)) return false;

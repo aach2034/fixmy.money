@@ -537,6 +537,14 @@ Balance:  $250.00
 Date Opened:  03/01/2026
 Bureau: Equifax
 
+(To ACCOUNT CLOSED BY CREDIT
+Account #:  BADCLOSED
+Account Type:  Revolving
+Account Status:  Charge-off
+Balance:  $250.00
+Date Opened:  03/01/2026
+Bureau: Equifax
+
 COLLECTION
 Account #:  BAD5678
 Account Type:  Open account
@@ -598,7 +606,7 @@ Inquiries
     const result = parseCreditReport(report, 'myscoreiq');
     expect(result.accounts.map(account => account.creditorName)).toEqual(['REAL BANK']);
     expect(result.accounts.map(account => account.creditorName)).not.toEqual(
-      expect.arrayContaining(['department', '--- Page 4 ---', 'Li J Information on accounts you have opened in the past is displayed below.', 'Date Last Active: - 01/01/2026 -', 'be used for FCRA or FCBA disputes) GRANTOR', 'COLLECTION', 'COLLECTION Multiple', 'Payment Sats: pr Unpaid', 'Seriously past due date / assigned to', 'No. of Months (terms): - 1 Month -', 'Revolving account', 'INSTALLMENT']),
+      expect.arrayContaining(['department', '--- Page 4 ---', 'Li J Information on accounts you have opened in the past is displayed below.', 'Date Last Active: - 01/01/2026 -', 'be used for FCRA or FCBA disputes) GRANTOR', '(To ACCOUNT CLOSED BY CREDIT', 'COLLECTION', 'COLLECTION Multiple', 'Payment Sats: pr Unpaid', 'Seriously past due date / assigned to', 'No. of Months (terms): - 1 Month -', 'Revolving account', 'INSTALLMENT']),
     );
   });
 
