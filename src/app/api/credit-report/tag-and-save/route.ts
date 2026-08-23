@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { NormalizedReport } from '@/lib/creditReport/adapters';
 
+const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
+
 interface TaggedItem {
   accountId: string; // adapter-generated id
   creditorName: string;
@@ -31,6 +33,21 @@ interface TaggedItem {
   disputeReason: string;
   disputeInstruction: string;
   notes: string;
+}
+
+function expandTaggedItemByBureau(item: TaggedItem): TaggedItem[] {
+  const bureaus = (item.bureaus ?? []).filter(bureau => CREDIT_BUREAUS.includes(bureau));
+  if (item.bureau !== 'Multiple' || bureaus.length <= 1) return [item];
+  return bureaus.map(bureau => ({
+    ...item,
+    accountId: `${item.accountId}-${bureau}`.replace(/\s+/g, '-').toLowerCase(),
+    bureau,
+    bureaus: [bureau],
+  }));
+}
+
+function itemsForPersistence(items: TaggedItem[]): TaggedItem[] {
+  return items.flatMap(expandTaggedItemByBureau);
 }
 
 export async function POST(request: NextRequest) {
@@ -98,8 +115,10 @@ export async function POST(request: NextRequest) {
     const itemsToInsert = [];
     const disputeItemIds: string[] = [];
     let duplicatesSkipped = 0;
+    const allItemsForPersistence = itemsForPersistence(allAccounts);
+    const taggedItemsForPersistence = itemsForPersistence(taggedItems);
 
-    for (const item of allAccounts) {
+    for (const item of allItemsForPersistence) {
       const key = `${item.creditorName?.toLowerCase()}|${item.accountNumberMasked}|${item.bureau?.toLowerCase()}`;
       if (existingKeys.has(key)) {
         duplicatesSkipped++;
@@ -174,9 +193,9 @@ export async function POST(request: NextRequest) {
         snapshot_data: parsed || {},
         scores: parsed?.scores || [],
         personal_info: parsed?.clientInfo || {},
-        accounts_count: allAccounts.length,
-        negative_count: allAccounts.filter(a => a.isNegative).length,
-        tagged_count: taggedItems.length,
+        accounts_count: allItemsForPersistence.length,
+        negative_count: allItemsForPersistence.filter(a => a.isNegative).length,
+        tagged_count: taggedItemsForPersistence.length,
       })
       .select()
       .single();

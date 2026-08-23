@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { parseWithAdapter, compareReports, type NormalizedReport } from '@/lib/creditReport/adapters';
+import { parseWithAdapter, compareReports, type NormalizedAccount, type NormalizedReport } from '@/lib/creditReport/adapters';
 import { safeNormalizeText, type SupportedProvider } from '@/lib/creditReport/parser';
+
+const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
+
+function accountBureaus(account: NormalizedAccount): string[] {
+  const bureaus = (account.bureaus ?? []).filter(bureau => CREDIT_BUREAUS.includes(bureau));
+  if (bureaus.length > 0) return bureaus;
+  return CREDIT_BUREAUS.includes(account.bureau) ? [account.bureau] : [];
+}
+
+function accountCountByBureau(accounts: NormalizedAccount[]): Record<string, number> {
+  return accounts.reduce((acc: Record<string, number>, account) => {
+    for (const bureau of accountBureaus(account)) {
+      acc[bureau] = (acc[bureau] || 0) + 1;
+    }
+    return acc;
+  }, {});
+}
+
+function expandedAccountCount(accounts: NormalizedAccount[]): number {
+  return accounts.reduce((sum, account) => sum + Math.max(1, accountBureaus(account).length), 0);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,6 +75,8 @@ export async function POST(request: NextRequest) {
     // ── Determine import status ───────────────────────────────────────────────
     const isLowConfidence = parsed.sectionConfidence.overall < 40;
     const importStatus = isLowConfidence ? 'needs_review' : 'parsed';
+    const persistedAccountCount = expandedAccountCount(parsed.accounts);
+    const persistedNegativeCount = expandedAccountCount(parsed.accounts.filter(account => account.isNegative));
 
     // ── Check for previous snapshot (re-import) ───────────────────────────────
     const { data: previousSnapshot } = await supabase
@@ -92,8 +115,8 @@ export async function POST(request: NextRequest) {
         warnings: parsed.warnings,
         personal_info: parsed.clientInfo,
         scores: parsed.scores,
-        accounts_count: parsed.accounts.length,
-        negative_count: parsed.accounts.filter(a => a.isNegative).length,
+        accounts_count: persistedAccountCount,
+        negative_count: persistedNegativeCount,
         collections_count: parsed.collections.length,
         inquiries_count: parsed.inquiries.length,
         public_records_count: parsed.publicRecords.length,
@@ -129,7 +152,7 @@ export async function POST(request: NextRequest) {
         sections_detected: Object.keys(parsed.sectionConfidence),
         accounts_parsed: parsed.accountsParsed,
         accounts_rejected: parsed.accountsRejected,
-        negative_count: parsed.accounts.filter(a => a.isNegative).length,
+        negative_count: persistedNegativeCount,
         unicode_warnings: unicodeWarnings,
         parsed_report_id: parsedReport.id,
         diagnostic_log: {
@@ -140,11 +163,8 @@ export async function POST(request: NextRequest) {
           adapterUsed: parsed.adapterUsed,
           parserVersion: parsed.parserVersion,
           sectionsDetected: Object.keys(parsed.sectionConfidence),
-          accountCountByBureau: parsed.accounts.reduce((acc: Record<string, number>, a) => {
-            acc[a.bureau] = (acc[a.bureau] || 0) + 1;
-            return acc;
-          }, {}),
-          potentiallyNegativeCount: parsed.accounts.filter(a => a.isNegative).length,
+          accountCountByBureau: accountCountByBureau(parsed.accounts),
+          potentiallyNegativeCount: persistedNegativeCount,
           duplicateMatches: 0,
           unmatchedRecords: parsed.accountsRejected,
           unicodeNormalizationWarnings: unicodeWarnings,
@@ -163,7 +183,7 @@ export async function POST(request: NextRequest) {
       providerConfidence: parsed.providerConfidence,
       adapterUsed: parsed.adapterUsed,
       accountsParsed: parsed.accountsParsed,
-      negativeCount: parsed.accounts.filter(a => a.isNegative).length,
+      negativeCount: persistedNegativeCount,
       overallConfidence: parsed.sectionConfidence.overall,
       importStatus,
       hasComparison: !!comparison,

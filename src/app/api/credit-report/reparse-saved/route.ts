@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { parseCreditReport } from '@/lib/creditReport/parser';
+import { parseCreditReport, type ParsedCreditReport } from '@/lib/creditReport/parser';
 import { isReliableInquiry } from '@/lib/creditReport/auditItems';
 
 const PROTECTED_STATUSES = new Set(['sent', 'waiting_for_response', 'updated', 'verified', 'closed']);
+const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 const APPROVED_MAINTENANCE_REPORTS: Record<string, string> = {
   '2693b3cc-00ae-4138-8404-ca5e418f5bca': '80dcdbd0-16d9-4324-9976-594002327bc7',
   'dc99abaa-b054-4744-83d9-3b620dc2f206': 'd52e00db-157a-4743-a3ab-90fdd94bb67d',
@@ -20,6 +21,24 @@ function isReparseRequestBody(value: unknown): value is ReparseRequestBody {
 
 function customerSafeError(message: string, status = 500) {
   return NextResponse.json({ error: message }, { status });
+}
+
+type ParsedAccountItem = ParsedCreditReport['accounts'][number];
+
+function expandCanonicalAccountByBureau(account: ParsedAccountItem): ParsedAccountItem[] {
+  const bureaus = (account.bureaus ?? []).filter(bureau => CREDIT_BUREAUS.includes(bureau));
+  if (account.bureau !== 'Multiple' || bureaus.length <= 1) return [account];
+  return bureaus.map(bureau => ({
+    ...account,
+    id: `${account.id}-${bureau}`.replace(/\s+/g, '-').toLowerCase(),
+    bureau,
+    bureaus: [bureau],
+  }));
+}
+
+function accountsForPersistence(report: ParsedCreditReport): ParsedAccountItem[] {
+  if (report.bureauTradelines?.length) return report.bureauTradelines;
+  return report.accounts.flatMap(account => account.tradelines?.length ? account.tradelines : expandCanonicalAccountByBureau(account));
 }
 
 export async function POST(request: NextRequest) {
@@ -97,7 +116,8 @@ export async function POST(request: NextRequest) {
     }
 
     const parsed = parseCreditReport(report.raw_text ?? '', 'myscoreiq');
-    const accountRows = parsed.accounts.map(item => ({
+    const accountItemsForPersistence = accountsForPersistence(parsed);
+    const accountRows = accountItemsForPersistence.map(item => ({
       owner_id: ownerId,
       client_id: report.client_id,
       report_id: report.id,
@@ -162,9 +182,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: updateError } = await admin.from('parsed_credit_reports').update({
-      accounts_count: parsed.accounts.length,
-      negative_count: parsed.negativeAccounts.length,
-      collections_count: parsed.collections.length,
+      accounts_count: accountItemsForPersistence.length,
+      negative_count: accountItemsForPersistence.filter(item => item.isNegative).length,
+      collections_count: accountItemsForPersistence.filter(item => item.isCollection).length,
       inquiries_count: parsed.inquiries.length,
       scores: parsed.scores,
       parser_version: parsed.parserVersion,
@@ -176,11 +196,11 @@ export async function POST(request: NextRequest) {
       reportId: report.id,
       oldItems: oldItems?.length ?? 0,
       newItems: replacementRows.length,
-      accounts: parsed.accounts.length,
+      accounts: accountItemsForPersistence.length,
       scores: parsed.scores,
       bureaus: Object.fromEntries(['TransUnion', 'Experian', 'Equifax'].map(bureau => [
         bureau,
-        parsed.accounts.filter(item => item.bureau === bureau).length,
+        accountItemsForPersistence.filter(item => item.bureau === bureau).length,
       ])),
     });
   }

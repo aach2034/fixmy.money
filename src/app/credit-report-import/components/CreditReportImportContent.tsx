@@ -47,6 +47,24 @@ const BUREAU_ADDRESSES: Record<string, string> = {
   Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
   TransUnion: 'TransUnion LLC Consumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
 };
+const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
+type ParsedAccountItem = ParsedCreditReport['accounts'][number];
+
+function expandCanonicalAccountByBureau(account: ParsedAccountItem): ParsedAccountItem[] {
+  const bureaus = (account.bureaus ?? []).filter(bureau => CREDIT_BUREAUS.includes(bureau));
+  if (account.bureau !== 'Multiple' || bureaus.length <= 1) return [account];
+  return bureaus.map(bureau => ({
+    ...account,
+    id: `${account.id}-${bureau}`.replace(/\s+/g, '-').toLowerCase(),
+    bureau,
+    bureaus: [bureau],
+  }));
+}
+
+function accountsForPersistence(report: ParsedCreditReport): ParsedAccountItem[] {
+  if (report.bureauTradelines?.length) return report.bureauTradelines;
+  return report.accounts.flatMap(account => account.tradelines?.length ? account.tradelines : expandCanonicalAccountByBureau(account));
+}
 
 function buildAutomaticDraft(params: {
   client: any;
@@ -787,6 +805,7 @@ export default function CreditReportImportContent() {
       // the letter workflow.
       const lowConfidence = parsedReport.overallConfidence < 50;
 
+      const accountItemsForPersistence = accountsForPersistence(parsedReport);
       const { data: reportRecord, error: reportErr } = await supabase.from('parsed_credit_reports').insert({
         owner_id: user.id,
         client_id: selectedClientId,
@@ -800,9 +819,9 @@ export default function CreditReportImportContent() {
         warnings: parsedReport.warnings,
         personal_info: parsedReport.personalInfo,
         scores: parsedReport.scores,
-        accounts_count: parsedReport.accounts.length,
-        negative_count: parsedReport.negativeAccounts.length,
-        collections_count: parsedReport.collections.length,
+        accounts_count: accountItemsForPersistence.length,
+        negative_count: accountItemsForPersistence.filter(item => item.isNegative).length,
+        collections_count: accountItemsForPersistence.filter(item => item.isCollection).length,
         inquiries_count: parsedReport.inquiries.length,
         public_records_count: parsedReport.publicRecords.length,
         raw_text: parsedReport.rawText.slice(0, 50000),
@@ -819,7 +838,7 @@ export default function CreditReportImportContent() {
       // Save ALL accounts as negative_items (with is_negative flag).
       // `positive` is not a valid negative_item_category enum value in the
       // production schema; non-negative rows use `other` plus is_negative=false.
-      const accountRows = parsedReport.accounts.map(item => {
+      const accountRows = accountItemsForPersistence.map(item => {
         return {
           owner_id: user.id,
           client_id: selectedClientId,
