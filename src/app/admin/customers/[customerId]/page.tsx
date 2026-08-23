@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { addAdminNote, createFollowUp, toggleFollowUp } from '@/app/admin/actions';
+import { addAdminNote, createFollowUp, toggleFollowUp, updateCustomerClassification, updateRetentionAlert } from '@/app/admin/actions';
 import { requirePlatformAdmin } from '@/lib/admin/authorization';
 import { getAdminCustomerProfile } from '@/lib/admin/customerManagement';
 
@@ -74,6 +74,8 @@ export default async function AdminCustomerProfilePage({ params }: { params: Pro
                 <div><dt className="text-xs font-bold uppercase text-slate-400">Stripe customer</dt><dd className="mt-1">{summary.stripeCustomerId ? 'Configured' : '—'}</dd></div>
                 <div><dt className="text-xs font-bold uppercase text-slate-400">Trial end</dt><dd className="mt-1">{formatDate(summary.trialEnd)}</dd></div>
                 <div><dt className="text-xs font-bold uppercase text-slate-400">Onboarding</dt><dd className="mt-1">{summary.onboardingCompleted ? 'Complete' : 'Incomplete'}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-slate-400">Customer type</dt><dd className="mt-1 capitalize">{summary.customerType}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-slate-400">Contact status</dt><dd className="mt-1">{summary.doNotContact ? 'Do not contact' : 'Contact allowed'}</dd></div>
               </dl>
             </section>
 
@@ -142,6 +144,65 @@ export default async function AdminCustomerProfilePage({ params }: { params: Pro
           </div>
 
           <aside className="space-y-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-black">Classification</h2>
+              <p className="mt-1 text-sm text-slate-500">Controls whether this account appears in default retention metrics.</p>
+              <form action={updateCustomerClassification} className="mt-4 space-y-3">
+                <input type="hidden" name="customerId" value={summary.id} />
+                <select name="customerType" defaultValue={summary.customerType} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200">
+                  {['real', 'internal', 'qa', 'demo', 'test'].map((type) => <option key={type} value={type}>{type}</option>)}
+                </select>
+                <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                  <input name="doNotContact" type="checkbox" defaultChecked={summary.doNotContact} className="h-4 w-4 rounded border-slate-300" />
+                  Do not contact
+                </label>
+                <input name="classificationNote" placeholder="Optional classification note" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200" />
+                <button className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Save classification</button>
+              </form>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-black">Retention alerts</h2>
+              <div className="mt-4 space-y-3">
+                {summary.attentionIssues.map((issue) => (
+                  <div key={issue.key} className="rounded-xl border border-slate-100 p-3">
+                    <p className="text-sm font-bold text-slate-800">{issue.label}</p>
+                    <p className="mt-1 text-sm text-blue-700">Recommended action: {issue.recommendedAction}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {[
+                        ['contacted', 'Contacted', 'Customer contacted from profile.'],
+                        ['dismissed', 'Dismiss', 'Not actionable.'],
+                        ['snoozed', 'Snooze 3d', 'Follow up later.'],
+                      ].map(([status, label, reason]) => (
+                        <form key={status} action={updateRetentionAlert}>
+                          <input type="hidden" name="customerId" value={summary.id} />
+                          <input type="hidden" name="alertKey" value={issue.key} />
+                          <input type="hidden" name="status" value={status} />
+                          <input type="hidden" name="reason" value={reason} />
+                          <input type="hidden" name="snoozeDays" value="3" />
+                          <button className="rounded-full border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-blue-700">{label}</button>
+                        </form>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {summary.attentionIssues.length === 0 && <p className="text-sm text-slate-500">No active retention alerts.</p>}
+              </div>
+              {profile.alertStates.length > 0 ? (
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <p className="text-xs font-black uppercase text-slate-400">Recent dispositions</p>
+                  <div className="mt-3 space-y-2">
+                    {profile.alertStates.slice(0, 5).map((alert) => (
+                      <div key={alert.id} className="text-xs text-slate-500">
+                        <span className="font-bold text-slate-700">{alert.alert_key}</span> · {alert.status}
+                        {alert.snoozed_until ? ` until ${formatDate(alert.snoozed_until)}` : ''} · {formatDateTime(alert.updated_at || alert.created_at)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-black">Internal notes</h2>
               <form action={addAdminNote} className="mt-4 space-y-3">

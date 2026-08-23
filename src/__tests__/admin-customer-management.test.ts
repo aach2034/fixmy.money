@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { filterCustomers, getAttentionForCustomer, type AdminCustomerSummary } from '@/lib/admin/customerManagement';
+import { classifyCustomer, filterCustomers, getAttentionForCustomer, getQueueForCustomer, type AdminCustomerSummary } from '@/lib/admin/customerManagement';
 
 const repoRoot = process.cwd();
 const read = (path: string) => readFileSync(join(repoRoot, path), 'utf8');
@@ -17,6 +17,8 @@ function customer(overrides: Partial<AdminCustomerSummary> = {}): AdminCustomerS
     subscriptionStatus: 'active',
     subscriptionPlan: 'professional',
     stripeCustomerId: 'cus_test',
+    customerType: 'real',
+    doNotContact: false,
     trialEnd: null,
     paidTrial: false,
     reportsImported: 1,
@@ -29,6 +31,10 @@ function customer(overrides: Partial<AdminCustomerSummary> = {}): AdminCustomerS
     lastWorkflowAt: '2026-08-20T00:00:00.000Z',
     attentionLevel: 'green',
     attentionReasons: [],
+    attentionIssues: [],
+    topIssue: null,
+    queue: 'none',
+    urgency: 0,
     ...overrides,
   };
 }
@@ -64,6 +70,8 @@ describe('admin customer-management authorization wiring', () => {
     expect(source).toContain("'use server'");
     expect(source.match(/requirePlatformAdmin/g)?.length).toBeGreaterThanOrEqual(3);
     expect(source).toContain("from('admin_action_audit_logs')");
+    expect(source).toContain('updateRetentionAlert');
+    expect(source).toContain('updateCustomerClassification');
   });
 });
 
@@ -87,6 +95,7 @@ describe('admin attention queue logic', () => {
 
     expect(result.level).toBe('red');
     expect(result.reasons).toContain('Incomplete onboarding');
+    expect(result.issues.find((issue) => issue.key === 'no_report_imported')?.recommendedAction).toBe('Offer import assistance');
   });
 
   it('flags report imported without a generated dispute as yellow', () => {
@@ -106,6 +115,7 @@ describe('admin attention queue logic', () => {
 
     expect(result.level).toBe('yellow');
     expect(result.reasons).toContain('Report imported but no dispute generated');
+    expect(result.issues[0]?.recommendedAction).toBe('Help start first dispute');
   });
 
   it('flags trial ending soon transparently', () => {
@@ -125,6 +135,7 @@ describe('admin attention queue logic', () => {
 
     expect(result.level).toBe('yellow');
     expect(result.reasons).toContain('Trial ends in 2 days');
+    expect(result.issues[0]?.recommendedAction).toBe('Contact today');
   });
 
   it('promotes payment problems and overdue follow-ups to red', () => {
@@ -148,12 +159,70 @@ describe('admin attention queue logic', () => {
   });
 });
 
+describe('admin customer classification and queue routing', () => {
+  const noReportIssue = {
+    key: 'no_report_imported',
+    label: 'No credit report imported',
+    recommendedAction: 'Offer import assistance',
+    level: 'yellow' as const,
+    urgency: 72,
+  };
+
+  it('classifies obvious QA, demo, test, and internal records away from real customers', () => {
+    expect(classifyCustomer({ email: 'signup.qa@example.com', fullName: 'Signup QA User' })).toBe('qa');
+    expect(classifyCustomer({ email: 'client@demo.com', fullName: 'Demo Client' })).toBe('demo');
+    expect(classifyCustomer({ email: 'consumer.rocket@yopmail.com', fullName: 'Consumer Rocket' })).toBe('test');
+    expect(classifyCustomer({ email: 'adamchamilton@gmail.com', fullName: 'Adam Hamilton' })).toBe('internal');
+    expect(classifyCustomer({ email: 'wendal@consumer.com', fullName: 'Wendal Singletary' })).toBe('real');
+  });
+
+  it('routes real, churned, non-customer, and do-not-contact accounts into separate queues', () => {
+    expect(getQueueForCustomer({ customerType: 'real', subscriptionStatus: 'trialing', attentionIssues: [noReportIssue], doNotContact: false })).toBe('needs_attention');
+    expect(getQueueForCustomer({ customerType: 'real', subscriptionStatus: 'canceled', attentionIssues: [noReportIssue], doNotContact: false })).toBe('win_back');
+    expect(getQueueForCustomer({ customerType: 'demo', subscriptionStatus: 'trialing', attentionIssues: [noReportIssue], doNotContact: false })).toBe('test_internal');
+    expect(getQueueForCustomer({ customerType: 'real', subscriptionStatus: 'active', attentionIssues: [noReportIssue], doNotContact: true })).toBe('none');
+  });
+
+  it('prioritizes trials ending in three days above stale inactivity', () => {
+    const trial = getAttentionForCustomer({
+      onboardingCompleted: true,
+      subscriptionStatus: 'trialing',
+      trialEnd: '2026-08-26T00:00:00.000Z',
+      reportsImported: 1,
+      failedImports: 0,
+      disputeRounds: 1,
+      lettersGenerated: 1,
+      overdueFollowUps: 0,
+      openFollowUps: 0,
+      lastWorkflowAt: '2026-08-22T00:00:00.000Z',
+      now: new Date('2026-08-23T12:00:00.000Z'),
+    });
+    const inactive = getAttentionForCustomer({
+      onboardingCompleted: true,
+      subscriptionStatus: 'active',
+      trialEnd: null,
+      reportsImported: 1,
+      failedImports: 0,
+      disputeRounds: 1,
+      lettersGenerated: 1,
+      overdueFollowUps: 0,
+      openFollowUps: 0,
+      lastWorkflowAt: '2026-06-04T00:00:00.000Z',
+      now: new Date('2026-08-23T12:00:00.000Z'),
+    });
+
+    expect(trial.issues[0]?.key).toBe('trial_ending_soon');
+    expect(trial.issues[0]?.urgency).toBeGreaterThan(inactive.issues[0]?.urgency ?? 0);
+  });
+});
+
 describe('admin customer directory filtering', () => {
   const customers = [
-    customer({ id: '1', email: 'alice@example.test', fullName: 'Alice Agency' }),
-    customer({ id: '2', email: 'bob@example.test', fullName: 'Bob Bureau', reportsImported: 0, disputeRounds: 0 }),
-    customer({ id: '3', email: 'casey@example.test', fullName: 'Casey Cancel', subscriptionStatus: 'canceled' }),
-    customer({ id: '4', email: 'drew@example.test', fullName: 'Drew Dispute', reportsImported: 2, disputeRounds: 0, attentionLevel: 'yellow', attentionReasons: ['Report imported but no dispute generated'] }),
+    customer({ id: '1', email: 'alice@example.com', fullName: 'Alice Agency' }),
+    customer({ id: '2', email: 'bob@example.com', fullName: 'Bob Bureau', reportsImported: 0, disputeRounds: 0 }),
+    customer({ id: '3', email: 'casey@example.com', fullName: 'Casey Cancel', subscriptionStatus: 'canceled', queue: 'win_back', attentionIssues: [{ key: 'canceled_or_expired', label: 'Cancellation/expired status: canceled', recommendedAction: 'Review cancellation reason / win-back', level: 'red', urgency: 68 }], topIssue: { key: 'canceled_or_expired', label: 'Cancellation/expired status: canceled', recommendedAction: 'Review cancellation reason / win-back', level: 'red', urgency: 68 } }),
+    customer({ id: '4', email: 'drew@example.com', fullName: 'Drew Dispute', reportsImported: 2, disputeRounds: 0, attentionLevel: 'yellow', attentionReasons: ['Report imported but no dispute generated'], queue: 'needs_attention', attentionIssues: [{ key: 'report_no_dispute', label: 'Report imported but no dispute generated', recommendedAction: 'Help start first dispute', level: 'yellow', urgency: 82 }], topIssue: { key: 'report_no_dispute', label: 'Report imported but no dispute generated', recommendedAction: 'Help start first dispute', level: 'yellow', urgency: 82 }, urgency: 82 }),
+    customer({ id: '5', email: 'client@demo.com', fullName: 'Demo Client', customerType: 'demo', queue: 'test_internal' }),
   ];
 
   it('searches by name and email', () => {
@@ -166,6 +235,14 @@ describe('admin customer directory filtering', () => {
     expect(filterCustomers(customers, { status: 'no_dispute' }).map((c) => c.id)).toEqual(['4']);
     expect(filterCustomers(customers, { status: 'canceled' }).map((c) => c.id)).toEqual(['3']);
     expect(filterCustomers(customers, { status: 'needs_attention' }).map((c) => c.id)).toEqual(['4']);
+    expect(filterCustomers(customers, { status: 'win_back' }).map((c) => c.id)).toEqual(['3']);
+  });
+
+  it('excludes test/internal customers by default unless explicitly included', () => {
+    expect(filterCustomers(customers, {}).map((c) => c.id)).toEqual(['1', '2', '3', '4']);
+    expect(filterCustomers(customers, { include_test_internal: 'true' }).map((c) => c.id)).toEqual(['1', '2', '3', '4', '5']);
+    expect(filterCustomers(customers, { status: 'test_internal' }).map((c) => c.id)).toEqual([]);
+    expect(filterCustomers(customers, { status: 'test_internal', include_test_internal: 'true' }).map((c) => c.id)).toEqual(['5']);
   });
 });
 
@@ -189,5 +266,30 @@ describe('admin migration safety', () => {
     expect(migration).toContain("lower('adamchamilton@gmail.com')");
     expect(migration).toContain("role = 'platform_superadmin'");
     expect(migration).toContain('ON CONFLICT (user_id) DO UPDATE');
+  });
+});
+
+describe('retention cleanup migration safety', () => {
+  const migration = read('supabase/migrations/20260823190000_retention_queue_cleanup.sql');
+
+  it('adds classification and do-not-contact metadata without touching customer workflow tables', () => {
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS customer_type');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS do_not_contact');
+    expect(migration).toContain('CREATE TABLE IF NOT EXISTS public.admin_retention_alert_states');
+    expect(migration).toContain('UNIQUE (customer_id, alert_key)');
+  });
+
+  it('keeps alert dispositions admin-only with RLS policies and no delete access', () => {
+    expect(migration).toContain('ENABLE ROW LEVEL SECURITY');
+    expect(migration.match(/platform_admins pa/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(migration).toContain('admin_retention_alerts_no_delete');
+    expect(migration).toContain('GRANT SELECT, INSERT, UPDATE ON public.admin_retention_alert_states TO authenticated');
+  });
+
+  it('backfills the specific non-customer patterns called out by the retention review', () => {
+    expect(migration).toContain("%adamchamilton%");
+    expect(migration).toContain("%demo%");
+    expect(migration).toContain("%qa%");
+    expect(migration).toContain("%yopmail%");
   });
 });

@@ -15,13 +15,17 @@ const filters = [
   ['trial', 'Trial'],
   ['canceled', 'Canceled'],
   ['needs_attention', 'Needs attention'],
+  ['win_back', 'Win-back'],
+  ['test_internal', 'Test/Internal'],
+  ['do_not_contact', 'Do not contact'],
   ['no_report', 'No report'],
   ['no_dispute', 'No dispute'],
 ] as const;
 
-export default async function AdminCustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+export default async function AdminCustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; include_test_internal?: string }> }) {
   await requirePlatformAdmin();
   const params = await searchParams;
+  const includeTestInternal = params.include_test_internal === 'true';
   const { customers } = await getAdminCustomerSummaries();
   const filtered = filterCustomers(customers, params);
 
@@ -39,6 +43,10 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
             <select name="status" defaultValue={params.status ?? 'all'} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200">
               {filters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600">
+              <input name="include_test_internal" type="checkbox" defaultChecked={includeTestInternal} className="h-4 w-4 rounded border-slate-300" />
+              Include test/internal
+            </label>
             <button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Apply</button>
           </form>
         </div>
@@ -48,12 +56,13 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="p-4">Customer</th>
+                <th className="p-4">Type</th>
                 <th className="p-4">Subscription</th>
                 <th className="p-4">Reports</th>
                 <th className="p-4">Negative items</th>
                 <th className="p-4">Disputes</th>
                 <th className="p-4">Letters</th>
-                <th className="p-4">Attention</th>
+                <th className="p-4">Queue / action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -64,6 +73,12 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
                       {customer.fullName || customer.companyName || customer.email}
                     </Link>
                     <p className="mt-1 text-xs text-slate-500">{customer.email}</p>
+                    {customer.doNotContact ? <p className="mt-1 text-xs font-bold uppercase text-red-600">Do not contact</p> : null}
+                  </td>
+                  <td className="p-4">
+                    <span className={customer.customerType === 'real' ? 'rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold uppercase text-emerald-700' : 'rounded-full bg-purple-50 px-2 py-1 text-xs font-bold uppercase text-purple-700'}>
+                      {customer.customerType}
+                    </span>
                   </td>
                   <td className="p-4">{customer.subscriptionStatus}</td>
                   <td className="p-4">{customer.reportsImported}</td>
@@ -71,14 +86,15 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
                   <td className="p-4">{customer.disputeRounds}</td>
                   <td className="p-4">{customer.lettersGenerated}</td>
                   <td className="p-4">
-                    <span className={customer.attentionLevel === 'red' ? 'text-red-700' : customer.attentionLevel === 'yellow' ? 'text-amber-700' : 'text-emerald-700'}>
-                      {customer.attentionReasons[0] || 'Green'}
-                    </span>
+                    <p className="font-bold capitalize text-slate-700">{customer.queue.replace('_', ' ')}</p>
+                    <p className={customer.attentionLevel === 'red' ? 'mt-1 text-xs text-red-700' : customer.attentionLevel === 'yellow' ? 'mt-1 text-xs text-amber-700' : 'mt-1 text-xs text-emerald-700'}>
+                      {customer.topIssue ? `${customer.topIssue.label} → ${customer.topIssue.recommendedAction}` : 'Green'}
+                    </p>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-slate-500">No customers match those filters.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-slate-500">No customers match those filters.</td></tr>
               )}
             </tbody>
           </table>
