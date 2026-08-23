@@ -159,7 +159,7 @@ export default function OnboardingContent() {
     setCurrentStep(3);
   };
 
-  const handleFinishOnboarding = async () => {
+  const handleFinishOnboarding = async (destination = '/dashboard') => {
     if (!user) return;
     setSaving(true);
     try {
@@ -170,7 +170,7 @@ export default function OnboardingContent() {
       if (finishError) throw finishError;
 
       toast.success('Welcome to FixMy.Money! 🎉');
-      router.push('/dashboard');
+      router.push(destination);
     } catch (err) {
       console.error('[Onboarding] finish error:', err);
       toast.error('We could not finish setting up your workspace. Please try again.');
@@ -487,10 +487,12 @@ export default function OnboardingContent() {
                 ].map((item) => {
                   const ItemIcon = item.icon;
                   return (
-                    <a
+                    <button
                       key={item.title}
-                      href={item.href}
-                      className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-200 hover:bg-blue-50/30 transition-colors group"
+                      type="button"
+                      onClick={() => handleFinishOnboarding(item.href)}
+                      disabled={saving}
+                      className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-200 hover:bg-blue-50/30 transition-colors group text-left disabled:opacity-60"
                     >
                       <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
                         <ItemIcon size={16} className={item.color} />
@@ -499,13 +501,13 @@ export default function OnboardingContent() {
                         <p className="font-semibold text-slate-900 text-sm">{item.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
                       </div>
-                    </a>
+                    </button>
                   );
                 })}
               </div>
 
               <button
-                onClick={handleFinishOnboarding}
+                onClick={() => handleFinishOnboarding('/dashboard')}
                 disabled={saving}
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold px-8 py-4 rounded-xl transition-colors shadow-lg shadow-blue-200"
               >

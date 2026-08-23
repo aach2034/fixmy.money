@@ -14,6 +14,7 @@ interface UserProfile {
   stripe_customer_id: string | null;
   full_name: string | null;
   email: string | null;
+  onboarding_completed: boolean | null;
 }
 
 export default function CheckoutContent() {
@@ -45,14 +46,14 @@ export default function CheckoutContent() {
       try {
         const { data } = await supabase
           .from('user_profiles')
-          .select('subscription_status, subscription_plan, stripe_customer_id, full_name, email')
+          .select('subscription_status, subscription_plan, stripe_customer_id, full_name, email, onboarding_completed')
           .eq('id', user.id)
           .single();
 
         setProfile(data as UserProfile | null);
 
         if (data && activeStatuses.includes(data.subscription_status || '')) {
-          router.replace('/dashboard');
+          router.replace(data.onboarding_completed ? '/dashboard' : '/onboarding');
           return;
         }
       } catch {
@@ -73,12 +74,12 @@ export default function CheckoutContent() {
 
     const { data: freshProfile } = await supabase
       .from('user_profiles')
-      .select('subscription_status')
+      .select('subscription_status, onboarding_completed')
       .eq('id', user.id)
       .single();
 
     if (freshProfile && activeStatuses.includes(freshProfile.subscription_status || '')) {
-      router.replace('/dashboard');
+      router.replace(freshProfile.onboarding_completed ? '/dashboard' : '/onboarding');
       return;
     }
 
@@ -110,7 +111,7 @@ export default function CheckoutContent() {
       }
 
       if (data.alreadyActive) {
-        router.replace('/dashboard');
+        router.replace('/onboarding');
         return;
       }
 

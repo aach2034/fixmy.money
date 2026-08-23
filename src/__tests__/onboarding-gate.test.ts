@@ -10,6 +10,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { checkOnboardingStatus } from '@/lib/onboarding/onboardingGate';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -25,6 +27,8 @@ function makeSupabaseMock(profileRow: Record<string, any> | null, error: any = n
     }),
   };
 }
+
+const read = (file: string) => fs.readFileSync(path.resolve(process.cwd(), file), 'utf8');
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -126,5 +130,12 @@ describe('Onboarding gate — redirect behavior', () => {
     });
     const status = await checkOnboardingStatus(supabase, 'complete-user-id');
     expect(status.complete).toBe(true);
+  });
+
+  it('onboarding destination cards complete onboarding before visiting gated routes', () => {
+    const onboarding = read('src/app/onboarding/components/OnboardingContent.tsx');
+    expect(onboarding).toContain("handleFinishOnboarding(item.href)");
+    expect(onboarding).toContain("handleFinishOnboarding('/dashboard')");
+    expect(onboarding).not.toContain('href={item.href}');
   });
 });
