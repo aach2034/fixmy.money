@@ -21,6 +21,7 @@ function injectTokenFromHeader(request: NextRequest): void {
 // If onboarding_completed is false, user is redirected to /onboarding.
 const ONBOARDING_GATED_PATHS = [
   '/dashboard',
+  '/clients',
   '/client-management',
   '/client-pipeline',
   '/dispute-letter-management',
@@ -74,6 +75,7 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const protectedPaths = [
       '/dashboard',
+      '/clients',
       '/client-management',
       '/client-pipeline',
       '/dispute-letter-management',
@@ -94,6 +96,9 @@ export async function proxy(request: NextRequest) {
       '/live-chat',
       '/launch-submissions',
       '/finance',
+      '/credit-report-import',
+      '/credit-audit',
+      '/dispute-wizard',
       '/admin',
       '/client-portal/dashboard',
     ];
@@ -148,6 +153,7 @@ export async function proxy(request: NextRequest) {
   // Redirect unauthenticated users away from protected routes
   const protectedPaths = [
     '/dashboard',
+    '/clients',
     '/client-management',
     '/client-pipeline',
     '/dispute-letter-management',
@@ -168,6 +174,9 @@ export async function proxy(request: NextRequest) {
     '/live-chat',
     '/launch-submissions',
     '/finance',
+    '/credit-report-import',
+    '/credit-audit',
+    '/dispute-wizard',
     // NOTE: /demo-mode is intentionally NOT in this list.
     // It is a public interactive demo/conversion asset.
     // Demo isolation is enforced at the data layer (demoData.ts synthetic fixtures only).

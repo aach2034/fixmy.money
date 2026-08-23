@@ -252,8 +252,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       if (reportUpdateError) throw new Error(`Could not finalize report review: ${reportUpdateError.message}`);
 
       const negCount = toSave.filter(a => a._markedNegative).length;
+      const disputableCount = toSave.filter(a => a._markedNegative || a.accountType === 'Hard Inquiry').length;
       toast.success(`Report saved. ${negCount} negative items ready for dispute.`);
-      router.push(`/clients/${clientId}/negative-items`);
+      if (disputableCount > 0) {
+        router.push(`/dispute-wizard?clientId=${clientId}&clientName=${encodeURIComponent(clientName)}&reportId=${reportId}&fromReport=true`);
+      } else {
+        router.push(`/clients/${clientId}/negative-items`);
+      }
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save report');
     } finally {

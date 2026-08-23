@@ -477,6 +477,24 @@ describe('Demo Mode Isolation — Cannot Access Production Data', () => {
       expect(pathsContent).not.toContain('"/demo-mode"');
     }
   });
+
+  it('middleware protects credit-report workflow routes on hard reload', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const proxyPath = path.resolve(process.cwd(), 'src/proxy.ts');
+    const source = fs.readFileSync(proxyPath, 'utf-8');
+
+    const protectedMatches = [...source.matchAll(/const protectedPaths\s*=\s*\[([\s\S]*?)\];/g)];
+    expect(protectedMatches.length).toBeGreaterThanOrEqual(2);
+
+    for (const match of protectedMatches) {
+      const pathsContent = match[1];
+      expect(pathsContent).toContain("'/clients'");
+      expect(pathsContent).toContain("'/credit-report-import'");
+      expect(pathsContent).toContain("'/credit-audit'");
+      expect(pathsContent).toContain("'/dispute-wizard'");
+    }
+  });
 });
 
 // ─── 7. RLS Cross-Tenant Isolation Smoke Test ────────────────────────────────

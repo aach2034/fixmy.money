@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 interface RoundItem {
   id: string;
+  negativeItemId: string | null;
   bureau: string;
   creditorName: string;
   accountNumberMasked: string;
@@ -150,6 +151,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       const { data: itemsData } = await supabase.from('dispute_round_items').select('*').eq('round_id', roundId).eq('owner_id', user.id);
       setItems((itemsData ?? []).map((row: any) => ({
         id: row.id,
+        negativeItemId: row.negative_item_id ?? null,
         bureau: row.bureau,
         creditorName: row.creditor_name,
         accountNumberMasked: row.account_number_masked,
@@ -238,7 +240,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       await supabase.from('dispute_round_items').update({ status: 'generated' }).eq('round_id', roundId).eq('owner_id', user.id);
 
       // Update negative items status
-      const negItemIds = items.map(i => i.id).filter(Boolean);
+      const negItemIds = items.map(i => i.negativeItemId).filter((id): id is string => Boolean(id));
       if (negItemIds.length > 0) {
         await supabase.from('negative_items').update({ dispute_status: 'generated' }).in('id', negItemIds).eq('owner_id', user.id);
       }

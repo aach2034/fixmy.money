@@ -482,7 +482,7 @@ export default function OnboardingContent() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
                 {[
                   { icon: User, title: 'Add a Client', desc: 'Onboard your first client and set up their profile', href: '/client-management', color: 'text-blue-600', bg: 'bg-blue-50' },
-                  { icon: Shield, title: 'Upload Credit Report', desc: 'Analyze a credit report with AI to find disputes', href: '/ai-dispute-analyzer', color: 'text-violet-600', bg: 'bg-violet-50' },
+                  { icon: Shield, title: 'Upload Credit Report', desc: 'Analyze a credit report with AI to find disputes', href: '/credit-report-import', color: 'text-violet-600', bg: 'bg-violet-50' },
                   { icon: Sparkles, title: 'Explore Dashboard', desc: 'See your business metrics and AI insights', href: '/dashboard', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 ].map((item) => {
                   const ItemIcon = item.icon;
