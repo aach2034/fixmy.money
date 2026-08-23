@@ -14,6 +14,33 @@ const faqs = [
   ['Does FixMy.Money support agency compliance?', 'The platform supports documented agreements, authorization, approvals, billing events, and audit history. It does not replace legal advice or guarantee compliance.'],
 ];
 
+const footerSections = [
+  {
+    heading: 'Platform',
+    links: [
+      { label: 'Product tour', href: '/product-tour' },
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Live demo', href: '/demo' },
+    ],
+  },
+  {
+    heading: 'Compare',
+    links: [
+      { label: 'Alternatives', href: '/credit-repair-cloud-alternative' },
+      { label: 'Migration', href: '/switch' },
+      { label: 'Small agencies', href: '/credit-repair-software-for-small-agencies' },
+    ],
+  },
+  {
+    heading: 'Legal',
+    links: [
+      { label: 'Security', href: '/security' },
+      { label: 'Privacy', href: '/privacy' },
+      { label: 'Terms', href: '/terms' },
+    ],
+  },
+];
+
 function AgencyDashboard() {
   return <div className="relative mx-auto max-w-[1100px]">
     <div className="absolute -inset-16 -z-10 bg-[radial-gradient(circle_at_50%_40%,rgba(124,58,237,.32),transparent_55%)] blur-2xl"/>
@@ -50,6 +77,6 @@ export default function HomepageContent() {
       <section className="px-5 py-24 sm:px-8"><div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-violet-400/20 bg-gradient-to-br from-blue-700/20 via-violet-700/20 to-fuchsia-700/10 px-7 py-16 text-center"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,.35),transparent_50%)]"/><div className="relative"><Zap className="mx-auto text-violet-300"/><h2 className="mx-auto mt-6 max-w-3xl text-4xl font-black tracking-[-.04em] sm:text-5xl">Run the agency you’re building—not the stack you’ve outgrown.</h2><p className="mx-auto mt-5 max-w-2xl text-lg text-slate-400">Bring clients, reports, disputes, billing, automation, and outcomes into one operating system.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={()=>start()} className="rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-7 py-4 font-bold">Start $1 Trial</button><Link href="/demo" className="rounded-lg border border-white/15 bg-white/5 px-7 py-4 font-bold">Explore Live Demo</Link></div></div></div></section>
       <section className="border-t border-white/10 bg-white/[.02] px-5 py-10"><div className="mx-auto flex max-w-6xl gap-4 text-sm text-slate-500"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10"><FileCheck2 size={16}/></span><p><b className="text-slate-300">Compliance-supporting workflows.</b> FixMy.Money helps document agreements, authorization, human approvals, billing events, and case history. Your business remains responsible for its legal and regulatory obligations.</p></div></section>
     </div>
-    <footer className="border-t border-white/10 bg-[#050810] px-5 py-14 sm:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-5"><div className="sm:col-span-2"><div className="flex items-center gap-2.5"><Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={38} height={38} unoptimized/><b>FixMy.Money</b></div><p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">The operating system for modern credit-repair agencies.</p></div>{[['Platform',['Product tour','Pricing','Live demo']],['Compare',['Alternatives','Migration','Small agencies']],['Legal',['Security','Privacy','Terms']]].map(([h,items])=><div key={h as string}><b className="text-sm">{h}</b><div className="mt-4 grid gap-3 text-sm text-slate-600">{(items as string[]).map(x=><span key={x}>{x}</span>)}</div></div>)}</div><div className="mx-auto mt-12 max-w-7xl border-t border-white/10 pt-6 text-xs leading-5 text-slate-700">FixMy.Money provides business software, AI-assisted analysis, and workflow tools. It does not provide legal advice or guarantee deletions, credit-score changes, compliance, or any bureau response. Removal-potential scores are estimates based on available data and require human review.</div></footer>
+    <footer className="border-t border-white/10 bg-[#050810] px-5 py-14 sm:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-5"><div className="sm:col-span-2"><div className="flex items-center gap-2.5"><Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={38} height={38} unoptimized/><b>FixMy.Money</b></div><p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">The operating system for modern credit-repair agencies.</p></div>{footerSections.map(section=><div key={section.heading}><b className="text-sm">{section.heading}</b><div className="mt-4 grid gap-3 text-sm text-slate-600">{section.links.map(link=><Link key={link.href} href={link.href} className="transition hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050810]">{link.label}</Link>)}</div></div>)}</div><div className="mx-auto mt-12 max-w-7xl border-t border-white/10 pt-6 text-xs leading-5 text-slate-700">FixMy.Money provides business software, AI-assisted analysis, and workflow tools. It does not provide legal advice or guarantee deletions, credit-score changes, compliance, or any bureau response. Removal-potential scores are estimates based on available data and require human review.</div></footer>
   </div>;
 }
