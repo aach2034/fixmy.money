@@ -1,26 +1,13 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { requirePlatformAdmin } from '@/lib/admin/authorization';
 import { getSeoHealthReport } from '@/lib/seo/health';
 import { PRIVATE_ROUTE_PREFIXES, PUBLIC_SEO_PAGES, canonicalUrl } from '@/lib/seo/config';
 import sourceAudit from '../../../../reports/seo-health.json';
 
 export const metadata: Metadata = { title: 'SEO Status | FixMy.Money', description: 'Private SEO health report.', robots: { index: false, follow: false } };
 
-async function isPlatformAdmin(userId: string, email: string) {
-  try {
-    const { data } = await getAdminClient().from('platform_admins').select('id').eq('user_id', userId).eq('active', true).maybeSingle();
-    if (data) return true;
-  } catch { /* Bootstrap fallback below. */ }
-  return (process.env.ADMIN_EMAILS ?? '').split(',').map(value => value.trim()).filter(Boolean).includes(email);
-}
-
 export default async function AdminSeoPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-  if (!(await isPlatformAdmin(user.id, user.email ?? ''))) redirect('/dashboard');
+  await requirePlatformAdmin();
   const registryReport = getSeoHealthReport();
   const report = { ...registryReport, errorCount: sourceAudit.errorCount, warningCount: sourceAudit.warningCount, issues: sourceAudit.issues };
 
