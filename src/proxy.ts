@@ -17,6 +17,15 @@ function injectTokenFromHeader(request: NextRequest): void {
   request.cookies.set(`sb-${getProjectRef()}-auth-token`, token);
 }
 
+function redirectToLoginWithReturnPath(request: NextRequest): NextResponse {
+  const url = request.nextUrl.clone();
+  const returnPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+  url.pathname = '/login';
+  url.search = '';
+  url.searchParams.set('redirect', returnPath);
+  return NextResponse.redirect(url);
+}
+
 // Routes that require onboarding to be complete before access is granted.
 // If onboarding_completed is false, user is redirected to /onboarding.
 const ONBOARDING_GATED_PATHS = [
@@ -104,9 +113,12 @@ export async function proxy(request: NextRequest) {
     ];
 
     if (protectedPaths.some((path) => pathname.startsWith(path))) {
-      const url = request.nextUrl.clone();
-      url.pathname = pathname.startsWith('/client-portal') ? '/client-portal/login' : '/login';
-      return NextResponse.redirect(url);
+      if (pathname.startsWith('/client-portal')) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/client-portal/login';
+        return NextResponse.redirect(url);
+      }
+      return redirectToLoginWithReturnPath(request);
     }
 
     return NextResponse.next({ request });
@@ -186,9 +198,7 @@ export async function proxy(request: NextRequest) {
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (!user && isProtected) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+    return redirectToLoginWithReturnPath(request);
   }
 
   // ONBOARDING GATE (server-side):
