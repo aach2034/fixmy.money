@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { ChevronRight, ChevronLeft, User, Building2, FileText, AlertTriangle, CheckCircle2, Paperclip, Send, Clock, Info, Loader2 } from 'lucide-react';
 
 import { useSearchParams } from 'next/navigation';
+import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 
@@ -23,6 +24,12 @@ interface WizardDisputeItem {
   dateOpened: string;
   dateReported: string;
   dateLastActivity: string;
+  disputeStrengthScore: number;
+  strengthLabel: 'Strong' | 'Moderate' | 'Weak';
+  strongestAnomaly: string;
+  recommendationReason: string;
+  disputeBasis: string;
+  isRecommended: boolean;
   source: 'negative_items' | 'client_disputes';
 }
 
@@ -201,7 +208,8 @@ export default function DisputeWizardContent() {
         }
 
         if (negativeData && negativeData.length > 0) {
-          setDisputeItems(deduplicateDisputeRows(negativeData).map((d: any) => ({
+          const scoredItems = scoreDisputeStrength(deduplicateDisputeRows(negativeData));
+          setDisputeItems(scoredItems.map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_category ?? 'Item'}`,
             type: d.negative_category ?? 'other',
@@ -212,8 +220,15 @@ export default function DisputeWizardContent() {
             creditorName: d.creditor_name ?? 'Unknown',
             accountNumber: d.account_number_masked ?? '',
             ...getDisputeItemDates(d),
+            disputeStrengthScore: d.disputeStrength.dispute_strength_score,
+            strengthLabel: d.disputeStrength.strengthLabel,
+            strongestAnomaly: d.disputeStrength.strongestAnomaly,
+            recommendationReason: d.disputeStrength.recommendedReason,
+            disputeBasis: d.disputeStrength.disputeBasis,
+            isRecommended: d.disputeStrength.isRecommended,
             source: 'negative_items',
           })));
+          setSelectedItems(new Set(scoredItems.filter((item: any) => item.disputeStrength.isRecommended).map((item: any) => item.id)));
         } else {
           // Fallback: load from client_disputes table (legacy path)
           const { data: legacyData } = await supabase
@@ -234,6 +249,12 @@ export default function DisputeWizardContent() {
             creditorName: d.creditor_name ?? 'Unknown',
             accountNumber: d.account_number ?? '',
             ...getDisputeItemDates(d),
+            disputeStrengthScore: 25,
+            strengthLabel: 'Weak',
+            strongestAnomaly: 'No factual anomaly detected',
+            recommendationReason: 'Legacy dispute item available for review; no imported report discrepancy was detected for ranking.',
+            disputeBasis: d.dispute_reason ?? d.negative_reason ?? d.negative_item_type ?? 'Review the reported information for accuracy.',
+            isRecommended: false,
             source: 'client_disputes',
           })));
         }
@@ -293,9 +314,12 @@ export default function DisputeWizardContent() {
 
       const itemsSection = selectedDisputeItems.map((item, i) => {
         const dates = accountDateSummary(item);
+        const itemReason = item.isRecommended ? item.disputeBasis : finalReason;
         return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
    Type: ${item.type} | Amount: ${item.amount}
-   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Reason: ${finalReason}
+   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Strength: ${item.strengthLabel}
+   Factual Basis: ${item.strongestAnomaly}
+   Dispute Reason: ${itemReason}
    Requested Action: ${instruction}`;
       }).join('\n\n');
 
@@ -559,7 +583,7 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
         {step === 3 && (
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-foreground">Select Dispute Items</h2>
-            <p className="text-sm text-muted-foreground">Items are ranked by estimated removal potential. Select only items with a truthful, documentable reporting issue.</p>
+            <p className="text-sm text-muted-foreground">Strong factual disputes are preselected when detected. Review, deselect, or add items before continuing.</p>
             {fromReport && preReportId && (
               <div className="flex items-start gap-2 p-2.5 bg-primary/5 border border-primary/20 rounded-lg text-xs text-primary">
                 <Info size={12} className="shrink-0 mt-0.5" />
@@ -575,12 +599,12 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {[...disputeItems].sort((a, b) => {
+                  if (b.disputeStrengthScore !== a.disputeStrengthScore) return b.disputeStrengthScore - a.disputeStrengthScore;
                   const aRank = rankDisputeItem(a.rankingReason, a.type).rank;
                   const bRank = rankDisputeItem(b.rankingReason, b.type).rank;
                   return aRank - bRank;
                 }).map(item => {
                   const checked = selectedItems.has(item.id);
-                  const ranking = rankDisputeItem(item.rankingReason, item.type);
                   return (
                     <button key={item.id} type="button" onClick={() => {
                       setSelectedItems(prev => { const n = new Set(prev); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n; });
@@ -589,11 +613,13 @@ LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No 
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium text-foreground">{item.label}</p>
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{ranking.removalPotential} removal potential</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Dispute Strength: {item.strengthLabel}</span>
+                          {item.isRecommended && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Recommended</span>}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">{item.type} · {item.amount}</p>
                         {accountDateSummary(item) && <p className="mt-1 text-xs text-muted-foreground">{accountDateSummary(item)}</p>}
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Why ranked here:</span> {ranking.why}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Strongest anomaly:</span> {item.strongestAnomaly}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Why ranked here:</span> {item.recommendationReason}</p>
                       </div>
                     </button>
                   );

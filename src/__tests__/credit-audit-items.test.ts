@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getReportingBureaus, hasPlausibleCreditorName, hasPlausibleInquiryDate, isReliableInquiry, selectReliableAuditItems } from '../lib/creditReport/auditItems';
+import { getReportingBureaus, hasPlausibleCreditorName, hasPlausibleInquiryDate, isReliableInquiry, scoreDisputeStrength, selectReliableAuditItems } from '../lib/creditReport/auditItems';
 
 describe('credit audit item quality gate', () => {
   it('rejects PDF stream fragments and garbled creditor names', () => {
@@ -43,5 +43,64 @@ describe('credit audit item quality gate', () => {
     expect(getReportingBureaus({ bureau: 'TU' })).toEqual(['TransUnion']);
     expect(getReportingBureaus({ bureau: 'Equifax', bureaus_reporting: ['EQ', 'EX', 'TU', 'TU'] }))
       .toEqual(['Equifax', 'Experian', 'TransUnion']);
+  });
+
+  it('scores objective cross-bureau discrepancies as stronger first-round disputes', () => {
+    const scored = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq',
+        creditor_name: 'Capital One',
+        furnisher_name: 'Capital One',
+        negative_category: 'charge_off',
+        bureau: 'Equifax',
+        is_negative: true,
+        parser_confidence: 90,
+        account_number_masked: '****1234',
+        account_type: 'Credit Card',
+        status: 'Charge-off',
+        balance: 4812,
+        date_opened: '2021-04-15',
+      },
+      {
+        id: 'tu',
+        creditor_name: 'Capital One',
+        furnisher_name: 'Capital One',
+        negative_category: 'charge_off',
+        bureau: 'TransUnion',
+        is_negative: true,
+        parser_confidence: 90,
+        account_number_masked: '****1234',
+        account_type: 'Credit Card',
+        status: 'Paid charge-off',
+        balance: 0,
+        date_opened: '2021-04-15',
+      },
+    ]));
+
+    expect(scored).toHaveLength(2);
+    expect(scored[0].disputeStrength.strengthLabel).toBe('Strong');
+    expect(scored[0].disputeStrength.isRecommended).toBe(true);
+    expect(scored[0].disputeStrength.strongestAnomaly.toLowerCase()).toMatch(/balance|status/);
+    expect(scored[0].disputeStrength.disputeBasis).toContain('Please investigate');
+  });
+
+  it('does not mark a negative item strong without a detected factual anomaly', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'single',
+        creditor_name: 'Midland Credit',
+        negative_category: 'collection',
+        bureau: 'Experian',
+        is_negative: true,
+        parser_confidence: 85,
+        account_number_masked: '****7788',
+        status: 'Collection',
+        balance: 600,
+      },
+    ]));
+
+    expect(scored.disputeStrength.strengthLabel).toBe('Weak');
+    expect(scored.disputeStrength.isRecommended).toBe(false);
+    expect(scored.disputeStrength.strongestAnomaly).toBe('No factual anomaly detected');
   });
 });
