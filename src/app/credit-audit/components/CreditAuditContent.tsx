@@ -77,7 +77,7 @@ export default function CreditAuditContent() {
 
       const { data: savedItems, error: itemsError } = await supabase
         .from('negative_items')
-        .select('id, creditor_name, furnisher_name, negative_category, bureau, bureaus_reporting, balance, past_due, dispute_reason, negative_reason, dispute_status, is_negative, is_collection, is_charge_off, is_late, parser_confidence, account_number_masked, account_type, status, payment_status, payment_history, remarks, original_creditor, collection_agency, date_opened, date_reported, date_last_activity')
+        .select('id, creditor_name, furnisher_name, negative_category, bureau, bureaus_reporting, balance, past_due, dispute_reason, negative_reason, dispute_status, is_negative, is_collection, parser_confidence, account_number_masked, account_type, status, remarks, date_opened, date_reported, date_last_activity')
         .eq('owner_id', user.id)
         .eq('client_id', client.id)
         // The import table also stores positive tradelines for review. Audits

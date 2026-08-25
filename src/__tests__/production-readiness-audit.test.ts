@@ -40,4 +40,15 @@ describe('production readiness security checks', () => {
     expect(source).toContain(".eq('id', clientId)");
     expect(source).toContain(".eq('owner_id', user.id)");
   });
+
+  it('credit audit queries only production negative_items columns', () => {
+    const source = route('src/app/credit-audit/components/CreditAuditContent.tsx');
+
+    expect(source).not.toContain('payment_status');
+    expect(source).not.toContain('payment_history');
+    expect(source).not.toContain('is_charge_off');
+    expect(source).not.toContain('is_late');
+    expect(source).not.toContain('original_creditor');
+    expect(source).not.toContain('collection_agency');
+  });
 });
