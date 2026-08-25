@@ -98,6 +98,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Report not found or access denied' }, { status: 403 });
     }
 
+    if (reportRow.client_id && reportRow.client_id !== clientId) {
+      return NextResponse.json({ error: 'Report/client mismatch' }, { status: 403 });
+    }
+
+    const { data: clientRow } = await supabase
+      .from('staff_clients')
+      .select('id')
+      .eq('id', clientId)
+      .eq('owner_id', user.id)
+      .single();
+
+    if (!clientRow) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+
     // ── Fetch existing negative_items for this report (dedup check) ───────────
     const { data: existingItems } = await supabase
       .from('negative_items')

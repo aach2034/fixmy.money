@@ -36,12 +36,17 @@ const WORKFLOW_FEATURES = [
   { icon: Sparkles, label: 'Traceable responses and outcomes' },
 ];
 
+export function getSafeRedirectPath(value: string | null): string {
+  if (!value) return '';
+  if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '';
+  return value;
+}
+
 export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'register' | 'forgot' }) {
   const [tab, setTab] = useState<'login' | 'register' | 'forgot'>(defaultTab || 'login');
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sessionChecked, setSessionChecked] = useState(false);
   const [verifyEmailSent, setVerifyEmailSent] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
@@ -54,7 +59,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const planFromUrl = searchParams.get('plan') || 'starter';
   const isPersonalPlan = planFromUrl === 'starter';
   const tabFromUrl = searchParams.get('tab') || defaultTab || 'login';
-  const redirectTo = searchParams.get('redirect') || '';
+  const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
 
   useEffect(() => {
     if (tabFromUrl === 'register') setTab('register');
@@ -67,7 +72,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
-        if (!session) { setSessionChecked(true); return; }
+        if (!session) return;
 
         const { data: profile } = await supabase
           .from('user_profiles')
@@ -89,7 +94,6 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         }
       } catch (err) {
         console.error('[AuthForm] checkSession error:', err);
-        if (!cancelled) setSessionChecked(true);
       }
     };
     checkSession();

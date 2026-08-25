@@ -55,13 +55,28 @@ export async function POST(request: NextRequest) {
     // ── Validate import record belongs to this user ───────────────────────────
     const { data: importRecord } = await supabase
       .from('credit_report_imports')
-      .select('*')
+      .select('*, client_id')
       .eq('id', importId)
       .eq('owner_id', user.id)
       .single();
 
     if (!importRecord) {
       return NextResponse.json({ error: 'Import record not found' }, { status: 404 });
+    }
+
+    if (importRecord.client_id !== clientId) {
+      return NextResponse.json({ error: 'Import/client mismatch' }, { status: 403 });
+    }
+
+    const { data: clientRow } = await supabase
+      .from('staff_clients')
+      .select('id')
+      .eq('id', clientId)
+      .eq('owner_id', user.id)
+      .single();
+
+    if (!clientRow) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
     // ── Unicode normalization ─────────────────────────────────────────────────

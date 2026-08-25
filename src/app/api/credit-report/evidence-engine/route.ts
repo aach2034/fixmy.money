@@ -73,6 +73,21 @@ export async function POST(request: NextRequest) {
 
     if (reportError || !report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
+    if (report.client_id && report.client_id !== clientId) {
+      return NextResponse.json({ error: 'Report/client mismatch' }, { status: 403 });
+    }
+
+    const { data: clientRow } = await supabase
+      .from('staff_clients')
+      .select('id')
+      .eq('id', clientId)
+      .eq('owner_id', user.id)
+      .single();
+
+    if (!clientRow) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+
     const accounts = Array.isArray(report.all_accounts)
       ? report.all_accounts.map(asNormalizedAccount).filter((account: NormalizedAccount) => account.creditorName || account.furnisherName)
       : [];
