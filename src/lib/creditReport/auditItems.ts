@@ -141,6 +141,7 @@ export interface DisputeStrengthResult {
   dispute_strength_score: number;
   strengthLabel: DisputeStrengthLabel;
   strongestAnomaly: string;
+  reportedDataSummary: string;
   recommendedReason: string;
   disputeBasis: string;
   issueType?: string;
@@ -198,8 +199,77 @@ function asNormalizedAccount(item: SavedAuditItem, index: number): NormalizedAcc
 function formatFieldValues(values: Record<string, unknown>): string {
   return Object.entries(values)
     .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
-    .map(([bureau, value]) => `${bureau}: ${String(value)}`)
+    .map(([bureau, value]) => `${bureau}: ${formatEvidenceValue(value)}`)
     .join('; ');
+}
+
+function formatAmount(value: number): string {
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+}
+
+function formatEvidenceValue(value: unknown): string {
+  if (typeof value === 'number') return formatAmount(value);
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'object') return String(value);
+
+  if (Array.isArray(value)) {
+    return value.map(formatEvidenceValue).filter(Boolean).join(', ');
+  }
+
+  const labels: Record<string, string> = {
+    status: 'Status',
+    accountStatus: 'Status',
+    paymentStatus: 'Payment Status',
+    balance: 'Current Balance',
+    pastDue: 'Past Due',
+    dateOpened: 'Date Opened',
+    dateReported: 'Last Reported Date',
+    lastPaymentDate: 'Last Payment Date',
+    creditorName: 'Creditor',
+    accountNumberMasked: 'Account',
+  };
+
+  return Object.entries(value as Record<string, unknown>)
+    .filter(([, nested]) => nested !== null && nested !== undefined && String(nested).trim() !== '')
+    .map(([key, nested]) => `${labels[key] ?? key}: ${formatEvidenceValue(nested)}`)
+    .join('; ');
+}
+
+function issueFieldLabel(issue: DetectedIssueDraft): string {
+  switch (issue.issueType) {
+    case 'balance_discrepancy':
+    case 'collection_balance_discrepancy':
+      return 'Current Balance';
+    case 'status_discrepancy':
+      return 'Account Status';
+    case 'payment_status_discrepancy':
+      return 'Payment Status';
+    case 'date_discrepancy':
+      return 'Date Opened';
+    case 'original_creditor_discrepancy':
+      return 'Original Creditor';
+    case 'paid_account_reporting_balance':
+      return 'Status and Current Balance';
+    case 'potential_duplicate_obligation':
+      return 'Duplicate Tradeline Identity Fields';
+    default:
+      return 'Reported Field';
+  }
+}
+
+function reportedDataSummaryFor(issue: DetectedIssueDraft): string {
+  const reported = issue.reportedData as Record<string, unknown>;
+  const field = issueFieldLabel(issue);
+
+  if (issue.issueType === 'potential_duplicate_obligation' && Array.isArray(reported.tradelines)) {
+    const lines = reported.tradelines
+      .map((tradeline, index) => `Tradeline ${index + 1}: ${formatEvidenceValue(tradeline)}`)
+      .filter(line => !line.endsWith(': '));
+    return lines.length > 0 ? `${field}: ${lines.join(' | ')}.` : '';
+  }
+
+  const values = formatFieldValues(reported);
+  return values ? `${field}: ${values}.` : '';
 }
 
 function disputeBasisFor(issue: DetectedIssueDraft): string {
@@ -207,19 +277,19 @@ function disputeBasisFor(issue: DetectedIssueDraft): string {
   switch (issue.issueType) {
     case 'balance_discrepancy':
     case 'collection_balance_discrepancy':
-      return `The same likely account reports different balances across bureaus (${formatFieldValues(reported)}). Please investigate and correct or delete any information that cannot be verified as accurate.`;
+      return `The same likely account reports different current balances across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
     case 'status_discrepancy':
-      return `The same likely account reports different account statuses across bureaus (${formatFieldValues(reported)}). Please investigate and correct or delete any information that cannot be verified as accurate.`;
+      return `The same likely account reports different account statuses across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
     case 'payment_status_discrepancy':
-      return `The same likely account reports different payment statuses across bureaus (${formatFieldValues(reported)}). Please investigate and correct or delete any information that cannot be verified as accurate.`;
+      return `The same likely account reports different payment statuses across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
     case 'date_discrepancy':
-      return `The same likely account reports conflicting opening dates across bureaus (${formatFieldValues(reported)}). Please investigate and correct or delete any information that cannot be verified as accurate.`;
+      return `The same likely account reports conflicting Date Opened values across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
     case 'original_creditor_discrepancy':
-      return `The same likely account reports conflicting original creditor information across bureaus (${formatFieldValues(reported)}). Please investigate and correct or delete any information that cannot be verified as accurate.`;
+      return `The same likely account reports conflicting original creditor information across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
     case 'paid_account_reporting_balance':
-      return `This account appears to report a paid, settled, or closed status while also reporting a positive balance (${formatFieldValues(reported)}). Please investigate and correct or delete any information that cannot be verified as accurate.`;
+      return `The account is being reported with a paid, settled, or closed status while also carrying a positive outstanding balance. Please investigate and correct or delete any information that cannot be verified as accurate.`;
     case 'potential_duplicate_obligation':
-      return 'Multiple similar tradelines from the same bureau may represent a duplicate obligation. Please investigate whether this item is duplicated and correct or delete any information that cannot be verified as accurate.';
+      return 'Multiple similar tradelines from the same bureau share account-identifying fields and may represent a duplicate obligation. Please investigate whether this item is duplicated and correct or delete any information that cannot be verified as accurate.';
     default:
       return `${issue.whyFlagged} Please investigate and correct or delete any information that cannot be verified as accurate.`;
   }
@@ -245,6 +315,7 @@ function emptyStrength(item: SavedAuditItem): DisputeStrengthResult {
     dispute_strength_score: 25,
     strengthLabel: 'Weak',
     strongestAnomaly: 'No factual anomaly detected',
+    reportedDataSummary: '',
     recommendedReason: 'Available for review, but not recommended as a first-round priority without a factual discrepancy.',
     disputeBasis: reason,
     isRecommended: false,
@@ -282,6 +353,7 @@ export function scoreDisputeStrength<T extends SavedAuditItem>(items: T[]): Scor
         dispute_strength_score: score,
         strengthLabel,
         strongestAnomaly: strongest.whyFlagged,
+        reportedDataSummary: reportedDataSummaryFor(strongest),
         recommendedReason: strengthLabel === 'Strong'
           ? 'Recommended for the first round because the imported report contains a specific factual discrepancy.'
           : 'Keep available for review; the detected discrepancy is less direct or lower confidence than stronger items.',

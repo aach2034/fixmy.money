@@ -82,6 +82,121 @@ describe('credit audit item quality gate', () => {
     expect(scored[0].disputeStrength.isRecommended).toBe(true);
     expect(scored[0].disputeStrength.strongestAnomaly.toLowerCase()).toMatch(/balance|status/);
     expect(scored[0].disputeStrength.disputeBasis).toContain('Please investigate');
+    expect(scored[0].disputeStrength.reportedDataSummary).toMatch(/Equifax: \$4,812/);
+    expect(scored[0].disputeStrength.reportedDataSummary).toMatch(/TransUnion: \$0/);
+  });
+
+  it('converts generic paid-balance findings into evidence-specific letter language', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-paid-balance',
+        creditor_name: 'Yendo Inc',
+        furnisher_name: 'Yendo Inc',
+        negative_category: 'collection',
+        bureau: 'Equifax',
+        is_negative: true,
+        parser_confidence: 92,
+        account_number_masked: '****8812',
+        status: 'Paid/Closed',
+        balance: 1284,
+      },
+    ]));
+
+    expect(scored.disputeStrength.strongestAnomaly).toBe('A tradeline that appears paid, settled, or closed is also reporting a positive balance.');
+    expect(scored.disputeStrength.reportedDataSummary).toContain('Equifax');
+    expect(scored.disputeStrength.reportedDataSummary).toContain('Status: Paid/Closed');
+    expect(scored.disputeStrength.reportedDataSummary).toContain('Current Balance: $1,284');
+    expect(scored.disputeStrength.disputeBasis).toContain('paid, settled, or closed status');
+    expect(scored.disputeStrength.disputeBasis).toContain('positive outstanding balance');
+  });
+
+  it('shows both bureau values for cross-bureau status conflicts', () => {
+    const scored = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'ex-status',
+        creditor_name: 'Yendo Inc',
+        furnisher_name: 'Yendo Inc',
+        negative_category: 'collection',
+        bureau: 'Experian',
+        is_negative: true,
+        parser_confidence: 90,
+        account_number_masked: '****8812',
+        status: 'Paid/Closed',
+        balance: 0,
+        date_opened: '2022-02-01',
+      },
+      {
+        id: 'tu-status',
+        creditor_name: 'Yendo Inc',
+        furnisher_name: 'Yendo Inc',
+        negative_category: 'collection',
+        bureau: 'TransUnion',
+        is_negative: true,
+        parser_confidence: 90,
+        account_number_masked: '****8812',
+        status: 'Closed',
+        balance: 0,
+        date_opened: '2022-02-01',
+      },
+    ]));
+
+    const summaries = scored.map(item => item.disputeStrength.reportedDataSummary).join('\n');
+    expect(summaries).toContain('Experian');
+    expect(summaries).toContain('TransUnion');
+    expect(summaries).toMatch(/Paid\/Closed|Closed/);
+  });
+
+  it('does not invent missing values in evidence summaries', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-missing-payment',
+        creditor_name: 'Yendo Inc',
+        negative_category: 'collection',
+        bureau: 'Equifax',
+        is_negative: true,
+        parser_confidence: 92,
+        account_number_masked: '****8812',
+        status: 'Paid/Closed',
+        balance: 1284,
+      },
+    ]));
+
+    expect(scored.disputeStrength.reportedDataSummary).not.toContain('Payment Status');
+    expect(scored.disputeStrength.reportedDataSummary).not.toContain('Unknown');
+    expect(scored.disputeStrength.reportedDataSummary).not.toContain('null');
+    expect(scored.disputeStrength.reportedDataSummary).not.toContain('undefined');
+  });
+
+  it('does not leak another account values into a letter-ready evidence summary', () => {
+    const scored = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'target',
+        creditor_name: 'Yendo Inc',
+        negative_category: 'collection',
+        bureau: 'Equifax',
+        is_negative: true,
+        parser_confidence: 92,
+        account_number_masked: '****8812',
+        status: 'Paid/Closed',
+        balance: 1284,
+      },
+      {
+        id: 'other',
+        creditor_name: 'Capital One',
+        negative_category: 'charge_off',
+        bureau: 'Equifax',
+        is_negative: true,
+        parser_confidence: 92,
+        account_number_masked: '****9999',
+        status: 'Charge-off',
+        balance: 4812,
+      },
+    ]));
+
+    const target = scored.find(item => item.id === 'target');
+    expect(target?.disputeStrength.reportedDataSummary).toContain('$1,284');
+    expect(target?.disputeStrength.reportedDataSummary).not.toContain('$4,812');
+    expect(target?.disputeStrength.reportedDataSummary).not.toContain('Capital One');
   });
 
   it('does not mark a negative item strong without a detected factual anomaly', () => {

@@ -27,6 +27,7 @@ interface WizardDisputeItem {
   disputeStrengthScore: number;
   strengthLabel: 'Strong' | 'Moderate' | 'Weak';
   strongestAnomaly: string;
+  reportedDataSummary: string;
   recommendationReason: string;
   disputeBasis: string;
   isRecommended: boolean;
@@ -223,6 +224,7 @@ export default function DisputeWizardContent() {
             disputeStrengthScore: d.disputeStrength.dispute_strength_score,
             strengthLabel: d.disputeStrength.strengthLabel,
             strongestAnomaly: d.disputeStrength.strongestAnomaly,
+            reportedDataSummary: d.disputeStrength.reportedDataSummary,
             recommendationReason: d.disputeStrength.recommendedReason,
             disputeBasis: d.disputeStrength.disputeBasis,
             isRecommended: d.disputeStrength.isRecommended,
@@ -252,6 +254,7 @@ export default function DisputeWizardContent() {
             disputeStrengthScore: 25,
             strengthLabel: 'Weak',
             strongestAnomaly: 'No factual anomaly detected',
+            reportedDataSummary: '',
             recommendationReason: 'Legacy dispute item available for review; no imported report discrepancy was detected for ranking.',
             disputeBasis: d.dispute_reason ?? d.negative_reason ?? d.negative_item_type ?? 'Review the reported information for accuracy.',
             isRecommended: false,
@@ -314,11 +317,15 @@ export default function DisputeWizardContent() {
 
       const itemsSection = selectedDisputeItems.map((item, i) => {
         const dates = accountDateSummary(item);
-        const itemReason = item.isRecommended ? item.disputeBasis : finalReason;
+        const hasDetectedEvidence = Boolean(item.reportedDataSummary && item.disputeBasis);
+        const itemReason = hasDetectedEvidence ? item.disputeBasis : finalReason;
+        const reportedData = item.reportedDataSummary ? `   Reported Data: ${item.reportedDataSummary}\n` : '';
+        const factualBasis = hasDetectedEvidence ? item.disputeBasis : item.strongestAnomaly;
         return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
    Type: ${item.type} | Amount: ${item.amount}
    ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Strength: ${item.strengthLabel}
-   Factual Basis: ${item.strongestAnomaly}
+   Discrepancy: ${item.strongestAnomaly}
+${reportedData}   Factual Basis: ${factualBasis}
    Dispute Reason: ${itemReason}
    Requested Action: ${instruction}`;
       }).join('\n\n');
