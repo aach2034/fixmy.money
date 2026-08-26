@@ -70,6 +70,14 @@ const REQUIRED_SLUGS = [
   'credit-repair-software-implementation-guide',
   'credit-repair-agency-security-checklist',
   'credit-repair-client-intake-process',
+  'paid-closed-account-showing-balance',
+  'conflicting-bureau-balance-information',
+  'credit-report-balance-errors',
+  'duplicate-credit-report-accounts',
+  'incorrect-credit-report-dates',
+  'possible-credit-report-reaging',
+  'evidence-for-credit-dispute',
+  'equifax-experian-transunion-disputes',
 ];
 
 describe('Blog Article Audit', () => {

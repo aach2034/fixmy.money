@@ -9,17 +9,67 @@ declare global {
   }
 }
 
+const ATTRIBUTION_KEY = 'fixmy_organic_attribution';
+const SEARCH_REFERRERS = ['google.', 'bing.', 'yahoo.', 'duckduckgo.', 'ecosia.', 'search.brave.', 'yandex.'];
+
+function getStoredAttribution(): Record<string, unknown> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = window.localStorage.getItem(ATTRIBUTION_KEY);
+    return stored ? JSON.parse(stored) as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistOrganicAttribution(pagePath: string, searchParams: URLSearchParams) {
+  if (typeof window === 'undefined') return {};
+
+  const referrer = document.referrer;
+  let referrerHost = '';
+  try {
+    referrerHost = referrer ? new URL(referrer).host.toLowerCase() : '';
+  } catch {
+    referrerHost = '';
+  }
+  const utmSource = searchParams.get('utm_source') ?? '';
+  const utmMedium = searchParams.get('utm_medium') ?? '';
+  const isSearchReferrer = SEARCH_REFERRERS.some(host => referrerHost.includes(host));
+  const isOrganicUtm = utmMedium.toLowerCase() === 'organic' || utmSource.toLowerCase() === 'organic';
+
+  if (!isSearchReferrer && !isOrganicUtm) return getStoredAttribution();
+
+  const attribution = {
+    acquisition_channel: 'organic',
+    organic_landing_page: pagePath,
+    organic_referrer: referrer,
+    organic_utm_source: utmSource,
+    organic_utm_medium: utmMedium,
+    organic_utm_campaign: searchParams.get('utm_campaign') ?? '',
+    organic_first_seen_at: new Date().toISOString(),
+  };
+
+  try {
+    window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(attribution));
+  } catch {
+    // Analytics attribution should never block the application.
+  }
+  return attribution;
+}
+
 export function useGoogleAnalytics() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const url = pathname + (searchParams.toString() ? `?${searchParams}` : '');
+    const attribution = persistOrganicAttribution(pathname, searchParams);
     if (window.gtag) {
       window.gtag('event', 'page_view', {
         page_location: window.location.href,
         page_path: url,
         page_title: document.title,
+        ...attribution,
       });
     }
   }, [pathname, searchParams]);
@@ -27,8 +77,16 @@ export function useGoogleAnalytics() {
 
 export function trackEvent(eventName: string, eventParams: Record<string, unknown> = {}) {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, eventParams);
+    window.gtag('event', eventName, { ...getStoredAttribution(), ...eventParams });
   }
+}
+
+export function trackOrganicConversionStep(step: string, eventParams: Record<string, unknown> = {}) {
+  trackEvent('organic_conversion_step', {
+    event_category: 'conversion',
+    conversion_step: step,
+    ...eventParams,
+  });
 }
 
 // ─── Conversion Events ────────────────────────────────────────────────────────

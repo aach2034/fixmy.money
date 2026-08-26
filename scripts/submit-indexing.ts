@@ -8,7 +8,7 @@
  *   npx ts-node scripts/submit-indexing.ts --urls https://fixmy.money/blog/post-1
  *
  * Environment variables required:
- *   INDEXNOW_API_KEY
+ *   INDEXNOW_KEY
  *   BING_WEBMASTER_API_KEY
  *   GOOGLE_SEARCH_CONSOLE_CLIENT_ID
  *   GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET
@@ -27,7 +27,7 @@ import * as url from 'url';
 const BASE_URL = 'https://fixmy.money';
 const SITE_HOST = 'fixmy.money';
 const SITEMAP_URL = `${BASE_URL}/sitemap.xml`;
-const INDEXNOW_API_KEY = process.env.INDEXNOW_API_KEY || 'a1b2c3d4e5f6789012345678901234ab';
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || '';
 const BING_API_KEY = process.env.BING_WEBMASTER_API_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET || '';
@@ -145,16 +145,20 @@ async function submitIndexNow(urls: string[]): Promise<SubmissionResult[]> {
   const endpoints = [
     'https://api.indexnow.org/indexnow',
     'https://www.bing.com/indexnow',
-    'https://yandex.com/indexnow',
   ];
+
+  if (!INDEXNOW_KEY) {
+    log('WARN', 'INDEXNOW_KEY not set — skipping IndexNow submission');
+    return results;
+  }
 
   for (const endpoint of endpoints) {
     log('INFO', `Submitting ${urls.length} URLs to IndexNow: ${endpoint}`);
     try {
       let body = JSON.stringify({
         host: SITE_HOST,
-        key: INDEXNOW_API_KEY,
-        keyLocation: `${BASE_URL}/${INDEXNOW_API_KEY}.txt`,
+        key: INDEXNOW_KEY,
+        keyLocation: `${BASE_URL}/indexnow.txt`,
         urlList: urls,
       });
 

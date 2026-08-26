@@ -16,6 +16,7 @@ describe('Google Analytics funnel tracking', () => {
     const analytics = read('src/lib/analytics.ts');
     expect(analytics).toContain("window.gtag('event', 'page_view'");
     expect(analytics).toContain('page_location: window.location.href');
+    expect(analytics).toContain('organic_landing_page');
     expect(analytics).not.toContain("document.createElement('script')");
   });
 
@@ -27,5 +28,11 @@ describe('Google Analytics funnel tracking', () => {
     expect(checkoutRoute).toContain('session_id={CHECKOUT_SESSION_ID}');
     expect(dashboard).toContain("trackEvent('purchase'");
     expect(dashboard).toContain('ga_purchase_');
+  });
+
+  it('tracks organic funnel milestones after signup', () => {
+    expect(read('src/app/credit-report-import/components/CreditReportImportContent.tsx')).toContain("trackOrganicConversionStep('credit_report_upload_saved'");
+    expect(read('src/app/credit-audit/components/CreditAuditContent.tsx')).toContain("trackOrganicConversionStep('credit_audit_completed'");
+    expect(read('src/app/dispute-wizard/components/DisputeWizardContent.tsx')).toContain("trackOrganicConversionStep('dispute_wizard_letter_generated'");
   });
 });

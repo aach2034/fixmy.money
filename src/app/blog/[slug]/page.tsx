@@ -58,6 +58,11 @@ export default async function BlogArticlePage({ params }: Props) {
   }
 
   const relatedArticles = getRelatedArticles(article.relatedSlugs);
+  const auditCta = article.category === 'Credit Report Errors';
+  const primaryCtaHref = auditCta
+    ? '/sign-up-login-screen?tab=register&utm_source=organic&utm_medium=seo&utm_campaign=credit_audit_content'
+    : '/sign-up-login-screen?tab=register&utm_source=organic&utm_medium=seo&utm_campaign=blog_trial';
+  const primaryCtaLabel = auditCta ? 'Upload Your Credit Report' : 'Start $1 Trial';
 
   const articleStructuredData = {
     '@context': 'https://schema.org',
@@ -305,8 +310,8 @@ export default async function BlogArticlePage({ params }: Props) {
               <h3 className="text-lg font-extrabold mb-2">{article.cta.heading}</h3>
               <p className="text-slate-300 text-sm mb-4">{article.cta.body}</p>
               <div className="flex flex-wrap gap-3">
-                <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
-                  Start $1 Trial <ArrowRight size={14} />
+                <Link href={primaryCtaHref} className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+                  {primaryCtaLabel} <ArrowRight size={14} />
                 </Link>
                 <Link href="/demo-mode" className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   Explore Demo

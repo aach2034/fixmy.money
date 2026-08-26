@@ -17,6 +17,7 @@ import {
 } from '@/lib/creditReport/ocrTransport';
 import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
+import { trackOrganicConversionStep } from '@/lib/analytics';
 
 type SavedReportItem = {
   id: string;
@@ -804,6 +805,10 @@ export default function CreditReportImportContent() {
       // accounts so a low-confidence parse never loses client data or blocks
       // the letter workflow.
       const lowConfidence = parsedReport.overallConfidence < 50;
+      trackOrganicConversionStep('credit_report_upload_started', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+      });
 
       const accountItemsForPersistence = accountsForPersistence(parsedReport);
       const { data: reportRecord, error: reportErr } = await supabase.from('parsed_credit_reports').insert({
@@ -1055,6 +1060,13 @@ export default function CreditReportImportContent() {
         const negCount = parsedReport.negativeAccounts.length;
         toast.success(`Report saved. ${parsedReport.accounts.length} accounts queued for review. ${negCount} flagged as negative.`);
       }
+      trackOrganicConversionStep('credit_report_upload_saved', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+        accounts_count: parsedReport.accounts.length,
+        negative_items_count: parsedReport.negativeAccounts.length,
+        draft_letters_created: generatedLetters,
+      });
 
       if (generatedLetters > 0) {
         toast.success(`${generatedLetters} AI-ranked letter draft${generatedLetters === 1 ? '' : 's'} created and ready for review.`);

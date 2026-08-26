@@ -7,7 +7,7 @@ import { ARTICLES } from '@/lib/blog/articles';
 
 export const metadata: Metadata = createSeoMetadata("/blog");
 
-const CATEGORIES = ['All', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
+const CATEGORIES = ['All', 'Credit Report Errors', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
 
 export default function BlogPage() {
   return (

@@ -1,16 +1,21 @@
-// IndexNow API Key — fixed key used for all submissions
-// The corresponding key file is served at /[key].txt via the public folder
-export const INDEXNOW_API_KEY = 'a1b2c3d4e5f6789012345678901234ab';
-export const INDEXNOW_KEY_LOCATION = `https://fixmy.money/${INDEXNOW_API_KEY}.txt`;
-export const BASE_URL = 'https://fixmy.money';
+import { getAllSlugs } from '@/lib/blog/articles';
+import { canonicalUrl, PRIVATE_ROUTE_PREFIXES, PUBLIC_SEO_PAGES, SEO_SITE } from '@/lib/seo/config';
+
+export const BASE_URL = SEO_SITE.url;
+
+export function getIndexNowKey(env: NodeJS.ProcessEnv = process.env): string | null {
+  const key = String(env.INDEXNOW_KEY ?? '').trim();
+  return /^[a-zA-Z0-9-]{8,128}$/.test(key) ? key : null;
+}
+
+export function getIndexNowKeyLocation(env: NodeJS.ProcessEnv = process.env): string {
+  return String(env.INDEXNOW_KEY_LOCATION ?? `${BASE_URL}/indexnow.txt`).trim();
+}
 
 // IndexNow-enabled search engine endpoints
 const INDEXNOW_ENDPOINTS = [
   'https://api.indexnow.org/indexnow',
   'https://www.bing.com/indexnow',
-  'https://yandex.com/indexnow',
-  'https://search.seznam.cz/indexnow',
-  'https://api.indexnow.org/IndexNow',
 ];
 
 export interface SubmissionLogEntry {
@@ -37,47 +42,26 @@ const submissionQueue: QueueItem[] = [];
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
-// Public pages that should be submitted to IndexNow
-export const PUBLIC_PAGES = [
-  BASE_URL,
-  `${BASE_URL}/credit-repair-software`,
-  `${BASE_URL}/credit-repair-business-software`,
-  `${BASE_URL}/credit-repair-crm`,
-  `${BASE_URL}/credit-repair-automation`,
-  `${BASE_URL}/pricing`,
-  `${BASE_URL}/blog`,
-  `${BASE_URL}/demo`,
-  `${BASE_URL}/knowledge-base`,
-  `${BASE_URL}/affiliate-program`,
-];
+export function getPublicIndexableUrls(): string[] {
+  const urls = [
+    ...PUBLIC_SEO_PAGES.map(page => canonicalUrl(page.path)),
+    ...getAllSlugs().map(slug => canonicalUrl(`/blog/${slug}`)),
+  ];
+  return [...new Set(urls)].filter(isPublicUrl);
+}
 
 // Excluded private/protected paths
 const EXCLUDED_PREFIXES = [
-  '/dashboard',
-  '/client-portal',
-  '/client-management',
-  '/client-pipeline',
-  '/dispute-letter-management',
-  '/ai-dispute-analyzer',
-  '/financial-health',
-  '/revenue-forecasting',
-  '/debt-elimination',
-  '/appointments',
-  '/billing-subscriptions',
-  '/workflow-task-management',
-  '/workspace-setup',
-  '/sign-up-login-screen',
-  '/auth',
-  '/api',
-  '/admin',
-  '/settings',
-  '/billing',
+  ...PRIVATE_ROUTE_PREFIXES,
 ];
 
 export function isPublicUrl(url: string): boolean {
   try {
-    const path = new URL(url).pathname;
-    return !EXCLUDED_PREFIXES.some((prefix) => path.startsWith(prefix));
+    const parsed = new URL(url);
+    const canonicalHost = new URL(BASE_URL).host;
+    const path = parsed.pathname.replace(/\/$/, '') || '/';
+    if (parsed.protocol !== 'https:' || parsed.host !== canonicalHost) return false;
+    return !EXCLUDED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
   } catch {
     return false;
   }
@@ -96,10 +80,13 @@ async function submitToEngine(
   const now = new Date().toISOString();
 
   try {
+    const key = getIndexNowKey();
+    if (!key) throw new Error('INDEXNOW_KEY is not configured.');
+
     const body = {
-      host: 'fixmy.money',
-      key: INDEXNOW_API_KEY,
-      keyLocation: INDEXNOW_KEY_LOCATION,
+      host: new URL(BASE_URL).host,
+      key,
+      keyLocation: getIndexNowKeyLocation(),
       urlList: urls,
     };
 
@@ -196,7 +183,7 @@ export async function submitUrlsToIndexNow(
 }
 
 export async function submitAllPublicPages(): Promise<SubmissionLogEntry[]> {
-  return submitUrlsToIndexNow(PUBLIC_PAGES);
+  return submitUrlsToIndexNow(getPublicIndexableUrls());
 }
 
 export function getSubmissionLog(): SubmissionLogEntry[] {

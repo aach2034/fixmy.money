@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
-import { getAllSlugs } from '@/lib/blog/articles';
+import { getAllSlugs, getArticleBySlug } from '@/lib/blog/articles';
+import { articleSeo } from '@/lib/seo/article';
 import { canonicalUrl, PUBLIC_SEO_PAGES } from '@/lib/seo/config';
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -17,12 +18,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Blog article pages — generated from the canonical articles list
   const blogPages: MetadataRoute.Sitemap = getAllSlugs()
     .filter((slug) => slug && slug !== ':slug' && slug !== '[slug]')
-    .map((slug) => ({
-      url: canonicalUrl(`/blog/${slug}`),
-      lastModified: now,
-      changeFrequency: 'monthly' as const,
-      priority: 0.75,
-    }));
+    .map((slug) => {
+      const article = getArticleBySlug(slug);
+      const seo = article ? articleSeo(article) : null;
+      return {
+        url: canonicalUrl(`/blog/${slug}`),
+        lastModified: seo?.updatedAt ? new Date(seo.updatedAt) : now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.75,
+      };
+    });
 
   return [...staticPages, ...blogPages];
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRIVATE_ROUTE_PREFIXES, PUBLIC_SEO_PAGES, SEO_PAGES, canonicalUrl, createSeoMetadata } from '@/lib/seo/config';
 import { getSeoHealthReport } from '@/lib/seo/health';
 import { softwareSchema } from '@/lib/seo/schema';
+import sitemap from '@/app/sitemap';
 
 describe('central SEO system', () => {
   it('generates canonical and social metadata from one route registry', () => {
@@ -25,5 +26,14 @@ describe('central SEO system', () => {
   it('has no blocking metadata registry issues', () => {
     expect(getSeoHealthReport().errorCount).toBe(0);
     expect(canonicalUrl('/pricing')).toBe('https://fixmy.money/pricing');
+  });
+
+  it('adds blog articles to the sitemap while excluding private routes', () => {
+    const urls = sitemap().map(entry => entry.url);
+    expect(urls).toContain('https://fixmy.money/blog/paid-closed-account-showing-balance');
+    expect(urls).toContain('https://fixmy.money/blog/equifax-experian-transunion-disputes');
+    for (const prefix of PRIVATE_ROUTE_PREFIXES) {
+      expect(urls.some(url => new URL(url).pathname === prefix || new URL(url).pathname.startsWith(`${prefix}/`))).toBe(false);
+    }
   });
 });
