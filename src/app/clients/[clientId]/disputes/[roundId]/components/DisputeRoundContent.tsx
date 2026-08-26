@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Download, Send, Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Printer } from 'lucide-react';
+import { FileText, Download, Send, Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Printer, MailCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -99,17 +99,11 @@ I am requesting that you:
 - Provide the method of verification used
 - Send me an updated copy of my credit report reflecting any corrections
 
-Review before sending — confirm details before mailing.
-
 Sincerely,
 
 ${clientName}
 
-Enclosures: [Attach supporting documentation as needed]
-
----
-Generated draft · Review before sending
-`;
+Enclosures: [Attach supporting documentation as needed]`;
 }
 
 export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundContentProps) {
@@ -124,6 +118,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
   const [generating, setGenerating] = useState(false);
   const [previewLetter, setPreviewLetter] = useState<GeneratedLetter | null>(null);
   const [savingStatus, setSavingStatus] = useState<string | null>(null);
+  const [certifiedMailingId, setCertifiedMailingId] = useState<string | null>(null);
 
   const loadRound = useCallback(async () => {
     setLoading(true);
@@ -132,7 +127,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       if (!user) return;
 
       const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
-      setClientName(clientData?.name ?? 'Client');
+      setClientName(clientData?.name ?? '');
 
       const { data: roundData } = await supabase.from('dispute_rounds').select('*').eq('id', roundId).eq('owner_id', user.id).single();
       if (roundData) {
@@ -200,6 +195,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       for (const [bureau, bureauItems] of Object.entries(bureauGroups)) {
         if (bureauItems.length === 0) continue;
 
+        if (!clientName.trim()) throw new Error('Selected client profile is missing a consumer name.');
         const content = generateLetterContent(bureau, clientName, bureauItems, round.roundNumber);
         const responseDue = new Date();
         responseDue.setDate(responseDue.getDate() + 30);
@@ -273,6 +269,47 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       toast.error('Failed to update status');
     } finally {
       setSavingStatus(null);
+    }
+  };
+
+  const mailCertified = async (letter: GeneratedLetter) => {
+    setCertifiedMailingId(letter.id);
+    try {
+      const quoteResponse = await fetch('/api/mailings/certified/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letterId: letter.id, letterSource: 'generated_dispute_letters' }),
+      });
+      const quotePayload = await quoteResponse.json().catch(() => ({}));
+      if (!quoteResponse.ok || !quotePayload?.quote?.available) {
+        const setup = Array.isArray(quotePayload?.setupRequired ?? quotePayload?.quote?.setupRequired)
+          ? (quotePayload.setupRequired ?? quotePayload.quote.setupRequired).join(', ')
+          : '';
+        toast.error(setup ? `USPS certified mail setup required: ${setup}` : quotePayload?.error ?? 'USPS certified mail is not available.');
+        return;
+      }
+
+      const amount = typeof quotePayload.quote.amountCents === 'number'
+        ? `$${(quotePayload.quote.amountCents / 100).toFixed(2)}`
+        : 'the quoted USPS amount';
+      if (!window.confirm(`Purchase USPS Certified Mail for ${letter.bureau}?\n\nCost: ${amount}`)) return;
+
+      const purchaseResponse = await fetch('/api/mailings/certified/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letterId: letter.id, letterSource: 'generated_dispute_letters' }),
+      });
+      const purchasePayload = await purchaseResponse.json().catch(() => ({}));
+      if (!purchaseResponse.ok) throw new Error(purchasePayload?.error ?? 'Certified mailing could not be created.');
+
+      const mailedAt = purchasePayload?.mailing?.mailed_at ?? new Date().toISOString();
+      setLetters(prev => prev.map(l => l.id === letter.id ? { ...l, status: 'sent', mailedAt } : l));
+      setRound(prev => prev ? { ...prev, status: 'sent' } : prev);
+      toast.success(`Certified mailing created${purchasePayload?.mailing?.tracking_number ? `: ${purchasePayload.mailing.tracking_number}` : ''}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Could not create certified mailing.');
+    } finally {
+      setCertifiedMailingId(null);
     }
   };
 
@@ -428,6 +465,12 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
                   <button onClick={() => printLetter(letter)} className="btn-secondary text-xs flex items-center gap-1">
                     <Printer size={12} /> Print
                   </button>
+                  {letter.status !== 'sent' && (
+                    <button onClick={() => mailCertified(letter)} disabled={certifiedMailingId === letter.id} className="btn-secondary text-xs flex items-center gap-1">
+                      {certifiedMailingId === letter.id ? <Loader2 size={12} className="animate-spin" /> : <MailCheck size={12} />}
+                      Mail Certified
+                    </button>
+                  )}
                   {letter.status !== 'sent' && (
                     <button onClick={() => markAsMailed(letter.id)} disabled={savingStatus === letter.id} className="btn-primary text-xs flex items-center gap-1">
                       {savingStatus === letter.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}

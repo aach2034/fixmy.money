@@ -8,9 +8,19 @@ import { useSearchParams } from 'next/navigation';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
+import { buildConsumerSenderBlock, getLetterSenderInfo } from '@/lib/disputes/letterSender';
 
 
-interface WizardClient { id: string; name: string; email?: string; }
+interface WizardClient {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+}
 interface WizardDisputeItem {
   id: string;
   label: string;
@@ -122,6 +132,14 @@ export default function DisputeWizardContent() {
   const supabase = createClient();
 
   useEffect(() => {
+    if (!selectedClient) return;
+    setClientAddress(selectedClient.address ?? '');
+    setClientCity(selectedClient.city ?? '');
+    setClientState((selectedClient.state ?? '').toUpperCase());
+    setClientZip(selectedClient.zip ?? '');
+  }, [selectedClient]);
+
+  useEffect(() => {
     const load = async () => {
       setClientsLoading(true);
       try {
@@ -129,7 +147,7 @@ export default function DisputeWizardContent() {
         if (!user) return;
         const { data } = await supabase
           .from('staff_clients')
-          .select('id, name, email')
+          .select('id, name, email, phone, address, city, state, zip')
           .eq('owner_id', user.id)
           .order('name');
         setClients(data ?? []);
@@ -286,8 +304,9 @@ export default function DisputeWizardContent() {
       toast.error('Missing required information');
       return;
     }
-    if (!hasCompleteMailingAddress(clientAddress, clientCity, clientState, clientZip)) {
-      toast.error('Enter the client mailing address before generating a letter.');
+    const sender = getLetterSenderInfo(selectedClient);
+    if (!sender) {
+      toast.error('Complete the selected client profile mailing address before generating a letter.');
       return;
     }
     setGenerating(true);
@@ -313,7 +332,7 @@ export default function DisputeWizardContent() {
       };
 
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const clientAddr = `${clientAddress.trim()}\n${clientCity.trim()}, ${clientState.trim().toUpperCase()} ${clientZip.trim()}`;
+      const clientAddr = buildConsumerSenderBlock(sender);
 
       const itemsSection = selectedDisputeItems.map((item, i) => {
         const dates = accountDateSummary(item);
@@ -330,8 +349,7 @@ ${reportedData}   Factual Basis: ${factualBasis}
    Requested Action: ${instruction}`;
       }).join('\n\n');
 
-      const letterContent = `${selectedClient.name}
-${clientAddr}
+      const letterContent = `${clientAddr}
 
 ${today}
 
@@ -360,11 +378,8 @@ Sincerely,
 
 
 _________________________________
-${selectedClient.name}
-Date: ${today}
-
----
-LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No FixMy.Money approval is required. The subscribing business must independently review the facts, confirm the consumer authorized the dispute, obtain any required consumer signature, and decide whether and how to use or send it. FixMy.Money does not provide credit repair or legal services and does not guarantee outcomes.`;
+${sender.name}
+Date: ${today}`;
 
       const responseDueDate = new Date();
       responseDueDate.setDate(responseDueDate.getDate() + 30);

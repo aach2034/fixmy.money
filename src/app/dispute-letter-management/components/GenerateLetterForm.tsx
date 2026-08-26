@@ -4,9 +4,9 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { CheckSquare, Square, Loader2, Download, Printer, X, AlertTriangle, FileText, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { getChatCompletion } from '@/lib/ai/chatCompletion';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
+import { buildConsumerSenderBlock, getLetterSenderInfo, type LetterSenderInfo } from '@/lib/disputes/letterSender';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -171,14 +171,8 @@ const instructionByTemplate: Record<string, string> = {
 };
 
 // ─── Fallback Letter Builder (no AI required) ────────────────────────────────
-function buildFallbackLetter(params: {
-  clientName: string;
-  clientAddress: string;
-  clientCity: string;
-  clientState: string;
-  clientZip: string;
-  clientEmail: string;
-  clientPhone: string;
+export function buildFallbackLetter(params: {
+  sender: LetterSenderInfo;
   bureau: string;
   template: string;
   round: number;
@@ -190,6 +184,7 @@ function buildFallbackLetter(params: {
   const bureauInfo = bureauAddresses[params.bureau] ?? { name: params.bureau, address: '' };
   const legalText = legalLanguageByTemplate[params.template] ?? legalLanguageByTemplate['FCRA Section 611'];
   const instructionText = instructionByTemplate[params.template] ?? instructionByTemplate['FCRA Section 611'];
+  const senderBlock = buildConsumerSenderBlock(params.sender);
 
   const roundNote = params.round > 1
     ? `\nNOTE: This is Round ${params.round} of my dispute. My previous dispute(s) were not properly investigated or resolved. I am again demanding a thorough investigation.\n`
@@ -228,10 +223,8 @@ ${params.items.some(i => i.type.toLowerCase().includes('medical')) ? '• HIPAA 
     ? `\nADDITIONAL INFORMATION:\n${params.notes}\n`
     : '';
 
-  return `${params.clientName}
-${params.clientAddress}
-${params.clientCity}, ${params.clientState} ${params.clientZip}
-${params.clientPhone ? params.clientPhone + '\n' : ''}${params.clientEmail ? params.clientEmail + '\n' : ''}
+  return `${senderBlock}
+
 ${today}
 
 ${bureauInfo.name}
@@ -263,11 +256,8 @@ Sincerely,
 
 
 _________________________________
-${params.clientName}
-Date: ${today}
-
----
-LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No FixMy.Money approval is required. The subscribing business must independently review the facts, confirm the consumer authorized the dispute, obtain any required consumer signature, and decide whether and how to use or send it. FixMy.Money does not provide credit repair or legal services and does not guarantee outcomes.`;
+${params.sender.name}
+Date: ${today}`;
 }
 
 // ─── Letter Preview Modal ────────────────────────────────────────────────────
@@ -618,82 +608,12 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
   const validateBeforeGenerate = (data: GenerateLetterFormData): ValidationIssue[] => {
     const issues: ValidationIssue[] = [];
     if (!data.clientId) issues.push({ field: 'Client', message: 'Select a client from the dropdown' });
-    if (!data.clientAddress?.trim()) issues.push({ field: 'Client Street Address', message: 'Required for the letter header' });
-    if (!data.clientCity?.trim()) issues.push({ field: 'Client City', message: 'Required for the letter header' });
-    if (!data.clientState?.trim()) issues.push({ field: 'Client State', message: 'Required for the letter header' });
-    if (!data.clientZip?.trim()) issues.push({ field: 'Client ZIP Code', message: 'Required for the letter header' });
+    const clientInfo = clientOptions.find(c => c.id === data.clientId);
+    if (data.clientId && !getLetterSenderInfo(clientInfo)) {
+      issues.push({ field: 'Client Profile', message: 'Selected client profile must include name, street address, city, 2-letter state, and ZIP before generating a letter' });
+    }
     if (selectedItems.size === 0) issues.push({ field: 'Dispute Items', message: 'Select at least one dispute item to include' });
     return issues;
-  };
-
-  const buildAIPrompt = (
-    clientName: string,
-    clientAddress: string,
-    clientCity: string,
-    clientState: string,
-    clientZip: string,
-    clientEmail: string,
-    clientPhone: string,
-    bureau: string,
-    template: string,
-    round: number,
-    items: DisputeItem[],
-    notes: string,
-    letterId: string
-  ): string => {
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const bureauInfo = bureauAddresses[bureau] ?? { name: bureau, address: '' };
-    const legalText = legalLanguageByTemplate[template] ?? legalLanguageByTemplate['FCRA Section 611'];
-    const instructionText = instructionByTemplate[template] ?? instructionByTemplate['FCRA Section 611'];
-
-    const itemsList = items.map((item, i) =>
-      `${i + 1}. Creditor: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
-   Item Type: ${item.type}
-   Amount: ${item.amount}
-   Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}
-   ${item.reportingStatus ? `Reporting Status: ${item.reportingStatus}` : ''}
-   ${accountDateSummary(item) ? `Report Dates: ${accountDateSummary(item)}` : ''}`
-    ).join('\n\n');
-
-    return `You are a professional credit dispute letter writer. Generate a complete, formal, legally-grounded credit dispute letter using EXACTLY the following information. Do NOT use placeholder brackets like [YOUR ADDRESS] — use the actual data provided.
-
-LETTER REFERENCE: ${letterId}
-DATE: ${today}
-DISPUTE ROUND: ${round}
-
-CLIENT INFORMATION:
-Name: ${clientName}
-Address: ${clientAddress}
-City, State ZIP: ${clientCity}, ${clientState} ${clientZip}
-${clientPhone ? `Phone: ${clientPhone}` : ''}
-${clientEmail ? `Email: ${clientEmail}` : ''}
-
-RECIPIENT:
-${bureauInfo.name}
-${bureauInfo.address}
-
-LEGAL BASIS / TEMPLATE: ${template}
-LEGAL LANGUAGE TO USE: ${legalText}
-REQUESTED ACTION: ${instructionText}
-
-DISPUTED ITEMS:
-${itemsList}
-
-${notes ? `ADDITIONAL NOTES: ${notes}` : ''}
-
-INSTRUCTIONS:
-1. Write a complete professional dispute letter in formal business letter format
-2. Start with the client's full name and address block, then the date, then the bureau address
-3. Include "Re: Formal Credit Dispute — ${template} | Letter Reference: ${letterId} | Round: ${round}"
-4. Use the exact legal language provided above
-5. List each disputed item clearly with all provided details
-6. Include the requested action paragraph
-7. List supporting documents section (ID, proof of address, SSN card, any relevant docs)
-8. End with a professional signature block for ${clientName}
-9. Add this exact notice at the end: "LETTER NOTICE: FixMy.Money generated this editable draft as a software tool. No FixMy.Money approval is required. The subscribing business must independently review the facts, confirm the consumer authorized the dispute, obtain any required consumer signature, and decide whether and how to use or send it. FixMy.Money does not provide credit repair or legal services and does not guarantee outcomes."
-10. ${round > 1 ? `This is Round ${round} — reference that previous disputes were not properly investigated` : 'This is Round 1 — initial dispute'}
-
-Write the complete letter now:`;
   };
 
   const onSubmit = async (data: GenerateLetterFormData) => {
@@ -725,9 +645,11 @@ Write the complete letter now:`;
 
       const selectedDisputeItems = disputeItems.filter(item => selectedItems.has(item.id));
       const clientInfo = clientOptions.find(c => c.id === data.clientId);
-      const clientName = clientInfo?.name ?? 'Client';
-      const clientEmail = clientInfo?.email ?? '';
-      const clientPhone = clientInfo?.phone ?? '';
+      const sender = getLetterSenderInfo(clientInfo);
+      if (!sender) {
+        throw new Error('Selected client profile must include a complete mailing address before generating a letter.');
+      }
+      const clientName = sender.name;
 
       const bureauShort: Record<string, string> = { Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' };
       const shortCode = bureauShort[data.bureau] ?? data.bureau.substring(0, 2).toUpperCase();
@@ -738,13 +660,7 @@ Write the complete letter now:`;
       // avoids an OpenAI request so letter creation does not consume credits.
       setLoadingStep('Building dispute letter…');
       const letterContent = buildFallbackLetter({
-        clientName,
-        clientAddress: data.clientAddress,
-        clientCity: data.clientCity,
-        clientState: data.clientState,
-        clientZip: data.clientZip,
-        clientEmail,
-        clientPhone,
+        sender,
         bureau: data.bureau,
         template: data.template,
         round: parseInt(data.round, 10),

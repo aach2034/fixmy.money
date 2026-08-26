@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Download, Send, Loader2, Printer, ArrowLeft, RefreshCw } from 'lucide-react';
+import { FileText, Download, Send, Loader2, Printer, ArrowLeft, RefreshCw, MailCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -35,6 +35,7 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
   const [clientName, setClientName] = useState('');
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [certifiedMailingId, setCertifiedMailingId] = useState<string | null>(null);
 
   const fetchLetters = useCallback(async () => {
     setLoading(true);
@@ -93,6 +94,46 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
       toast.success('Letter marked as mailed');
     } catch {
       toast.error('Failed to update');
+    }
+  };
+
+  const mailCertified = async (letter: Letter) => {
+    setCertifiedMailingId(letter.id);
+    try {
+      const quoteResponse = await fetch('/api/mailings/certified/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letterId: letter.id, letterSource: 'generated_dispute_letters' }),
+      });
+      const quotePayload = await quoteResponse.json().catch(() => ({}));
+      if (!quoteResponse.ok || !quotePayload?.quote?.available) {
+        const setup = Array.isArray(quotePayload?.setupRequired ?? quotePayload?.quote?.setupRequired)
+          ? (quotePayload.setupRequired ?? quotePayload.quote.setupRequired).join(', ')
+          : '';
+        toast.error(setup ? `USPS certified mail setup required: ${setup}` : quotePayload?.error ?? 'USPS certified mail is not available.');
+        return;
+      }
+
+      const amount = typeof quotePayload.quote.amountCents === 'number'
+        ? `$${(quotePayload.quote.amountCents / 100).toFixed(2)}`
+        : 'the quoted USPS amount';
+      if (!window.confirm(`Purchase USPS Certified Mail for ${letter.bureau}?\n\nCost: ${amount}`)) return;
+
+      const purchaseResponse = await fetch('/api/mailings/certified/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letterId: letter.id, letterSource: 'generated_dispute_letters' }),
+      });
+      const purchasePayload = await purchaseResponse.json().catch(() => ({}));
+      if (!purchaseResponse.ok) throw new Error(purchasePayload?.error ?? 'Certified mailing could not be created.');
+
+      const mailedAt = purchasePayload?.mailing?.mailed_at ?? new Date().toISOString();
+      setLetters(prev => prev.map(l => l.id === letter.id ? { ...l, status: 'sent', mailedAt } : l));
+      toast.success(`Certified mailing created${purchasePayload?.mailing?.tracking_number ? `: ${purchasePayload.mailing.tracking_number}` : ''}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Could not create certified mailing.');
+    } finally {
+      setCertifiedMailingId(null);
     }
   };
 
@@ -157,6 +198,12 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
                   <button onClick={() => setPreviewId(previewId === letter.id ? null : letter.id)} className="btn-secondary text-xs flex items-center gap-1"><FileText size={12} /> Preview</button>
                   <button onClick={() => downloadLetter(letter)} className="btn-secondary text-xs flex items-center gap-1"><Download size={12} /> Download</button>
                   <button onClick={() => printLetter(letter)} className="btn-secondary text-xs flex items-center gap-1"><Printer size={12} /> Print</button>
+                  {letter.status !== 'sent' && (
+                    <button onClick={() => mailCertified(letter)} disabled={certifiedMailingId === letter.id} className="btn-secondary text-xs flex items-center gap-1">
+                      {certifiedMailingId === letter.id ? <Loader2 size={12} className="animate-spin" /> : <MailCheck size={12} />}
+                      Mail Certified
+                    </button>
+                  )}
                   {letter.status !== 'sent' && (
                     <button onClick={() => markMailed(letter.id)} className="btn-primary text-xs flex items-center gap-1"><Send size={12} /> Mark Mailed</button>
                   )}

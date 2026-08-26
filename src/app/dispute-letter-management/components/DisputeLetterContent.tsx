@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, Plus, Filter, Download, Eye, Send, Copy, Trash2,
-  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X, Printer
+  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X, Printer, MailCheck
 } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
@@ -110,6 +110,7 @@ export default function DisputeLetterContent() {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [previewLetter, setPreviewLetter] = useState<DisputeLetter | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [certifiedMailingId, setCertifiedMailingId] = useState<string | null>(null);
   const perPage = 10;
 
   const supabase = createClient();
@@ -341,6 +342,59 @@ export default function DisputeLetterContent() {
     toast.success(`${ids.length} paper letter${ids.length === 1 ? '' : 's'} marked as mailed`);
   };
 
+  const handleCertifiedMail = async (letter: DisputeLetter) => {
+    if (letter.needsRegeneration) {
+      toast.error('Regenerate and review this draft before mailing it.');
+      return;
+    }
+
+    setCertifiedMailingId(letter.id);
+    try {
+      const quoteResponse = await fetch('/api/mailings/certified/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letterId: letter.id, letterSource: 'dispute_letters' }),
+      });
+      const quotePayload = await quoteResponse.json().catch(() => ({}));
+      if (!quoteResponse.ok || !quotePayload?.quote?.available) {
+        const setup = Array.isArray(quotePayload?.setupRequired ?? quotePayload?.quote?.setupRequired)
+          ? (quotePayload.setupRequired ?? quotePayload.quote.setupRequired).join(', ')
+          : '';
+        toast.error(setup ? `USPS certified mail setup required: ${setup}` : quotePayload?.error ?? 'USPS certified mail is not available.');
+        return;
+      }
+
+      const amount = typeof quotePayload.quote.amountCents === 'number'
+        ? `$${(quotePayload.quote.amountCents / 100).toFixed(2)}`
+        : 'the quoted USPS amount';
+      if (!window.confirm(`Purchase USPS Certified Mail for ${letter.bureau}?\n\nCost: ${amount}`)) return;
+
+      const purchaseResponse = await fetch('/api/mailings/certified/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letterId: letter.id, letterSource: 'dispute_letters' }),
+      });
+      const purchasePayload = await purchaseResponse.json().catch(() => ({}));
+      if (!purchaseResponse.ok) throw new Error(purchasePayload?.error ?? 'Certified mailing could not be created.');
+
+      const mailedDate = new Date();
+      const responseDue = new Date(mailedDate);
+      responseDue.setDate(responseDue.getDate() + 30);
+      setLetters(prev => prev.map(l => l.id === letter.id ? {
+        ...l,
+        status: 'sent' as LetterStatus,
+        sentDate: mailedDate.toLocaleDateString('en-US'),
+        responseDueDate: responseDue.toLocaleDateString('en-US'),
+        daysRemaining: 30,
+      } : l));
+      toast.success(`Certified mailing created${purchasePayload?.mailing?.tracking_number ? `: ${purchasePayload.mailing.tracking_number}` : ''}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Could not create certified mailing.');
+    } finally {
+      setCertifiedMailingId(null);
+    }
+  };
+
   const deleteSelectedDrafts = async () => {
     const draftIds = Array.from(selectedRows).filter(id => letters.find(letter => letter.id === id)?.status === 'draft');
     if (!draftIds.length) {
@@ -446,7 +500,7 @@ export default function DisputeLetterContent() {
 
       <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3">
         <Printer size={18} className="text-blue-600 shrink-0 mt-0.5" />
-        <div><p className="text-sm font-bold text-slate-900">Paper-mail workflow only</p><p className="text-xs text-slate-600 mt-1">Preview and print each letter, attach supporting documents, then mail it to the bureau, creditor, or collection agency. “Mark mailed” only records the date; FixMy.Money does not transmit the dispute electronically.</p></div>
+        <div><p className="text-sm font-bold text-slate-900">Paper-mail workflow</p><p className="text-xs text-slate-600 mt-1">Preview each letter, attach supporting documents, then print or purchase USPS Certified Mail after USPS account setup is complete.</p></div>
       </div>
 
       {/* Stats */}
@@ -639,6 +693,16 @@ export default function DisputeLetterContent() {
                           </button>
                           {letter.status === 'draft' && !letter.needsRegeneration && (
                             <button
+                              onClick={() => handleCertifiedMail(letter)}
+                              disabled={certifiedMailingId === letter.id}
+                              className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+                              title="Mail Certified"
+                            >
+                              <MailCheck size={14} className="text-primary" />
+                            </button>
+                          )}
+                          {letter.status === 'draft' && !letter.needsRegeneration && (
+                            <button
                               onClick={() => handleSendLetter(letter.id, letter.letterId, letter.bureau)}
                               className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors"
                               title="Mark paper letter as mailed"
@@ -706,7 +770,7 @@ export default function DisputeLetterContent() {
                 </>
               )}
             </div>
-            {!previewLetter.needsRegeneration && <div className="p-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap"><p className="text-xs text-slate-500">Review names, addresses, account details, enclosures, and consumer authorization before printing.</p><div className="flex gap-2"><button onClick={() => window.print()} className="btn-secondary flex items-center gap-2"><Printer size={15}/>Print letter</button>{previewLetter.status === 'draft' && <button onClick={() => { handleSendLetter(previewLetter.id, previewLetter.letterId, previewLetter.bureau); setPreviewLetter(null); }} className="btn-primary flex items-center gap-2"><Send size={15}/>Mark mailed</button>}</div></div>}
+            {!previewLetter.needsRegeneration && <div className="p-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap"><p className="text-xs text-slate-500">Review names, addresses, account details, enclosures, and consumer authorization before mailing.</p><div className="flex gap-2"><button onClick={() => window.print()} className="btn-secondary flex items-center gap-2"><Printer size={15}/>Print letter</button>{previewLetter.status === 'draft' && <button onClick={() => handleCertifiedMail(previewLetter)} disabled={certifiedMailingId === previewLetter.id} className="btn-secondary flex items-center gap-2"><MailCheck size={15}/>Mail Certified</button>}{previewLetter.status === 'draft' && <button onClick={() => { handleSendLetter(previewLetter.id, previewLetter.letterId, previewLetter.bureau); setPreviewLetter(null); }} className="btn-primary flex items-center gap-2"><Send size={15}/>Mark mailed</button>}</div></div>}
           </div>
         </div>
       )}
