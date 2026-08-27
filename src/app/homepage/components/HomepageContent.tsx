@@ -8,7 +8,6 @@ import {
   BarChart3,
   BriefcaseBusiness,
   Check,
-  ChevronDown,
   CircleDollarSign,
   CloudUpload,
   FileCheck2,
@@ -32,11 +31,11 @@ import { CHECKOUT_PLANS, PLANS } from '@/lib/stripe/plans';
 import { trackCtaClick, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
 
 const NAV_LINKS = [
-  { label: 'Platform', href: '#platform', dropdown: true },
-  { label: 'Solutions', href: '#solutions', dropdown: true },
+  { label: 'Individuals', href: '/individuals' },
+  { label: 'Professionals', href: '/professionals' },
+  { label: 'Free Tools', href: '/tools' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Resources', href: '/resources', dropdown: true },
-  { label: 'Company', href: '/about', dropdown: true },
+  { label: 'Resources', href: '/resources' },
 ];
 
 const dashboardStats = [
@@ -101,12 +100,10 @@ function Header() {
             link.href.startsWith('#') ? (
               <a key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-white transition hover:text-[#56dbbd]">
                 {link.label}
-                {link.dropdown && <ChevronDown size={14} />}
               </a>
             ) : (
               <Link key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-white transition hover:text-[#56dbbd]">
                 {link.label}
-                {link.dropdown && <ChevronDown size={14} />}
               </Link>
             ),
           )}

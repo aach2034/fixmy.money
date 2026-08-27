@@ -17,7 +17,7 @@ import {
 } from '@/lib/creditReport/ocrTransport';
 import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
-import { trackOrganicConversionStep } from '@/lib/analytics';
+import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 type SavedReportItem = {
   id: string;
@@ -809,6 +809,10 @@ export default function CreditReportImportContent() {
         provider: parsedReport.provider,
         parser_confidence: parsedReport.overallConfidence,
       });
+      trackEvent('report_upload_started', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+      });
 
       const accountItemsForPersistence = accountsForPersistence(parsedReport);
       const { data: reportRecord, error: reportErr } = await supabase.from('parsed_credit_reports').insert({
@@ -1061,6 +1065,13 @@ export default function CreditReportImportContent() {
         toast.success(`Report saved. ${parsedReport.accounts.length} accounts queued for review. ${negCount} flagged as negative.`);
       }
       trackOrganicConversionStep('credit_report_upload_saved', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+        accounts_count: parsedReport.accounts.length,
+        negative_items_count: parsedReport.negativeAccounts.length,
+        draft_letters_created: generatedLetters,
+      });
+      trackEvent('report_upload_completed', {
         provider: parsedReport.provider,
         parser_confidence: parsedReport.overallConfidence,
         accounts_count: parsedReport.accounts.length,

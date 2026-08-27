@@ -54,9 +54,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             full_name: metadata?.fullName || '',
             company_name: metadata?.companyName || '',
             plan: metadata?.plan || '',
-            avatar_url: metadata?.avatarUrl || ''
+            avatar_url: metadata?.avatarUrl || '',
+            attribution: metadata?.attribution || {}
           },
-          emailRedirectTo: `${siteUrl}/auth/callback?type=signup&plan=${metadata?.plan || 'growth'}`
+          emailRedirectTo: `${siteUrl}/auth/callback?type=signup&plan=${metadata?.plan || 'starter'}`
         }
       });
       if (error) {

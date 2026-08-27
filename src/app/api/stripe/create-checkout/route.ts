@@ -14,6 +14,22 @@ function getStripeInstance(): Stripe {
 
 const ACTIVE_STATUSES = ['trialing', 'active', 'trial_active'];
 const INTEGRATION_ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
+const ATTRIBUTION_FIELDS = [
+  'anonymous_id',
+  'referral_code',
+  'referral_source',
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'utm_term',
+  'landing_page',
+  'first_touch_at',
+  'last_utm_source',
+  'last_utm_medium',
+  'last_utm_campaign',
+  'last_landing_page',
+] as const;
 
 function createIntegrationIdentifier(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(8));
@@ -24,6 +40,15 @@ function createIntegrationIdentifier(): string {
 /** Validate that the requested plan is a self-serve checkout plan */
 function isValidCheckoutPlan(plan: string): plan is PlanId {
   return CHECKOUT_PLANS.some(p => p.id === plan);
+}
+
+function sanitizeAttribution(input: unknown): Record<string, string> {
+  if (!input || typeof input !== 'object') return {};
+  const source = input as Record<string, unknown>;
+  return Object.fromEntries(ATTRIBUTION_FIELDS.map((field) => [
+    field,
+    typeof source[field] === 'string' ? source[field].slice(0, 160).replace(/[<>"']/g, '') : '',
+  ]).filter(([, value]) => value));
 }
 
 export async function POST(req: NextRequest) {
@@ -47,9 +72,10 @@ export async function POST(req: NextRequest) {
     }
 
     const supabaseAdmin = getAdminClient();
-    const { plan, name } = await req.json();
+    const { plan, name, attribution: rawAttribution } = await req.json();
     const userId = user.id;
     const email = user.email;
+    const attribution = sanitizeAttribution(rawAttribution);
 
     // Validate plan against the single source of truth
     if (!plan || !isValidCheckoutPlan(plan)) {
@@ -125,16 +151,27 @@ export async function POST(req: NextRequest) {
         customer = await stripe.customers.create({
           email: email || undefined,
           name: name || undefined,
-          metadata: { plan, userId },
+          metadata: { plan, userId, ...attribution },
         });
       }
     }
 
     if (customer.id) {
-      await supabaseAdmin
+      const attributionUpdate: Record<string, unknown> = {};
+      if (attribution.last_utm_source) attributionUpdate.last_utm_source = attribution.last_utm_source;
+      if (attribution.last_utm_medium) attributionUpdate.last_utm_medium = attribution.last_utm_medium;
+      if (attribution.last_utm_campaign) attributionUpdate.last_utm_campaign = attribution.last_utm_campaign;
+      if (attribution.last_landing_page) attributionUpdate.last_landing_page = attribution.last_landing_page;
+      if (attribution.anonymous_id) attributionUpdate.anonymous_id = attribution.anonymous_id;
+      if (attribution.referral_code) attributionUpdate.last_referral_code = attribution.referral_code;
+
+      const { error: profileUpdateError } = await supabaseAdmin
         .from('user_profiles')
-        .update({ stripe_customer_id: customer.id })
+        .update({ stripe_customer_id: customer.id, ...attributionUpdate })
         .eq('id', userId);
+      if (profileUpdateError) {
+        console.warn('[Stripe] Non-blocking profile attribution update failed:', profileUpdateError.message);
+      }
     }
 
     const priceId = getStripePriceId(plan as PlanId);
@@ -186,12 +223,12 @@ export async function POST(req: NextRequest) {
         trial_settings: {
           end_behavior: { missing_payment_method: 'cancel' },
         },
-        metadata: { plan, userId },
+        metadata: { plan, userId, ...attribution },
       },
       payment_method_collection: 'always',
       success_url: `${siteUrl}/dashboard?checkout=success&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/checkout?plan=${plan}&cancelled=1`,
-      metadata: { plan, userId },
+      metadata: { plan, userId, ...attribution },
       custom_text: {
         submit: {
           message: `$${TRIAL_CONFIG.chargeCents / 100} today for ${TRIAL_CONFIG.durationDays} days. Then $${monthlyAmount / 100}/month unless canceled.`,

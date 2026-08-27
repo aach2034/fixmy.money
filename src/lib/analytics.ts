@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { attributionEventParams, captureCurrentAttribution } from './attribution';
 
 declare global {
   interface Window {
@@ -63,21 +64,37 @@ export function useGoogleAnalytics() {
 
   useEffect(() => {
     const url = pathname + (searchParams.toString() ? `?${searchParams}` : '');
+    const acquisitionAttribution = captureCurrentAttribution();
     const attribution = persistOrganicAttribution(pathname, searchParams);
     if (window.gtag) {
       window.gtag('event', 'page_view', {
         page_location: window.location.href,
         page_path: url,
         page_title: document.title,
+        event_name: 'landing_page_view',
         ...attribution,
+        ...attributionEventParams(acquisitionAttribution),
       });
+      window.gtag('event', 'landing_page_view', {
+        page_location: window.location.href,
+        page_path: url,
+        page_title: document.title,
+        ...attributionEventParams(acquisitionAttribution),
+      });
+      if (pathname === '/pricing') {
+        window.gtag('event', 'pricing_view', {
+          page_location: window.location.href,
+          page_path: url,
+          ...attributionEventParams(acquisitionAttribution),
+        });
+      }
     }
   }, [pathname, searchParams]);
 }
 
 export function trackEvent(eventName: string, eventParams: Record<string, unknown> = {}) {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, { ...getStoredAttribution(), ...eventParams });
+    window.gtag('event', eventName, { ...getStoredAttribution(), ...attributionEventParams(), ...eventParams });
   }
 }
 
@@ -97,6 +114,11 @@ export function trackOrganicConversionStep(step: string, eventParams: Record<str
  * @param location - Where on the page the CTA was clicked (e.g. 'hero', 'pricing', 'sticky_bar', 'footer_cta')
  */
 export function trackTrialSignup(plan: string = 'starter', location: string = 'unknown') {
+  trackEvent('signup_started', {
+    event_category: 'conversion',
+    plan_name: plan,
+    cta_location: location,
+  });
   trackEvent('trial_start_click', {
     event_category: 'conversion',
     event_label: `trial_start_${plan}`,
@@ -110,6 +132,29 @@ export function trackTrialSignup(plan: string = 'starter', location: string = 'u
     plan_name: plan,
     cta_location: location,
     currency: 'USD',
+  });
+}
+
+export function trackToolStarted(toolName: string, location = 'tools') {
+  trackEvent('tool_started', {
+    event_category: 'engagement',
+    tool_name: toolName,
+    cta_location: location,
+  });
+}
+
+export function trackToolCompleted(toolName: string, location = 'tools') {
+  trackEvent('tool_completed', {
+    event_category: 'conversion',
+    tool_name: toolName,
+    cta_location: location,
+  });
+}
+
+export function trackLead(eventName: 'professional_lead' | 'mortgage_partner_lead' | 'affiliate_referral', eventParams: Record<string, unknown> = {}) {
+  trackEvent(eventName, {
+    event_category: 'lead',
+    ...eventParams,
   });
 }
 

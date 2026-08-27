@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { seoTopics } from '@/lib/marketing/acquisition';
 
 export const SEO_SITE = {
   name: 'FixMy.Money',
@@ -28,10 +29,17 @@ export interface SeoPageConfig {
 
 const UPDATED_AT = '2026-08-13';
 
-const pages: SeoPageConfig[] = [
+const staticPages: SeoPageConfig[] = [
   { path: '/', title: 'Credit Repair Software for Agencies', description: 'Run a credit repair agency with client intake, AI-assisted report review, dispute workflows, approvals, billing, and audit trails in one secure workspace.', primaryKeyword: 'credit repair software', secondaryKeywords: ['credit repair business software', 'credit repair CRM', 'credit repair automation'], type: 'product', updatedAt: UPDATED_AT, priority: 1, changeFrequency: 'weekly' },
   { path: '/product-tour', title: 'Credit Repair Software Features', description: 'Explore FixMy.Money tools for credit report imports, client management, dispute workflows, editable letters, billing, and agency operations.', primaryKeyword: 'credit repair software features', secondaryKeywords: ['credit repair automation', 'credit repair client management'], type: 'product', updatedAt: UPDATED_AT, priority: .9 },
-  { path: '/pricing', title: 'Credit Repair Software Pricing', description: 'Compare FixMy.Money plans for credit-repair businesses: Personal $39, Start $99, and Grow $199, with a $1 paid trial for 14 days.', primaryKeyword: 'credit repair software pricing', secondaryKeywords: ['credit repair business software pricing'], type: 'product', updatedAt: UPDATED_AT, priority: .9 },
+  { path: '/pricing', title: 'Credit Repair Software Pricing', description: 'Compare FixMy.Money plans using the current centralized pricing, with a $1 paid trial for 14 days.', primaryKeyword: 'credit repair software pricing', secondaryKeywords: ['credit repair business software pricing'], type: 'product', updatedAt: UPDATED_AT, priority: .9 },
+  { path: '/individuals', title: 'Credit Report Software for Individuals', description: 'Understand your credit report, identify potential reporting issues, generate dispute correspondence, and track activity yourself.', primaryKeyword: 'credit report software for individuals', secondaryKeywords: ['credit report analyzer', 'dispute letter generator'], type: 'product', updatedAt: '2026-08-27', priority: .95, changeFrequency: 'weekly' },
+  { path: '/professionals', title: 'Credit Intelligence Software for Professionals', description: 'Credit intelligence and dispute-management software for professionals managing client credit-related workflows.', primaryKeyword: 'credit intelligence software', secondaryKeywords: ['client credit management software', 'dispute management software'], type: 'product', updatedAt: '2026-08-27', priority: .95, changeFrequency: 'weekly' },
+  { path: '/mortgage-partners', title: 'Mortgage Partner Credit Report Software', description: 'A compliance-friendly borrower handoff path for mortgage professionals whose applicants need to review possible credit-report issues.', primaryKeyword: 'mortgage credit report referral software', secondaryKeywords: ['mortgage partner credit software'], type: 'product', updatedAt: '2026-08-27', priority: .85 },
+  { path: '/affiliates', title: 'Affiliate and Referral Program', description: 'Create trackable referral URLs for consumer, creator, professional, and mortgage partner acquisition campaigns.', primaryKeyword: 'credit software affiliate program', secondaryKeywords: ['credit report referral tracking'], type: 'website', updatedAt: '2026-08-27', priority: .8 },
+  { path: '/r/creator123', title: 'Creator Referral Landing Page', description: 'Creator-specific FixMy.Money referral page with tracked signup attribution.', primaryKeyword: 'credit report creator referral', type: 'website', indexStatus: 'noindex', updatedAt: '2026-08-27', priority: .2 },
+  { path: '/r/mortgage', title: 'Mortgage Referral Landing Page', description: 'Mortgage partner FixMy.Money referral page with tracked signup attribution.', primaryKeyword: 'mortgage credit referral', type: 'website', indexStatus: 'noindex', updatedAt: '2026-08-27', priority: .2 },
+  { path: '/tools', title: 'Free Credit Report Tools', description: 'Free credit utilization, FCRA deadline, debt validation, credit-report checklist, and dispute-letter tools from FixMy.Money.', primaryKeyword: 'free credit report tools', secondaryKeywords: ['credit utilization calculator', 'dispute letter generator'], type: 'tool', updatedAt: '2026-08-27', priority: .9 },
   { path: '/credit-repair-software', title: 'Credit Repair Software for Agencies', description: 'Manage credit repair clients, report review, dispute workflows, billing, documents, approvals, and progress tracking from one secure agency workspace.', primaryKeyword: 'credit repair software', secondaryKeywords: ['credit repair business software', 'credit dispute software', 'credit repair automation'], type: 'product', updatedAt: UPDATED_AT, priority: .95 },
   { path: '/credit-repair-business-software', title: 'Credit Repair Business Software for Agencies', description: 'Run a credit repair business with client CRM, report review, dispute workflows, Stripe billing, document storage, approvals, and response tracking.', primaryKeyword: 'credit repair business software', secondaryKeywords: ['credit repair software for business', 'credit repair CRM', 'credit repair automation'], type: 'product', updatedAt: UPDATED_AT, priority: .95 },
   { path: '/credit-repair-crm', title: 'Credit Repair CRM & Client Management', description: 'Organize client records, tasks, communications, report reviews, and dispute activity with credit repair CRM software built for agencies.', primaryKeyword: 'credit repair CRM', secondaryKeywords: ['credit repair client management'], type: 'product', updatedAt: UPDATED_AT, priority: .9 },
@@ -50,6 +58,8 @@ const pages: SeoPageConfig[] = [
   { path: '/credit-repair-software-for-small-agencies', title: 'Credit Repair Software for Small Agencies', description: 'Manage clients, reports, dispute work, documents, and billing with credit repair software designed for growing agencies.', primaryKeyword: 'credit repair software for small agencies', secondaryKeywords: ['credit repair business software'], type: 'product', updatedAt: UPDATED_AT, priority: .85 },
   { path: '/credit-repair-software-with-client-login', title: 'Credit Repair Software With Client Login', description: 'Combine agency workflows with a client login for sharing relevant progress, documents, and account information.', primaryKeyword: 'credit repair software with client login', secondaryKeywords: ['credit repair client portal'], type: 'product', updatedAt: UPDATED_AT, priority: .85 },
   { path: '/credit-repair-cloud-alternative', title: 'Credit Repair Cloud Alternative', description: 'Compare the workflow capabilities agencies should evaluate when choosing a Credit Repair Cloud alternative.', primaryKeyword: 'Credit Repair Cloud alternative', secondaryKeywords: ['credit repair software comparison'], type: 'product', updatedAt: UPDATED_AT, priority: .85 },
+  { path: '/alternatives/credit-repair-cloud', title: 'Credit Repair Cloud Alternative', description: 'Compare the workflow capabilities agencies should evaluate when choosing a Credit Repair Cloud alternative.', primaryKeyword: 'Credit Repair Cloud alternative', secondaryKeywords: ['credit repair software comparison'], type: 'product', updatedAt: '2026-08-27', priority: .8 },
+  { path: '/dispute-management-software', title: 'Dispute Management Software', description: 'Manage credit-report dispute workflows, letters, evidence, client activity, and follow-up from one organized software workspace.', primaryKeyword: 'dispute management software', secondaryKeywords: ['credit dispute software', 'credit report dispute software'], type: 'product', updatedAt: '2026-08-27', priority: .9 },
   { path: '/best-credit-repair-software', title: 'How to Choose Credit Repair Software', description: 'Compare practical criteria for credit repair software, including report imports, CRM, dispute workflows, client access, billing, and audit history.', primaryKeyword: 'best credit repair software', secondaryKeywords: ['credit repair software comparison'], type: 'article', updatedAt: UPDATED_AT, priority: .85 },
   { path: '/resources', title: 'Credit Repair Business Guides & Tools', description: 'Browse practical guides, checklists, and free tools for starting and operating a credit-repair business.', primaryKeyword: 'credit repair business guides', secondaryKeywords: ['credit repair business tools'], type: 'website', updatedAt: UPDATED_AT, priority: .8 },
   { path: '/blog', title: 'Credit Repair Business Software Blog', description: 'Practical articles on credit repair software, agency workflows, client management, automation, documentation, and operations.', primaryKeyword: 'credit repair software blog', secondaryKeywords: ['credit repair business guides'], type: 'website', updatedAt: UPDATED_AT, priority: .8, changeFrequency: 'weekly' },
@@ -71,6 +81,20 @@ const pages: SeoPageConfig[] = [
   { path: '/refund-policy', title: 'Refund Policy', description: 'Read the FixMy.Money refund policy for software purchases and subscriptions.', primaryKeyword: 'FixMy.Money refund policy', type: 'legal', updatedAt: UPDATED_AT, priority: .25, changeFrequency: 'yearly' },
   { path: '/cancellation-policy', title: 'Cancellation Policy', description: 'Read the FixMy.Money subscription cancellation policy.', primaryKeyword: 'FixMy.Money cancellation policy', type: 'legal', updatedAt: UPDATED_AT, priority: .25, changeFrequency: 'yearly' },
 ];
+
+const creditReportHelpPages: SeoPageConfig[] = seoTopics.map(topic => ({
+  path: `/credit-report-help/${topic.slug}`,
+  title: topic.title,
+  description: `${topic.intent} Organize facts, evidence, correspondence, and follow-up with FixMy.Money.`,
+  primaryKeyword: topic.title.toLowerCase(),
+  secondaryKeywords: ['credit report dispute', 'credit report errors', 'dispute letter software'],
+  type: 'article',
+  updatedAt: '2026-08-27',
+  parent: '/tools',
+  priority: .72,
+}));
+
+const pages: SeoPageConfig[] = [...staticPages, ...creditReportHelpPages];
 
 export const SEO_PAGES = Object.freeze(Object.fromEntries(pages.map(page => [page.path, page]))) as Readonly<Record<string, SeoPageConfig>>;
 export const PUBLIC_SEO_PAGES = Object.freeze(pages.filter(page => page.indexStatus !== 'noindex'));
