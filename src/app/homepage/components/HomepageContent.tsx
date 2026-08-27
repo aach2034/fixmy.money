@@ -1,82 +1,553 @@
 'use client';
-import { useState } from 'react';
+
+import { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Activity, ArrowRight, BarChart3, Bot, Check, ChevronDown, CircleDollarSign, FileCheck2, Gauge, Menu, Play, Sparkles, TrendingUp, UploadCloud, Users, Workflow, X, Zap } from 'lucide-react';
-import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
-import { trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
+import {
+  ArrowRight,
+  BarChart3,
+  BriefcaseBusiness,
+  Check,
+  ChevronDown,
+  CircleDollarSign,
+  CloudUpload,
+  FileCheck2,
+  FileText,
+  Gauge,
+  LockKeyhole,
+  Mail,
+  Menu,
+  Monitor,
+  RefreshCw,
+  Scale,
+  ShieldCheck,
+  Star,
+  Users,
+  UserRound,
+  UserRoundCheck,
+  Zap,
+} from 'lucide-react';
+// import { CHECKOUT_PLANS } from '@/lib/stripe/plans'
+import { CHECKOUT_PLANS, PLANS } from '@/lib/stripe/plans';
+import { trackCtaClick, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
 
-const faqs = [
-  ['How does the 14-day trial work?', 'Pay $1 today for 14 days of access to your selected plan. After the trial, the subscription renews monthly unless canceled.'],
-  ['Does FixMy AI make dispute decisions?', 'No. FixMy AI assists with report analysis, inconsistency detection, organization, scoring, and drafts. A person reviews and approves every dispute decision.'],
-  ['Can we migrate from another platform?', 'Yes. The migration workflow covers client records, documents, dispute history, templates, deadlines, and a final reconciliation before cutover.'],
-  ['Does FixMy.Money support agency compliance?', 'The platform supports documented agreements, authorization, approvals, billing events, and audit history. It does not replace legal advice or guarantee compliance.'],
+const NAV_LINKS = [
+  { label: 'Platform', href: '#platform', dropdown: true },
+  { label: 'Solutions', href: '#solutions', dropdown: true },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'Resources', href: '/resources', dropdown: true },
+  { label: 'Company', href: '/about', dropdown: true },
 ];
 
-const footerSections = [
-  {
-    heading: 'Platform',
-    links: [
-      { label: 'Product tour', href: '/product-tour' },
-      { label: 'Pricing', href: '/pricing' },
-      { label: 'Live demo', href: '/demo' },
-    ],
-  },
-  {
-    heading: 'Compare',
-    links: [
-      { label: 'Alternatives', href: '/credit-repair-cloud-alternative' },
-      { label: 'Migration', href: '/switch' },
-      { label: 'Small agencies', href: '/credit-repair-software-for-small-agencies' },
-    ],
-  },
-  {
-    heading: 'Legal',
-    links: [
-      { label: 'Security', href: '/security' },
-      { label: 'Privacy', href: '/privacy' },
-      { label: 'Terms', href: '/terms' },
-    ],
-  },
+const dashboardStats = [
+  { label: 'Active Clients', value: '247', change: '+18 this week', icon: Users, tone: 'text-emerald-700' },
+  { label: 'Reports Awaiting Review', value: '38', change: '+7 this week', icon: FileText, tone: 'text-blue-600' },
+  { label: 'Disputes In Progress', value: '126', change: '+15 this week', icon: RefreshCw, tone: 'text-amber-500' },
+  { label: 'Responses Received', value: '74', change: '+9 this week', icon: Mail, tone: 'text-purple-600' },
+  { label: 'New Leads', value: '12', change: '+4 this week', icon: UserRoundCheck, tone: 'text-emerald-700' },
+  { label: 'Revenue (MTD)', value: '$24,780', change: '+22% vs last month', icon: CircleDollarSign, tone: 'text-emerald-700' },
 ];
 
-function AgencyDashboard() {
-  return <div className="relative mx-auto max-w-[1100px]">
-    <div className="absolute -inset-16 -z-10 bg-[radial-gradient(circle_at_50%_40%,rgba(124,58,237,.32),transparent_55%)] blur-2xl"/>
-    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#0e1729] shadow-[0_55px_140px_-35px_rgba(37,99,235,.6)]">
-      <div className="flex h-14 items-center border-b border-white/10 px-5"><div className="flex gap-2"><i className="h-2.5 w-2.5 rounded-full bg-red-400"/><i className="h-2.5 w-2.5 rounded-full bg-amber-400"/><i className="h-2.5 w-2.5 rounded-full bg-blue-400"/></div><span className="ml-5 text-[11px] font-bold text-slate-500">FixMy.Money · Agency Overview</span><span className="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold text-slate-300">August 2026</span></div>
-      <div className="grid lg:grid-cols-[170px_1fr]">
-        <aside className="hidden border-r border-white/10 bg-[#09101f] p-4 lg:block"><div className="mb-8 flex items-center gap-2 text-xs font-black"><span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600">F</span> FixMy.Money</div>{['Overview','Clients','Report analysis','Dispute workflow','Billing','Automations','Analytics'].map((x,i)=><div key={x} className={`mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-bold ${i===0?'bg-blue-600 text-white':'text-slate-500'}`}><span className={`h-1.5 w-1.5 rounded-full ${i===0?'bg-white':'bg-slate-700'}`}/>{x}</div>)}</aside>
-        <div className="p-4 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold text-slate-500">Good morning, Agency Admin</p><h2 className="mt-1 text-xl font-black text-white">Your agency at a glance</h2></div><button className="rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-3 py-2 text-[10px] font-bold">Import credit report</button></div>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[[CircleDollarSign,'$42,860','Monthly revenue','+12.4%'],[Users,'284','Active clients','+18'],[FileCheck2,'126','Open disputes','31 due'],[TrendingUp,'71%','Positive outcomes','+4.8%']].map(([Icon,v,l,d])=><div key={l as string} className="rounded-xl border border-white/10 bg-white/[.035] p-3.5"><div className="flex items-center justify-between"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-500/10 text-blue-400"><Icon size={15}/></span><span className="text-[8px] font-bold text-emerald-400">{d as string}</span></div><p className="mt-4 text-xl font-black">{v as string}</p><p className="mt-1 text-[9px] font-semibold text-slate-500">{l as string}</p></div>)}</div>
-          <div className="mt-3 grid gap-3 lg:grid-cols-[1.15fr_.85fr]"><div className="rounded-xl border border-white/10 bg-white/[.035] p-4"><div className="flex justify-between"><div><p className="text-xs font-black">Agency revenue</p><p className="mt-1 text-[9px] text-slate-500">Recurring revenue and collections</p></div><BarChart3 size={16} className="text-violet-400"/></div><div className="mt-5 flex h-28 items-end gap-2">{[35,48,42,62,58,76,68,89,78,95].map((h,i)=><span key={i} className="flex-1 rounded-t bg-gradient-to-t from-blue-700 to-violet-400" style={{height:`${h}%`}}/>)}</div></div><div className="rounded-xl border border-white/10 bg-white/[.035] p-4"><div className="flex justify-between"><p className="text-xs font-black">Bureau responses</p><Gauge size={16} className="text-cyan-400"/></div><div className="mt-5 space-y-3">{[['Experian','42','w-[78%]','bg-blue-500'],['Equifax','36','w-[66%]','bg-violet-500'],['TransUnion','31','w-[58%]','bg-fuchsia-500']].map(([b,n,w,c])=><div key={b}><div className="flex justify-between text-[9px]"><span className="font-bold text-slate-300">{b}</span><span className="text-slate-500">{n} responses</span></div><div className="mt-1.5 h-1.5 rounded-full bg-white/10"><div className={`h-full rounded-full ${w} ${c}`}/></div></div>)}</div></div></div>
-          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr]"><div className="overflow-hidden rounded-xl border border-white/10 bg-white/[.035]"><div className="flex justify-between border-b border-white/10 px-4 py-3"><p className="text-xs font-black">Report analysis queue</p><span className="text-[9px] font-bold text-blue-400">7 need review</span></div>{[['Jordan Ellis','3 inconsistencies','78 potential'],['Maya Reed','5 inconsistencies','84 potential'],['Marcus Lee','2 inconsistencies','61 potential']].map(([n,s,p],i)=><div key={n} className="flex items-center border-b border-white/5 px-4 py-2.5 last:border-0"><span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-blue-600 to-violet-600 text-[8px] font-black">{n.split(' ').map(x=>x[0]).join('')}</span><div className="ml-2.5"><p className="text-[9px] font-bold">{n}</p><p className="mt-0.5 text-[8px] text-slate-500">{s}</p></div><span className={`ml-auto rounded-full px-2 py-1 text-[8px] font-bold ${i===1?'bg-violet-500/15 text-violet-300':'bg-blue-500/15 text-blue-300'}`}>{p}</span></div>)}</div><div className="rounded-xl border border-white/10 bg-white/[.035] p-4"><div className="flex justify-between"><p className="text-xs font-black">Recent activity</p><Activity size={15} className="text-blue-400"/></div><div className="mt-4 space-y-3">{[['Client onboarded','Avery Johnson','2m'],['Draft approved','Maya Reed · Round 2','18m'],['Stripe payment received','$99 · Start plan','1h'],['Workflow completed','Experian response logged','2h']].map(([a,b,t],i)=><div key={a} className="flex items-start gap-2.5"><span className={`mt-1 h-2 w-2 rounded-full ${['bg-cyan-400','bg-violet-400','bg-blue-400','bg-fuchsia-400'][i]}`}/><div><p className="text-[9px] font-bold">{a}</p><p className="text-[8px] text-slate-500">{b}</p></div><span className="ml-auto text-[8px] text-slate-600">{t}</span></div>)}</div></div></div>
+const appNav = ['Dashboard', 'Clients', 'Credit Reports', 'Disputes', 'Automations', 'Letters & Docs', 'Leads', 'Billing', 'Analytics', 'Client Portal', 'Team', 'Settings'];
+
+const featureTiles = [
+  { icon: Users, title: 'Client Management', copy: 'Organize clients, notes, documents, and activity in one place.' },
+  { icon: FileText, title: 'Credit Report Analysis', copy: 'Instantly import and analyze reports from all 3 bureaus with AI-powered insights.' },
+  { icon: Scale, title: 'Dispute Management', copy: 'Identify disputable items, automate follow-ups, and track every dispute.' },
+  { icon: Mail, title: 'Letter Generation', copy: 'Create professional, FCRA-compliant letters in seconds.' },
+  { icon: Zap, title: 'Automations', copy: 'Save hours with smart automations, reminders, and task workflows.' },
+  { icon: Monitor, title: 'Client Portal', copy: 'Give your clients a branded portal to view progress and documents.' },
+  { icon: BarChart3, title: 'Analytics & Reports', copy: 'Measure performance, track results, and grow with real data.' },
+  { icon: ShieldCheck, title: 'Security & Compliance', copy: 'Enterprise security, audit logs, and built-in compliance tools.' },
+];
+
+const pricingPlans = [
+  PLANS.starter,
+  PLANS.professional,
+  PLANS.agency,
+  PLANS.enterprise,
+];
+
+function BrandMark({ small = false }: { small?: boolean }) {
+  return (
+    <span className={`relative grid shrink-0 place-items-center ${small ? 'h-8 w-8' : 'h-11 w-11'}`} aria-hidden="true">
+      <span className="absolute left-[7%] top-[8%] h-[58%] w-[47%] skew-y-[-28deg] rounded-[5px] bg-[#93d7ce]" />
+      <span className="absolute bottom-[7%] left-[7%] h-[58%] w-[47%] skew-y-[-28deg] rounded-[5px] bg-[#04a985]" />
+      <span className="absolute bottom-[18%] right-[7%] h-[58%] w-[47%] skew-y-[-28deg] rounded-[5px] bg-[#087a78]" />
+    </span>
+  );
+}
+
+function Header() {
+  const startTrial = () => {
+    trackTrialSignup('professional', 'nav');
+  };
+
+  return (
+    <header className="relative bg-[#020f27] text-white">
+      <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-5 sm:px-7 lg:px-9">
+        <Link href="/" className="flex items-center gap-3" aria-label="FixMy.Money home">
+          <BrandMark />
+          <span>
+            <span className="block text-[26px] font-black leading-none tracking-normal">
+              FixMy<span className="text-[#05ad83]">.Money</span>
+            </span>
+            <span className="mt-1 block text-[10px] font-black uppercase tracking-[.24em] text-white/80">Credit Intelligence Platform</span>
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-9 lg:flex" aria-label="Primary navigation">
+          {NAV_LINKS.map((link) =>
+            link.href.startsWith('#') ? (
+              <a key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-white transition hover:text-[#56dbbd]">
+                {link.label}
+                {link.dropdown && <ChevronDown size={14} />}
+              </a>
+            ) : (
+              <Link key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-white transition hover:text-[#56dbbd]">
+                {link.label}
+                {link.dropdown && <ChevronDown size={14} />}
+              </Link>
+            ),
+          )}
+        </nav>
+
+        <div className="hidden items-center gap-6 lg:flex">
+          <Link href="/login" onClick={() => trackCtaClick('Login', '/login', 'nav')} className="text-sm font-bold text-white">
+            Log In
+          </Link>
+          <Link href="/signup?plan=professional" onClick={startTrial} className="rounded-md bg-[#04735d] px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-950/30 transition hover:bg-[#03634f]">
+            Start $1 Trial
+          </Link>
+        </div>
+
+        <button type="button" popoverTarget="homepage-mobile-nav" className="grid h-11 w-11 place-items-center rounded-md border border-white/15 lg:hidden" aria-label="Toggle navigation" aria-controls="homepage-mobile-nav">
+          <Menu size={22} />
+        </button>
+        <div id="homepage-mobile-nav" popover="auto" className="inset-x-0 top-20 z-50 m-0 w-full max-w-none border-0 border-t border-white/10 bg-[#020f27] px-5 py-5 text-white shadow-2xl backdrop:bg-transparent lg:hidden">
+          <div className="grid gap-4">
+            {NAV_LINKS.map((link) => (
+              <Link key={link.label} href={link.href} className="font-bold text-white">
+                {link.label}
+              </Link>
+            ))}
+            <Link href="/login" className="font-bold text-white">
+              Log In
+            </Link>
+            <Link href="/signup?plan=professional" onClick={startTrial} className="rounded-md bg-[#04735d] px-6 py-3 text-center font-black text-white">
+              Start $1 Trial
+            </Link>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function DashboardPreview() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_26px_80px_-45px_rgba(2,15,39,.65)]">
+      <div className="grid min-h-[690px] lg:grid-cols-[150px_1fr]">
+        <aside className="hidden bg-[#021331] p-5 text-white lg:flex lg:flex-col">
+          <BrandMark small />
+          <div className="mt-9 space-y-2">
+            {appNav.map((item, index) => (
+              <div key={item} className={`flex h-9 items-center gap-2 rounded-md px-3 text-[11px] font-bold ${index === 0 ? 'bg-[#05866b]' : 'text-white/85'}`}>
+                {index === 0 ? <Gauge size={14} /> : <span className="h-3 w-3 rounded-sm border border-current" />}
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto flex items-center gap-2 rounded-md bg-white/5 p-2 text-[10px]">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-white/15 font-black">AH</span>
+            <span>
+              <b className="block">Adam Hamilton</b>
+              <span className="text-white/60">Administrator</span>
+            </span>
+          </div>
+        </aside>
+
+        <div className="min-w-0 p-4 sm:p-6">
+          <div className="mb-5 flex justify-center">
+            <div className="grid w-full max-w-sm grid-cols-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <button className="flex items-center justify-center gap-2 rounded-md bg-white px-3 py-3 text-xs font-black text-[#05193a] shadow-sm">
+                <UserRound size={18} className="text-slate-500" />
+                <span>
+                  Personal
+                  <span className="block text-[10px] font-semibold text-slate-500">For individuals</span>
+                </span>
+              </button>
+              <button className="flex items-center justify-center gap-2 rounded-md bg-[#021331] px-3 py-3 text-xs font-black text-white">
+                <BriefcaseBusiness size={18} />
+                <span>
+                  Business
+                  <span className="block text-[10px] font-semibold text-white/70">For professionals</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-[#05193a]">Good morning, Adam</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Here&apos;s what&apos;s happening in your business today.</p>
+            </div>
+            <div className="flex gap-3">
+              <span className="rounded-md border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-600">May 12 - May 18, 2026</span>
+              <Link href="/client-management" className="rounded-md bg-[#04735d] px-4 py-2 text-[11px] font-black text-white">
+                + Add Client
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {dashboardStats.map(({ label, value, change, icon: Icon, tone }) => (
+              <div key={label} className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex justify-between gap-3">
+                  <span className="text-[11px] font-black text-[#05193a]">{label}</span>
+                  <Icon className={tone} size={23} />
+                </div>
+                <p className="mt-5 text-3xl font-black text-[#05193a]">{value}</p>
+                <p className="mt-1 text-[11px] font-bold text-[#04735d]">{change}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 grid gap-3 xl:grid-cols-[1fr_.92fr]">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <h3 className="text-xs font-black text-[#05193a]">Dispute Status</h3>
+              <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row">
+                <div className="relative grid h-28 w-28 place-items-center rounded-full bg-[conic-gradient(#4f70f0_0_43%,#04a985_43%_72%,#ffb432_72%_87%,#ef746f_87%_94%,#e5e7eb_94%_100%)]">
+                  <span className="grid h-[72px] w-[72px] place-items-center rounded-full bg-white text-center">
+                    <b className="block text-2xl text-[#05193a]">126</b>
+                    <span className="block text-[10px] font-bold text-slate-500">Total</span>
+                  </span>
+                </div>
+                <div className="grid flex-1 gap-2 text-[11px]">
+                  {[
+                    ['In Progress', '126 (43%)', 'bg-blue-600'],
+                    ['Waiting for Response', '86 (29%)', 'bg-emerald-700'],
+                    ['Completed', '55 (18%)', 'bg-amber-500'],
+                    ['Re-Disputed', '22 (7%)', 'bg-orange-500'],
+                    ['Cancelled', '5 (3%)', 'bg-red-500'],
+                  ].map(([label, value, color]) => (
+                    <div key={label} className="flex items-center justify-between gap-4">
+                      <span className="flex items-center gap-2 font-semibold text-slate-600">
+                        <span className={`h-2 w-2 rounded-full ${color}`} />
+                        {label}
+                      </span>
+                      <b className="text-[#05193a]">{value}</b>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <h3 className="text-xs font-black text-[#05193a]">Reports Processed</h3>
+              <div className="mt-2 flex items-end gap-2">
+                <p className="text-3xl font-black text-[#05193a]">342</p>
+                <span className="pb-1 text-xs font-black text-[#04735d]">+12%</span>
+              </div>
+              <div className="mt-7 h-28">
+                <svg viewBox="0 0 320 110" className="h-full w-full" role="img" aria-label="Reports processed line chart">
+                  <defs>
+                    <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#5d83ff" stopOpacity=".22" />
+                      <stop offset="100%" stopColor="#5d83ff" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M10 94 L48 72 L86 81 L124 52 L162 68 L200 34 L238 48 L286 16 L312 7 L312 110 L10 110 Z" fill="url(#chartFill)" />
+                  <path d="M10 94 L48 72 L86 81 L124 52 L162 68 L200 34 L238 48 L286 16 L312 7" fill="none" stroke="#3366eb" strokeWidth="3" />
+                  {[10, 48, 86, 124, 162, 200, 238, 286, 312].map((x, index) => (
+                    <circle key={x} cx={x} cy={[94, 72, 81, 52, 68, 34, 48, 16, 7][index]} r="3" fill="#fff" stroke="#3366eb" strokeWidth="2" />
+                  ))}
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-3 xl:grid-cols-[1.1fr_.9fr]">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <h3 className="text-xs font-black text-[#05193a]">Recent Activity</h3>
+              <div className="mt-4 space-y-3 text-[11px]">
+                {[
+                  ['New report imported for Michael Johnson', 'TransUnion', '2m ago'],
+                  ['Dispute advanced to Round 2 for Sarah Williams', 'Equifax', '15m ago'],
+                  ['Response received from Experian', 'Experian', '1h ago'],
+                  ['New client lead from Website', '', '2h ago'],
+                ].map(([event, tag, time]) => (
+                  <div key={event} className="flex items-center gap-3">
+                    <FileCheck2 size={14} className="text-blue-600" />
+                    <span className="min-w-0 flex-1 truncate font-semibold text-slate-600">{event}</span>
+                    {tag && <span className="rounded bg-blue-50 px-2 py-1 font-bold text-blue-600">{tag}</span>}
+                    <span className="text-slate-400">{time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-[#05193a]">Upcoming Tasks</h3>
+                <Link href="/workflow-task-management" className="text-[10px] font-black text-blue-600">View All</Link>
+              </div>
+              <div className="mt-4 space-y-3 text-[11px]">
+                {[
+                  ['Follow up on 12 pending responses', 'Today'],
+                  ['Review 8 reports', 'Today'],
+                  ['Send 15 dispute letters', 'Tomorrow'],
+                  ['Client onboarding calls (3)', 'Tomorrow'],
+                ].map(([task, due]) => (
+                  <label key={task} className="flex items-center gap-3 font-semibold text-slate-600">
+                    <span className="h-3 w-3 rounded border border-slate-300" />
+                    <span className="flex-1">{task}</span>
+                    <span className={due === 'Today' ? 'font-bold text-red-700' : 'text-emerald-700'}>{due}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div className="absolute -bottom-5 left-[8%] hidden rounded-xl border border-violet-400/20 bg-[#111a30]/95 p-3 shadow-2xl backdrop-blur sm:block"><p className="text-[8px] font-black uppercase tracking-wider text-violet-400">Workflow automation</p><p className="mt-1 text-[10px] font-bold">Next-round task assigned automatically</p></div>
-    <div className="absolute -right-5 top-[28%] hidden rounded-xl border border-blue-400/20 bg-[#111a30]/95 p-3 shadow-2xl backdrop-blur md:block"><p className="text-[8px] font-black uppercase tracking-wider text-blue-400">FixMy AI</p><p className="mt-1 text-[10px] font-bold">7 inconsistencies ranked</p></div>
-  </div>;
+  );
+}
+
+function AudienceCards({ onStart }: { onStart: (plan: string, location: string) => void }) {
+  return (
+    <section id="solutions" className="px-5 pb-4 sm:px-7">
+      <div className="mx-auto max-w-[1240px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-center text-2xl font-black tracking-[-.02em] text-[#05193a]">Powerful software for every path to better credit.</h2>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <article className="grid overflow-hidden rounded-lg bg-gradient-to-br from-[#edf8f3] to-white lg:grid-cols-[180px_1fr]">
+            <div className="relative min-h-[250px]">
+              <Image src="/assets/images/homepage-individual-credit.png" alt="Individual reviewing credit progress on a phone" fill sizes="(max-width: 1024px) 100vw, 220px" className="object-cover object-center" unoptimized />
+            </div>
+            <div className="p-7">
+              <span className="rounded-full border border-[#b8ead8] bg-[#e3f7ef] px-4 py-1 text-xs font-black uppercase tracking-wider text-[#04795f]">For Individuals</span>
+              <h3 className="mt-5 text-2xl font-black tracking-[-.02em] text-[#05193a]">Take control of your own credit.</h3>
+              <p className="mt-4 max-w-md text-sm leading-6 text-slate-600">Upload your reports, understand what&apos;s hurting you, identify potentially disputable information, create your letters, and track your progress.</p>
+              <div className="mt-6 grid gap-3 text-xs font-bold text-[#05193a] sm:grid-cols-2">
+                {['Analyze all 3 bureaus', 'Generate letters', 'Identify negative items', 'Track responses & results', 'Build dispute strategy', 'AI Assistant to guide you'].map((feature) => (
+                  <span key={feature} className="flex items-center gap-2">
+                    <Check size={14} className="text-[#04735d]" />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+              <Link href="/signup?plan=starter" onClick={() => onStart('starter', 'individual_card')} className="mt-7 inline-flex items-center gap-3 rounded-md bg-[#04735d] px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-900/15">
+                Start Fixing My Credit <ArrowRight size={16} />
+              </Link>
+            </div>
+          </article>
+
+          <article className="grid overflow-hidden rounded-lg bg-gradient-to-br from-[#eef5ff] to-white lg:grid-cols-[1fr_190px]">
+            <div className="p-7">
+              <span className="rounded-full border border-[#bdd7ff] bg-[#e6f0ff] px-4 py-1 text-xs font-black uppercase tracking-wider text-[#0645a3]">For Professionals</span>
+              <h3 className="mt-5 text-2xl font-black tracking-[-.02em] text-[#05193a]">Everything you need to run your credit business.</h3>
+              <p className="mt-4 max-w-md text-sm leading-6 text-slate-600">Manage clients, automate workflows, generate documents, provide a branded client experience, and grow your business.</p>
+              <div className="mt-6 grid gap-3 text-xs font-bold text-[#05193a] sm:grid-cols-2">
+                {['Client & lead management', 'Letter & document generation', 'Credit report analysis', 'Billing & subscriptions', 'Dispute automation', 'White label & API access'].map((feature) => (
+                  <span key={feature} className="flex items-center gap-2">
+                    <Check size={14} className="text-blue-600" />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+              <Link href="/signup?plan=professional" onClick={() => onStart('professional', 'business_card')} className="mt-7 inline-flex items-center gap-3 rounded-md bg-[#021331] px-6 py-3 text-sm font-black text-white shadow-lg shadow-slate-900/20">
+                Explore Business Software <ArrowRight size={16} />
+              </Link>
+            </div>
+            <div className="relative min-h-[250px]">
+              <Image src="/assets/images/homepage-business-credit.png" alt="Credit repair professional using business software on a laptop" fill sizes="(max-width: 1024px) 100vw, 220px" className="object-cover object-center" unoptimized />
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export default function HomepageContent() {
-  const router=useRouter(); const [mobile,setMobile]=useState(false); const [faq,setFaq]=useState<number|null>(0);
-  const start=(plan='professional',price?:number,location='homepage')=>{trackTrialSignup(plan,location);if(price)trackPricingPlanSelect(plan,price,location);router.push(`/signup?plan=${plan}`)};
-  return <div className="a11y-dark min-h-screen overflow-hidden bg-[#070b14] font-sans text-white">
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#070b14]/80 backdrop-blur-xl"><div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8"><Link href="/" className="flex items-center gap-2.5"><Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={39} height={39} className="rounded-xl" priority unoptimized/><b className="text-lg tracking-tight">FixMy<span className="text-blue-500">.</span>Money</b></Link><nav className="hidden items-center gap-7 lg:flex">{[['Product','#product'],['Workflows','#workflows'],['FixMy AI','#ai'],['Compare','#compare'],['Pricing','#pricing'],['Resources','/resources']].map(([a,h])=>h.startsWith('#')?<a key={a} href={h} className="text-sm font-semibold text-slate-400 hover:text-white">{a}</a>:<Link key={a} href={h} className="text-sm font-semibold text-slate-400 hover:text-white">{a}</Link>)}</nav><div className="hidden items-center gap-4 lg:flex"><Link href="/login" className="text-sm font-bold text-slate-300">Sign In</Link><button onClick={()=>start()} className="rounded-lg bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold shadow-lg shadow-violet-600/20">Start $1 Trial</button></div><button onClick={()=>setMobile(!mobile)} className="lg:hidden" aria-label="Toggle navigation">{mobile?<X/>:<Menu/>}</button></div>{mobile&&<div className="border-t border-white/10 bg-[#0b1220] p-5 lg:hidden"><div className="grid gap-4">{['Product','Workflows','FixMy AI','Compare','Pricing'].map(x=><span key={x} className="font-semibold">{x}</span>)}<button onClick={()=>start()} className="rounded-lg bg-blue-600 px-5 py-3 font-bold">Start $1 Trial</button></div></div>}</header>
-    <div>
-      <section className="relative px-5 pb-24 pt-36 sm:px-8 lg:pt-44"><div className="absolute left-[10%] top-20 h-[420px] w-[420px] rounded-full bg-blue-700/20 blur-[120px]"/><div className="absolute right-[10%] top-20 h-[480px] w-[480px] rounded-full bg-violet-700/20 blur-[130px]"/><div className="relative mx-auto max-w-5xl text-center"><p className="mx-auto inline-flex items-center gap-2 rounded-lg border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-black uppercase tracking-[.18em] text-violet-300"><Sparkles size={14}/> The agency operating system</p><h1 className="mx-auto mt-7 max-w-5xl text-balance text-5xl font-black leading-[1.02] tracking-[-.055em] sm:text-6xl lg:text-[72px]">The Operating System for Modern Credit Repair Agencies</h1><p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-400">Analyze credit reports, create dispute workflows, manage every client, automate billing, and grow your agency from one intelligent platform.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={()=>start()} className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 px-7 py-4 font-bold shadow-xl shadow-violet-600/25">Start $1 Trial <ArrowRight size={18}/></button><Link href="/demo" className="flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-7 py-4 font-bold backdrop-blur"><Play size={17} className="fill-white"/> Explore Live Demo</Link></div><p className="mt-5 text-xs font-semibold text-slate-500">14 days · Cancel anytime · Built for credit-repair businesses</p></div><div className="relative mx-auto mt-16 max-w-7xl"><AgencyDashboard/></div></section>
-      <section className="border-y border-white/10 bg-white/[.025] px-5 py-6"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-4 text-xs font-bold text-slate-500"><span className="text-slate-600">ONE PLATFORM</span>{['284 active clients','$42.8K monthly revenue','126 open disputes','71% positive outcomes','7 reviews due'].map(x=><span key={x} className="text-slate-300">{x}</span>)}</div></section>
-      <section id="product" className="px-5 py-24 sm:px-8"><div className="mx-auto max-w-7xl"><div className="grid items-center gap-14 lg:grid-cols-[.78fr_1.22fr]"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-400">Interactive product showcase</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">See the whole agency. Act on what matters.</h2><p className="mt-5 text-lg leading-8 text-slate-400">Move from onboarding to report analysis, dispute rounds, bureau responses, billing, and outcomes without rebuilding context.</p><div className="mt-8 space-y-3">{[['Credit analysis','Rank inconsistencies by weighted removal potential'],['Bureau response tracking','See deadlines and the next required action'],['Stripe billing','Connect payments to the client workflow']].map(([a,b],i)=><div key={a} className={`border-l-2 p-4 ${i===0?'border-violet-500 bg-white/5':'border-white/10'}`}><p className="font-black">{a}</p><p className="mt-1 text-sm text-slate-500">{b}</p></div>)}</div></div><div className="rounded-2xl border border-white/10 bg-[#0e1729] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs font-black text-white">Credit report analysis</p><p className="mt-1 text-[10px] text-slate-500">Jordan Ellis · Imported today</p></div><span className="rounded-lg bg-violet-500/10 px-3 py-2 text-[10px] font-bold text-violet-300">7 inconsistencies detected</span></div><div className="mt-5 grid gap-3 md:grid-cols-[.9fr_1.1fr]"><div className="overflow-hidden rounded-xl border border-white/10">{[['Northstar Bank','Balance mismatch','78'],['Metro Collection','Date inconsistency','84'],['Lumen Card','Status conflict','61']].map(([a,b,s],i)=><div key={a} className={`border-b border-white/10 p-3 last:border-0 ${i===1?'bg-blue-500/10':''}`}><div className="flex justify-between"><p className="text-[11px] font-bold">{a}</p><span className="text-[10px] font-black text-violet-300">{s}</span></div><p className="mt-1 text-[9px] text-slate-500">{b} · removal potential</p></div>)}</div><div className="rounded-xl border border-violet-400/20 bg-violet-500/5 p-4"><div className="flex items-center gap-2 text-xs font-black text-violet-300"><Bot size={15}/> FixMy AI analysis</div><p className="mt-4 text-sm font-bold">Possible reporting inconsistency across Experian and Equifax.</p><p className="mt-2 text-[10px] leading-5 text-slate-500">Weighted from inconsistency type, source agreement, evidence completeness, and account history.</p><div className="mt-5 flex justify-between text-[10px]"><span>Evidence completeness</span><b className="text-cyan-300">92%</b></div><div className="mt-2 h-1.5 rounded-full bg-white/10"><div className="h-full w-[92%] rounded-full bg-gradient-to-r from-cyan-400 to-violet-500"/></div><div className="mt-5 flex gap-2"><button className="rounded-lg bg-blue-600 px-3 py-2 text-[9px] font-bold">Approve</button><button className="rounded-lg border border-white/10 px-3 py-2 text-[9px] font-bold">Edit</button><button className="rounded-lg border border-white/10 px-3 py-2 text-[9px] font-bold">Exclude</button></div></div></div><p className="mt-4 text-[9px] leading-4 text-slate-600">Removal-potential scores are decision-support estimates, not guarantees of deletion, score improvement, or bureau response.</p></div></div></div></section>
-      <section id="workflows" className="border-y border-white/10 bg-[#0a101d] px-5 py-24 sm:px-8"><div className="mx-auto max-w-7xl"><div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-[.2em] text-violet-400">Three core workflows</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">Onboard. Dispute. Grow.</h2></div><div className="mt-14 grid gap-5 lg:grid-cols-3">{[[Users,'Onboard','Bring agreements, documents, reports, tasks, billing status, and client communications into one controlled record.','18 new clients this month'],[FileCheck2,'Dispute','Turn report inconsistencies into evidence-backed, reviewed dispute rounds with deadlines and response history.','126 open disputes'],[TrendingUp,'Grow','Watch revenue, pipeline, team capacity, client outcomes, and operational bottlenecks from one agency dashboard.','$42.8K monthly revenue']].map(([Icon,a,b,c],i)=><article key={a as string} className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[.035] p-7"><div className={`absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl ${['bg-blue-600/20','bg-violet-600/20','bg-fuchsia-600/20'][i]}`}/><span className="relative grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-white/5 text-violet-300"><Icon size={22}/></span><h3 className="relative mt-10 text-3xl font-black">{a as string}</h3><p className="relative mt-4 leading-7 text-slate-400">{b as string}</p><p className="relative mt-8 border-t border-white/10 pt-5 text-sm font-bold text-white">{c as string}</p></article>)}</div></div></section>
-      <section id="ai" className="relative px-5 py-24 sm:px-8"><div className="absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-700/15 blur-[120px]"/><div className="relative mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2"><div><p className="text-xs font-black uppercase tracking-[.2em] text-fuchsia-400">FixMy AI</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">Intelligence inside the work—not beside it.</h2><p className="mt-5 text-lg leading-8 text-slate-400">FixMy AI compares report fields, identifies possible inconsistencies, weighs available evidence, recommends the next action, and prepares drafts for human review.</p><div className="mt-8 flex flex-wrap gap-2">{['7 items detected','Evidence strength: High','Draft ready','Human approval required'].map(x=><span key={x} className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-200">{x}</span>)}</div></div><div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 to-blue-500/5 p-6 shadow-2xl"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-fuchsia-600"><Bot/></span><div><p className="text-sm font-black">Recommended next action</p><p className="text-[10px] text-slate-500">Based on verified source data</p></div></div><p className="mt-7 text-xl font-black">Review the conflicting balance and account status before adding this item to Round 1.</p><div className="mt-7 grid grid-cols-3 gap-3">{[['78','Removal potential'],['92%','Evidence complete'],['High','Inconsistency strength']].map(([v,l])=><div key={l} className="rounded-xl border border-white/10 bg-black/20 p-3"><b className="text-lg">{v}</b><p className="mt-1 text-[8px] text-slate-500">{l}</p></div>)}</div></div></div></section>
-      <section id="compare" className="border-y border-white/10 bg-[#0a101d] px-5 py-24 sm:px-8"><div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[.7fr_1.3fr]"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-400">Replace the fragmented stack</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em]">One system. One client record. One accountable history.</h2><p className="mt-5 leading-7 text-slate-400">Stop stitching together a CRM, report tool, letter software, billing app, spreadsheets, and reminders.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-2xl border border-red-400/10 bg-red-500/5 p-6"><p className="text-xs font-black uppercase tracking-wider text-red-300">Fragmented stack</p>{['Client CRM','Report parser','Letter builder','Billing app','Task spreadsheet','Disconnected history'].map(x=><p key={x} className="mt-4 flex items-center gap-2 text-sm text-slate-500"><X size={14} className="text-red-400"/>{x}</p>)}</div><div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-blue-600/10 to-violet-600/10 p-6"><p className="text-xs font-black uppercase tracking-wider text-violet-300">FixMy.Money</p>{['Connected client workspace','Source-linked report analysis','Reviewed dispute workflow','Stripe-powered billing','Automated task routing','Traceable outcomes'].map(x=><p key={x} className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-200"><Check size={14} className="text-violet-400"/>{x}</p>)}</div></div></div></section>
-      <section id="pricing" className="px-5 py-24 sm:px-8"><div className="mx-auto max-w-7xl"><div className="text-center"><p className="text-xs font-black uppercase tracking-[.2em] text-violet-400">Agency pricing</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">Choose the capacity you need.</h2><p className="mt-5 text-slate-500">$1 today for 14 days, then the selected monthly plan.</p></div><div className="mt-14 grid gap-5 lg:grid-cols-3">{CHECKOUT_PLANS.map(plan=><article key={plan.id} className={`relative flex flex-col rounded-2xl border p-7 ${plan.highlight?'border-violet-400/50 bg-gradient-to-b from-violet-600/20 to-blue-600/5 shadow-2xl shadow-violet-600/15':'border-white/10 bg-white/[.025]'}`}>{plan.highlight&&<span className="absolute right-5 top-5 rounded-lg bg-violet-500 px-3 py-1 text-[10px] font-black uppercase tracking-wider">Recommended</span>}<h3 className="text-2xl font-black">{plan.name}</h3><p className="mt-3 min-h-12 text-sm leading-6 text-slate-500">{plan.description}</p><p className="mt-7"><b className="text-5xl">${plan.monthlyPrice}</b><span className="text-slate-500">/month</span></p><ul className="mt-8 flex-1 space-y-3 text-sm text-slate-300">{[`Up to ${plan.maxClients} active clients`,plan.maxTeamMembers===1?'1 user':`Up to ${plan.maxTeamMembers} team members`,`${plan.storageGb} GB storage`,plan.id==='starter'?'Core report and dispute workflow':plan.id==='professional'?'Billing, automation, and agency operations':'Advanced roles, analytics, and onboarding'].map(x=><li key={x} className="flex gap-2"><Check size={16} className="text-violet-400"/>{x}</li>)}</ul><button onClick={()=>start(plan.id,plan.monthlyPrice||undefined,'homepage_pricing')} className={`mt-8 rounded-lg px-5 py-4 font-bold ${plan.highlight?'bg-gradient-to-r from-blue-600 to-violet-600':'border border-white/15 bg-white/5'}`}>Start $1 Trial</button></article>)}</div></div></section>
-      <section className="border-y border-white/10 bg-[#0a101d] px-5 py-24 sm:px-8"><div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-[.72fr_1.28fr]"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-400">Focused FAQ</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em]">Know what you’re buying.</h2><p className="mt-5 text-slate-500">Straight answers about the trial, AI, migration, and compliance support.</p></div><div className="space-y-3">{faqs.map(([q,a],i)=><button key={q} onClick={()=>setFaq(faq===i?null:i)} className="w-full rounded-xl border border-white/10 bg-white/[.025] p-5 text-left"><span className="flex items-center justify-between gap-4 font-black">{q}<ChevronDown size={18} className={`transition ${faq===i?'rotate-180':''}`}/></span>{faq===i&&<p className="mt-4 leading-7 text-slate-500">{a}</p>}</button>)}</div></div></section>
-      <section className="px-5 py-24 sm:px-8"><div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-violet-400/20 bg-gradient-to-br from-blue-700/20 via-violet-700/20 to-fuchsia-700/10 px-7 py-16 text-center"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,.35),transparent_50%)]"/><div className="relative"><Zap className="mx-auto text-violet-300"/><h2 className="mx-auto mt-6 max-w-3xl text-4xl font-black tracking-[-.04em] sm:text-5xl">Run the agency you’re building—not the stack you’ve outgrown.</h2><p className="mx-auto mt-5 max-w-2xl text-lg text-slate-400">Bring clients, reports, disputes, billing, automation, and outcomes into one operating system.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={()=>start()} className="rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-7 py-4 font-bold">Start $1 Trial</button><Link href="/demo" className="rounded-lg border border-white/15 bg-white/5 px-7 py-4 font-bold">Explore Live Demo</Link></div></div></div></section>
-      <section className="border-t border-white/10 bg-white/[.02] px-5 py-10"><div className="mx-auto flex max-w-6xl gap-4 text-sm text-slate-500"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10"><FileCheck2 size={16}/></span><p><b className="text-slate-300">Compliance-supporting workflows.</b> FixMy.Money helps document agreements, authorization, human approvals, billing events, and case history. Your business remains responsible for its legal and regulatory obligations.</p></div></section>
+  const checkoutPlans = useMemo(() => new Set(CHECKOUT_PLANS.map((plan) => plan.id)), []);
+
+  const start = (plan = 'professional', location = 'homepage') => {
+    trackTrialSignup(plan, location);
+    const selectedPlan = pricingPlans.find((item) => item.id === plan);
+    if (selectedPlan?.monthlyPrice) {
+      trackPricingPlanSelect(selectedPlan.id, selectedPlan.monthlyPrice, location);
+    }
+  };
+
+  const goTo = (href: string, label: string, location: string) => {
+    trackCtaClick(label, href, location);
+  };
+
+  return (
+    <div className="a11y-light min-h-screen bg-[#fbfcfd] font-sans text-[#05193a]">
+      <Header />
+
+      <main>
+        <section id="platform" className="border-b border-slate-200 bg-gradient-to-b from-white to-[#f7fbfa] px-5 py-7 sm:px-7">
+          <div className="mx-auto grid max-w-[1240px] items-center gap-9 lg:grid-cols-[.78fr_1.42fr]">
+            <div className="py-8 lg:py-12">
+              <p className="text-sm font-black uppercase tracking-[.18em] text-[#04735d]">One platform. Two ways to use it.</p>
+              <h1 className="mt-5 max-w-[520px] font-serif text-[46px] font-black leading-[1.05] tracking-normal text-[#05193a] sm:text-[56px] lg:text-[57px]">
+                The Platform for Better Credit.
+                <span className="block text-[#058866]">Run your credit business—or take control of your own.</span>
+              </h1>
+              <p className="mt-6 max-w-[500px] text-lg leading-8 text-slate-600">
+                Powerful credit software for professionals and individuals. Analyze reports, understand negative items, build disputes, generate letters, and track progress from one platform.
+              </p>
+              <div className="mt-7 grid max-w-[440px] gap-4 sm:grid-cols-2">
+                <Link href="/signup?plan=starter" onClick={() => start('starter', 'hero_individual')} className="flex min-h-[74px] items-center justify-between gap-4 rounded-lg bg-[#04735d] px-5 py-4 text-left text-white shadow-xl shadow-emerald-900/15">
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-full bg-white/15"><UserRound size={22} /></span>
+                    <span className="text-sm font-black">I&apos;m Fixing My Own Credit</span>
+                  </span>
+                  <ArrowRight size={20} />
+                </Link>
+                <Link href="/signup?plan=professional" onClick={() => start('professional', 'hero_business')} className="flex min-h-[74px] items-center justify-between gap-4 rounded-lg bg-[#021331] px-5 py-4 text-left text-white shadow-xl shadow-slate-900/20">
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-md border border-white/25"><BriefcaseBusiness size={22} /></span>
+                    <span className="text-sm font-black">I Run a Credit Business</span>
+                  </span>
+                  <ArrowRight size={20} />
+                </Link>
+              </div>
+              <div className="mt-2 grid max-w-[440px] grid-cols-2 gap-4 text-center text-xs font-semibold text-slate-600">
+                <span>For individuals</span>
+                <span>For professionals & agencies</span>
+              </div>
+              <div className="mt-9 grid max-w-[560px] gap-5 sm:grid-cols-3">
+                {[
+                  [ShieldCheck, 'Bank-Level Security', '256-bit encryption'],
+                  [CloudUpload, 'Secure Infrastructure', 'Data protection controls'],
+                  [ShieldCheck, '$1 for 14 Days', 'Credit card required'],
+                ].map(([Icon, title, copy]) => (
+                  <div key={title as string} className="flex items-center gap-3">
+                    <Icon size={22} className="shrink-0 text-[#021331]" />
+                    <span>
+                      <b className="block text-[11px] text-[#05193a]">{title as string}</b>
+                      <span className="text-[10px] font-semibold text-slate-500">{copy as string}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DashboardPreview />
+          </div>
+        </section>
+
+        <AudienceCards onStart={start} />
+
+        <section className="px-5 pb-4 sm:px-7">
+          <div className="mx-auto max-w-[1240px] rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm">
+            <h2 className="text-center text-2xl font-black tracking-[-.02em] text-[#05193a]">Everything you need. All in one platform.</h2>
+            <div className="mt-7 grid gap-y-8 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
+              {featureTiles.map(({ icon: Icon, title, copy }, index) => (
+                <Link key={title} href={index === 1 ? '/credit-report-import' : index === 2 ? '/disputes' : index === 3 ? '/dispute-letter-management' : index === 5 ? '/client-portal/login' : index === 6 ? '/dashboard' : index === 7 ? '/security' : '/client-management'} className="border-slate-200 px-4 text-center transition hover:-translate-y-0.5 hover:text-[#04735d] lg:border-l first:lg:border-l-0">
+                  <Icon size={40} className="mx-auto text-[#04735d]" strokeWidth={1.8} />
+                  <h3 className="mt-5 text-[11px] font-black text-[#05193a]">{title}</h3>
+                  <p className="mx-auto mt-3 max-w-[140px] text-[11px] font-medium leading-5 text-slate-600">{copy}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-5 pb-6 sm:px-7">
+          <div className="mx-auto grid max-w-[1240px] gap-8 rounded-lg bg-[#021331] px-8 py-7 text-white shadow-xl shadow-slate-900/15 lg:grid-cols-[1.05fr_.9fr_.9fr_.78fr] lg:px-9">
+            <div>
+              <h2 className="text-2xl font-black leading-tight">Built for credit professionals and chosen by individuals.</h2>
+              <div className="mt-5 flex items-center gap-4">
+                <div className="flex gap-1 text-[#06b98e]">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Star key={index} size={22} fill="currentColor" />
+                  ))}
+                </div>
+                <span className="text-sm font-bold">Designed for secure, guided credit workflows</span>
+              </div>
+              <div className="mt-7 flex flex-wrap items-center gap-6 text-sm font-black text-white/85">
+                <span>Credit report analysis</span>
+                <span>Dispute workflows</span>
+                <span>Client portal</span>
+                <span>Billing tools</span>
+              </div>
+            </div>
+            <blockquote className="border-white/15 lg:border-l lg:pl-8">
+              <span className="text-4xl font-black leading-none text-[#06b98e]">&ldquo;</span>
+              <p className="mt-1 text-sm font-semibold leading-6">&ldquo;Organize reports, disputes, documents, tasks, and client updates in one focused workspace.&rdquo;</p>
+              <footer className="mt-4 text-sm text-white/75">For credit professionals</footer>
+            </blockquote>
+            <blockquote className="border-white/15 lg:border-l lg:pl-8">
+              <span className="text-4xl font-black leading-none text-[#06b98e]">&ldquo;</span>
+              <p className="mt-1 text-sm font-semibold leading-6">&ldquo;Upload reports, understand negative items, build disputes, generate letters, and track progress.&rdquo;</p>
+              <footer className="mt-4 text-sm text-white/75">For individuals</footer>
+            </blockquote>
+            <div className="grid grid-cols-2 gap-5 border-white/15 lg:border-l lg:pl-8">
+              <div className="text-center">
+                <ShieldCheck className="mx-auto" size={48} />
+                <p className="mt-3 text-xs font-black">Security<br />Controls</p>
+              </div>
+              <div className="text-center">
+                <LockKeyhole className="mx-auto" size={48} />
+                <p className="mt-3 text-xs font-black">256-BIT<br />ENCRYPTION</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="px-5 pb-12 sm:px-7">
+          <div className="mx-auto grid max-w-[1240px] gap-5 lg:grid-cols-[1.25fr_1fr_1fr_1fr_1fr_.9fr]">
+            <div className="py-6">
+              <h2 className="text-3xl font-black tracking-[-.03em] text-[#05193a]">Simple, transparent pricing.</h2>
+              <p className="mt-3 text-lg text-slate-600">No hidden fees. Cancel anytime.</p>
+              <Link href="/pricing" onClick={() => trackCtaClick('View full pricing comparison', '/pricing', 'pricing_intro')} className="mt-12 inline-flex items-center gap-3 text-sm font-black text-[#04735d]">
+                View full pricing comparison <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            {pricingPlans.map((plan) => {
+              const hasCheckout = checkoutPlans.has(plan.id);
+              const href = hasCheckout ? `/signup?plan=${plan.id}` : '/demo';
+              return (
+                <article key={plan.id} className="relative rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  {plan.highlight && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#04735d] px-5 py-1 text-[10px] font-black uppercase tracking-wider text-white">Most Popular</span>}
+                  <h3 className="text-lg font-black text-[#05193a]">{plan.name}</h3>
+                  <p className="mt-1 min-h-9 text-xs font-semibold leading-5 text-slate-500">{plan.description}</p>
+                  <p className="mt-5 text-[#05193a]">
+                    {plan.monthlyPrice ? (
+                      <>
+                        <b className="text-3xl font-black">${plan.monthlyPrice}</b>
+                        <span className="text-sm font-bold"> /mo</span>
+                      </>
+                    ) : (
+                      <b className="text-3xl font-black">Custom</b>
+                    )}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{plan.monthlyPrice ? 'Billed monthly' : 'Custom pricing'}</p>
+                  <Link href={href} onClick={() => (hasCheckout ? start(plan.id, 'pricing_card') : goTo(href, 'Schedule Demo', 'pricing_card'))} className={`mt-7 block w-full rounded-md px-4 py-3 text-center text-xs font-black text-white ${plan.id === 'enterprise' ? 'bg-[#021331]' : 'bg-[#04735d]'}`}>
+                    {plan.id === 'enterprise' ? 'Schedule Demo' : 'Start $1 Trial'}
+                  </Link>
+                </article>
+              );
+            })}
+
+            <div className="rounded-lg bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-black text-[#05193a]">All plans include:</h3>
+              <div className="mt-4 space-y-3 text-xs font-bold text-slate-600">
+                {['All Core Features', 'Unlimited Disputes', 'Client Portal', 'Email & Chat Support', 'Regular Updates', 'Cancel Anytime'].map((item) => (
+                  <p key={item} className="flex items-center gap-2">
+                    <Check size={14} className="text-[#04735d]" />
+                    {item}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
-    <footer className="border-t border-white/10 bg-[#050810] px-5 py-14 sm:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-5"><div className="sm:col-span-2"><div className="flex items-center gap-2.5"><Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={38} height={38} unoptimized/><b>FixMy.Money</b></div><p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">The operating system for modern credit-repair agencies.</p></div>{footerSections.map(section=><div key={section.heading}><b className="text-sm">{section.heading}</b><div className="mt-4 grid gap-3 text-sm text-slate-600">{section.links.map(link=><Link key={link.href} href={link.href} className="transition hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050810]">{link.label}</Link>)}</div></div>)}</div><div className="mx-auto mt-12 max-w-7xl border-t border-white/10 pt-6 text-xs leading-5 text-slate-700">FixMy.Money provides business software, AI-assisted analysis, and workflow tools. It does not provide legal advice or guarantee deletions, credit-score changes, compliance, or any bureau response. Removal-potential scores are estimates based on available data and require human review.</div></footer>
-  </div>;
+  );
 }
