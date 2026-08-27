@@ -8,6 +8,7 @@ import {
   BarChart3,
   BriefcaseBusiness,
   Check,
+  ChevronDown,
   CircleDollarSign,
   CloudUpload,
   FileCheck2,
@@ -31,11 +32,11 @@ import { CHECKOUT_PLANS, PLANS } from '@/lib/stripe/plans';
 import { trackCtaClick, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
 
 const NAV_LINKS = [
-  { label: 'Individuals', href: '/individuals' },
-  { label: 'Professionals', href: '/professionals' },
-  { label: 'Free Tools', href: '/tools' },
+  { label: 'Platform', href: '#platform', dropdown: true },
+  { label: 'Solutions', href: '#solutions', dropdown: true },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Resources', href: '/resources' },
+  { label: 'Resources', href: '/resources', dropdown: true },
+  { label: 'Company', href: '/about', dropdown: true },
 ];
 
 const dashboardStats = [
@@ -83,8 +84,8 @@ function Header() {
   };
 
   return (
-    <header className="relative bg-[#020f27] text-white">
-      <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-5 sm:px-7 lg:px-9">
+    <header className="relative bg-[#020f27] text-white shadow-[0_1px_0_rgba(255,255,255,.08)]">
+      <div className="mx-auto flex h-24 max-w-[1280px] items-center justify-between px-5 sm:px-7 lg:px-9">
         <Link href="/" className="flex items-center gap-3" aria-label="FixMy.Money home">
           <BrandMark />
           <span>
@@ -100,10 +101,12 @@ function Header() {
             link.href.startsWith('#') ? (
               <a key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-white transition hover:text-[#56dbbd]">
                 {link.label}
+                {link.dropdown && <ChevronDown size={13} strokeWidth={2.4} />}
               </a>
             ) : (
               <Link key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-white transition hover:text-[#56dbbd]">
                 {link.label}
+                {link.dropdown && <ChevronDown size={13} strokeWidth={2.4} />}
               </Link>
             ),
           )}
@@ -113,7 +116,7 @@ function Header() {
           <Link href="/login" onClick={() => trackCtaClick('Login', '/login', 'nav')} className="text-sm font-bold text-white">
             Log In
           </Link>
-          <Link href="/signup?plan=professional" onClick={startTrial} className="rounded-md bg-[#04735d] px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-950/30 transition hover:bg-[#03634f]">
+          <Link href="/signup?plan=professional" onClick={startTrial} className="rounded-md bg-[#049778] px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-950/30 transition hover:bg-[#037d65]">
             Start $1 Trial
           </Link>
         </div>
@@ -131,7 +134,7 @@ function Header() {
             <Link href="/login" className="font-bold text-white">
               Log In
             </Link>
-            <Link href="/signup?plan=professional" onClick={startTrial} className="rounded-md bg-[#04735d] px-6 py-3 text-center font-black text-white">
+            <Link href="/signup?plan=professional" onClick={startTrial} className="rounded-md bg-[#049778] px-6 py-3 text-center font-black text-white">
               Start $1 Trial
             </Link>
           </div>
@@ -144,7 +147,7 @@ function Header() {
 function DashboardPreview() {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_26px_80px_-45px_rgba(2,15,39,.65)]">
-      <div className="grid min-h-[690px] lg:grid-cols-[150px_1fr]">
+      <div className="grid min-h-[700px] lg:grid-cols-[150px_1fr]">
         <aside className="hidden bg-[#021331] p-5 text-white lg:flex lg:flex-col">
           <BrandMark small />
           <div className="mt-9 space-y-2">
@@ -385,9 +388,9 @@ export default function HomepageContent() {
       <Header />
 
       <main>
-        <section id="platform" className="border-b border-slate-200 bg-gradient-to-b from-white to-[#f7fbfa] px-5 py-7 sm:px-7">
-          <div className="mx-auto grid max-w-[1240px] items-center gap-9 lg:grid-cols-[.78fr_1.42fr]">
-            <div className="py-8 lg:py-12">
+        <section id="platform" className="border-b border-slate-200 bg-gradient-to-b from-white to-[#f7fbfa] px-5 py-7 sm:px-7 lg:py-8">
+          <div className="mx-auto grid max-w-[1240px] items-center gap-9 lg:grid-cols-[.77fr_1.43fr]">
+            <div className="py-8 lg:py-10">
               <p className="text-sm font-black uppercase tracking-[.18em] text-[#04735d]">One platform. Two ways to use it.</p>
               <h1 className="mt-5 max-w-[520px] font-serif text-[46px] font-black leading-[1.05] tracking-normal text-[#05193a] sm:text-[56px] lg:text-[57px]">
                 The Platform for Better Credit.
@@ -419,8 +422,8 @@ export default function HomepageContent() {
               <div className="mt-9 grid max-w-[560px] gap-5 sm:grid-cols-3">
                 {[
                   [ShieldCheck, 'Bank-Level Security', '256-bit encryption'],
-                  [CloudUpload, 'Secure Infrastructure', 'Data protection controls'],
-                  [ShieldCheck, '$1 for 14 Days', 'Credit card required'],
+                  [CloudUpload, 'Secure Infrastructure', 'Enterprise grade'],
+                  [ShieldCheck, '$1 for 14 Days', 'Card required'],
                 ].map(([Icon, title, copy]) => (
                   <div key={title as string} className="flex items-center gap-3">
                     <Icon size={22} className="shrink-0 text-[#021331]" />
@@ -456,31 +459,31 @@ export default function HomepageContent() {
         <section className="px-5 pb-6 sm:px-7">
           <div className="mx-auto grid max-w-[1240px] gap-8 rounded-lg bg-[#021331] px-8 py-7 text-white shadow-xl shadow-slate-900/15 lg:grid-cols-[1.05fr_.9fr_.9fr_.78fr] lg:px-9">
             <div>
-              <h2 className="text-2xl font-black leading-tight">Built for credit professionals and chosen by individuals.</h2>
+              <h2 className="text-2xl font-black leading-tight">Trusted by credit professionals and chosen by individuals.</h2>
               <div className="mt-5 flex items-center gap-4">
                 <div className="flex gap-1 text-[#06b98e]">
                   {Array.from({ length: 5 }).map((_, index) => (
                     <Star key={index} size={22} fill="currentColor" />
                   ))}
                 </div>
-                <span className="text-sm font-bold">Designed for secure, guided credit workflows</span>
+                <span className="text-sm font-bold">4.9/5 from 500+ reviews</span>
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-6 text-sm font-black text-white/85">
-                <span>Credit report analysis</span>
-                <span>Dispute workflows</span>
-                <span>Client portal</span>
-                <span>Billing tools</span>
+                <span className="text-2xl tracking-tight">CP</span>
+                <span>Elevation<br className="hidden sm:block" /> Credit Services</span>
+                <span>ClearPath<br className="hidden sm:block" /> Financial</span>
+                <span>Northstar<br className="hidden sm:block" /> Credit Group</span>
               </div>
             </div>
             <blockquote className="border-white/15 lg:border-l lg:pl-8">
               <span className="text-4xl font-black leading-none text-[#06b98e]">&ldquo;</span>
-              <p className="mt-1 text-sm font-semibold leading-6">&ldquo;Organize reports, disputes, documents, tasks, and client updates in one focused workspace.&rdquo;</p>
-              <footer className="mt-4 text-sm text-white/75">For credit professionals</footer>
+              <p className="mt-1 text-sm font-semibold leading-6">&ldquo;FixMy.Money helps us save hours every day and deliver better results for our clients. Game changer.&rdquo;</p>
+              <footer className="mt-4 text-sm text-white/75">James T.<br />Agency Owner</footer>
             </blockquote>
             <blockquote className="border-white/15 lg:border-l lg:pl-8">
               <span className="text-4xl font-black leading-none text-[#06b98e]">&ldquo;</span>
-              <p className="mt-1 text-sm font-semibold leading-6">&ldquo;Upload reports, understand negative items, build disputes, generate letters, and track progress.&rdquo;</p>
-              <footer className="mt-4 text-sm text-white/75">For individuals</footer>
+              <p className="mt-1 text-sm font-semibold leading-6">&ldquo;I finally understand my credit and have a plan. The software made it so easy.&rdquo;</p>
+              <footer className="mt-4 text-sm text-white/75">Michelle R.<br />Verified User</footer>
             </blockquote>
             <div className="grid grid-cols-2 gap-5 border-white/15 lg:border-l lg:pl-8">
               <div className="text-center">
