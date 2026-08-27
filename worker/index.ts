@@ -17,7 +17,7 @@ interface D1Binding {
 interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> };
   DB?: D1Binding;
-  IMAGES: {
+  IMAGES?: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
         output(options: { format: string; quality: number }): Promise<{ response(): Response }>;
@@ -152,6 +152,9 @@ export default {
             ? env.ASSETS.fetch(new Request(new URL(path, request.url)))
             : fetch(new Request(new URL(path, request.url))),
           transformImage: async (body, { width, format, quality }) => {
+            if (!env.IMAGES) {
+              return new Response(body);
+            }
             const result = await env.IMAGES.input(body)
               .transform(width > 0 ? { width } : {})
               .output({ format, quality });
