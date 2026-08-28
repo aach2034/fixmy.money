@@ -145,7 +145,6 @@ type ImportProviderCard = {
   key: string;
   name: string;
   description: string;
-  reportType: string;
   provider: SupportedProvider;
   status: 'partner' | 'upload';
   partner?: ReportProvider;
@@ -158,8 +157,7 @@ const PROVIDER_UPLOAD_GUIDANCE: ImportProviderCard[] = [
   {
     key: 'creditkarma',
     name: 'Credit Karma',
-    description: 'Easy option if you already have a saved report or copied report text.',
-    reportType: 'Upload a saved PDF/text export or paste copied text',
+    description: 'Use a saved report or copied report text.',
     provider: 'creditkarma',
     status: 'upload',
   },
@@ -167,23 +165,20 @@ const PROVIDER_UPLOAD_GUIDANCE: ImportProviderCard[] = [
     key: 'experian',
     name: 'Experian',
     description: 'Use an Experian report you have already downloaded.',
-    reportType: 'Upload an Experian PDF or readable export',
     provider: 'experian',
     status: 'upload',
   },
   {
     key: 'identityiq',
     name: 'IdentityIQ',
-    description: 'Use your downloaded monitoring report when available.',
-    reportType: 'Upload a PDF or readable report export',
+    description: 'Use a downloaded IdentityIQ monitoring report.',
     provider: 'identityiq',
     status: 'upload',
   },
   {
     key: 'annualcreditreport',
     name: 'AnnualCreditReport.com',
-    description: 'Good source for official bureau report files you download yourself.',
-    reportType: 'Upload an official bureau report PDF/text export',
+    description: 'Use an official bureau report downloaded from this source.',
     provider: 'annualcreditreport',
     status: 'upload',
   },
@@ -191,7 +186,6 @@ const PROVIDER_UPLOAD_GUIDANCE: ImportProviderCard[] = [
     key: 'other',
     name: 'Other provider',
     description: 'Use this if your report source is not listed here.',
-    reportType: `Upload one of the supported formats: ${UPLOAD_FORMATS}`,
     provider: 'unknown',
     status: 'upload',
   },
@@ -533,7 +527,6 @@ export default function CreditReportImportContent() {
         key: provider.key,
         name: provider.name,
         description: provider.description || 'Use this provider to get a report, then return here to upload it.',
-        reportType: 'Download your report, then upload it here',
         provider: toSupportedProvider(provider.key),
         status: provider.affiliateUrl ? 'partner' : 'upload',
         partner: provider,
@@ -548,6 +541,7 @@ export default function CreditReportImportContent() {
 
     return cards;
   }, [providers]);
+  const otherProviderCard = providerCards.find(card => card.key === 'other');
 
   useEffect(() => {
     loadProviders();
@@ -1328,18 +1322,24 @@ export default function CreditReportImportContent() {
                   <button
                     type="button"
                     onClick={() => setImportMode('get-report')}
-                    className={`flex min-h-16 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${importMode === 'get-report' ? 'border border-[#0b2d65] bg-white text-[#071942] shadow-sm' : 'text-[#52627f] hover:bg-[#f4f7fb]'}`}
+                    className={`flex min-h-20 items-center justify-center gap-3 rounded-xl border-2 px-3 text-left transition ${importMode === 'get-report' ? 'border-[#0b2d65] bg-[#eef4ff] text-[#071942] shadow-sm' : 'border-transparent bg-white text-[#23345f] hover:border-[#b8c6dc] hover:bg-[#f8fbff]'}`}
                   >
                     <UsersRound size={20} className="text-success" />
-                    <span>Get a Report</span>
+                    <span>
+                      <span className="block text-sm font-extrabold">Get a Report</span>
+                      <span className="mt-0.5 block text-xs font-medium text-[#52627f]">I don&apos;t have my report yet</span>
+                    </span>
                   </button>
                   <button
                     type="button"
                     onClick={showUploader}
-                    className={`flex min-h-16 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${importMode === 'upload' ? 'border border-[#0b2d65] bg-white text-[#071942] shadow-sm' : 'text-[#52627f] hover:bg-[#f4f7fb]'}`}
+                    className={`flex min-h-20 items-center justify-center gap-3 rounded-xl border-2 px-3 text-left transition ${importMode === 'upload' ? 'border-[#0b2d65] bg-[#eef4ff] text-[#071942] shadow-sm' : 'border-transparent bg-white text-[#23345f] hover:border-[#b8c6dc] hover:bg-[#f8fbff]'}`}
                   >
                     <FileUp size={20} className="text-[#071942]" />
-                    <span>Upload File</span>
+                    <span>
+                      <span className="block text-sm font-extrabold">Upload File</span>
+                      <span className="mt-0.5 block text-xs font-medium text-[#52627f]">I already have my report</span>
+                    </span>
                   </button>
                 </div>
 
@@ -1353,43 +1353,61 @@ export default function CreditReportImportContent() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {providerCards.map(card => (
-                      <div key={card.key} className="rounded-2xl border border-[#dbe3f0] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#b8c6dc] hover:shadow-md">
-                        <div className="flex min-w-0 items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef4ff] text-[#071942]">
-                              <Building2 size={20} />
+                    {providerCards.filter(card => card.key !== 'other').map(card => {
+                      const isFeaturedPartner = card.key === 'smartcredit' || card.key === 'myscoreiq';
+                      return (
+                        <div key={card.key} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md ${isFeaturedPartner ? 'border-success/40 bg-success/[0.035] shadow-sm hover:border-success/60' : 'border-[#dbe3f0] bg-white hover:border-[#b8c6dc]'}`}>
+                          <div className="flex min-w-0 items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${isFeaturedPartner ? 'bg-success/10 text-success' : 'bg-[#eef4ff] text-[#071942]'}`}>
+                                <Building2 size={20} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="break-words text-sm font-extrabold leading-tight text-[#071942]">{card.name}</p>
+                                <p className="mt-0.5 text-xs font-medium text-[#52627f]">{card.status === 'partner' ? 'Partner report source' : 'Upload from this provider'}</p>
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="break-words text-sm font-extrabold leading-tight text-[#071942]">{card.name}</p>
-                              <p className="mt-0.5 text-xs font-medium text-[#52627f]">{card.status === 'partner' ? 'Partner/referral' : 'Upload guidance only'}</p>
-                            </div>
+                            {isFeaturedPartner && (
+                              <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[11px] font-bold text-success">Partner</span>
+                            )}
                           </div>
-                          {card.status === 'partner' && (
-                            <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[11px] font-bold text-success">Partner</span>
-                          )}
-                        </div>
-                        <p className="mt-3 min-h-10 text-sm leading-5 text-[#23345f]">{card.description}</p>
-                        <p className="mt-2 text-xs leading-5 text-[#52627f]">{card.reportType}</p>
-                        <div className="mt-4 flex gap-2">
-                          {card.status === 'partner' ? (
-                            <>
-                              <button type="button" onClick={() => openPartnerProvider(card)} className="btn-primary flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm sm:min-h-0">
-                                Get My Report
-                                <ExternalLink size={14} />
+                          <p className="mt-3 text-sm leading-5 text-[#23345f]">{card.description}</p>
+                          <div className="mt-3 flex gap-2">
+                            {card.status === 'partner' ? (
+                              <>
+                                <button type="button" onClick={() => openPartnerProvider(card)} className="btn-primary flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm sm:min-h-0">
+                                  Get My Report
+                                  <ExternalLink size={14} />
+                                </button>
+                                <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary min-h-11 px-3 text-sm sm:min-h-0">Upload</button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary flex min-h-11 w-full items-center justify-center gap-1.5 text-sm sm:min-h-0">
+                                Upload Report
+                                <Upload size={14} />
                               </button>
-                              <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary min-h-11 px-3 text-sm sm:min-h-0">Upload</button>
-                            </>
-                          ) : (
-                            <button type="button" onClick={() => startProviderUpload(card)} className="btn-primary flex min-h-11 w-full items-center justify-center gap-1.5 text-sm sm:min-h-0">
-                              Upload Report
-                              <Upload size={14} />
-                            </button>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  {otherProviderCard && (
+                      <div className="flex flex-col gap-3 rounded-xl border border-[#dbe3f0] bg-[#f8fbff] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#071942] shadow-sm">
+                            <Building2 size={17} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#071942]">{otherProviderCard.name}</p>
+                            <p className="text-xs leading-5 text-[#52627f]">{otherProviderCard.description}</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => startProviderUpload(otherProviderCard)} className="btn-secondary min-h-11 shrink-0 px-4 text-sm sm:min-h-0">
+                          Upload Report
+                        </button>
+                      </div>
+                  )}
                   <AffiliateDisclosure />
                 </section>
 
