@@ -200,13 +200,13 @@ function AudienceCard({ type, onStart }: { type: 'individuals' | 'business'; onS
   const isBusiness = type === 'business';
   const href = isBusiness ? '/signup?plan=professional' : '/signup?plan=starter';
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 text-center shadow-sm">
+    <article className={`flex h-full flex-col rounded-lg border bg-white p-5 text-center shadow-sm ${isBusiness ? 'border-[#071f4b]/25' : 'border-[#00a83b]/30'}`}>
       <div className="mx-auto mb-2 grid h-7 w-7 place-items-center text-[#061b48]">
         {isBusiness ? <BriefcaseBusiness size={20} /> : <UserRound size={20} />}
       </div>
       <h3 className="text-lg font-black text-[#061642]">{isBusiness ? 'For Businesses' : 'For Individuals'}</h3>
       <p className="mt-1 text-sm font-semibold text-slate-600">{isBusiness ? 'Manage clients. Grow your business.' : 'Take control of your credit.'}</p>
-      <Link href={href} onClick={() => onStart(isBusiness ? 'professional' : 'starter', isBusiness ? 'hero_business' : 'hero_individual')} className={`mt-4 block rounded-md px-5 py-3 text-sm font-black text-white ${isBusiness ? 'bg-[#061b48]' : 'bg-[#079735]'}`}>
+      <Link href={href} onClick={() => onStart(isBusiness ? 'professional' : 'starter', isBusiness ? 'hero_business' : 'hero_individual')} className={`mt-4 block rounded-md px-5 py-3 text-sm font-black text-white shadow-sm transition ${isBusiness ? 'bg-[#071f4b] hover:bg-[#0b2d65]' : 'bg-[#00a83b] hover:bg-[#079735]'}`}>
         {isBusiness ? 'See Business Software' : 'Start $1 Trial'}
       </Link>
       <p className="mt-3 text-xs font-semibold text-[#061642]">{isBusiness ? 'Powerful tools for credit pros' : '$1 trial with a card - Cancel anytime'}</p>
@@ -233,12 +233,12 @@ export default function HomepageContent() {
         <section className="relative hidden overflow-hidden px-5 pb-5 pt-0 sm:px-8 lg:block">
           <div className="absolute right-[9%] top-24 hidden h-[330px] w-[330px] rounded-full bg-[#c7f0d3] opacity-70 blur-sm lg:block" />
           <div className="absolute right-[5%] top-72 hidden h-[280px] w-[280px] rounded-full bg-[#dff0ff] opacity-80 blur-sm lg:block" />
-          <div className="relative mx-auto grid max-w-[1320px] items-center gap-8 lg:grid-cols-[610px_1fr]">
+          <div className="relative mx-auto grid max-w-[1320px] min-w-0 items-center gap-6 xl:gap-8 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
             <div className="py-3 lg:py-4">
               <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">
                 AI-POWERED CREDIT INTELLIGENCE
               </span>
-              <h1 className="mt-4 max-w-[610px] text-[40px] font-black leading-[1.06] text-[#061642] xl:text-[44px]">
+              <h1 className="mt-4 max-w-[560px] text-[38px] font-black leading-[1.07] text-[#071f4b] xl:text-[42px]">
                 AI Analyzes Your Credit.
                 <span className="block">We Find What Matters.</span>
                 <span className="block text-[#079735]">You Take Action.</span>
@@ -246,23 +246,23 @@ export default function HomepageContent() {
               <p className="mt-4 max-w-[535px] text-[15px] font-medium leading-7 text-slate-700">
                 Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
               </p>
-              <div className="mt-5 grid max-w-[540px] gap-4 sm:grid-cols-3">
+              <div className="mt-5 grid max-w-[560px] grid-cols-3 gap-4">
                 {FEATURES.map(({ icon: Icon, title, copy }) => (
-                  <div key={title} className="flex items-center gap-3">
+                  <div key={title} className="grid min-w-0 grid-cols-[26px_minmax(0,1fr)] items-start gap-3">
                     <Icon size={26} className="shrink-0 text-[#079735]" strokeWidth={2.1} />
-                    <span>
-                      <b className="block text-xs text-[#061642]">{title}</b>
-                      <span className="text-[11px] font-semibold text-slate-600">{copy}</span>
+                    <span className="min-w-0">
+                      <b className="block whitespace-nowrap text-xs text-[#071f4b]">{title}</b>
+                      <span className="block text-[11px] font-semibold leading-4 text-[#53657d]">{copy}</span>
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 grid max-w-[530px] gap-5 sm:grid-cols-2">
+              <div className="mt-5 grid max-w-[550px] gap-5 sm:grid-cols-2">
                 <AudienceCard type="individuals" onStart={start} />
                 <AudienceCard type="business" onStart={start} />
               </div>
             </div>
-            <div className="hidden lg:block">
+            <div className="hidden w-full max-w-[640px] min-w-0 justify-self-start lg:block">
               <ProductPreview />
             </div>
           </div>
