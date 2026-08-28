@@ -113,24 +113,20 @@ export function trackOrganicConversionStep(step: string, eventParams: Record<str
  * @param plan - The plan name/id (e.g. 'starter', 'professional', 'agency')
  * @param location - Where on the page the CTA was clicked (e.g. 'hero', 'pricing', 'sticky_bar', 'footer_cta')
  */
+export function getPlanAudience(plan: string): 'individual' | 'business' | 'unknown' {
+  if (plan === 'starter') return 'individual';
+  if (plan === 'professional' || plan === 'agency') return 'business';
+  return 'unknown';
+}
+
 export function trackTrialSignup(plan: string = 'starter', location: string = 'unknown') {
-  trackEvent('signup_started', {
-    event_category: 'conversion',
-    plan_name: plan,
-    cta_location: location,
-  });
   trackEvent('trial_start_click', {
     event_category: 'conversion',
     event_label: `trial_start_${plan}`,
     plan_name: plan,
+    audience: getPlanAudience(plan),
     cta_location: location,
-    currency: 'USD',
-  });
-  trackEvent('begin_checkout', {
-    event_category: 'conversion',
-    event_label: `trial_signup_${plan}`,
-    plan_name: plan,
-    cta_location: location,
+    source_page: 'homepage',
     currency: 'USD',
   });
 }

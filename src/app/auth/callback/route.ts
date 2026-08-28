@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
-import { type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -20,7 +19,7 @@ export async function GET(request: NextRequest) {
         if (type === 'signup') {
           // New signup: always go to checkout first, then onboarding.
           // Checkout sets up the subscription; onboarding gate enforces setup before dashboard.
-          return NextResponse.redirect(`${origin}/checkout?plan=${plan}`);
+          return NextResponse.redirect(`${origin}/checkout?plan=${plan}&verified=1`);
         }
         // Login email confirmation or other flows: check onboarding status
         const {

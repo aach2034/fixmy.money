@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, ArrowRight, Shield, Building2, LockKeyhole, Mail, Loader2, CheckCircle2, Sparkles, FileSearch, ClipboardCheck } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { trackEvent } from '@/lib/analytics';
+import { getPlanAudience, trackEvent } from '@/lib/analytics';
 import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
@@ -56,6 +56,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+  const signupStartedTracked = useRef(false);
 
   const planFromUrl = searchParams.get('plan') || 'starter';
   const isPersonalPlan = planFromUrl === 'starter';
@@ -67,6 +68,17 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
     if (tabFromUrl === 'register') setTab('register');
     if (tabFromUrl === 'forgot') setTab('forgot');
   }, [tabFromUrl]);
+
+  useEffect(() => {
+    if (tab !== 'register' || signupStartedTracked.current) return;
+    signupStartedTracked.current = true;
+    trackEvent('signup_started', {
+      event_category: 'conversion',
+      plan_name: planFromUrl,
+      audience: getPlanAudience(planFromUrl),
+      source_page: window.location.pathname,
+    });
+  }, [planFromUrl, tab]);
 
   useEffect(() => {
     captureCurrentAttribution();
@@ -174,6 +186,11 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       });
 
       if (needsEmailConfirmation) {
+        trackEvent('email_verification_required', {
+          event_category: 'conversion',
+          plan_name: planFromUrl,
+          audience: getPlanAudience(planFromUrl),
+        });
         setRegisteredEmail(data.email);
         setVerifyEmailSent(true);
         toast.success('Account created! Please check your email to verify your address.');

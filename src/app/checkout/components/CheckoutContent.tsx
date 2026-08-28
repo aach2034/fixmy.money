@@ -1,12 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, Shield, Loader2, AlertCircle, RefreshCw, ArrowRight, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { CHECKOUT_PLANS, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
-import { trackEvent } from '@/lib/analytics';
+import { getPlanAudience, trackEvent } from '@/lib/analytics';
 import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 interface UserProfile {
@@ -33,8 +33,30 @@ export default function CheckoutContent() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [error, setError] = useState('');
+  const checkoutCancelledTracked = useRef(false);
+  const emailVerifiedTracked = useRef(false);
 
   const activeStatuses = ['trialing', 'active', 'trial_active'];
+
+  useEffect(() => {
+    if (searchParams.get('cancelled') === '1' && !checkoutCancelledTracked.current) {
+      checkoutCancelledTracked.current = true;
+      trackEvent('checkout_cancelled', {
+        event_category: 'conversion',
+        plan_name: validPlan,
+        currency: 'USD',
+      });
+    }
+
+    if (searchParams.get('verified') === '1' && !emailVerifiedTracked.current) {
+      emailVerifiedTracked.current = true;
+      trackEvent('email_verified', {
+        event_category: 'conversion',
+        plan_name: validPlan,
+        audience: getPlanAudience(validPlan),
+      });
+    }
+  }, [searchParams, validPlan]);
 
   useEffect(() => {
     captureCurrentAttribution();

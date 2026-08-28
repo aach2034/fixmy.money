@@ -23,13 +23,44 @@ describe('Google Analytics funnel tracking', () => {
   });
 
   it('tracks actual checkout starts and deduplicated purchases', () => {
+    const analytics = read('src/lib/analytics.ts');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
     const dashboard = read('src/app/dashboard/page.tsx');
     const checkoutRoute = read('src/app/api/stripe/create-checkout/route.ts');
+    const trialSignupBody = analytics.split('export function trackTrialSignup')[1].split('export function trackToolStarted')[0];
+    expect(trialSignupBody).not.toContain("trackEvent('begin_checkout'");
     expect(checkout).toContain("trackEvent('begin_checkout'");
     expect(checkoutRoute).toContain('session_id={CHECKOUT_SESSION_ID}');
     expect(dashboard).toContain("trackEvent('purchase'");
     expect(dashboard).toContain('ga_purchase_');
+  });
+
+  it('tracks each registration and checkout-return funnel milestone', () => {
+    const authForm = read('src/app/sign-up-login-screen/components/AuthForm.tsx');
+    const authCallback = read('src/app/auth/callback/route.ts');
+    const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
+
+    expect(authForm).toContain("trackEvent('signup_started'");
+    expect(authForm).toContain("trackEvent('sign_up'");
+    expect(authForm).toContain('email_confirmation_required: Boolean(needsEmailConfirmation)');
+    expect(authForm).toContain("trackEvent('email_verification_required'");
+    expect(authCallback).toContain('&verified=1');
+    expect(checkout).toContain("trackEvent('email_verified'");
+    expect(checkout).toContain("searchParams.get('cancelled') === '1'");
+    expect(checkout).toContain("trackEvent('checkout_cancelled'");
+  });
+
+  it('keeps homepage CTA properties distinct and free of signup completion events', () => {
+    const analytics = read('src/lib/analytics.ts');
+    const trialSignupBody = analytics.split('export function trackTrialSignup')[1].split('export function trackToolStarted')[0];
+
+    expect(trialSignupBody).toContain("trackEvent('trial_start_click'");
+    expect(trialSignupBody).toContain('plan_name: plan');
+    expect(trialSignupBody).toContain('audience: getPlanAudience(plan)');
+    expect(trialSignupBody).toContain('cta_location: location');
+    expect(trialSignupBody).toContain("source_page: 'homepage'");
+    expect(trialSignupBody).not.toContain("trackEvent('signup_started'");
+    expect(trialSignupBody).not.toContain("trackEvent('sign_up'");
   });
 
   it('preserves acquisition attribution through signup and checkout', () => {
