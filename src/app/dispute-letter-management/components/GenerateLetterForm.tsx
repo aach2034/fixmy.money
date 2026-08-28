@@ -6,7 +6,7 @@ import { CheckSquare, Square, Loader2, Download, Printer, X, AlertTriangle, File
 import { createClient } from '@/lib/supabase/client';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
-import { buildConsumerSenderBlock, getLetterSenderInfo, type LetterSenderInfo } from '@/lib/disputes/letterSender';
+import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, type LetterSenderInfo } from '@/lib/disputes/letterSender';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -608,10 +608,6 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
   const validateBeforeGenerate = (data: GenerateLetterFormData): ValidationIssue[] => {
     const issues: ValidationIssue[] = [];
     if (!data.clientId) issues.push({ field: 'Client', message: 'Select a client from the dropdown' });
-    const clientInfo = clientOptions.find(c => c.id === data.clientId);
-    if (data.clientId && !getLetterSenderInfo(clientInfo)) {
-      issues.push({ field: 'Client Profile', message: 'Selected client profile must include name, street address, city, 2-letter state, and ZIP before generating a letter' });
-    }
     if (selectedItems.size === 0) issues.push({ field: 'Dispute Items', message: 'Select at least one dispute item to include' });
     return issues;
   };
@@ -644,11 +640,22 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         .single();
 
       const selectedDisputeItems = disputeItems.filter(item => selectedItems.has(item.id));
-      const clientInfo = clientOptions.find(c => c.id === data.clientId);
+      const { data: clientInfo, error: clientError } = await supabase
+        .from('staff_clients')
+        .select('id, name, email, phone, address, city, state, zip')
+        .eq('id', data.clientId)
+        .eq('owner_id', user.id)
+        .single();
+      if (clientError || !clientInfo) throw new Error('Selected client profile could not be refreshed.');
+
       const sender = getLetterSenderInfo(clientInfo);
-      if (!sender) {
-        throw new Error('Selected client profile must include a complete mailing address before generating a letter.');
-      }
+      if (!sender) throw new Error(formatMissingMailingAddressError(clientInfo) ?? 'Client name is missing.');
+      const normalizedAddress = normalizeClientMailingAddress(clientInfo);
+      setClientOptions(current => current.map(client => client.id === data.clientId ? clientInfo : client));
+      setValue('clientAddress', normalizedAddress.street);
+      setValue('clientCity', normalizedAddress.city);
+      setValue('clientState', normalizedAddress.state);
+      setValue('clientZip', normalizedAddress.postalCode);
       const clientName = sender.name;
 
       const bureauShort: Record<string, string> = { Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' };

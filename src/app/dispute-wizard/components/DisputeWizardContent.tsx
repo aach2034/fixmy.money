@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
-import { buildConsumerSenderBlock, getLetterSenderInfo } from '@/lib/disputes/letterSender';
+import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress } from '@/lib/disputes/letterSender';
 import { trackOrganicConversionStep } from '@/lib/analytics';
 
 
@@ -84,7 +84,7 @@ const INSTRUCTIONS = [
 ];
 
 export const hasCompleteMailingAddress = (street: string, city: string, state: string, zip: string) =>
-  Boolean(street.trim() && city.trim() && state.trim().length === 2 && zip.trim().length >= 5);
+  !formatMissingMailingAddressError({ address: street, city, state, zip });
 
 const STEPS = [
   { id: 1, label: 'Select Client', icon: User },
@@ -309,15 +309,27 @@ export default function DisputeWizardContent() {
       toast.error('Missing required information');
       return;
     }
-    const sender = getLetterSenderInfo(selectedClient);
-    if (!sender) {
-      toast.error('Complete the selected client profile mailing address before generating a letter.');
-      return;
-    }
     setGenerating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      const { data: persistedClient, error: clientError } = await supabase
+        .from('staff_clients')
+        .select('id, name, email, phone, address, city, state, zip')
+        .eq('id', selectedClient.id)
+        .eq('owner_id', user.id)
+        .single();
+      if (clientError || !persistedClient) throw new Error('Selected client profile could not be refreshed.');
+
+      const sender = getLetterSenderInfo(persistedClient);
+      if (!sender) throw new Error(formatMissingMailingAddressError(persistedClient) ?? 'Client name is missing.');
+      const normalizedAddress = normalizeClientMailingAddress(persistedClient);
+      setSelectedClient(persistedClient);
+      setClientAddress(normalizedAddress.street);
+      setClientCity(normalizedAddress.city);
+      setClientState(normalizedAddress.state);
+      setClientZip(normalizedAddress.postalCode);
 
       const { data: workspace } = await supabase
         .from('workspaces').select('id').eq('owner_id', user.id).single();
@@ -394,7 +406,7 @@ Date: ${today}`;
         client_id: selectedClient.id,
         workspace_id: workspace?.id ?? null,
         letter_id: letterId,
-        client_name: selectedClient.name,
+        client_name: sender.name,
         bureau: selectedBureau,
         items_count: selectedItems.size,
         round,

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getLetterSenderInfo } from '@/lib/disputes/letterSender';
+import { formatMissingMailingAddressError, getLetterSenderInfo } from '@/lib/disputes/letterSender';
 import {
   buildCertifiedMailingDraft,
   createCertifiedMailIdempotencyKey,
@@ -78,7 +78,7 @@ export async function loadCertifiedMailingContext(params: {
 
   const sender = getLetterSenderInfo(client as ClientRecord);
   if (!sender) {
-    return { context: null, error: 'Client profile must include a complete mailing address before certified mail can be created.', status: 422 };
+    return { context: null, error: formatMissingMailingAddressError(client as ClientRecord) ?? 'Client name is missing.', status: 422 };
   }
 
   const { draft, errors } = buildCertifiedMailingDraft({
