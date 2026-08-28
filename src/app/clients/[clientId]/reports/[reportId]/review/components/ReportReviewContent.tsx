@@ -162,6 +162,14 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           publicRecords: 0,
           overall: reportData.overall_confidence ?? 0,
         },
+        sectionStatuses: {
+          creditScores: (reportData.scores ?? []).length > 0 ? 'parsed_with_results' : 'section_not_found',
+          inquiries: (reportData.all_inquiries ?? []).length > 0 ? 'parsed_with_results' : 'section_not_found',
+          collections: parsedAccounts.some(a => a.isCollection) ? 'parsed_with_results' : 'parsed_none_reported',
+          publicRecords: (reportData.public_records ?? []).length > 0 ? 'parsed_with_results' : 'section_not_found',
+          chargeOffs: parsedAccounts.some(a => a.isChargeOff) ? 'parsed_with_results' : 'parsed_none_reported',
+          accounts: parsedAccounts.length > 0 ? 'parsed_with_results' : 'section_not_found',
+        },
         negativeClassificationRan: true,
       };
 

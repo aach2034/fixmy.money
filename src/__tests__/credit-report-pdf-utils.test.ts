@@ -98,6 +98,63 @@ describe('credit report PDF text extraction', () => {
     expect(best?.quality.meaningful).toBe(true);
   });
 
+  it('records retry recovery at page level after an empty primary OCR result', () => {
+    const page = resolveExtractedPage(1, nativePage(1, ''), [
+      {
+        text: '',
+        confidence: 0,
+        rotation: 0,
+        engine: 'tesseract.js/local-worker',
+        preprocessing: 'none',
+      },
+      {
+        text: reportText('Retry Recovery Bank'),
+        confidence: 83,
+        rotation: 0,
+        engine: 'tesseract.js/local-worker',
+        preprocessing: 'contrast-normalized',
+      },
+    ]);
+
+    expect(page.source).toBe('ocr');
+    expect(page.extraction).toMatchObject({
+      primaryOcrAttempted: true,
+      primaryOcrSucceeded: false,
+      retryAttempted: true,
+      retryRecovered: true,
+      fallbackOcrAttempted: false,
+      finalStatus: 'ocr_retry',
+    });
+  });
+
+  it('records fallback recovery when primary OCR remains unusable', () => {
+    const page = resolveExtractedPage(1, nativePage(1, ''), [
+      {
+        text: '||| 1 ? $',
+        confidence: 12,
+        rotation: 0,
+        engine: 'tesseract.js/local-worker',
+        preprocessing: 'none',
+      },
+      {
+        text: reportText('Fallback Recovery Bank'),
+        confidence: 79,
+        rotation: 0,
+        engine: 'tesseract.js/fresh-worker',
+        preprocessing: 'contrast-normalized',
+      },
+    ]);
+
+    expect(page.source).toBe('ocr');
+    expect(page.extraction).toMatchObject({
+      primaryOcrAttempted: true,
+      primaryOcrSucceeded: false,
+      fallbackOcrAttempted: true,
+      fallbackOcrSucceeded: true,
+      finalStatus: 'ocr_fallback',
+    });
+  });
+
   it('rejects a low-quality scan before parsing', () => {
     const page = resolveExtractedPage(1, nativePage(1, ''), [
       { text: '||| 1 ? $', confidence: 9, rotation: 0 },
@@ -105,6 +162,12 @@ describe('credit report PDF text extraction', () => {
     const validation = validateCreditReportExtraction([page], 1);
 
     expect(page.source).toBe('failed');
+    expect(page.extraction).toMatchObject({
+      finalStatus: 'unreadable',
+      primaryOcrAttempted: false,
+      retryRecovered: false,
+      fallbackOcrSucceeded: false,
+    });
     expect(combineExtractedPdfPages([page])).not.toContain('|||');
     expect(validation.valid).toBe(false);
     expect(validation.errorCode).toBe('OCR_FAILED');

@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { trackEvent } from '@/lib/analytics';
+import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
 type ForgotPasswordFormData = { email: string };
@@ -60,6 +61,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const isPersonalPlan = planFromUrl === 'starter';
   const tabFromUrl = searchParams.get('tab') || defaultTab || 'login';
   const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
+  const checkoutHref = () => appendAttributionToHref(`/checkout?plan=${planFromUrl}`, getStoredAttribution());
 
   useEffect(() => {
     if (tabFromUrl === 'register') setTab('register');
@@ -67,6 +69,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   }, [tabFromUrl]);
 
   useEffect(() => {
+    captureCurrentAttribution();
     let cancelled = false;
     const checkSession = async () => {
       try {
@@ -90,7 +93,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
             router.replace(redirectTo || '/dashboard');
           }
         } else {
-          router.replace(`/checkout?plan=${planFromUrl}`);
+          router.replace(checkoutHref());
         }
       } catch (err) {
         console.error('[AuthForm] checkSession error:', err);
@@ -123,7 +126,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
             router.push(redirectTo || '/dashboard');
           }
         } else {
-          router.push(`/checkout?plan=${planFromUrl}`);
+          router.push(checkoutHref());
         }
       } else {
         router.push(redirectTo || '/dashboard');
@@ -143,10 +146,12 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
     }
     setLoading(true);
     try {
+      const attribution = captureCurrentAttribution();
       const result = await signUp(data.email, data.password, {
         fullName: data.adminName,
         companyName: data.companyName.trim() || `${data.adminName.trim()}'s Workspace`,
         plan: planFromUrl,
+        attribution: attributionEventParams(attribution),
       });
 
       if (result?.user && result.user.identities && result.user.identities.length === 0) {
@@ -162,6 +167,11 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         plan_name: planFromUrl,
         email_confirmation_required: Boolean(needsEmailConfirmation),
       });
+      trackEvent('signup_completed', {
+        method: 'email',
+        plan_name: planFromUrl,
+        email_confirmation_required: Boolean(needsEmailConfirmation),
+      });
 
       if (needsEmailConfirmation) {
         setRegisteredEmail(data.email);
@@ -169,7 +179,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         toast.success('Account created! Please check your email to verify your address.');
       } else {
         toast.success('Account created! Now start your 14-day trial for $1.');
-        router.push(`/checkout?plan=${planFromUrl}`);
+        router.push(checkoutHref());
       }
     } catch (error: any) {
       console.error('[AuthForm] Register error:', error);
@@ -249,7 +259,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               </button>
             </p>
           </div>
-          <button type="button" onClick={() => router.push(`/checkout?plan=${planFromUrl}`)} className="text-sm text-blue-600 hover:underline">
+          <button type="button" onClick={() => router.push(checkoutHref())} className="text-sm text-blue-600 hover:underline">
             Already verified? Continue to plan selection →
           </button>
         </div>

@@ -249,6 +249,15 @@ export async function POST(req: NextRequest) {
             stripeSubscriptionId: session.subscription as string || undefined,
             status: 'completed',
             stripeCreatedAt: event.created,
+            metadata: session.metadata ?? undefined,
+          });
+          await logBillingEvent('trial_started', {
+            stripeEventId: `${event.id}_trial_started`,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: session.subscription as string || undefined,
+            status: 'trial_active',
+            stripeCreatedAt: event.created,
+            metadata: session.metadata ?? undefined,
           });
 
           const { email, name } = await getCustomerInfo(customerId);
@@ -299,6 +308,7 @@ export async function POST(req: NextRequest) {
           stripeSubscriptionId: subscription.id,
           status: subscription.status,
           stripeCreatedAt: event.created,
+          metadata: subscription.metadata ?? undefined,
         });
         break;
       }
@@ -321,6 +331,7 @@ export async function POST(req: NextRequest) {
           stripeSubscriptionId: subscription.id,
           status: subscription.status,
           stripeCreatedAt: event.created,
+          metadata: subscription.metadata ?? undefined,
         });
 
         const previousAttributes = event.data.previous_attributes as Partial<Stripe.Subscription> | undefined;
@@ -328,6 +339,15 @@ export async function POST(req: NextRequest) {
         const isNowActive = subscription.status === 'active';
 
         if (wasTrialing && isNowActive && subscription.customer) {
+          await logBillingEvent('subscription_started', {
+            stripeEventId: `${event.id}_subscription_started`,
+            stripeCustomerId: subscription.customer as string,
+            stripeSubscriptionId: subscription.id,
+            status: 'active',
+            stripeCreatedAt: event.created,
+            metadata: subscription.metadata ?? undefined,
+          });
+
           const { email, name } = await getCustomerInfo(subscription.customer as string);
           if (email) {
             const periodEnd = subscriptionPeriodEnd(subscription);

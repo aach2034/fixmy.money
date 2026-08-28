@@ -3,7 +3,7 @@
 // Each adapter converts a provider-specific report into the NormalizedReport schema.
 // No adapter is allowed to crash on malformed input — all errors are captured as warnings.
 
-import { safeNormalizeText, type SupportedProvider } from './parser';
+import { normalizeCreditReportToHtml, safeNormalizeText, type SupportedProvider } from './parser';
 import { extractCreditReportDate } from './dateValidation';
 import { isReliableInquiry } from './auditItems';
 
@@ -578,7 +578,25 @@ export function parseWithAdapter(
 ): NormalizedReport {
   try {
     const adapter = getAdapter(provider);
-    return adapter.parse(text, provider);
+    const normalized = safeNormalizeText(text ?? '');
+    const isHtml = /<(?:!doctype|html|head|body|table|thead|tbody|tr|td|th|dl|dt|dd|section|div|span|p|br|script|style)\b/i.test(text ?? '');
+    if (isHtml || normalized.trim().length === 0) {
+      return adapter.parse(normalized, provider);
+    }
+
+    const canonical = normalizeCreditReportToHtml(normalized, provider);
+    const parserInput = canonical.diagnostics.accountSectionsProduced > 0
+      ? `${normalized.trim()}\n\n${safeNormalizeText(canonical.html)}`.trim()
+      : normalized;
+    const parsed = adapter.parse(parserInput, provider);
+    if (canonical.diagnostics.accountSectionsProduced > 0) {
+      parsed.warnings.push({
+        section: 'normalization',
+        message: `Canonical HTML normalization produced ${canonical.diagnostics.accountSectionsProduced} account section(s) before adapter parsing.`,
+        severity: 'info',
+      });
+    }
+    return parsed;
   } catch (err: any) {
     // Never crash — return a minimal failed result
     const generic = new GenericAdapter();

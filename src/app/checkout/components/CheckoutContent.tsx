@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { CHECKOUT_PLANS, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
 import { trackEvent } from '@/lib/analytics';
+import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 interface UserProfile {
   subscription_status: string | null;
@@ -36,9 +37,10 @@ export default function CheckoutContent() {
   const activeStatuses = ['trialing', 'active', 'trial_active'];
 
   useEffect(() => {
+    captureCurrentAttribution();
     if (authLoading) return;
     if (!user) {
-      router.replace(`/sign-up-login-screen?plan=${selectedPlan}`);
+      router.replace(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
       return;
     }
 
@@ -68,7 +70,7 @@ export default function CheckoutContent() {
 
   const handleStartCheckout = async () => {
     if (!user) {
-      router.push(`/sign-up-login-screen?plan=${selectedPlan}`);
+      router.push(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
       return;
     }
 
@@ -95,6 +97,7 @@ export default function CheckoutContent() {
           email: user.email || profile?.email,
           name: profile?.full_name || '',
           userId: user.id,
+          attribution: attributionEventParams(captureCurrentAttribution()),
         }),
       });
 
@@ -121,12 +124,18 @@ export default function CheckoutContent() {
           currency: 'USD',
           value: TRIAL_CONFIG.chargeCents / 100,
           plan_name: selectedPlan,
+          checkout_started: true,
           items: [{
             item_id: selectedPlan,
             item_name: `FixMy.Money ${plan.name}`,
             price: TRIAL_CONFIG.chargeCents / 100,
             quantity: 1,
           }],
+        });
+        trackEvent('checkout_started', {
+          currency: 'USD',
+          value: TRIAL_CONFIG.chargeCents / 100,
+          plan_name: selectedPlan,
         });
         window.location.href = data.url;
       } else {

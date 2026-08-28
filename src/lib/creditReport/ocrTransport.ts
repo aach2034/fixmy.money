@@ -29,7 +29,56 @@ export interface CachedOcrExtraction {
       score: number;
       meaningful: boolean;
     };
+    extraction?: {
+      pageNumber: number;
+      nativeTextAvailable: boolean;
+      nativeCharacterCount: number;
+      renderedSuccessfully: boolean;
+      preprocessingApplied: string[];
+      primaryOcrAttempted: boolean;
+      primaryOcrSucceeded: boolean;
+      primaryOcrConfidence: number | null;
+      retryAttempted: boolean;
+      retryRecovered: boolean;
+      fallbackOcrAttempted: boolean;
+      fallbackOcrSucceeded: boolean;
+      fallbackOcrConfidence: number | null;
+      extractedCharacterCount: number;
+      finalStatus: 'native_text' | 'ocr_primary' | 'ocr_retry' | 'ocr_fallback' | 'unreadable';
+      failureReason: string | null;
+      engine?: string;
+    };
   }>;
+  pageResults?: Array<{
+    pageNumber: number;
+    nativeTextAvailable: boolean;
+    nativeCharacterCount: number;
+    renderedSuccessfully: boolean;
+    preprocessingApplied: string[];
+    primaryOcrAttempted: boolean;
+    primaryOcrSucceeded: boolean;
+    primaryOcrConfidence: number | null;
+    retryAttempted: boolean;
+    retryRecovered: boolean;
+    fallbackOcrAttempted: boolean;
+    fallbackOcrSucceeded: boolean;
+    fallbackOcrConfidence: number | null;
+    extractedCharacterCount: number;
+    finalStatus: 'native_text' | 'ocr_primary' | 'ocr_retry' | 'ocr_fallback' | 'unreadable';
+    failureReason: string | null;
+    engine?: string;
+  }>;
+  primaryOcrSuccesses?: number;
+  primaryOcrFailures?: number;
+  retryRecoveries?: number;
+  fallbackRecoveries?: number;
+  capability?: {
+    nativePdfExtraction: boolean;
+    pageRendering: boolean;
+    primaryOcr: boolean;
+    fallbackOcr: boolean;
+    reasons: Record<string, string | undefined>;
+  };
 }
 
 export function createOcrCachePath(userId: string, sha256: string): string {

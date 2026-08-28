@@ -1,82 +1,435 @@
 'use client';
-import { useState } from 'react';
-import Image from 'next/image';
+
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Activity, ArrowRight, BarChart3, Bot, Check, ChevronDown, CircleDollarSign, FileCheck2, Gauge, Menu, Play, Sparkles, TrendingUp, UploadCloud, Users, Workflow, X, Zap } from 'lucide-react';
-import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
-import { trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
+import {
+  BadgeCheck,
+  BriefcaseBusiness,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardCheck,
+  FileSearch,
+  LayoutDashboard,
+  LockKeyhole,
+  Menu,
+  Send,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  UserRound,
+} from 'lucide-react';
+import { CHECKOUT_PLANS, PLANS } from '@/lib/stripe/plans';
+import { trackCtaClick, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
 
-const faqs = [
-  ['How does the 14-day trial work?', 'Pay $1 today for 14 days of access to your selected plan. After the trial, the subscription renews monthly unless canceled.'],
-  ['Does FixMy AI make dispute decisions?', 'No. FixMy AI assists with report analysis, inconsistency detection, organization, scoring, and drafts. A person reviews and approves every dispute decision.'],
-  ['Can we migrate from another platform?', 'Yes. The migration workflow covers client records, documents, dispute history, templates, deadlines, and a final reconciliation before cutover.'],
-  ['Does FixMy.Money support agency compliance?', 'The platform supports documented agreements, authorization, approvals, billing events, and audit history. It does not replace legal advice or guarantee compliance.'],
+const NAV_LINKS = [
+  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'For Individuals', href: '/individuals' },
+  { label: 'For Business', href: '/professionals' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'Resources', href: '/resources', dropdown: true },
 ];
 
-const footerSections = [
-  {
-    heading: 'Platform',
-    links: [
-      { label: 'Product tour', href: '/product-tour' },
-      { label: 'Pricing', href: '/pricing' },
-      { label: 'Live demo', href: '/demo' },
-    ],
-  },
-  {
-    heading: 'Compare',
-    links: [
-      { label: 'Alternatives', href: '/credit-repair-cloud-alternative' },
-      { label: 'Migration', href: '/switch' },
-      { label: 'Small agencies', href: '/credit-repair-software-for-small-agencies' },
-    ],
-  },
-  {
-    heading: 'Legal',
-    links: [
-      { label: 'Security', href: '/security' },
-      { label: 'Privacy', href: '/privacy' },
-      { label: 'Terms', href: '/terms' },
-    ],
-  },
+const FEATURES = [
+  { icon: Sparkles, title: 'AI Report Analysis', copy: 'Find issues others miss' },
+  { icon: BadgeCheck, title: 'Prioritize & Score', copy: 'Focus on what matters' },
+  { icon: ShieldCheck, title: 'Guided Disputes', copy: 'Take action with confidence' },
 ];
 
-function AgencyDashboard() {
-  return <div className="relative mx-auto max-w-[1100px]">
-    <div className="absolute -inset-16 -z-10 bg-[radial-gradient(circle_at_50%_40%,rgba(124,58,237,.32),transparent_55%)] blur-2xl"/>
-    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#0e1729] shadow-[0_55px_140px_-35px_rgba(37,99,235,.6)]">
-      <div className="flex h-14 items-center border-b border-white/10 px-5"><div className="flex gap-2"><i className="h-2.5 w-2.5 rounded-full bg-red-400"/><i className="h-2.5 w-2.5 rounded-full bg-amber-400"/><i className="h-2.5 w-2.5 rounded-full bg-blue-400"/></div><span className="ml-5 text-[11px] font-bold text-slate-500">FixMy.Money · Agency Overview</span><span className="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold text-slate-300">August 2026</span></div>
-      <div className="grid lg:grid-cols-[170px_1fr]">
-        <aside className="hidden border-r border-white/10 bg-[#09101f] p-4 lg:block"><div className="mb-8 flex items-center gap-2 text-xs font-black"><span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600">F</span> FixMy.Money</div>{['Overview','Clients','Report analysis','Dispute workflow','Billing','Automations','Analytics'].map((x,i)=><div key={x} className={`mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-bold ${i===0?'bg-blue-600 text-white':'text-slate-500'}`}><span className={`h-1.5 w-1.5 rounded-full ${i===0?'bg-white':'bg-slate-700'}`}/>{x}</div>)}</aside>
-        <div className="p-4 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold text-slate-500">Good morning, Agency Admin</p><h2 className="mt-1 text-xl font-black text-white">Your agency at a glance</h2></div><button className="rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-3 py-2 text-[10px] font-bold">Import credit report</button></div>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[[CircleDollarSign,'$42,860','Monthly revenue','+12.4%'],[Users,'284','Active clients','+18'],[FileCheck2,'126','Open disputes','31 due'],[TrendingUp,'71%','Positive outcomes','+4.8%']].map(([Icon,v,l,d])=><div key={l as string} className="rounded-xl border border-white/10 bg-white/[.035] p-3.5"><div className="flex items-center justify-between"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-500/10 text-blue-400"><Icon size={15}/></span><span className="text-[8px] font-bold text-emerald-400">{d as string}</span></div><p className="mt-4 text-xl font-black">{v as string}</p><p className="mt-1 text-[9px] font-semibold text-slate-500">{l as string}</p></div>)}</div>
-          <div className="mt-3 grid gap-3 lg:grid-cols-[1.15fr_.85fr]"><div className="rounded-xl border border-white/10 bg-white/[.035] p-4"><div className="flex justify-between"><div><p className="text-xs font-black">Agency revenue</p><p className="mt-1 text-[9px] text-slate-500">Recurring revenue and collections</p></div><BarChart3 size={16} className="text-violet-400"/></div><div className="mt-5 flex h-28 items-end gap-2">{[35,48,42,62,58,76,68,89,78,95].map((h,i)=><span key={i} className="flex-1 rounded-t bg-gradient-to-t from-blue-700 to-violet-400" style={{height:`${h}%`}}/>)}</div></div><div className="rounded-xl border border-white/10 bg-white/[.035] p-4"><div className="flex justify-between"><p className="text-xs font-black">Bureau responses</p><Gauge size={16} className="text-cyan-400"/></div><div className="mt-5 space-y-3">{[['Experian','42','w-[78%]','bg-blue-500'],['Equifax','36','w-[66%]','bg-violet-500'],['TransUnion','31','w-[58%]','bg-fuchsia-500']].map(([b,n,w,c])=><div key={b}><div className="flex justify-between text-[9px]"><span className="font-bold text-slate-300">{b}</span><span className="text-slate-500">{n} responses</span></div><div className="mt-1.5 h-1.5 rounded-full bg-white/10"><div className={`h-full rounded-full ${w} ${c}`}/></div></div>)}</div></div></div>
-          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr]"><div className="overflow-hidden rounded-xl border border-white/10 bg-white/[.035]"><div className="flex justify-between border-b border-white/10 px-4 py-3"><p className="text-xs font-black">Report analysis queue</p><span className="text-[9px] font-bold text-blue-400">7 need review</span></div>{[['Jordan Ellis','3 inconsistencies','78 potential'],['Maya Reed','5 inconsistencies','84 potential'],['Marcus Lee','2 inconsistencies','61 potential']].map(([n,s,p],i)=><div key={n} className="flex items-center border-b border-white/5 px-4 py-2.5 last:border-0"><span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-blue-600 to-violet-600 text-[8px] font-black">{n.split(' ').map(x=>x[0]).join('')}</span><div className="ml-2.5"><p className="text-[9px] font-bold">{n}</p><p className="mt-0.5 text-[8px] text-slate-500">{s}</p></div><span className={`ml-auto rounded-full px-2 py-1 text-[8px] font-bold ${i===1?'bg-violet-500/15 text-violet-300':'bg-blue-500/15 text-blue-300'}`}>{p}</span></div>)}</div><div className="rounded-xl border border-white/10 bg-white/[.035] p-4"><div className="flex justify-between"><p className="text-xs font-black">Recent activity</p><Activity size={15} className="text-blue-400"/></div><div className="mt-4 space-y-3">{[['Client onboarded','Avery Johnson','2m'],['Draft approved','Maya Reed · Round 2','18m'],['Stripe payment received','$99 · Start plan','1h'],['Workflow completed','Experian response logged','2h']].map(([a,b,t],i)=><div key={a} className="flex items-start gap-2.5"><span className={`mt-1 h-2 w-2 rounded-full ${['bg-cyan-400','bg-violet-400','bg-blue-400','bg-fuchsia-400'][i]}`}/><div><p className="text-[9px] font-bold">{a}</p><p className="text-[8px] text-slate-500">{b}</p></div><span className="ml-auto text-[8px] text-slate-600">{t}</span></div>)}</div></div></div>
+const TRUST_ITEMS = [
+  { icon: ShieldCheck, title: 'Bank-Level Security', copy: '256-bit encryption' },
+  { icon: LockKeyhole, title: 'Private & Secure', copy: 'Your data is protected' },
+  { icon: CalendarClock, title: 'Cancel Anytime', copy: 'No long-term contracts' },
+];
+
+const WORKFLOW = [
+  { icon: FileSearch, title: '1. Upload Your Report', copy: 'Securely upload your credit report.' },
+  { icon: Sparkles, title: '2. AI Analyzes Everything', copy: 'We find issues and estimate dispute likelihood.' },
+  { icon: ClipboardCheck, title: '3. Get Your Plan', copy: 'See what to dispute first and why it matters.' },
+  { icon: Send, title: '4. Take Action', copy: 'Generate letters, track progress, and get results.' },
+];
+
+const pricingPlans = [PLANS.starter, PLANS.professional, PLANS.agency, PLANS.enterprise];
+
+function Logo({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link href="/" className="inline-flex items-center gap-2" aria-label="FixMy.Money home">
+      <span className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} relative grid shrink-0 place-items-center rounded-full`}>
+        <span className="absolute h-full w-full rounded-full border-[3px] border-[#18b95e]" />
+        <span className="absolute h-[54%] w-[54%] rounded-full border-[3px] border-[#1769e0] border-r-transparent border-t-transparent" />
+        <CheckCircle2 className="relative z-10 text-[#128f40]" size={compact ? 18 : 21} strokeWidth={3} />
+      </span>
+      <span className={`${compact ? 'text-[21px]' : 'text-[26px]'} font-black leading-none text-[#061642]`}>
+        FixMy.Money
+      </span>
+    </Link>
+  );
+}
+
+function Header({ onStart }: { onStart: (plan: string, location: string) => void }) {
+  return (
+    <header className="mx-auto hidden h-[70px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:flex">
+      <Logo />
+      <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary navigation">
+        {NAV_LINKS.map((link) =>
+          link.href.startsWith('#') ? (
+            <a key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-[#061642] hover:text-[#079735]">
+              {link.label}
+              {link.dropdown && <ChevronDown size={14} />}
+            </a>
+          ) : (
+            <Link key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-[#061642] hover:text-[#079735]">
+              {link.label}
+              {link.dropdown && <ChevronDown size={14} />}
+            </Link>
+          ),
+        )}
+      </nav>
+      <div className="hidden items-center gap-4 lg:flex">
+        <Link href="/login" onClick={() => trackCtaClick('Sign In', '/login', 'nav')} className="rounded-md border border-[#061642] px-5 py-2.5 text-sm font-bold text-[#061642] hover:bg-[#f5f8fb]">
+          Sign In
+        </Link>
+        <Link href="/signup?plan=professional" onClick={() => onStart('professional', 'nav')} className="rounded-md bg-[#069b35] px-7 py-3 text-sm font-black text-white shadow-lg shadow-green-900/10 hover:bg-[#07862f]">
+          Start $1 Trial
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function ProductPreview({ mobile = false }: { mobile?: boolean }) {
+  return (
+    <div className={`relative overflow-hidden border border-slate-200 bg-white shadow-[0_24px_90px_-50px_rgba(6,22,66,.55)] ${mobile ? 'rounded-lg' : 'rounded-xl'}`}>
+      <div className={`${mobile ? 'block' : 'grid lg:grid-cols-[150px_1fr]'}`}>
+        {!mobile && (
+          <aside className="hidden bg-[#061b48] p-5 text-white lg:block">
+            <div className="mb-7 flex items-center gap-2 text-xs font-black text-white">
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#079735]"><CheckCircle2 size={16} strokeWidth={3} /></span>
+              FixMy.Money
+            </div>
+            {['Dashboard', 'Reports', 'AI Analysis', 'Disputes', 'Letters', 'Progress', 'History', 'Settings'].map((item, index) => (
+              <div key={item} className={`mb-2 flex h-9 items-center gap-2 rounded-md px-3 text-xs font-bold ${index === 0 ? 'bg-white/10 text-white' : 'text-white/80'}`}>
+                {index === 0 ? <LayoutDashboard size={14} /> : index === 7 ? <Settings size={14} /> : <span className="h-3 w-3 rounded-sm border border-current" />}
+                {item}
+              </div>
+            ))}
+          </aside>
+        )}
+        <div className={`${mobile ? 'p-3' : 'p-4 sm:p-5'}`}>
+          <h2 className={`mb-4 font-black text-[#061642] ${mobile ? 'text-sm' : 'text-base'}`}>Overview</h2>
+          <div className={`grid gap-3 ${mobile ? 'grid-cols-2' : 'sm:grid-cols-2'}`}>
+            <div className={`rounded-lg border border-slate-200 bg-white ${mobile ? 'p-3' : 'p-5'}`}>
+              <p className="text-xs font-black text-[#061642]">Overall Report Grade</p>
+              <div className={`mt-4 flex items-center ${mobile ? 'gap-2' : 'gap-4'}`}>
+                <div className={`grid place-items-center rounded-full bg-[conic-gradient(#18a952_0_62%,#cad2df_62%_100%)] p-2 ${mobile ? 'h-16 w-16' : 'h-20 w-20'}`}>
+                  <div className={`grid h-full w-full place-items-center rounded-full bg-white font-black text-[#061642] ${mobile ? 'text-3xl' : 'text-4xl'}`}>B</div>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#079735]">Good</p>
+                  {!mobile && <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Your credit is improving. Keep going!</p>}
+                </div>
+              </div>
+              <p className={`${mobile ? 'mt-2 text-[10px]' : 'mt-5 text-xs'} font-semibold text-slate-500`}>Next update in 7 days</p>
+            </div>
+            <div className={`rounded-lg border border-slate-200 bg-white ${mobile ? 'p-3' : 'p-5'}`}>
+              <p className="text-xs font-black text-[#061642]">Potentially Disputable Items</p>
+              <p className={`${mobile ? 'mt-3 text-3xl' : 'mt-4 text-4xl'} font-black text-[#061642]`}>23</p>
+              <p className="text-xs font-semibold text-slate-500">Items Found</p>
+              <div className={`${mobile ? 'mt-3 space-y-1.5 text-[10px]' : 'mt-4 space-y-2 text-xs'} font-semibold`}>
+                {[
+                  ['High Priority', '8', 'bg-red-500'],
+                  ['Medium Priority', '10', 'bg-amber-400'],
+                  ['Low Priority', '5', 'bg-[#18a952]'],
+                ].map(([label, value, color]) => (
+                  <div key={label} className="flex items-center justify-between gap-4">
+                    <span className="flex items-center gap-2 text-[#061642]"><span className={`h-2.5 w-2.5 rounded-full ${color}`} />{label}</span>
+                    <b>{value}</b>
+                  </div>
+                ))}
+              </div>
+              <Link href="/credit-report-import" onClick={() => trackCtaClick('Review All Items', '/credit-report-import', 'preview')} className={`${mobile ? 'mt-3 bg-[#079735] py-2 text-[10px]' : 'mt-5 bg-[#061b48] py-2.5 text-xs'} block rounded-md px-4 text-center font-black text-white`}>
+                Review All Items
+              </Link>
+            </div>
+          </div>
+          <div className={`${mobile ? 'mt-3 p-3' : 'mt-4 p-5'} rounded-lg border border-slate-200 bg-white`}>
+            <p className="text-xs font-black text-[#061642]">Credit Scores</p>
+            <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 text-center">
+              {[
+                ['Experian', '682', '28 pts'],
+                ['Equifax', '699', '34 pts'],
+                ['TransUnion', '672', '22 pts'],
+              ].map(([bureau, score, points]) => (
+                <div key={bureau} className="px-2">
+                  <p className="text-xs font-semibold text-slate-500">{bureau}</p>
+                  <p className={`${mobile ? 'text-2xl' : 'text-3xl'} mt-1 font-black text-[#061642]`}>{score}</p>
+                  <p className="text-xs font-black text-[#079735]">Up {points}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          {!mobile && (
+            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
+              <p className="text-xs font-black text-[#061642]">Recent Activity</p>
+              <div className="mt-4 space-y-4 text-xs">
+                {[
+                  ['Bank Collection Removed', 'Our dispute was successful', 'May 16, 2024'],
+                  ['Credit Card Late Payment', 'Marked as Not Your Account', 'May 14, 2024'],
+                ].map(([title, copy, date]) => (
+                  <div key={title} className="flex items-center gap-3">
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-700"><BadgeCheck size={15} /></span>
+                    <span className="min-w-0 flex-1">
+                      <b className="block text-[#061642]">{title}</b>
+                      <span className="font-semibold text-slate-500">{copy}</span>
+                    </span>
+                    <span className="font-semibold text-slate-500">{date}</span>
+                  </div>
+                ))}
+              </div>
+              <Link href="/dashboard" className="mt-4 block text-center text-xs font-black text-blue-700">View All Activity</Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
-    <div className="absolute -bottom-5 left-[8%] hidden rounded-xl border border-violet-400/20 bg-[#111a30]/95 p-3 shadow-2xl backdrop-blur sm:block"><p className="text-[8px] font-black uppercase tracking-wider text-violet-400">Workflow automation</p><p className="mt-1 text-[10px] font-bold">Next-round task assigned automatically</p></div>
-    <div className="absolute -right-5 top-[28%] hidden rounded-xl border border-blue-400/20 bg-[#111a30]/95 p-3 shadow-2xl backdrop-blur md:block"><p className="text-[8px] font-black uppercase tracking-wider text-blue-400">FixMy AI</p><p className="mt-1 text-[10px] font-bold">7 inconsistencies ranked</p></div>
-  </div>;
+  );
+}
+
+function AudienceCard({ type, onStart }: { type: 'individuals' | 'business'; onStart: (plan: string, location: string) => void }) {
+  const isBusiness = type === 'business';
+  const href = isBusiness ? '/signup?plan=professional' : '/signup?plan=starter';
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-5 text-center shadow-sm">
+      <div className="mx-auto mb-2 grid h-7 w-7 place-items-center text-[#061b48]">
+        {isBusiness ? <BriefcaseBusiness size={20} /> : <UserRound size={20} />}
+      </div>
+      <h3 className="text-lg font-black text-[#061642]">{isBusiness ? 'For Businesses' : 'For Individuals'}</h3>
+      <p className="mt-1 text-sm font-semibold text-slate-600">{isBusiness ? 'Manage clients. Grow your business.' : 'Take control of your credit.'}</p>
+      <Link href={href} onClick={() => onStart(isBusiness ? 'professional' : 'starter', isBusiness ? 'hero_business' : 'hero_individual')} className={`mt-4 block rounded-md px-5 py-3 text-sm font-black text-white ${isBusiness ? 'bg-[#061b48]' : 'bg-[#079735]'}`}>
+        {isBusiness ? 'See Business Software' : 'Start $1 Trial'}
+      </Link>
+      <p className="mt-3 text-xs font-semibold text-[#061642]">{isBusiness ? 'Powerful tools for credit pros' : '$1 trial with a card - Cancel anytime'}</p>
+    </article>
+  );
 }
 
 export default function HomepageContent() {
-  const router=useRouter(); const [mobile,setMobile]=useState(false); const [faq,setFaq]=useState<number|null>(0);
-  const start=(plan='professional',price?:number,location='homepage')=>{trackTrialSignup(plan,location);if(price)trackPricingPlanSelect(plan,price,location);router.push(`/signup?plan=${plan}`)};
-  return <div className="a11y-dark min-h-screen overflow-hidden bg-[#070b14] font-sans text-white">
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#070b14]/80 backdrop-blur-xl"><div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8"><Link href="/" className="flex items-center gap-2.5"><Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={39} height={39} className="rounded-xl" priority unoptimized/><b className="text-lg tracking-tight">FixMy<span className="text-blue-500">.</span>Money</b></Link><nav className="hidden items-center gap-7 lg:flex">{[['Product','#product'],['Workflows','#workflows'],['FixMy AI','#ai'],['Compare','#compare'],['Pricing','#pricing'],['Resources','/resources']].map(([a,h])=>h.startsWith('#')?<a key={a} href={h} className="text-sm font-semibold text-slate-400 hover:text-white">{a}</a>:<Link key={a} href={h} className="text-sm font-semibold text-slate-400 hover:text-white">{a}</Link>)}</nav><div className="hidden items-center gap-4 lg:flex"><Link href="/login" className="text-sm font-bold text-slate-300">Sign In</Link><button onClick={()=>start()} className="rounded-lg bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold shadow-lg shadow-violet-600/20">Start $1 Trial</button></div><button onClick={()=>setMobile(!mobile)} className="lg:hidden" aria-label="Toggle navigation">{mobile?<X/>:<Menu/>}</button></div>{mobile&&<div className="border-t border-white/10 bg-[#0b1220] p-5 lg:hidden"><div className="grid gap-4">{['Product','Workflows','FixMy AI','Compare','Pricing'].map(x=><span key={x} className="font-semibold">{x}</span>)}<button onClick={()=>start()} className="rounded-lg bg-blue-600 px-5 py-3 font-bold">Start $1 Trial</button></div></div>}</header>
-    <div>
-      <section className="relative px-5 pb-24 pt-36 sm:px-8 lg:pt-44"><div className="absolute left-[10%] top-20 h-[420px] w-[420px] rounded-full bg-blue-700/20 blur-[120px]"/><div className="absolute right-[10%] top-20 h-[480px] w-[480px] rounded-full bg-violet-700/20 blur-[130px]"/><div className="relative mx-auto max-w-5xl text-center"><p className="mx-auto inline-flex items-center gap-2 rounded-lg border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-black uppercase tracking-[.18em] text-violet-300"><Sparkles size={14}/> The agency operating system</p><h1 className="mx-auto mt-7 max-w-5xl text-balance text-5xl font-black leading-[1.02] tracking-[-.055em] sm:text-6xl lg:text-[72px]">The Operating System for Modern Credit Repair Agencies</h1><p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-400">Analyze credit reports, create dispute workflows, manage every client, automate billing, and grow your agency from one intelligent platform.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={()=>start()} className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 px-7 py-4 font-bold shadow-xl shadow-violet-600/25">Start $1 Trial <ArrowRight size={18}/></button><Link href="/demo" className="flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-7 py-4 font-bold backdrop-blur"><Play size={17} className="fill-white"/> Explore Live Demo</Link></div><p className="mt-5 text-xs font-semibold text-slate-500">14 days · Cancel anytime · Built for credit-repair businesses</p></div><div className="relative mx-auto mt-16 max-w-7xl"><AgencyDashboard/></div></section>
-      <section className="border-y border-white/10 bg-white/[.025] px-5 py-6"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-4 text-xs font-bold text-slate-500"><span className="text-slate-600">ONE PLATFORM</span>{['284 active clients','$42.8K monthly revenue','126 open disputes','71% positive outcomes','7 reviews due'].map(x=><span key={x} className="text-slate-300">{x}</span>)}</div></section>
-      <section id="product" className="px-5 py-24 sm:px-8"><div className="mx-auto max-w-7xl"><div className="grid items-center gap-14 lg:grid-cols-[.78fr_1.22fr]"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-400">Interactive product showcase</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">See the whole agency. Act on what matters.</h2><p className="mt-5 text-lg leading-8 text-slate-400">Move from onboarding to report analysis, dispute rounds, bureau responses, billing, and outcomes without rebuilding context.</p><div className="mt-8 space-y-3">{[['Credit analysis','Rank inconsistencies by weighted removal potential'],['Bureau response tracking','See deadlines and the next required action'],['Stripe billing','Connect payments to the client workflow']].map(([a,b],i)=><div key={a} className={`border-l-2 p-4 ${i===0?'border-violet-500 bg-white/5':'border-white/10'}`}><p className="font-black">{a}</p><p className="mt-1 text-sm text-slate-500">{b}</p></div>)}</div></div><div className="rounded-2xl border border-white/10 bg-[#0e1729] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs font-black text-white">Credit report analysis</p><p className="mt-1 text-[10px] text-slate-500">Jordan Ellis · Imported today</p></div><span className="rounded-lg bg-violet-500/10 px-3 py-2 text-[10px] font-bold text-violet-300">7 inconsistencies detected</span></div><div className="mt-5 grid gap-3 md:grid-cols-[.9fr_1.1fr]"><div className="overflow-hidden rounded-xl border border-white/10">{[['Northstar Bank','Balance mismatch','78'],['Metro Collection','Date inconsistency','84'],['Lumen Card','Status conflict','61']].map(([a,b,s],i)=><div key={a} className={`border-b border-white/10 p-3 last:border-0 ${i===1?'bg-blue-500/10':''}`}><div className="flex justify-between"><p className="text-[11px] font-bold">{a}</p><span className="text-[10px] font-black text-violet-300">{s}</span></div><p className="mt-1 text-[9px] text-slate-500">{b} · removal potential</p></div>)}</div><div className="rounded-xl border border-violet-400/20 bg-violet-500/5 p-4"><div className="flex items-center gap-2 text-xs font-black text-violet-300"><Bot size={15}/> FixMy AI analysis</div><p className="mt-4 text-sm font-bold">Possible reporting inconsistency across Experian and Equifax.</p><p className="mt-2 text-[10px] leading-5 text-slate-500">Weighted from inconsistency type, source agreement, evidence completeness, and account history.</p><div className="mt-5 flex justify-between text-[10px]"><span>Evidence completeness</span><b className="text-cyan-300">92%</b></div><div className="mt-2 h-1.5 rounded-full bg-white/10"><div className="h-full w-[92%] rounded-full bg-gradient-to-r from-cyan-400 to-violet-500"/></div><div className="mt-5 flex gap-2"><button className="rounded-lg bg-blue-600 px-3 py-2 text-[9px] font-bold">Approve</button><button className="rounded-lg border border-white/10 px-3 py-2 text-[9px] font-bold">Edit</button><button className="rounded-lg border border-white/10 px-3 py-2 text-[9px] font-bold">Exclude</button></div></div></div><p className="mt-4 text-[9px] leading-4 text-slate-600">Removal-potential scores are decision-support estimates, not guarantees of deletion, score improvement, or bureau response.</p></div></div></div></section>
-      <section id="workflows" className="border-y border-white/10 bg-[#0a101d] px-5 py-24 sm:px-8"><div className="mx-auto max-w-7xl"><div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-[.2em] text-violet-400">Three core workflows</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">Onboard. Dispute. Grow.</h2></div><div className="mt-14 grid gap-5 lg:grid-cols-3">{[[Users,'Onboard','Bring agreements, documents, reports, tasks, billing status, and client communications into one controlled record.','18 new clients this month'],[FileCheck2,'Dispute','Turn report inconsistencies into evidence-backed, reviewed dispute rounds with deadlines and response history.','126 open disputes'],[TrendingUp,'Grow','Watch revenue, pipeline, team capacity, client outcomes, and operational bottlenecks from one agency dashboard.','$42.8K monthly revenue']].map(([Icon,a,b,c],i)=><article key={a as string} className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[.035] p-7"><div className={`absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl ${['bg-blue-600/20','bg-violet-600/20','bg-fuchsia-600/20'][i]}`}/><span className="relative grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-white/5 text-violet-300"><Icon size={22}/></span><h3 className="relative mt-10 text-3xl font-black">{a as string}</h3><p className="relative mt-4 leading-7 text-slate-400">{b as string}</p><p className="relative mt-8 border-t border-white/10 pt-5 text-sm font-bold text-white">{c as string}</p></article>)}</div></div></section>
-      <section id="ai" className="relative px-5 py-24 sm:px-8"><div className="absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-700/15 blur-[120px]"/><div className="relative mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2"><div><p className="text-xs font-black uppercase tracking-[.2em] text-fuchsia-400">FixMy AI</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">Intelligence inside the work—not beside it.</h2><p className="mt-5 text-lg leading-8 text-slate-400">FixMy AI compares report fields, identifies possible inconsistencies, weighs available evidence, recommends the next action, and prepares drafts for human review.</p><div className="mt-8 flex flex-wrap gap-2">{['7 items detected','Evidence strength: High','Draft ready','Human approval required'].map(x=><span key={x} className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-200">{x}</span>)}</div></div><div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 to-blue-500/5 p-6 shadow-2xl"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-fuchsia-600"><Bot/></span><div><p className="text-sm font-black">Recommended next action</p><p className="text-[10px] text-slate-500">Based on verified source data</p></div></div><p className="mt-7 text-xl font-black">Review the conflicting balance and account status before adding this item to Round 1.</p><div className="mt-7 grid grid-cols-3 gap-3">{[['78','Removal potential'],['92%','Evidence complete'],['High','Inconsistency strength']].map(([v,l])=><div key={l} className="rounded-xl border border-white/10 bg-black/20 p-3"><b className="text-lg">{v}</b><p className="mt-1 text-[8px] text-slate-500">{l}</p></div>)}</div></div></div></section>
-      <section id="compare" className="border-y border-white/10 bg-[#0a101d] px-5 py-24 sm:px-8"><div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[.7fr_1.3fr]"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-400">Replace the fragmented stack</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em]">One system. One client record. One accountable history.</h2><p className="mt-5 leading-7 text-slate-400">Stop stitching together a CRM, report tool, letter software, billing app, spreadsheets, and reminders.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-2xl border border-red-400/10 bg-red-500/5 p-6"><p className="text-xs font-black uppercase tracking-wider text-red-300">Fragmented stack</p>{['Client CRM','Report parser','Letter builder','Billing app','Task spreadsheet','Disconnected history'].map(x=><p key={x} className="mt-4 flex items-center gap-2 text-sm text-slate-500"><X size={14} className="text-red-400"/>{x}</p>)}</div><div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-blue-600/10 to-violet-600/10 p-6"><p className="text-xs font-black uppercase tracking-wider text-violet-300">FixMy.Money</p>{['Connected client workspace','Source-linked report analysis','Reviewed dispute workflow','Stripe-powered billing','Automated task routing','Traceable outcomes'].map(x=><p key={x} className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-200"><Check size={14} className="text-violet-400"/>{x}</p>)}</div></div></div></section>
-      <section id="pricing" className="px-5 py-24 sm:px-8"><div className="mx-auto max-w-7xl"><div className="text-center"><p className="text-xs font-black uppercase tracking-[.2em] text-violet-400">Agency pricing</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em] sm:text-5xl">Choose the capacity you need.</h2><p className="mt-5 text-slate-500">$1 today for 14 days, then the selected monthly plan.</p></div><div className="mt-14 grid gap-5 lg:grid-cols-3">{CHECKOUT_PLANS.map(plan=><article key={plan.id} className={`relative flex flex-col rounded-2xl border p-7 ${plan.highlight?'border-violet-400/50 bg-gradient-to-b from-violet-600/20 to-blue-600/5 shadow-2xl shadow-violet-600/15':'border-white/10 bg-white/[.025]'}`}>{plan.highlight&&<span className="absolute right-5 top-5 rounded-lg bg-violet-500 px-3 py-1 text-[10px] font-black uppercase tracking-wider">Recommended</span>}<h3 className="text-2xl font-black">{plan.name}</h3><p className="mt-3 min-h-12 text-sm leading-6 text-slate-500">{plan.description}</p><p className="mt-7"><b className="text-5xl">${plan.monthlyPrice}</b><span className="text-slate-500">/month</span></p><ul className="mt-8 flex-1 space-y-3 text-sm text-slate-300">{[`Up to ${plan.maxClients} active clients`,plan.maxTeamMembers===1?'1 user':`Up to ${plan.maxTeamMembers} team members`,`${plan.storageGb} GB storage`,plan.id==='starter'?'Core report and dispute workflow':plan.id==='professional'?'Billing, automation, and agency operations':'Advanced roles, analytics, and onboarding'].map(x=><li key={x} className="flex gap-2"><Check size={16} className="text-violet-400"/>{x}</li>)}</ul><button onClick={()=>start(plan.id,plan.monthlyPrice||undefined,'homepage_pricing')} className={`mt-8 rounded-lg px-5 py-4 font-bold ${plan.highlight?'bg-gradient-to-r from-blue-600 to-violet-600':'border border-white/15 bg-white/5'}`}>Start $1 Trial</button></article>)}</div></div></section>
-      <section className="border-y border-white/10 bg-[#0a101d] px-5 py-24 sm:px-8"><div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-[.72fr_1.28fr]"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-400">Focused FAQ</p><h2 className="mt-4 text-4xl font-black tracking-[-.04em]">Know what you’re buying.</h2><p className="mt-5 text-slate-500">Straight answers about the trial, AI, migration, and compliance support.</p></div><div className="space-y-3">{faqs.map(([q,a],i)=><button key={q} onClick={()=>setFaq(faq===i?null:i)} className="w-full rounded-xl border border-white/10 bg-white/[.025] p-5 text-left"><span className="flex items-center justify-between gap-4 font-black">{q}<ChevronDown size={18} className={`transition ${faq===i?'rotate-180':''}`}/></span>{faq===i&&<p className="mt-4 leading-7 text-slate-500">{a}</p>}</button>)}</div></div></section>
-      <section className="px-5 py-24 sm:px-8"><div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-violet-400/20 bg-gradient-to-br from-blue-700/20 via-violet-700/20 to-fuchsia-700/10 px-7 py-16 text-center"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,.35),transparent_50%)]"/><div className="relative"><Zap className="mx-auto text-violet-300"/><h2 className="mx-auto mt-6 max-w-3xl text-4xl font-black tracking-[-.04em] sm:text-5xl">Run the agency you’re building—not the stack you’ve outgrown.</h2><p className="mx-auto mt-5 max-w-2xl text-lg text-slate-400">Bring clients, reports, disputes, billing, automation, and outcomes into one operating system.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={()=>start()} className="rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-7 py-4 font-bold">Start $1 Trial</button><Link href="/demo" className="rounded-lg border border-white/15 bg-white/5 px-7 py-4 font-bold">Explore Live Demo</Link></div></div></div></section>
-      <section className="border-t border-white/10 bg-white/[.02] px-5 py-10"><div className="mx-auto flex max-w-6xl gap-4 text-sm text-slate-500"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10"><FileCheck2 size={16}/></span><p><b className="text-slate-300">Compliance-supporting workflows.</b> FixMy.Money helps document agreements, authorization, human approvals, billing events, and case history. Your business remains responsible for its legal and regulatory obligations.</p></div></section>
+  const checkoutPlans = useMemo(() => new Set(CHECKOUT_PLANS.map((plan) => plan.id)), []);
+
+  const start = (plan = 'professional', location = 'homepage') => {
+    trackTrialSignup(plan, location);
+    const selectedPlan = pricingPlans.find((item) => item.id === plan);
+    if (selectedPlan?.monthlyPrice) {
+      trackPricingPlanSelect(selectedPlan.id, selectedPlan.monthlyPrice, location);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white font-sans text-[#061642]">
+      <Header onStart={start} />
+
+      <main>
+        <section className="relative hidden overflow-hidden px-5 pb-5 pt-0 sm:px-8 lg:block">
+          <div className="absolute right-[9%] top-24 hidden h-[330px] w-[330px] rounded-full bg-[#c7f0d3] opacity-70 blur-sm lg:block" />
+          <div className="absolute right-[5%] top-72 hidden h-[280px] w-[280px] rounded-full bg-[#dff0ff] opacity-80 blur-sm lg:block" />
+          <div className="relative mx-auto grid max-w-[1320px] items-center gap-8 lg:grid-cols-[610px_1fr]">
+            <div className="py-3 lg:py-4">
+              <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">
+                AI-POWERED CREDIT INTELLIGENCE
+              </span>
+              <h1 className="mt-4 max-w-[610px] text-[40px] font-black leading-[1.06] text-[#061642] xl:text-[44px]">
+                AI Analyzes Your Credit.
+                <span className="block">We Find What Matters.</span>
+                <span className="block text-[#079735]">You Take Action.</span>
+              </h1>
+              <p className="mt-4 max-w-[535px] text-[15px] font-medium leading-7 text-slate-700">
+                Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
+              </p>
+              <div className="mt-5 grid max-w-[540px] gap-4 sm:grid-cols-3">
+                {FEATURES.map(({ icon: Icon, title, copy }) => (
+                  <div key={title} className="flex items-center gap-3">
+                    <Icon size={26} className="shrink-0 text-[#079735]" strokeWidth={2.1} />
+                    <span>
+                      <b className="block text-xs text-[#061642]">{title}</b>
+                      <span className="text-[11px] font-semibold text-slate-600">{copy}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 grid max-w-[530px] gap-5 sm:grid-cols-2">
+                <AudienceCard type="individuals" onStart={start} />
+                <AudienceCard type="business" onStart={start} />
+              </div>
+            </div>
+            <div className="hidden lg:block">
+              <ProductPreview />
+            </div>
+          </div>
+
+          <div className="relative mx-auto mt-3 max-w-[1320px] rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <div className="grid items-center gap-5 lg:grid-cols-[1fr_auto]">
+              <div className="grid gap-5 sm:grid-cols-3">
+                {TRUST_ITEMS.map(({ icon: Icon, title, copy }) => (
+                  <div key={title} className="flex items-center gap-3">
+                    <Icon size={24} className="text-[#061b48]" />
+                    <span>
+                      <b className="block text-xs text-[#061642]">{title}</b>
+                      <span className="text-[11px] font-semibold text-slate-600">{copy}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-5 border-slate-200 text-sm font-black text-[#061642] lg:border-l lg:pl-8">
+                <span className="text-[10px] font-bold text-slate-500">FEATURED IN</span>
+                <span>MarketWatch</span>
+                <span className="text-[#4b26c9]">yahoo! finance</span>
+                <span>BENZINGA</span>
+                <span className="font-serif text-lg">Forbes</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-[#f5f7fb] px-3 py-0 lg:hidden">
+          <div className="mx-auto min-h-screen max-w-[390px] overflow-hidden rounded-[28px] bg-[#061b48] shadow-2xl">
+            <div className="rounded-t-[28px] bg-white px-4 pb-4 pt-2">
+              <div className="mb-4 flex h-7 items-center justify-between text-sm font-black text-black">
+                <span>9:41</span>
+                <span className="text-xs">••• Wi-Fi ▰</span>
+              </div>
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <Logo compact />
+                <Link href="/signup?plan=professional" onClick={() => start('professional', 'mobile_preview')} className="rounded-md bg-[#079735] px-4 py-2 text-xs font-black text-white">
+                  Start $1 Trial
+                </Link>
+                <button type="button" popoverTarget="homepage-mobile-nav" className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-[#061642]" aria-label="Toggle navigation" aria-controls="homepage-mobile-nav">
+                  <Menu size={25} />
+                </button>
+              </div>
+              <div id="homepage-mobile-nav" popover="auto" className="inset-x-4 top-20 z-50 m-0 max-w-none rounded-lg border border-slate-200 bg-white p-5 shadow-2xl backdrop:bg-transparent lg:hidden">
+                <div className="grid gap-4">
+                  {NAV_LINKS.map((link) => (
+                    <Link key={link.label} href={link.href} className="font-bold text-[#061642]">
+                      {link.label}
+                    </Link>
+                  ))}
+                  <Link href="/login" className="font-bold text-[#061642]">
+                    Sign In
+                  </Link>
+                </div>
+              </div>
+              <div className="text-center">
+                <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">AI-POWERED CREDIT INTELLIGENCE</span>
+                <h1 className="mt-4 text-[30px] font-black leading-[1.12] text-[#061642]">
+                  AI Analyzes Your Credit.
+                  <span className="block">We Find What Matters.</span>
+                  <span className="block text-[#079735]">You Take Action.</span>
+                </h1>
+                <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-5 text-[#061642]">
+                  Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
+                </p>
+              </div>
+              <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+                {FEATURES.map(({ icon: Icon, title, copy }) => (
+                  <div key={title}>
+                    <Icon size={20} className="mx-auto text-[#079735]" strokeWidth={2} />
+                    <b className="mt-1 block text-[10px] text-[#061642]">{title}</b>
+                    <span className="text-[9px] font-semibold leading-3 text-slate-600">{copy}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 grid gap-3">
+                <AudienceCard type="individuals" onStart={start} />
+                <AudienceCard type="business" onStart={start} />
+              </div>
+              <div className="mt-5 grid grid-cols-3 gap-2 text-[10px] font-bold text-[#061642]">
+                {TRUST_ITEMS.map(({ icon: Icon, title }) => (
+                  <span key={title} className="flex items-center justify-center gap-1">
+                    <Icon size={14} /> {title}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-5">
+                <ProductPreview mobile />
+              </div>
+            </div>
+            <div className="py-5 text-center text-white">
+              <p className="text-sm font-black">TRUSTED BY THOUSANDS</p>
+              <p className="text-sm">Real people. Real results.</p>
+              <div className="mt-3 flex justify-center gap-1 text-[#4bd85d]">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Star key={index} size={27} fill="currentColor" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="how-it-works" className="px-5 pb-10 pt-3 sm:px-8">
+          <div className="mx-auto max-w-[1320px] border-t border-slate-200 pt-8">
+            <div className="grid gap-8 lg:grid-cols-[.72fr_1.28fr]">
+              <div>
+                <p className="text-xs font-black text-blue-700">HOW IT WORKS</p>
+                <h2 className="mt-4 text-3xl font-black text-[#061642]">AI That Finds What Others Miss</h2>
+                <p className="mt-4 max-w-lg text-sm font-medium leading-7 text-slate-700">
+                  Our AI reviews your full credit report line by line, identifies potentially disputable items, estimates your chances, and prioritizes what to tackle first.
+                </p>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-4">
+                {WORKFLOW.map(({ icon: Icon, title, copy }, index) => (
+                  <div key={title} className="relative text-center">
+                    {index < WORKFLOW.length - 1 && <span className="absolute left-[62%] top-10 hidden h-px w-[76%] bg-slate-300 sm:block" />}
+                    <div className="relative mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#eaf6ee] text-[#061b48]">
+                      <Icon size={38} strokeWidth={1.8} />
+                    </div>
+                    <h3 className="mt-4 text-sm font-black text-[#079735]">{title}</h3>
+                    <p className="mx-auto mt-2 max-w-[150px] text-xs font-semibold leading-5 text-[#061642]">{copy}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="px-5 pb-14 sm:px-8">
+          <div className="mx-auto max-w-[1320px] border-t border-slate-200 pt-5">
+            <div className="text-center">
+              <h2 className="text-2xl font-black text-[#061642]">SIMPLE, TRANSPARENT PRICING</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-700">Start your $1 trial with a card. Cancel anytime.</p>
+            </div>
+            <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              {pricingPlans.map((plan) => {
+                const hasCheckout = checkoutPlans.has(plan.id);
+                const href = hasCheckout ? `/signup?plan=${plan.id}` : '/contact';
+                return (
+                  <article key={plan.id} className={`relative rounded-lg border bg-white p-6 text-center shadow-sm ${plan.highlight ? 'border-[#079735] ring-1 ring-[#079735]' : 'border-slate-200'}`}>
+                    {plan.highlight && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded bg-[#079735] px-5 py-1 text-[10px] font-black text-white">MOST POPULAR</span>}
+                    <h3 className="text-lg font-black text-[#061642]">{plan.name}</h3>
+                    <p className="mx-auto mt-2 min-h-10 max-w-[220px] text-sm font-semibold leading-5 text-slate-600">{plan.description}</p>
+                    <p className="mt-6 text-[#061642]">
+                      {plan.monthlyPrice ? (
+                        <>
+                          <b className="text-4xl font-black">${plan.monthlyPrice}</b>
+                          <span className="text-sm font-semibold"> /month</span>
+                        </>
+                      ) : (
+                        <b className="text-4xl font-black">Custom</b>
+                      )}
+                    </p>
+                    <p className={`mt-3 text-xs font-black ${plan.monthlyPrice ? 'text-[#079735]' : 'text-slate-600'}`}>
+                      {plan.monthlyPrice ? '$1 trial with a card' : 'Volume pricing available'}
+                    </p>
+                    <Link href={href} onClick={() => (hasCheckout ? start(plan.id, 'pricing_card') : trackCtaClick('Contact Sales', href, 'pricing_card'))} className={`mt-6 block rounded-md px-5 py-3 text-sm font-black text-white ${plan.id === 'enterprise' ? 'bg-[#061b48]' : 'bg-[#079735]'}`}>
+                      {plan.id === 'enterprise' ? 'Contact Sales' : 'Start $1 Trial'}
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
-    <footer className="border-t border-white/10 bg-[#050810] px-5 py-14 sm:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-5"><div className="sm:col-span-2"><div className="flex items-center gap-2.5"><Image src="/assets/images/fixmy-money-mark-v2.png" alt="" width={38} height={38} unoptimized/><b>FixMy.Money</b></div><p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">The operating system for modern credit-repair agencies.</p></div>{footerSections.map(section=><div key={section.heading}><b className="text-sm">{section.heading}</b><div className="mt-4 grid gap-3 text-sm text-slate-600">{section.links.map(link=><Link key={link.href} href={link.href} className="transition hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050810]">{link.label}</Link>)}</div></div>)}</div><div className="mx-auto mt-12 max-w-7xl border-t border-white/10 pt-6 text-xs leading-5 text-slate-700">FixMy.Money provides business software, AI-assisted analysis, and workflow tools. It does not provide legal advice or guarantee deletions, credit-score changes, compliance, or any bureau response. Removal-potential scores are estimates based on available data and require human review.</div></footer>
-  </div>;
+  );
 }

@@ -17,7 +17,7 @@ interface D1Binding {
 interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> };
   DB?: D1Binding;
-  IMAGES: {
+  IMAGES?: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
         output(options: { format: string; quality: number }): Promise<{ response(): Response }>;
@@ -45,7 +45,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://*.google-analytics.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com",
   "frame-src 'self' https://www.googletagmanager.com https://js.stripe.com https://hooks.stripe.com",
   "upgrade-insecure-requests",
 ].join("; ");
@@ -152,6 +152,9 @@ export default {
             ? env.ASSETS.fetch(new Request(new URL(path, request.url)))
             : fetch(new Request(new URL(path, request.url))),
           transformImage: async (body, { width, format, quality }) => {
+            if (!env.IMAGES) {
+              return new Response(body);
+            }
             const result = await env.IMAGES.input(body)
               .transform(width > 0 ? { width } : {})
               .output({ format, quality });
