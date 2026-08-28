@@ -521,6 +521,7 @@ export default function CreditReportImportContent() {
   const [fileName, setFileName] = useState('');
   const [ocrMeta, setOcrMeta] = useState<OcrMetadata | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploaderRef = useRef<HTMLElement>(null);
   const supabase = createClient();
 
   const providerCards = useMemo(() => {
@@ -586,6 +587,14 @@ export default function CreditReportImportContent() {
       provider,
       source,
       provider_state: 'upload_guidance_only',
+    });
+  };
+
+  const showUploader = () => {
+    setImportMode('upload');
+    window.requestAnimationFrame(() => {
+      uploaderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      uploaderRef.current?.focus({ preventScroll: true });
     });
   };
 
@@ -1367,10 +1376,7 @@ export default function CreditReportImportContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setImportMode('upload');
-                      fileRef.current?.click();
-                    }}
+                    onClick={showUploader}
                     className={`flex min-h-16 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${importMode === 'upload' ? 'border border-[#0b2d65] bg-white text-[#071942] shadow-sm' : 'text-[#52627f] hover:bg-[#f4f7fb]'}`}
                   >
                     <FileUp size={20} className="text-[#071942]" />
@@ -1395,8 +1401,8 @@ export default function CreditReportImportContent() {
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef4ff] text-[#071942]">
                               <Building2 size={20} />
                             </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-base font-extrabold text-[#071942]">{card.name}</p>
+                            <div className="min-w-0 flex-1">
+                              <p className="break-words text-sm font-extrabold leading-tight text-[#071942]">{card.name}</p>
                               <p className="mt-0.5 text-xs font-medium text-[#52627f]">{card.status === 'partner' ? 'Partner/referral' : 'Upload guidance only'}</p>
                             </div>
                           </div>
@@ -1409,14 +1415,14 @@ export default function CreditReportImportContent() {
                         <div className="mt-4 flex gap-2">
                           {card.status === 'partner' ? (
                             <>
-                              <button type="button" onClick={() => openPartnerProvider(card)} className="btn-primary flex flex-1 items-center justify-center gap-1.5 text-sm">
+                              <button type="button" onClick={() => openPartnerProvider(card)} className="btn-primary flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm sm:min-h-0">
                                 Get My Report
                                 <ExternalLink size={14} />
                               </button>
-                              <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary px-3 text-sm">Upload</button>
+                              <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary min-h-11 px-3 text-sm sm:min-h-0">Upload</button>
                             </>
                           ) : (
-                            <button type="button" onClick={() => startProviderUpload(card)} className="btn-primary flex w-full items-center justify-center gap-1.5 text-sm">
+                            <button type="button" onClick={() => startProviderUpload(card)} className="btn-primary flex min-h-11 w-full items-center justify-center gap-1.5 text-sm sm:min-h-0">
                               Upload Report
                               <Upload size={14} />
                             </button>
@@ -1429,6 +1435,8 @@ export default function CreditReportImportContent() {
                 </section>
 
                 <section
+                  ref={uploaderRef}
+                  tabIndex={-1}
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
@@ -1436,7 +1444,7 @@ export default function CreditReportImportContent() {
                     setImportMode('upload');
                     fileRef.current?.click();
                   }}
-                  className={`rounded-2xl border-2 border-dashed bg-white p-5 shadow-sm transition sm:p-6 ${dragOver ? 'border-success bg-success/5' : 'border-[#b8c6dc] hover:border-success/60'}`}
+                  className={`rounded-2xl border-2 border-dashed bg-white p-5 shadow-sm transition focus:outline-none sm:p-6 ${dragOver ? 'border-success bg-success/5' : 'border-[#b8c6dc] hover:border-success/60'}`}
                 >
                   {uploading || parsing || ocrRunning ? (
                     <div className="flex flex-col items-center gap-3 py-8 text-center">
