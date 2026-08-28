@@ -607,6 +607,13 @@ export default function CreditReportImportContent() {
       const failedPages = result.pages.filter(page => page.source === 'failed').length;
       const meanOcrConfidence = result.meanOcrConfidence;
       const processingDurationMs = Math.round(performance.now() - startedAt);
+      const pageResults = (result.pageResults ?? result.pages
+        .map(page => page.extraction)
+        .filter((page): page is NonNullable<typeof page> => Boolean(page)));
+      const primaryOcrSuccesses = result.primaryOcrSuccesses ?? pageResults.filter(page => page.primaryOcrSucceeded).length;
+      const primaryOcrFailures = result.primaryOcrFailures ?? pageResults.filter(page => page.primaryOcrAttempted && !page.primaryOcrSucceeded).length;
+      const retryRecoveries = result.retryRecoveries ?? pageResults.filter(page => page.finalStatus === 'ocr_retry').length;
+      const fallbackRecoveries = result.fallbackRecoveries ?? pageResults.filter(page => page.finalStatus === 'ocr_fallback').length;
 
       setOcrStatus({
         stage: validation.valid ? 'parsing' : 'failed',
@@ -633,6 +640,13 @@ export default function CreditReportImportContent() {
         failedPages: failedPages + validation.unaccountedPages,
         extractedCharacters: validation.characters,
         ocrConfidence: meanOcrConfidence,
+        primaryOcrSuccesses,
+        primaryOcrFailures,
+        retryRecoveries,
+        fallbackRecoveries,
+        unreadablePages: pageResults
+          .filter(page => page.finalStatus === 'unreadable')
+          .map(page => ({ pageNumber: page.pageNumber, reason: page.failureReason })),
         parserConfidence: null,
         processingDurationMs,
         openAiGenerationCount: 0,
@@ -657,6 +671,12 @@ export default function CreditReportImportContent() {
           extractionQuality: validation.quality,
           processingDurationMs: result.processingDurationMs,
           pages: result.pages,
+          pageResults,
+          primaryOcrSuccesses,
+          primaryOcrFailures,
+          retryRecoveries,
+          fallbackRecoveries,
+          capability: result.capability,
         };
         await supabase.storage.from(OCR_STORAGE_BUCKET).upload(
           cachePath,
@@ -683,6 +703,15 @@ export default function CreditReportImportContent() {
           processingDurationMs,
           openAiGenerationCount: 0,
           cacheHit: Boolean(cached),
+          pageResults: pageResults.map(page => ({
+            pageNumber: page.pageNumber,
+            finalStatus: page.finalStatus,
+            failureReason: page.failureReason,
+          })),
+          primaryOcrSuccesses,
+          primaryOcrFailures,
+          retryRecoveries,
+          fallbackRecoveries,
         },
       };
     } catch (error: unknown) {

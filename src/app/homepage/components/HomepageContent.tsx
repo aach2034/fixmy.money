@@ -69,7 +69,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
 
 function Header({ onStart }: { onStart: (plan: string, location: string) => void }) {
   return (
-    <header className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between px-5 sm:px-8">
+    <header className="mx-auto hidden h-[70px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:flex">
       <Logo />
       <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary navigation">
         {NAV_LINKS.map((link) =>
@@ -94,24 +94,6 @@ function Header({ onStart }: { onStart: (plan: string, location: string) => void
           Start $1 Trial
         </Link>
       </div>
-      <button type="button" popoverTarget="homepage-mobile-nav" className="grid h-11 w-11 place-items-center rounded-md text-[#061642] lg:hidden" aria-label="Toggle navigation" aria-controls="homepage-mobile-nav">
-        <Menu size={27} />
-      </button>
-      <div id="homepage-mobile-nav" popover="auto" className="inset-x-4 top-20 z-50 m-0 max-w-none rounded-lg border border-slate-200 bg-white p-5 shadow-2xl backdrop:bg-transparent lg:hidden">
-        <div className="grid gap-4">
-          {NAV_LINKS.map((link) => (
-            <Link key={link.label} href={link.href} className="font-bold text-[#061642]">
-              {link.label}
-            </Link>
-          ))}
-          <Link href="/login" className="font-bold text-[#061642]">
-            Sign In
-          </Link>
-          <Link href="/signup?plan=professional" onClick={() => onStart('professional', 'mobile_nav')} className="rounded-md bg-[#069b35] px-5 py-3 text-center font-black text-white">
-            Start $1 Trial
-          </Link>
-        </div>
-      </div>
     </header>
   );
 }
@@ -134,27 +116,27 @@ function ProductPreview({ mobile = false }: { mobile?: boolean }) {
             ))}
           </aside>
         )}
-        <div className={`${mobile ? 'p-4' : 'p-5 sm:p-6'}`}>
-          <h2 className="mb-4 text-base font-black text-[#061642]">Overview</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
+        <div className={`${mobile ? 'p-3' : 'p-4 sm:p-5'}`}>
+          <h2 className={`mb-4 font-black text-[#061642] ${mobile ? 'text-sm' : 'text-base'}`}>Overview</h2>
+          <div className={`grid gap-3 ${mobile ? 'grid-cols-2' : 'sm:grid-cols-2'}`}>
+            <div className={`rounded-lg border border-slate-200 bg-white ${mobile ? 'p-3' : 'p-5'}`}>
               <p className="text-xs font-black text-[#061642]">Overall Report Grade</p>
-              <div className="mt-5 flex items-center gap-4">
-                <div className="grid h-20 w-20 place-items-center rounded-full bg-[conic-gradient(#18a952_0_62%,#cad2df_62%_100%)] p-2">
-                  <div className="grid h-full w-full place-items-center rounded-full bg-white text-4xl font-black text-[#061642]">B</div>
+              <div className={`mt-4 flex items-center ${mobile ? 'gap-2' : 'gap-4'}`}>
+                <div className={`grid place-items-center rounded-full bg-[conic-gradient(#18a952_0_62%,#cad2df_62%_100%)] p-2 ${mobile ? 'h-16 w-16' : 'h-20 w-20'}`}>
+                  <div className={`grid h-full w-full place-items-center rounded-full bg-white font-black text-[#061642] ${mobile ? 'text-3xl' : 'text-4xl'}`}>B</div>
                 </div>
                 <div>
                   <p className="text-sm font-black text-[#079735]">Good</p>
-                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Your credit is improving. Keep going!</p>
+                  {!mobile && <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Your credit is improving. Keep going!</p>}
                 </div>
               </div>
-              <p className="mt-5 text-xs font-semibold text-slate-500">Next update in 7 days</p>
+              <p className={`${mobile ? 'mt-2 text-[10px]' : 'mt-5 text-xs'} font-semibold text-slate-500`}>Next update in 7 days</p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className={`rounded-lg border border-slate-200 bg-white ${mobile ? 'p-3' : 'p-5'}`}>
               <p className="text-xs font-black text-[#061642]">Potentially Disputable Items</p>
-              <p className="mt-4 text-4xl font-black text-[#061642]">23</p>
+              <p className={`${mobile ? 'mt-3 text-3xl' : 'mt-4 text-4xl'} font-black text-[#061642]`}>23</p>
               <p className="text-xs font-semibold text-slate-500">Items Found</p>
-              <div className="mt-4 space-y-2 text-xs font-semibold">
+              <div className={`${mobile ? 'mt-3 space-y-1.5 text-[10px]' : 'mt-4 space-y-2 text-xs'} font-semibold`}>
                 {[
                   ['High Priority', '8', 'bg-red-500'],
                   ['Medium Priority', '10', 'bg-amber-400'],
@@ -166,12 +148,12 @@ function ProductPreview({ mobile = false }: { mobile?: boolean }) {
                   </div>
                 ))}
               </div>
-              <Link href="/credit-report-import" onClick={() => trackCtaClick('Review All Items', '/credit-report-import', 'preview')} className="mt-5 block rounded-md bg-[#061b48] px-4 py-2.5 text-center text-xs font-black text-white">
+              <Link href="/credit-report-import" onClick={() => trackCtaClick('Review All Items', '/credit-report-import', 'preview')} className={`${mobile ? 'mt-3 bg-[#079735] py-2 text-[10px]' : 'mt-5 bg-[#061b48] py-2.5 text-xs'} block rounded-md px-4 text-center font-black text-white`}>
                 Review All Items
               </Link>
             </div>
           </div>
-          <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
+          <div className={`${mobile ? 'mt-3 p-3' : 'mt-4 p-5'} rounded-lg border border-slate-200 bg-white`}>
             <p className="text-xs font-black text-[#061642]">Credit Scores</p>
             <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 text-center">
               {[
@@ -181,7 +163,7 @@ function ProductPreview({ mobile = false }: { mobile?: boolean }) {
               ].map(([bureau, score, points]) => (
                 <div key={bureau} className="px-2">
                   <p className="text-xs font-semibold text-slate-500">{bureau}</p>
-                  <p className="mt-1 text-3xl font-black text-[#061642]">{score}</p>
+                  <p className={`${mobile ? 'text-2xl' : 'text-3xl'} mt-1 font-black text-[#061642]`}>{score}</p>
                   <p className="text-xs font-black text-[#079735]">Up {points}</p>
                 </div>
               ))}
@@ -248,23 +230,23 @@ export default function HomepageContent() {
       <Header onStart={start} />
 
       <main>
-        <section className="relative hidden overflow-hidden px-5 pb-7 pt-1 sm:px-8 lg:block lg:pb-8">
-          <div className="absolute right-[10%] top-28 hidden h-[360px] w-[360px] rounded-full bg-[#c7f0d3] opacity-70 blur-sm lg:block" />
-          <div className="absolute right-[4%] top-80 hidden h-[300px] w-[300px] rounded-full bg-[#dff0ff] opacity-80 blur-sm lg:block" />
-          <div className="relative mx-auto grid max-w-[1320px] items-center gap-10 lg:grid-cols-[.86fr_1fr]">
-            <div className="py-6 lg:py-8">
+        <section className="relative hidden overflow-hidden px-5 pb-5 pt-0 sm:px-8 lg:block">
+          <div className="absolute right-[9%] top-24 hidden h-[330px] w-[330px] rounded-full bg-[#c7f0d3] opacity-70 blur-sm lg:block" />
+          <div className="absolute right-[5%] top-72 hidden h-[280px] w-[280px] rounded-full bg-[#dff0ff] opacity-80 blur-sm lg:block" />
+          <div className="relative mx-auto grid max-w-[1320px] items-center gap-8 lg:grid-cols-[610px_1fr]">
+            <div className="py-3 lg:py-4">
               <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">
                 AI-POWERED CREDIT INTELLIGENCE
               </span>
-              <h1 className="mt-4 max-w-[650px] text-[40px] font-black leading-[1.08] text-[#061642] sm:text-[50px] lg:text-[48px] xl:text-[52px]">
+              <h1 className="mt-4 max-w-[610px] text-[40px] font-black leading-[1.06] text-[#061642] xl:text-[44px]">
                 AI Analyzes Your Credit.
                 <span className="block">We Find What Matters.</span>
                 <span className="block text-[#079735]">You Take Action.</span>
               </h1>
-              <p className="mt-5 max-w-[580px] text-base font-medium leading-7 text-slate-700">
+              <p className="mt-4 max-w-[535px] text-[15px] font-medium leading-7 text-slate-700">
                 Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
               </p>
-              <div className="mt-6 grid max-w-[560px] gap-4 sm:grid-cols-3">
+              <div className="mt-5 grid max-w-[540px] gap-4 sm:grid-cols-3">
                 {FEATURES.map(({ icon: Icon, title, copy }) => (
                   <div key={title} className="flex items-center gap-3">
                     <Icon size={26} className="shrink-0 text-[#079735]" strokeWidth={2.1} />
@@ -275,7 +257,7 @@ export default function HomepageContent() {
                   </div>
                 ))}
               </div>
-              <div className="mt-7 grid max-w-[540px] gap-5 sm:grid-cols-2">
+              <div className="mt-5 grid max-w-[530px] gap-5 sm:grid-cols-2">
                 <AudienceCard type="individuals" onStart={start} />
                 <AudienceCard type="business" onStart={start} />
               </div>
@@ -285,7 +267,7 @@ export default function HomepageContent() {
             </div>
           </div>
 
-          <div className="relative mx-auto mt-4 max-w-[1320px] rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <div className="relative mx-auto mt-3 max-w-[1320px] rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div className="grid items-center gap-5 lg:grid-cols-[1fr_auto]">
               <div className="grid gap-5 sm:grid-cols-3">
                 {TRUST_ITEMS.map(({ icon: Icon, title, copy }) => (
@@ -309,24 +291,55 @@ export default function HomepageContent() {
           </div>
         </section>
 
-        <section className="px-5 py-5 sm:px-8 lg:hidden">
-          <div className="mx-auto max-w-md rounded-[28px] bg-[#061b48] p-3 shadow-2xl">
-            <div className="rounded-[22px] bg-white p-4">
-              <div className="mb-6 flex items-center justify-between gap-3">
+        <section className="bg-[#f5f7fb] px-3 py-0 lg:hidden">
+          <div className="mx-auto min-h-screen max-w-[390px] overflow-hidden rounded-[28px] bg-[#061b48] shadow-2xl">
+            <div className="rounded-t-[28px] bg-white px-4 pb-4 pt-2">
+              <div className="mb-4 flex h-7 items-center justify-between text-sm font-black text-black">
+                <span>9:41</span>
+                <span className="text-xs">••• Wi-Fi ▰</span>
+              </div>
+              <div className="mb-5 flex items-center justify-between gap-3">
                 <Logo compact />
                 <Link href="/signup?plan=professional" onClick={() => start('professional', 'mobile_preview')} className="rounded-md bg-[#079735] px-4 py-2 text-xs font-black text-white">
                   Start $1 Trial
                 </Link>
+                <button type="button" popoverTarget="homepage-mobile-nav" className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-[#061642]" aria-label="Toggle navigation" aria-controls="homepage-mobile-nav">
+                  <Menu size={25} />
+                </button>
+              </div>
+              <div id="homepage-mobile-nav" popover="auto" className="inset-x-4 top-20 z-50 m-0 max-w-none rounded-lg border border-slate-200 bg-white p-5 shadow-2xl backdrop:bg-transparent lg:hidden">
+                <div className="grid gap-4">
+                  {NAV_LINKS.map((link) => (
+                    <Link key={link.label} href={link.href} className="font-bold text-[#061642]">
+                      {link.label}
+                    </Link>
+                  ))}
+                  <Link href="/login" className="font-bold text-[#061642]">
+                    Sign In
+                  </Link>
+                </div>
               </div>
               <div className="text-center">
                 <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">AI-POWERED CREDIT INTELLIGENCE</span>
-                <h2 className="mt-4 text-3xl font-black leading-tight text-[#061642]">
+                <h1 className="mt-4 text-[30px] font-black leading-[1.12] text-[#061642]">
                   AI Analyzes Your Credit.
                   <span className="block">We Find What Matters.</span>
                   <span className="block text-[#079735]">You Take Action.</span>
-                </h2>
+                </h1>
+                <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-5 text-[#061642]">
+                  Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
+                </p>
               </div>
-              <div className="mt-7 grid gap-3">
+              <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+                {FEATURES.map(({ icon: Icon, title, copy }) => (
+                  <div key={title}>
+                    <Icon size={20} className="mx-auto text-[#079735]" strokeWidth={2} />
+                    <b className="mt-1 block text-[10px] text-[#061642]">{title}</b>
+                    <span className="text-[9px] font-semibold leading-3 text-slate-600">{copy}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 grid gap-3">
                 <AudienceCard type="individuals" onStart={start} />
                 <AudienceCard type="business" onStart={start} />
               </div>
