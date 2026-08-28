@@ -593,8 +593,7 @@ export default function CreditReportImportContent() {
   const showUploader = () => {
     setImportMode('upload');
     window.requestAnimationFrame(() => {
-      uploaderRef.current?.focus({ preventScroll: true });
-      uploaderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      uploaderRef.current?.focus();
     });
   };
 
