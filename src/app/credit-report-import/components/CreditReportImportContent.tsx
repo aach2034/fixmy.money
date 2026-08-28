@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle2, Info, Loader2, X, ArrowRight, RefreshCw, Eye, AlertCircle, ChevronDown, ChevronUp, ScanLine } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Upload, FileText, AlertTriangle, CheckCircle2, Info, Loader2, X, ArrowRight, RefreshCw, Eye, AlertCircle, ChevronDown, ChevronUp, ScanLine, ShieldCheck, UsersRound, FileUp, ExternalLink, Building2, SearchCheck, Sparkles, ListChecks, LockKeyhole, Bell, WalletCards } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
-import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliates/reportProviders';
+import { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
+import { DEFAULT_PROVIDERS, getProviders, ReportProvider, trackAffiliateClick } from '@/lib/affiliates/reportProviders';
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, validateCreditReportExtraction, type PdfExtractionResult } from '@/lib/creditReport/pdfUtils';
 import { hashPdfFile, ocrPdfLocally } from '@/lib/creditReport/localOcr';
@@ -138,6 +138,70 @@ const PROVIDERS_LIST: { value: SupportedProvider; label: string }[] = [
   { value: 'annualcreditreport', label: 'AnnualCreditReport.com' },
   { value: 'creditkarma', label: 'Credit Karma (paste)' },
 ];
+
+type ImportMode = 'get-report' | 'upload';
+
+type ImportProviderCard = {
+  key: string;
+  name: string;
+  description: string;
+  reportType: string;
+  provider: SupportedProvider;
+  status: 'partner' | 'upload';
+  partner?: ReportProvider;
+  preferred?: boolean;
+};
+
+const UPLOAD_FORMATS = 'PDF, TXT, HTML, DOC, DOCX';
+
+const PROVIDER_UPLOAD_GUIDANCE: ImportProviderCard[] = [
+  {
+    key: 'creditkarma',
+    name: 'Credit Karma',
+    description: 'Easy option if you already have a saved report or copied report text.',
+    reportType: 'Upload a saved PDF/text export or paste copied text',
+    provider: 'creditkarma',
+    status: 'upload',
+  },
+  {
+    key: 'experian',
+    name: 'Experian',
+    description: 'Use an Experian report you have already downloaded.',
+    reportType: 'Upload an Experian PDF or readable export',
+    provider: 'experian',
+    status: 'upload',
+  },
+  {
+    key: 'identityiq',
+    name: 'IdentityIQ',
+    description: 'Use your downloaded monitoring report when available.',
+    reportType: 'Upload a PDF or readable report export',
+    provider: 'identityiq',
+    status: 'upload',
+  },
+  {
+    key: 'annualcreditreport',
+    name: 'AnnualCreditReport.com',
+    description: 'Good source for official bureau report files you download yourself.',
+    reportType: 'Upload an official bureau report PDF/text export',
+    provider: 'annualcreditreport',
+    status: 'upload',
+  },
+  {
+    key: 'other',
+    name: 'Other provider',
+    description: 'Use this if your report source is not listed here.',
+    reportType: `Upload one of the supported formats: ${UPLOAD_FORMATS}`,
+    provider: 'unknown',
+    status: 'upload',
+  },
+];
+
+const SUPPORTED_PROVIDER_VALUES = new Set(PROVIDERS_LIST.map(provider => provider.value));
+
+function toSupportedProvider(providerKey: string): SupportedProvider {
+  return SUPPORTED_PROVIDER_VALUES.has(providerKey as SupportedProvider) ? providerKey as SupportedProvider : 'unknown';
+}
 
 // Provider selection modal shown when confidence < 60%
 function ProviderSelectionModal({
@@ -337,13 +401,13 @@ interface OcrStatus {
 
 function OcrStatusPanel({ status }: { status: OcrStatus }) {
   const stageLabel: Record<OcrStatus['stage'], string> = {
-    detecting: 'Detecting PDF type…',
-    rendering: 'Rendering PDF pages…',
-    ocr: 'Running OCR on pages…',
-    parsing: 'Parsing credit report sections…',
-    done: 'Extraction complete',
-    failed: 'OCR failed',
-    unavailable: 'OCR unavailable',
+    detecting: 'Reading your report…',
+    rendering: 'Preparing report pages…',
+    ocr: 'Reading scanned pages…',
+    parsing: 'Identifying accounts and negative items…',
+    done: 'Report ready to review',
+    failed: 'We could not read enough of this report',
+    unavailable: 'We could not read this file automatically',
   };
 
   const isActive = !['done', 'failed', 'unavailable'].includes(status.stage);
@@ -362,11 +426,11 @@ function OcrStatusPanel({ status }: { status: OcrStatus }) {
       </div>
 
       {status.stage === 'unavailable' && status.errorMessage && (
-        <p className="text-xs text-warning">{status.errorMessage}</p>
+        <p className="text-xs text-warning">Try uploading the original PDF from your report provider, or paste readable report text below.</p>
       )}
 
       {status.stage === 'failed' && status.errorMessage && (
-        <p className="text-xs text-warning">{status.errorMessage}</p>
+        <p className="text-xs text-warning">Try uploading the original PDF from your report provider, or paste readable report text below.</p>
       )}
 
       {status.totalPages > 0 && (
@@ -451,6 +515,7 @@ export default function CreditReportImportContent() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('unknown');
+  const [importMode, setImportMode] = useState<ImportMode>('get-report');
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [rawText, setRawText] = useState('');
   const [fileName, setFileName] = useState('');
@@ -458,8 +523,36 @@ export default function CreditReportImportContent() {
   const fileRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
+  const providerCards = useMemo(() => {
+    const cards: ImportProviderCard[] = [];
+    const seen = new Set<string>();
+
+    providers.forEach(provider => {
+      cards.push({
+        key: provider.key,
+        name: provider.name,
+        description: provider.description || 'Use this provider to get a report, then return here to upload it.',
+        reportType: 'Download your report, then upload it here',
+        provider: toSupportedProvider(provider.key),
+        status: provider.affiliateUrl ? 'partner' : 'upload',
+        partner: provider,
+        preferred: provider.isPreferred,
+      });
+      seen.add(provider.key);
+    });
+
+    PROVIDER_UPLOAD_GUIDANCE.forEach(provider => {
+      if (!seen.has(provider.key)) cards.push(provider);
+    });
+
+    return cards;
+  }, [providers]);
+
   useEffect(() => {
     loadProviders();
+    trackEvent('credit_import_viewed', {
+      page: 'credit-report-import',
+    });
   }, []);
 
   const loadProviders = async () => {
@@ -484,6 +577,45 @@ export default function CreditReportImportContent() {
     const { data } = await supabase.from('staff_clients').select('id, name').eq('owner_id', user.id).order('name');
     setClients(data ?? []);
     setClientsLoaded(true);
+  };
+
+  const selectProviderForUpload = (provider: SupportedProvider, source: string) => {
+    setSelectedProvider(provider);
+    setImportMode('upload');
+    trackEvent('credit_import_provider_selected', {
+      provider,
+      source,
+      provider_state: 'upload_guidance_only',
+    });
+  };
+
+  const startProviderUpload = (card: ImportProviderCard) => {
+    selectProviderForUpload(card.provider, card.key);
+    fileRef.current?.click();
+  };
+
+  const openPartnerProvider = (card: ImportProviderCard) => {
+    const partner = card.partner;
+    if (!partner?.affiliateUrl) return;
+
+    setSelectedProvider(card.provider);
+    setImportMode('get-report');
+    trackEvent('credit_import_provider_selected', {
+      provider: card.key,
+      source: 'provider_card',
+      provider_state: 'partner_referral',
+    });
+    trackEvent('credit_import_partner_clicked', {
+      provider: card.key,
+      source: 'credit-report-import',
+    });
+    void trackAffiliateClick({
+      provider: card.key,
+      sourcePage: 'credit-report-import',
+      agencyId: workspaceId,
+      userId,
+    });
+    window.open(partner.affiliateUrl, '_blank', 'noopener,noreferrer');
   };
 
   const parseText = async (text: string, provider?: SupportedProvider, meta?: OcrMetadata): Promise<ParsedCreditReport | null> => {
@@ -735,19 +867,31 @@ export default function CreditReportImportContent() {
   const handleFile = async (file: File) => {
     if (!file) return;
     const allowed = ['application/pdf', 'text/plain', 'text/html', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowed.includes(file.type) && !file.name.endsWith('.pdf') && !file.name.endsWith('.txt')) {
-      toast.error('Please upload a PDF, TXT, or DOC file');
+    const fileNameLower = file.name.toLowerCase();
+    const allowedExtensions = ['.pdf', '.txt', '.html', '.doc', '.docx'];
+    if (!allowed.includes(file.type) && !allowedExtensions.some(extension => fileNameLower.endsWith(extension))) {
+      toast.error(`Please upload one of these supported formats: ${UPLOAD_FORMATS}`);
+      trackEvent('credit_import_upload_failed', {
+        provider: selectedProvider,
+        reason: 'unsupported_file_type',
+        file_type: file.type || 'unknown',
+      });
       return;
     }
 
     setFileName(file.name);
     setOcrStatus(null);
+    trackEvent('credit_import_upload_started', {
+      provider: selectedProvider,
+      file_type: file.type || 'unknown',
+      file_name_extension: fileNameLower.split('.').pop() ?? 'unknown',
+    });
     setUploading(true);
     await new Promise(r => setTimeout(r, 400));
     setUploading(false);
 
     try {
-      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+      const isPdf = file.type === 'application/pdf' || fileNameLower.endsWith('.pdf');
 
       if (isPdf) {
         // ── PDF handling: detect image-based vs text-based ──────────────────
@@ -755,25 +899,35 @@ export default function CreditReportImportContent() {
         const extraction = await extractPdfText(file);
 
         if (extraction.isImageBased) {
-          toast.info('Scanned report detected. Reading each page with on-device OCR.');
+          toast.info('Scanned report detected. We are reading each page now.');
         } else if (extraction.pagesRequiringOcr > 0) {
-          toast.info('Mixed PDF detected. Reading only the image-only pages with OCR.');
+          toast.info('Some pages need extra reading. We are processing them now.');
         }
 
         const extractionResult = await runOcrOnPdf(file, extraction);
         if (!extractionResult) {
-          toast.warning('OCR_FAILED: Readable credit-report text could not be verified.');
+          toast.warning('We could not read enough of this report automatically. Try uploading the original PDF or a clearer text export.');
+          trackEvent('credit_import_upload_failed', {
+            provider: selectedProvider,
+            reason: 'unreadable_pdf',
+            file_type: file.type || 'unknown',
+          });
           return;
         }
 
         const normalizedText = safeNormalizeText(extractionResult.text);
         setRawText(normalizedText);
         setOcrMeta(extractionResult.meta);
-        toast.success(
-          `Extraction complete: ${extractionResult.meta.pagesWithEmbeddedText} native, ${extractionResult.meta.ocrPagesSucceeded} OCR, ${extractionResult.meta.ocrPagesFailed} failed pages.`,
-        );
+        toast.success('Report text is ready. Identifying accounts and negative items now.');
         setOcrStatus(prev => prev ? { ...prev, stage: 'parsing' } : prev);
-        await parseText(normalizedText, selectedProvider, extractionResult.meta);
+        const parsed = await parseText(normalizedText, selectedProvider, extractionResult.meta);
+        if (parsed) {
+          trackEvent('credit_import_upload_succeeded', {
+            provider: parsed.provider,
+            accounts_count: parsed.accounts.length,
+            negative_items_count: parsed.negativeAccounts.length,
+          });
+        }
         setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
         return;
 
@@ -788,16 +942,33 @@ export default function CreditReportImportContent() {
         if (!text || text.trim().length < 20) {
           toast.info('File appears to be empty or unreadable.');
           toast.warning('For best results, use a text-based export from your credit report provider, or paste the report text below.');
+          trackEvent('credit_import_upload_failed', {
+            provider: selectedProvider,
+            reason: 'empty_or_unreadable',
+            file_type: file.type || 'unknown',
+          });
           setParsing(false);
           return;
         }
 
         setRawText(text);
-        await parseText(text, selectedProvider);
+        const parsed = await parseText(text, selectedProvider);
+        if (parsed) {
+          trackEvent('credit_import_upload_succeeded', {
+            provider: parsed.provider,
+            accounts_count: parsed.accounts.length,
+            negative_items_count: parsed.negativeAccounts.length,
+          });
+        }
       }
-    } catch (err: any) {
+    } catch {
       toast.info('Could not read file directly.');
       toast.warning('For best results, use a text-based export from your credit report provider, or paste the report text below.');
+      trackEvent('credit_import_upload_failed', {
+        provider: selectedProvider,
+        reason: 'read_failed',
+        file_type: file.type || 'unknown',
+      });
       setParsing(false);
     }
   };
@@ -824,6 +995,13 @@ export default function CreditReportImportContent() {
   const handleSaveToClient = async () => {
     if (!selectedClientId) { toast.error('Select a client to save this report to'); return; }
     if (!parsedReport) return;
+    trackEvent('credit_import_review_clicked', {
+      provider: parsedReport.provider,
+      parser_confidence: parsedReport.overallConfidence,
+      accounts_count: parsedReport.accounts.length,
+      negative_items_count: parsedReport.negativeAccounts.length,
+      selected_client: true,
+    });
     setSaving(true);
     setSaveStage('Saving report…');
     try {
@@ -1138,7 +1316,7 @@ export default function CreditReportImportContent() {
   };
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[#f8fbff] p-4 sm:p-6">
       {showProviderModal && parsedReport && (
         <ProviderSelectionModal
           onSelect={handleReparse}
@@ -1148,122 +1326,234 @@ export default function CreditReportImportContent() {
         />
       )}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Credit Report Import</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Upload and parse client credit reports to identify dispute items</p>
-      </div>
-
-      {!parsedReport ? (
-        <div className="space-y-6">
-          {/* Affiliate Provider Cards */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">Recommended Report Providers</h2>
-              <a href="/settings/report-providers" className="text-xs text-primary hover:underline">Manage providers</a>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have a credit report yet? Get one from a recommended provider, then return to upload it here.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {providers.map(provider => (
-                <AffiliateProviderCard
-                  key={provider.key}
-                  provider={provider}
-                  sourcePage="credit-report-import"
-                  agencyId={workspaceId}
-                  userId={userId}
-                  showUploadButton={true}
-                  onUploadClick={() => fileRef.current?.click()}
-                  showParseButton={false}
-                />
-              ))}
-            </div>
-            <AffiliateDisclosure />
-          </div>
-
-          <div className="relative flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground font-medium">or upload an existing report</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          {/* Provider selection */}
-          <div className="flex items-center gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Report Provider</label>
-              <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value as SupportedProvider)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card text-foreground">
-                {PROVIDERS_LIST.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">Select your provider for best parsing accuracy, or leave on Auto-detect</p>
-          </div>
-
-          {/* Upload area */}
-          <div
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileRef.current?.click()}
-            className={`card p-12 flex flex-col items-center justify-center gap-4 cursor-pointer border-2 border-dashed transition-all ${dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'}`}
-          >
-            <input ref={fileRef} type="file" className="hidden" accept=".pdf,.txt,.doc,.docx,.html" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-            {uploading || parsing || ocrRunning ? (
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 size={32} className="text-primary animate-spin" />
-                {ocrRunning ? (
-                  <>
-                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                      <ScanLine size={16} className="text-primary" />
-                      Running OCR on image-based PDF…
-                    </p>
-                    <p className="text-xs text-muted-foreground text-center max-w-xs">
-                      This PDF is image-based. OCR is reading each page to extract text. This may take a moment.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-foreground">{uploading ? 'Uploading report…' : 'Parsing credit report…'}</p>
-                    <p className="text-xs text-muted-foreground">{parsing ? 'Extracting accounts, negative items, inquiries…' : ''}</p>
-                  </>
-                )}
+      <div className="mx-auto max-w-screen-xl space-y-6">
+        {!parsedReport && (
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-success">
+                AI credit report import
               </div>
-            ) : (
-              <>
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Upload size={28} className="text-primary" />
-                </div>
-                <div className="text-center">
-                  <p className="text-base font-semibold text-foreground">Upload Credit Report</p>
-                  <p className="text-sm text-muted-foreground mt-1">Drag and drop or click to select</p>
-                  <p className="text-xs text-muted-foreground mt-1">Supports PDF, TXT, HTML — SmartCredit, IdentityIQ, MyScoreIQ, Experian, TransUnion, Equifax, AnnualCreditReport.com</p>
-                </div>
-              </>
-            )}
+              <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[#071942] sm:text-5xl">
+                Import Your Credit Report
+              </h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-[#23345f]">
+                Tell us where your report is from, then upload the file. FixMy.Money will read the report, identify accounts, and prepare it for review.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-success/20 bg-white px-4 py-3 text-sm shadow-sm">
+              <ShieldCheck size={26} className="text-success" />
+              <div>
+                <p className="font-bold text-[#071942]">Private workspace import</p>
+                <p className="text-xs text-[#52627f]">Your report is processed for your signed-in account.</p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* OCR status panel — shown when OCR is running or has completed/failed */}
-          {ocrStatus && (
-            <OcrStatusPanel status={ocrStatus} />
-          )}
+        {!parsedReport ? (
+          <div className="space-y-6">
+            <input ref={fileRef} type="file" className="hidden" accept=".pdf,.txt,.doc,.docx,.html" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
 
-          {/* Paste text fallback */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Or paste report text directly (Credit Karma, copy-paste fallback):</p>
-            <textarea
-              value={rawText}
-              onChange={e => setRawText(e.target.value)}
-              rows={5}
-              className="w-full text-xs font-mono border border-border rounded-xl px-3 py-2 bg-card text-foreground resize-y"
-              placeholder="Paste credit report text here…"
-            />
-            {rawText.trim() && (
-              <button onClick={() => parseText(rawText, selectedProvider)} disabled={parsing} className="btn-primary flex items-center gap-2 text-sm">
-                {parsing ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                Parse Pasted Text
-              </button>
-            )}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[#cfd8ea] bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('get-report')}
+                    className={`flex min-h-16 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${importMode === 'get-report' ? 'border border-[#0b2d65] bg-white text-[#071942] shadow-sm' : 'text-[#52627f] hover:bg-[#f4f7fb]'}`}
+                  >
+                    <UsersRound size={20} className="text-success" />
+                    <span>Get a Report</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportMode('upload');
+                      fileRef.current?.click();
+                    }}
+                    className={`flex min-h-16 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${importMode === 'upload' ? 'border border-[#0b2d65] bg-white text-[#071942] shadow-sm' : 'text-[#52627f] hover:bg-[#f4f7fb]'}`}
+                  >
+                    <FileUp size={20} className="text-[#071942]" />
+                    <span>Upload File</span>
+                  </button>
+                </div>
+
+                <section className="space-y-3">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                      <h2 className="text-lg font-extrabold text-[#071942]">Where is your credit report from?</h2>
+                      <p className="text-sm text-[#52627f]">Choose the closest source so the importer can use the best matching parser.</p>
+                    </div>
+                    <a href="/settings/report-providers" className="text-xs font-semibold text-primary hover:underline">Manage providers</a>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {providerCards.map(card => (
+                      <div key={card.key} className="rounded-2xl border border-[#dbe3f0] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#b8c6dc] hover:shadow-md">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef4ff] text-[#071942]">
+                              <Building2 size={20} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-extrabold text-[#071942]">{card.name}</p>
+                              <p className="mt-0.5 text-xs font-medium text-[#52627f]">{card.status === 'partner' ? 'Partner/referral' : 'Upload guidance only'}</p>
+                            </div>
+                          </div>
+                          {card.status === 'partner' && (
+                            <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[11px] font-bold text-success">Partner</span>
+                          )}
+                        </div>
+                        <p className="mt-3 min-h-10 text-sm leading-5 text-[#23345f]">{card.description}</p>
+                        <p className="mt-2 text-xs leading-5 text-[#52627f]">{card.reportType}</p>
+                        <div className="mt-4 flex gap-2">
+                          {card.status === 'partner' ? (
+                            <>
+                              <button type="button" onClick={() => openPartnerProvider(card)} className="btn-primary flex flex-1 items-center justify-center gap-1.5 text-sm">
+                                Get My Report
+                                <ExternalLink size={14} />
+                              </button>
+                              <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary px-3 text-sm">Upload</button>
+                            </>
+                          ) : (
+                            <button type="button" onClick={() => startProviderUpload(card)} className="btn-primary flex w-full items-center justify-center gap-1.5 text-sm">
+                              Upload Report
+                              <Upload size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <AffiliateDisclosure />
+                </section>
+
+                <section
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => {
+                    setImportMode('upload');
+                    fileRef.current?.click();
+                  }}
+                  className={`rounded-2xl border-2 border-dashed bg-white p-5 shadow-sm transition sm:p-6 ${dragOver ? 'border-success bg-success/5' : 'border-[#b8c6dc] hover:border-success/60'}`}
+                >
+                  {uploading || parsing || ocrRunning ? (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center">
+                      <Loader2 size={34} className="animate-spin text-success" />
+                      {ocrRunning ? (
+                        <>
+                          <p className="flex items-center gap-2 text-sm font-bold text-[#071942]">
+                            <ScanLine size={16} className="text-success" />
+                            Reading scanned pages…
+                          </p>
+                          {ocrProgress && (
+                            <p className="text-xs font-semibold text-success">
+                              Page {ocrProgress.current} of {ocrProgress.total}
+                            </p>
+                          )}
+                          <p className="max-w-sm text-xs text-[#52627f]">This can take a moment for scanned reports. Keep this page open while we prepare the audit.</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-bold text-[#071942]">{uploading ? 'Uploading report…' : 'Finding accounts and negative items…'}</p>
+                          <p className="text-xs text-[#52627f]">{parsing ? 'Preparing your report review.' : ''}</p>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#eef4ff]">
+                          <Upload size={28} className="text-[#071942]" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-extrabold text-[#071942]">Already have your report?</h3>
+                          <p className="mt-1 text-sm text-[#23345f]">Drop it here or choose a file.</p>
+                          <p className="mt-1 text-xs text-[#52627f]">Supported formats: {UPLOAD_FORMATS}. Scanned PDFs are read automatically when possible.</p>
+                        </div>
+                      </div>
+                      <button type="button" className="btn-primary shrink-0 text-sm">Choose File</button>
+                    </div>
+                  )}
+                </section>
+
+                {ocrStatus && (
+                  <OcrStatusPanel status={ocrStatus} />
+                )}
+
+                <section className="rounded-2xl border border-[#dbe3f0] bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-[#071942]">Paste report text instead</p>
+                      <p className="text-xs text-[#52627f]">Helpful for copied Credit Karma text or readable text exports.</p>
+                    </div>
+                    <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value as SupportedProvider)} className="rounded-lg border border-[#cfd8ea] bg-white px-3 py-2 text-xs text-[#071942]">
+                      {PROVIDERS_LIST.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                  </div>
+                  <textarea
+                    value={rawText}
+                    onChange={e => setRawText(e.target.value)}
+                    rows={5}
+                    className="mt-3 w-full resize-y rounded-xl border border-[#cfd8ea] bg-white px-3 py-2 font-mono text-xs text-[#071942]"
+                    placeholder="Paste credit report text here…"
+                  />
+                  {rawText.trim() && (
+                    <button onClick={() => parseText(rawText, selectedProvider)} disabled={parsing} className="btn-primary mt-3 flex items-center gap-2 text-sm">
+                      {parsing ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                      Parse Pasted Text
+                    </button>
+                  )}
+                </section>
+              </div>
+
+              <aside className="space-y-4">
+                <div className="rounded-2xl border border-[#dbe3f0] bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-extrabold text-[#071942]">What happens next</h2>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      { icon: FileUp, title: 'Upload or get a report', detail: 'Use a partner link or upload the file you already have.' },
+                      { icon: SearchCheck, title: 'AI reads the report', detail: 'Accounts, bureaus, and negative items are extracted.' },
+                      { icon: ListChecks, title: 'Review the results', detail: 'You confirm classifications before moving forward.' },
+                      { icon: Sparkles, title: 'Prepare disputes', detail: 'Qualified items can continue into the dispute workflow.' },
+                    ].map(step => {
+                      const Icon = step.icon;
+                      return (
+                        <div key={step.title} className="flex gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+                            <Icon size={17} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-[#071942]">{step.title}</p>
+                            <p className="text-xs leading-5 text-[#52627f]">{step.detail}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[#dbe3f0] bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-extrabold text-[#071942]">Import notes</h2>
+                  <div className="mt-4 space-y-3 text-sm text-[#23345f]">
+                    <div className="flex gap-3">
+                      <LockKeyhole size={18} className="mt-0.5 shrink-0 text-[#071942]" />
+                      <p>Use safe client data only and review all imported facts before saving.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <WalletCards size={18} className="mt-0.5 shrink-0 text-[#071942]" />
+                      <p>Partner buttons may open a third-party report source. Return here after downloading the report.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Bell size={18} className="mt-0.5 shrink-0 text-[#071942]" />
+                      <p>If a report cannot be read, try the original PDF or paste readable report text.</p>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
           </div>
-        </div>
       ) : (
         <div className="space-y-5">
           {ocrStatus && <OcrStatusPanel status={ocrStatus} />}
@@ -1443,6 +1733,7 @@ export default function CreditReportImportContent() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
