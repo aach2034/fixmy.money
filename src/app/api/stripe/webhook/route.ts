@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { sendTransactionalEmail, formatDate, getPlanAmount } from '@/lib/email/emailService';
+import { logProductAnalyticsEvent } from '@/lib/analytics/server';
+import { PLANS, type PlanId } from '@/lib/stripe/plans';
+
+async function safeLogProductAnalyticsEvent(input: Parameters<typeof logProductAnalyticsEvent>[0]) {
+  try {
+    await logProductAnalyticsEvent(input);
+  } catch (error) {
+    console.error('[Webhook] Product analytics write failed:', error instanceof Error ? error.message : 'unknown');
+  }
+}
 
 function getStripeInstance(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -259,6 +269,14 @@ export async function POST(req: NextRequest) {
             stripeCreatedAt: event.created,
             metadata: session.metadata ?? undefined,
           });
+          await safeLogProductAnalyticsEvent({
+            eventName: 'trial_started',
+            userId: userId || null,
+            stripeCustomerId: customerId,
+            properties: { plan },
+            dedupeKey: `stripe:${event.id}:trial_started`,
+            occurredAt: new Date(event.created * 1000).toISOString(),
+          });
 
           const { email, name } = await getCustomerInfo(customerId);
           if (email) {
@@ -278,7 +296,7 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription;
-        let plan = subscription.metadata?.plan || 'starter';
+        const plan = subscription.metadata?.plan || 'starter';
         const userId = subscription.metadata?.userId || '';
         const status = subscription.status === 'trialing' ? 'trial_active' : subscription.status;
 
@@ -310,13 +328,29 @@ export async function POST(req: NextRequest) {
           stripeCreatedAt: event.created,
           metadata: subscription.metadata ?? undefined,
         });
+        if (subscription.status === 'active') {
+          await safeLogProductAnalyticsEvent({
+            eventName: 'subscription_started',
+            userId: userId || null,
+            stripeCustomerId: subscription.customer as string,
+            properties: { plan },
+            dedupeKey: `stripe:${event.id}:subscription_started`,
+            occurredAt: new Date(event.created * 1000).toISOString(),
+          });
+        }
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        let plan = subscription.metadata?.plan || 'starter';
+        const plan = subscription.metadata?.plan || 'starter';
         const status = subscription.status === 'trialing' ? 'trial_active' : subscription.status;
+        const { data: previousProfile } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id,subscription_plan')
+          .eq('stripe_customer_id', subscription.customer as string)
+          .maybeSingle();
+        const previousPlan = String(previousProfile?.subscription_plan || '');
 
         await updateUserSubscription(subscription.customer as string, {
           subscription_status: status,
@@ -347,6 +381,14 @@ export async function POST(req: NextRequest) {
             stripeCreatedAt: event.created,
             metadata: subscription.metadata ?? undefined,
           });
+          await safeLogProductAnalyticsEvent({
+            eventName: 'subscription_started',
+            userId: previousProfile?.id || subscription.metadata?.userId || null,
+            stripeCustomerId: subscription.customer as string,
+            properties: { plan },
+            dedupeKey: `stripe:${event.id}:subscription_started`,
+            occurredAt: new Date(event.created * 1000).toISOString(),
+          });
 
           const { email, name } = await getCustomerInfo(subscription.customer as string);
           if (email) {
@@ -364,6 +406,19 @@ export async function POST(req: NextRequest) {
             });
           }
         }
+
+        const previousPrice = PLANS[previousPlan as PlanId]?.monthlyPrice;
+        const currentPrice = PLANS[plan as PlanId]?.monthlyPrice;
+        if (previousPlan && previousPlan !== plan && previousPrice != null && currentPrice != null && currentPrice > previousPrice) {
+          await safeLogProductAnalyticsEvent({
+            eventName: 'subscription_upgraded',
+            userId: previousProfile?.id || subscription.metadata?.userId || null,
+            stripeCustomerId: subscription.customer as string,
+            properties: { plan, previous_plan: previousPlan },
+            dedupeKey: `stripe:${event.id}:subscription_upgraded`,
+            occurredAt: new Date(event.created * 1000).toISOString(),
+          });
+        }
         break;
       }
 
@@ -380,6 +435,14 @@ export async function POST(req: NextRequest) {
           stripeSubscriptionId: subscription.id,
           status: 'canceled',
           stripeCreatedAt: event.created,
+        });
+        await safeLogProductAnalyticsEvent({
+          eventName: 'subscription_cancelled',
+          userId: subscription.metadata?.userId || null,
+          stripeCustomerId: subscription.customer as string,
+          properties: { plan: subscription.metadata?.plan || '' },
+          dedupeKey: `stripe:${event.id}:subscription_cancelled`,
+          occurredAt: new Date(event.created * 1000).toISOString(),
         });
         break;
       }

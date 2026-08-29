@@ -158,6 +158,7 @@ export default function CheckoutContent() {
           currency: 'USD',
           value: TRIAL_CONFIG.chargeCents / 100,
           plan_name: selectedPlan,
+          authenticated: true,
         });
         window.location.href = data.url;
       } else {

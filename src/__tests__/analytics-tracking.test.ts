@@ -68,7 +68,7 @@ describe('Google Analytics funnel tracking', () => {
     const authForm = read('src/app/sign-up-login-screen/components/AuthForm.tsx');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
     const checkoutRoute = read('src/app/api/stripe/create-checkout/route.ts');
-    const migration = read('supabase/migrations/20260827090000_acquisition_attribution.sql');
+    const migration = read('supabase/migrations/20260829213754_product_acquisition_analytics.sql');
 
     expect(attribution).toContain('ATTRIBUTION_STORAGE_KEY');
     expect(attribution).toContain('firstTouch');
@@ -78,6 +78,32 @@ describe('Google Analytics funnel tracking', () => {
     expect(checkoutRoute).toContain('...attribution');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS referral_code');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS last_utm_campaign');
+    expect(migration).toContain('INSERT INTO public.workspaces');
+    expect(migration).toContain('product_analytics_events');
+    expect(migration).toContain('REVOKE ALL ON TABLE public.product_analytics_events FROM anon, authenticated');
+  });
+
+  it('persists authenticated activation events through a protected server route', () => {
+    const analytics = read('src/lib/analytics.ts');
+    const route = read('src/app/api/analytics/events/route.ts');
+    const server = read('src/lib/analytics/server.ts');
+    expect(analytics).toContain("fetch('/api/analytics/events'");
+    expect(analytics).toContain('eventParams.authenticated !== true');
+    expect(route).toContain('supabase.auth.getUser()');
+    expect(route).toContain('CLIENT_EVENT_NAMES');
+    expect(server).toContain('ALLOWED_PROPERTY_KEYS');
+    expect(server).not.toContain('credit_report_content');
+    expect(server).not.toContain('account_number');
+    expect(server).not.toContain('ssn');
+  });
+
+  it('records authoritative subscription lifecycle events from signed Stripe webhooks', () => {
+    const webhook = read('src/app/api/stripe/webhook/route.ts');
+    expect(webhook).toContain("eventName: 'trial_started'");
+    expect(webhook).toContain("eventName: 'subscription_started'");
+    expect(webhook).toContain("eventName: 'subscription_upgraded'");
+    expect(webhook).toContain("eventName: 'subscription_cancelled'");
+    expect(webhook).toContain('safeLogProductAnalyticsEvent');
   });
 
   it('defines the requested funnel events without adding another analytics vendor', () => {

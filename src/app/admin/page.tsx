@@ -131,6 +131,9 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/admin/acquisition" className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-100">
+              Acquisition funnel
+            </Link>
             <Link href={includeTestInternal ? '/admin' : '/admin?include_test_internal=true'} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:border-blue-200 hover:text-blue-700">
               {includeTestInternal ? 'Hide test/internal' : 'Include test/internal'}
             </Link>

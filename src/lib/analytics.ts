@@ -32,6 +32,30 @@ function runtimeEventContext(): Record<string, unknown> {
   };
 }
 
+const SERVER_ANALYTICS_EVENTS = new Set([
+  'onboarding_started',
+  'onboarding_completed',
+  'credit_report_import_started',
+  'credit_report_import_completed',
+  'credit_audit_viewed',
+  'dispute_wizard_started',
+  'dispute_created',
+  'letter_generated',
+  'checkout_started',
+]);
+
+function persistAuthenticatedEvent(eventName: string, eventParams: Record<string, unknown>) {
+  if (typeof window === 'undefined' || eventParams.authenticated !== true || !SERVER_ANALYTICS_EVENTS.has(eventName)) return;
+  const eventId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  void fetch('/api/analytics/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    keepalive: true,
+    body: JSON.stringify({ event_name: eventName, properties: eventParams, event_id: eventId }),
+  }).catch(() => undefined);
+}
+
 function persistOrganicAttribution(pagePath: string, searchParams: URLSearchParams) {
   if (typeof window === 'undefined') return {};
 
@@ -106,14 +130,16 @@ export function useGoogleAnalytics() {
 }
 
 export function trackEvent(eventName: string, eventParams: Record<string, unknown> = {}) {
+  const normalizedParams = {
+    ...runtimeEventContext(),
+    ...getStoredAttribution(),
+    ...attributionEventParams(),
+    ...eventParams,
+  };
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, {
-      ...runtimeEventContext(),
-      ...getStoredAttribution(),
-      ...attributionEventParams(),
-      ...eventParams,
-    });
+    window.gtag('event', eventName, normalizedParams);
   }
+  persistAuthenticatedEvent(eventName, normalizedParams);
 }
 
 export function trackOrganicConversionStep(step: string, eventParams: Record<string, unknown> = {}) {
