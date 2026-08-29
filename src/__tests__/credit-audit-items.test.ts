@@ -146,6 +146,33 @@ describe('credit audit item quality gate', () => {
     expect(summaries).toMatch(/Paid\/Closed|Closed/);
   });
 
+  it('does not score a missing bureau status as a strong cross-bureau dispute', () => {
+    const scored = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-placeholder', creditor_name: 'Yendo Inc', furnisher_name: 'Yendo Inc',
+        negative_category: 'collection', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****8812', account_type: 'Collection',
+        status: '- - -', balance: 0, date_opened: '2022-02-01',
+      },
+      {
+        id: 'ex-closed', creditor_name: 'Yendo Inc', furnisher_name: 'Yendo Inc',
+        negative_category: 'collection', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****8812', account_type: 'Collection',
+        status: 'Closed', balance: 0, date_opened: '2022-02-01',
+      },
+      {
+        id: 'tu-closed', creditor_name: 'Yendo Inc', furnisher_name: 'Yendo Inc',
+        negative_category: 'collection', bureau: 'TransUnion', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****8812', account_type: 'Collection',
+        status: 'Closed', balance: 0, date_opened: '2022-02-01',
+      },
+    ]));
+
+    expect(scored.every(item => item.disputeStrength.issueType !== 'status_discrepancy')).toBe(true);
+    expect(scored.every(item => item.disputeStrength.strengthLabel !== 'Strong')).toBe(true);
+    expect(scored.map(item => item.disputeStrength.reportedDataSummary).join('\n')).not.toContain('- - -');
+  });
+
   it('does not invent missing values in evidence summaries', () => {
     const [scored] = scoreDisputeStrength(selectReliableAuditItems([
       {

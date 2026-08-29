@@ -219,12 +219,57 @@ function uniqueSortedBureaus(bureaus: BureauName[]): BureauName[] {
   return [...new Set(bureaus)].sort((a, b) => BUREAU_ORDER.indexOf(String(a)) - BUREAU_ORDER.indexOf(String(b)));
 }
 
-function valuesByBureau(tradelines: BureauTradelineSnapshot[], field: keyof BureauTradelineSnapshot): Record<string, unknown> {
-  return Object.fromEntries(tradelines.map(row => [String(row.bureau), row[field] ?? null]));
+const MISSING_REPORT_VALUE_KEYS = new Set([
+  'na',
+  'unknown',
+  'notreported',
+  'nodata',
+  'notavailable',
+  'notapplicable',
+  'none',
+  'null',
+  'noinformation',
+  'notprovided',
+  'unavailable',
+  'undetermined',
+]);
+
+function meaningfulReportValue(value: unknown): unknown | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+
+  const trimmed = String(value).trim();
+  if (!trimmed || /^[\s\-–—_.•]+$/.test(trimmed)) return null;
+
+  const key = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return MISSING_REPORT_VALUE_KEYS.has(key) ? null : trimmed;
 }
 
-function distinctMeaningful(values: unknown[]): unknown[] {
-  return [...new Set(values.filter(value => value !== null && value !== undefined && String(value).trim() !== '').map(value => String(value).trim()))];
+function normalizeAccountStatus(value: unknown): string | null {
+  const meaningful = meaningfulReportValue(value);
+  if (meaningful === null) return null;
+
+  const normalized = clean(meaningful).replace(/[_-]+/g, ' ');
+  const statusAliases: Record<string, string> = {
+    'account closed': 'closed',
+    'closed account': 'closed',
+    'account open': 'open',
+    'open account': 'open',
+    'account paid': 'paid',
+    'paid account': 'paid',
+    'charge off': 'charge-off',
+    chargeoff: 'charge-off',
+    'charged off': 'charge-off',
+  };
+  return statusAliases[normalized] ?? normalized;
+}
+
+function valuesByBureau(tradelines: BureauTradelineSnapshot[], field: keyof BureauTradelineSnapshot): Record<string, unknown> {
+  return Object.fromEntries(tradelines.map(row => [String(row.bureau), meaningfulReportValue(row[field])]));
+}
+
+function distinctMeaningful(values: unknown[], normalizer: (value: unknown) => unknown | null = meaningfulReportValue): unknown[] {
+  return [...new Set(values.map(normalizer).filter((value): value is Exclude<unknown, null> => value !== null))];
 }
 
 function issue(params: Omit<DetectedIssueDraft, 'evidenceCurrentlyAvailable' | 'recommendedAction'> & Partial<Pick<DetectedIssueDraft, 'evidenceCurrentlyAvailable' | 'recommendedAction'>>): DetectedIssueDraft {
@@ -257,7 +302,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const statuses = distinctMeaningful(rows.map(row => row.accountStatus));
+  const statuses = distinctMeaningful(rows.map(row => row.accountStatus), normalizeAccountStatus);
   if (statuses.length > 1) {
     issues.push(issue({
       issueType: 'status_discrepancy',

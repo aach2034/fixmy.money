@@ -71,6 +71,48 @@ describe('evidence-driven dispute engine', () => {
     expect(JSON.stringify(issues).toLowerCase()).not.toContain('error');
   });
 
+  describe('cross-bureau account-status normalization', () => {
+    function statusIssues(statuses: Array<[string, string]>) {
+      const [canonical] = normalizeCrossBureauAccounts(statuses.map(([bureau, accountStatus]) => account({
+        bureau,
+        accountStatus,
+        balance: 0,
+      })));
+      return detectPotentialIssues(canonical).filter(issue => issue.issueType === 'status_discrepancy');
+    }
+
+    it.each([
+      { statuses: [['Equifax', '- - -'], ['Experian', 'Closed'], ['TransUnion', 'Closed']] as Array<[string, string]> },
+      { statuses: [['Equifax', '   '], ['Experian', 'Open'], ['TransUnion', 'Open']] as Array<[string, string]> },
+      { statuses: [['Equifax', 'N/A'], ['Experian', 'Closed'], ['TransUnion', 'Closed']] as Array<[string, string]> },
+    ])('ignores missing bureau placeholders instead of treating them as statuses', ({ statuses }) => {
+      expect(statusIssues(statuses)).toEqual([]);
+    });
+
+    it('flags genuinely conflicting meaningful statuses', () => {
+      const issues = statusIssues([['Equifax', 'Open'], ['Experian', 'Closed']]);
+
+      expect(issues).toHaveLength(1);
+      expect(new Set(issues[0].conflictingData.statusesReported as string[])).toEqual(new Set(['open', 'closed']));
+    });
+
+    it('treats semantically equivalent closed wording as one status', () => {
+      expect(statusIssues([
+        ['Equifax', 'Closed'],
+        ['Experian', 'Account Closed'],
+        ['TransUnion', 'Closed Account'],
+      ])).toEqual([]);
+    });
+
+    it('requires at least two meaningful statuses before comparing bureaus', () => {
+      expect(statusIssues([
+        ['Equifax', 'Open'],
+        ['Experian', 'Not Reported'],
+        ['TransUnion', '---'],
+      ])).toEqual([]);
+    });
+  });
+
   it('requires evidence before marking a potential issue strong', () => {
     const [canonical] = normalizeCrossBureauAccounts([
       account({ bureau: 'Equifax', balance: 1847 }),
