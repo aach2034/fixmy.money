@@ -1,9 +1,12 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Mail, Phone, FileText, CheckCircle2, Brain, Sparkles, AlertTriangle, TrendingUp, Calendar, Shield, ChevronRight, Plus, User, Upload, RefreshCw } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Link from 'next/link';
 import ImportWizard from '@/components/ImportWizard';
+import { createClient } from '@/lib/supabase/client';
+import { formatMissingMailingAddressError, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
+import { toast } from 'sonner';
 
 interface Client {
   id: string; name: string; email: string; phone: string;
@@ -12,6 +15,7 @@ interface Client {
   lastActivity: string; nextTaskDue: string; nextTaskLabel: string;
   assignedStaff: string; bureaus: string[]; score: number;
   reportAnalyzed?: boolean;
+  address: string; city: string; state: string; zip: string;
 }
 
 const TIMELINE: Array<{ id: string; date: string; event: string; detail: string; type: string }> = [];
@@ -26,10 +30,70 @@ const SEVERITY_COLORS: Record<string, string> = {
 const TABS = ['Overview', 'Disputes', 'AI Analysis', 'Notes', 'Billing'] as const;
 type Tab = typeof TABS[number];
 
-export default function ClientDetailDrawer({ client, onClose }: { client: Client; onClose: () => void }) {
+type ClientAddressUpdate = Pick<Client, 'id' | 'address' | 'city' | 'state' | 'zip'>;
+
+export default function ClientDetailDrawer({ client, onClose, onClientUpdated }: { client: Client; onClose: () => void; onClientUpdated: (client: ClientAddressUpdate) => void }) {
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [address, setAddress] = useState(client.address);
+  const [city, setCity] = useState(client.city);
+  const [state, setState] = useState(client.state);
+  const [zip, setZip] = useState(client.zip);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const supabase = createClient();
   const initials = client.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  useEffect(() => {
+    setAddress(client.address);
+    setCity(client.city);
+    setState(client.state);
+    setZip(client.zip);
+  }, [client]);
+
+  const saveMailingAddress = async () => {
+    const profile = { name: client.name, address, city, state, zip };
+    const validationError = formatMissingMailingAddressError(profile);
+    if (validationError) {
+      setAddressError(validationError);
+      return;
+    }
+    const update = toCanonicalMailingAddressUpdate(profile);
+    if (!update) return;
+
+    setSavingAddress(true);
+    setAddressError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { error: updateError } = await supabase
+        .from('staff_clients')
+        .update(update)
+        .eq('id', client.id)
+        .eq('owner_id', user.id);
+      if (updateError) throw updateError;
+
+      const { data: saved, error: reloadError } = await supabase
+        .from('staff_clients')
+        .select('address, city, state, zip')
+        .eq('id', client.id)
+        .eq('owner_id', user.id)
+        .single();
+      if (reloadError || !saved) throw new Error('Address saved but could not be reloaded.');
+      const normalized = normalizeClientMailingAddress(saved);
+      const updatedClient = { id: client.id, address: saved.address ?? '', city: saved.city ?? '', state: saved.state ?? '', zip: saved.zip ?? '' };
+      setAddress(normalized.street + (normalized.line2 ? `\n${normalized.line2}` : ''));
+      setCity(normalized.city);
+      setState(normalized.state);
+      setZip(normalized.postalCode);
+      onClientUpdated(updatedClient);
+      toast.success('Client mailing address saved');
+    } catch (error: any) {
+      setAddressError(error?.message ?? 'Could not save the mailing address.');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end fade-in" role="dialog" aria-modal="true">
@@ -136,6 +200,19 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                 <div className="flex items-center gap-2.5 text-sm text-slate-700">
                   <Calendar size={14} className="text-slate-400 shrink-0" />
                   <span>Enrolled: {client.enrolledDate}</span>
+                </div>
+                <div className="border-t border-slate-200 pt-3 mt-3 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mailing Address</p>
+                  <textarea className="input-field min-h-16" aria-label="Street address" placeholder="Street address (apartment/unit optional)" value={address} onChange={event => setAddress(event.target.value)} />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input className="input-field" aria-label="City" placeholder="City" value={city} onChange={event => setCity(event.target.value)} />
+                    <input className="input-field" aria-label="State" placeholder="ST" maxLength={2} value={state} onChange={event => setState(event.target.value.toUpperCase())} />
+                    <input className="input-field" aria-label="ZIP code" placeholder="ZIP" value={zip} onChange={event => setZip(event.target.value)} />
+                  </div>
+                  {addressError && <p className="text-xs text-red-600" role="alert">{addressError}</p>}
+                  <button type="button" className="btn-primary px-3 py-2 text-xs" disabled={savingAddress} onClick={saveMailingAddress}>
+                    {savingAddress ? 'Saving…' : 'Save mailing address'}
+                  </button>
                 </div>
               </div>
 

@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
-import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress } from '@/lib/disputes/letterSender';
+import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
 import { trackOrganicConversionStep } from '@/lib/analytics';
 
 
@@ -138,10 +138,11 @@ export default function DisputeWizardContent() {
 
   useEffect(() => {
     if (!selectedClient) return;
-    setClientAddress(selectedClient.address ?? '');
-    setClientCity(selectedClient.city ?? '');
-    setClientState((selectedClient.state ?? '').toUpperCase());
-    setClientZip(selectedClient.zip ?? '');
+    const normalized = normalizeClientMailingAddress(selectedClient);
+    setClientAddress([normalized.street, normalized.line2].filter(Boolean).join('\n'));
+    setClientCity(normalized.city);
+    setClientState(normalized.state);
+    setClientZip(normalized.postalCode);
   }, [selectedClient]);
 
   useEffect(() => {
@@ -313,6 +314,16 @@ export default function DisputeWizardContent() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      const addressInput = { name: selectedClient.name, address: clientAddress, city: clientCity, state: clientState, zip: clientZip };
+      const addressUpdate = toCanonicalMailingAddressUpdate(addressInput);
+      if (!addressUpdate) throw new Error(formatMissingMailingAddressError(addressInput) ?? 'Client name is missing.');
+      const { error: addressUpdateError } = await supabase
+        .from('staff_clients')
+        .update(addressUpdate)
+        .eq('id', selectedClient.id)
+        .eq('owner_id', user.id);
+      if (addressUpdateError) throw new Error('Client mailing address could not be saved.');
 
       const { data: persistedClient, error: clientError } = await supabase
         .from('staff_clients')

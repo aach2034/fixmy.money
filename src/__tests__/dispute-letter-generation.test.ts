@@ -5,9 +5,11 @@ import { buildFallbackLetter } from '../app/dispute-letter-management/components
 import {
   buildConsumerSenderBlock,
   formatMissingMailingAddressError,
+  getLegacyMailingAddressBackfill,
   getLetterSenderInfo,
   letterContainsGeneratedDisclaimer,
   normalizeClientMailingAddress,
+  toCanonicalMailingAddressUpdate,
 } from '../lib/disputes/letterSender';
 
 const sender = getLetterSenderInfo({
@@ -92,6 +94,41 @@ describe('dispute letter generation', () => {
     })).toEqual({ street: '123 Main St', line2: 'Apt 4', city: 'Atlanta', state: 'GA', postalCode: '30301' });
     expect(normalizeClientMailingAddress({ address: '123 Main St\nAtlanta GA 30301' })).toEqual({
       street: '123 Main St', line2: '', city: 'Atlanta', state: 'GA', postalCode: '30301',
+    });
+  });
+
+  it('backfills a complete legacy multiline address into canonical fields', () => {
+    expect(getLegacyMailingAddressBackfill({ address: '123 Main St\nAtlanta GA 30301', city: '', state: '', zip: '' })).toEqual({
+      address: '123 Main St', city: 'Atlanta', state: 'GA', zip: '30301',
+    });
+  });
+
+  it('never overwrites existing canonical city, state, or ZIP values', () => {
+    expect(getLegacyMailingAddressBackfill({
+      address: '123 Main St\nNew York NY 10001', city: 'Boston', state: 'MA', zip: '02108',
+    })).toEqual({ address: '123 Main St', city: 'Boston', state: 'MA', zip: '02108' });
+  });
+
+  it('preserves ambiguous legacy address text and requests missing fields', () => {
+    const profile = { address: 'Phone Number\n1ST DIGITAL/SYNOVUS/VT\tPO BOX 85650', city: '', state: '', zip: '' };
+    expect(getLegacyMailingAddressBackfill(profile)).toBeNull();
+    expect(formatMissingMailingAddressError(profile)).toBe('Client mailing address is missing: city, state, ZIP code.');
+  });
+
+  it('creates canonical persistence values from an edited profile', () => {
+    expect(toCanonicalMailingAddressUpdate({ address: '456 Oak Ave', city: 'Charlotte', state: 'nc', zip: '28202' })).toEqual({
+      address: '456 Oak Ave', city: 'Charlotte', state: 'NC', zip: '28202',
+    });
+  });
+
+  it('reloads the exact canonical values returned after save', () => {
+    const saved = { address: '456 Oak Ave', city: 'Charlotte', state: 'NC', zip: '28202' };
+    expect(normalizeClientMailingAddress(saved)).toEqual({ street: '456 Oak Ave', line2: '', city: 'Charlotte', state: 'NC', postalCode: '28202' });
+  });
+
+  it('preserves apartments and ZIP+4 while parsing two-word cities with line breaks', () => {
+    expect(getLegacyMailingAddressBackfill({ address: '123 Main St\nApt 4B\nNew York NY 10001-1234', city: '', state: '', zip: '' })).toEqual({
+      address: '123 Main St\nApt 4B', city: 'New York', state: 'NY', zip: '10001-1234',
     });
   });
 

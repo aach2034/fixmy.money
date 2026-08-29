@@ -8,6 +8,7 @@ import AddClientForm from './AddClientForm';
 import ClientDetailDrawer from './ClientDetailDrawer';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { getLegacyMailingAddressBackfill } from '@/lib/disputes/letterSender';
 
 type CaseStage = 'lead' | 'enrolled' | 'active' | 'onhold' | 'completed' | 'churned';
 
@@ -29,6 +30,10 @@ interface Client {
   bureaus: string[];
   score: number;
   reportAnalyzed: boolean;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 const stageOptions = ['All Stages', 'lead', 'enrolled', 'active', 'onhold', 'completed', 'churned'];
@@ -57,6 +62,10 @@ function mapRow(row: any): Client {
     bureaus: row.bureaus ?? [],
     score: row.credit_score ?? 0,
     reportAnalyzed: row.report_analyzed ?? false,
+    address: row.address ?? '',
+    city: row.city ?? '',
+    state: row.state ?? '',
+    zip: row.zip ?? '',
   };
 }
 
@@ -100,7 +109,19 @@ export default function ClientManagementContent() {
         setError(fetchError.message);
         return;
       }
-      setClients((data ?? []).map(mapRow));
+      const canonicalRows = await Promise.all((data ?? []).map(async row => {
+        const backfill = getLegacyMailingAddressBackfill(row);
+        if (!backfill) return row;
+        const { data: updated, error: updateError } = await supabase
+          .from('staff_clients')
+          .update(backfill)
+          .eq('id', row.id)
+          .eq('owner_id', user.id)
+          .select('*')
+          .single();
+        return updateError || !updated ? row : updated;
+      }));
+      setClients(canonicalRows.map(mapRow));
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load clients');
     } finally {
@@ -447,6 +468,7 @@ export default function ClientManagementContent() {
                           <Eye size={14} className="text-muted-foreground" />
                         </button>
                         <button
+                          onClick={() => setDrawerClient(client)}
                           className="p-1.5 hover:bg-muted rounded-lg transition-colors"
                           title="Edit client"
                         >
@@ -529,7 +551,14 @@ export default function ClientManagementContent() {
 
       {/* Client Detail Drawer */}
       {drawerClient && (
-        <ClientDetailDrawer client={drawerClient} onClose={() => setDrawerClient(null)} />
+        <ClientDetailDrawer
+          client={drawerClient}
+          onClose={() => setDrawerClient(null)}
+          onClientUpdated={(updated) => {
+            setClients(current => current.map(client => client.id === updated.id ? { ...client, ...updated } : client));
+            setDrawerClient(current => current?.id === updated.id ? { ...current, ...updated } : current);
+          }}
+        />
       )}
     </div>
   );

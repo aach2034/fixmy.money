@@ -48,11 +48,14 @@ function first(...values: unknown[]): string {
 
 function parseLegacyAddressBlock(value: string): Partial<NormalizedClientMailingAddress> {
   const lines = value.split(/\r?\n/).map(clean).filter(Boolean);
-  if (lines.length < 2) return {};
-  const match = (lines.at(-1) ?? '').match(/^(.+?)(?:,|\s+)\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+  if (lines.length < 2 || lines.length > 3) return {};
+  if (!/^(?:\d+\s+\S|P\.?\s*O\.?\s+Box\s+\d+)/i.test(lines[0])) return {};
+  if (lines.length === 3 && !/^(?:Apt|Apartment|Unit|Suite|Ste|#)\b/i.test(lines[1])) return {};
+  const match = (lines.at(-1) ?? '').match(/^([A-Za-z][A-Za-z .'-]*?)(?:,|\s+)\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
   if (!match) return {};
   return {
-    street: lines.slice(0, -1).join(', '),
+    street: lines[0],
+    line2: lines.length === 3 ? lines[1] : '',
     city: clean(match[1]),
     state: clean(match[2]).toUpperCase(),
     postalCode: clean(match[3]),
@@ -68,11 +71,54 @@ export function normalizeClientMailingAddress(profile: ConsumerProfileForLetter 
   const legacy = parseLegacyAddressBlock(rawStreet);
   return {
     street: clean(legacy.street ?? rawStreet),
-    line2: first(profile?.address_line2, profile?.address2, nested?.address_line2, nested?.address2),
+    line2: first(profile?.address_line2, profile?.address2, nested?.address_line2, nested?.address2, legacy.line2),
     city: first(profile?.city, nested?.city, legacy.city),
     state: first(profile?.state, profile?.state_code, nested?.state, nested?.state_code, legacy.state).toUpperCase(),
     postalCode: first(profile?.zip, profile?.zip_code, profile?.postal_code, nested?.zip, nested?.zip_code, nested?.postal_code, legacy.postalCode),
   };
+}
+
+export interface CanonicalMailingAddressUpdate {
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+export function toCanonicalMailingAddressUpdate(profile: ConsumerProfileForLetter): CanonicalMailingAddressUpdate | null {
+  if (getMissingMailingAddressFields(profile).length > 0) return null;
+  const normalized = normalizeClientMailingAddress(profile);
+  return {
+    address: [normalized.street, normalized.line2].filter(Boolean).join('\n'),
+    city: normalized.city,
+    state: normalized.state,
+    zip: normalized.postalCode,
+  };
+}
+
+export function getLegacyMailingAddressBackfill(profile: ConsumerProfileForLetter): CanonicalMailingAddressUpdate | null {
+  const rawAddress = clean(profile.address);
+  const legacy = parseLegacyAddressBlock(rawAddress);
+  if (!legacy.street || !legacy.city || !legacy.state || !legacy.postalCode) return null;
+
+  const merged: ConsumerProfileForLetter = {
+    ...profile,
+    address: legacy.street,
+    address_line2: legacy.line2,
+    city: first(profile.city, legacy.city),
+    state: first(profile.state, legacy.state),
+    zip: first(profile.zip, legacy.postalCode),
+  };
+  const update = toCanonicalMailingAddressUpdate(merged);
+  if (!update) return null;
+
+  const currentCanonical = {
+    address: rawAddress,
+    city: clean(profile.city),
+    state: clean(profile.state).toUpperCase(),
+    zip: clean(profile.zip),
+  };
+  return JSON.stringify(currentCanonical) === JSON.stringify(update) ? null : update;
 }
 
 export function getMissingMailingAddressFields(profile: ConsumerProfileForLetter | null | undefined): MissingMailingAddressField[] {

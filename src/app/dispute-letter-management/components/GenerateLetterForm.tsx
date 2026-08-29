@@ -6,7 +6,7 @@ import { CheckSquare, Square, Loader2, Download, Printer, X, AlertTriangle, File
 import { createClient } from '@/lib/supabase/client';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
-import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, type LetterSenderInfo } from '@/lib/disputes/letterSender';
+import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate, type LetterSenderInfo } from '@/lib/disputes/letterSender';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -640,6 +640,17 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         .single();
 
       const selectedDisputeItems = disputeItems.filter(item => selectedItems.has(item.id));
+      const selectedClientOption = clientOptions.find(client => client.id === data.clientId);
+      const addressInput = { name: selectedClientOption?.name, address: data.clientAddress, city: data.clientCity, state: data.clientState, zip: data.clientZip };
+      const addressUpdate = toCanonicalMailingAddressUpdate(addressInput);
+      if (!addressUpdate) throw new Error(formatMissingMailingAddressError(addressInput) ?? 'Client name is missing.');
+      const { error: addressUpdateError } = await supabase
+        .from('staff_clients')
+        .update(addressUpdate)
+        .eq('id', data.clientId)
+        .eq('owner_id', user.id);
+      if (addressUpdateError) throw new Error('Client mailing address could not be saved.');
+
       const { data: clientInfo, error: clientError } = await supabase
         .from('staff_clients')
         .select('id, name, email, phone, address, city, state, zip')
