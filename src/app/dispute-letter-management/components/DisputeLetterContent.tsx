@@ -20,6 +20,7 @@ import {
   repairUnsupportedFutureDateDraft,
   type DraftDateItem,
 } from '@/lib/creditReport/staleDrafts';
+import { calendarDaysUntil } from '@/lib/disputes/letterDeadlines';
 
 type Bureau = 'Equifax' | 'Experian' | 'TransUnion';
 type LetterStatus = 'draft' | 'sent' | 'awaiting' | 'received' | 'escalated' | 'closed';
@@ -34,7 +35,7 @@ interface DisputeLetter {
   round: number;
   sentDate: string;
   responseDueDate: string;
-  daysRemaining: number;
+  daysRemaining: number | null;
   status: LetterStatus;
   assignedStaff: string;
   template: string;
@@ -83,7 +84,7 @@ function mapRow(row: any): DisputeLetter {
     responseDueDate: row.response_due_date
       ? new Date(row.response_due_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
       : '',
-    daysRemaining: row.days_remaining ?? 0,
+    daysRemaining: calendarDaysUntil(row.response_due_date),
     status: (row.letter_status ?? 'draft') as LetterStatus,
     assignedStaff: row.assigned_staff ?? '',
     template: row.template ?? 'FCRA Section 611',
@@ -208,7 +209,7 @@ export default function DisputeLetterContent() {
         String(letter.round),
         letter.sentDate,
         letter.responseDueDate,
-        String(letter.daysRemaining),
+        letter.daysRemaining === null ? '' : String(letter.daysRemaining),
         letter.status,
         letter.template,
       ]),
@@ -290,11 +291,11 @@ export default function DisputeLetterContent() {
     if (search) data = data.filter(l => l.clientName.toLowerCase().includes(search.toLowerCase()) || l.letterId.toLowerCase().includes(search.toLowerCase()));
     if (bureauFilter !== 'All Bureaus') data = data.filter(l => l.bureau === bureauFilter);
     if (statusFilter !== 'All Statuses') data = data.filter(l => l.status === statusFilter);
-    if (urgencyFilter === 'Due Soon') data = data.filter(l => l.daysRemaining >= 0 && l.daysRemaining <= 7);
-    if (urgencyFilter === 'Overdue') data = data.filter(l => l.daysRemaining < 0);
+    if (urgencyFilter === 'Due Soon') data = data.filter(l => l.daysRemaining !== null && l.daysRemaining >= 0 && l.daysRemaining <= 7);
+    if (urgencyFilter === 'Overdue') data = data.filter(l => l.daysRemaining !== null && l.daysRemaining < 0);
     data.sort((a, b) => {
-      const av = a[sortField] as string | number;
-      const bv = b[sortField] as string | number;
+      const av = (a[sortField] ?? Number.POSITIVE_INFINITY) as string | number;
+      const bv = (b[sortField] ?? Number.POSITIVE_INFINITY) as string | number;
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
     });
     return data;
@@ -438,7 +439,7 @@ export default function DisputeLetterContent() {
   const statsData = [
     { label: 'Total Letters', value: letters.length, icon: FileText, bg: 'bg-primary/10', color: 'text-primary' },
     { label: 'Awaiting Response', value: letters.filter(l => l.status === 'awaiting').length, icon: Clock, bg: 'bg-warning/10', color: 'text-warning' },
-    { label: 'Due This Week', value: letters.filter(l => l.daysRemaining >= 0 && l.daysRemaining <= 7).length, icon: AlertTriangle, bg: 'bg-danger/10', color: 'text-danger' },
+    { label: 'Due This Week', value: letters.filter(l => l.daysRemaining !== null && l.daysRemaining >= 0 && l.daysRemaining <= 7).length, icon: AlertTriangle, bg: 'bg-danger/10', color: 'text-danger' },
     { label: 'Responses Received', value: letters.filter(l => l.status === 'received' || l.status === 'closed').length, icon: CheckCircle2, bg: 'bg-success/10', color: 'text-success' },
   ];
 
@@ -644,7 +645,7 @@ export default function DisputeLetterContent() {
               ) : (
                 paginated.map(letter => {
                   const bc = bureauConfig[letter.bureau] ?? { className: '', short: letter.bureau };
-                  const dl = getDaysLabel(letter.daysRemaining);
+                  const dl = letter.daysRemaining === null ? null : getDaysLabel(letter.daysRemaining);
                   return (
                     <tr key={letter.id} className={`border-b border-border row-hover ${selectedRows.has(letter.id) ? 'bg-primary/5' : ''}`}>
                       <td className="table-cell">
@@ -673,7 +674,7 @@ export default function DisputeLetterContent() {
                       <td className="table-cell">
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">{letter.responseDueDate}</p>
-                          {letter.status !== 'draft' && letter.status !== 'closed' && (
+                          {letter.status !== 'draft' && letter.status !== 'closed' && dl && letter.daysRemaining !== null && (
                             <span className={`badge ${dl.className}`}>
                               {letter.daysRemaining < 0 ? <AlertTriangle size={10} className="mr-1" /> : <Clock size={10} className="mr-1" />}
                               {dl.label}
