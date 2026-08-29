@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, FileSearch, LockKeyhole, Mail, ShieldCheck, Users } from 'lucide-react';
 import TrackedLink from '@/components/marketing/TrackedLink';
+import StructuredData from '@/components/seo/StructuredData';
 import { pricingSummary } from '@/lib/marketing/acquisition';
+import { faqSchema } from '@/lib/seo/schema';
 
 interface AcquisitionPageProps {
   audience: 'consumer' | 'professional' | 'mortgage' | 'affiliate';
@@ -30,6 +32,7 @@ export default function AcquisitionPage({
 }: AcquisitionPageProps) {
   return (
     <div className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+      <StructuredData data={faqSchema(faqs)} />
       <nav className="border-b border-slate-200 bg-white px-4 py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <Link href="/" className="text-lg font-black">FixMy<span className="text-emerald-700">.Money</span></Link>
@@ -105,7 +108,7 @@ export default function AcquisitionPage({
                 <p className="mt-2 text-sm text-slate-600">{plan.description}</p>
                 <p className="mt-5 text-3xl font-black">{plan.price ? `$${plan.price}` : 'Custom'}<span className="text-sm font-bold text-slate-500"> /mo</span></p>
                 <TrackedLink href={`/signup?plan=${plan.id}`} eventLabel={`Start ${plan.name}`} eventLocation={`${audience}_pricing`} className="mt-5 block rounded-md bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
-                  Start Free Trial
+                  Start $1 Trial
                 </TrackedLink>
               </article>
             ))}

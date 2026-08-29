@@ -17,8 +17,8 @@ export default function AffiliatesPage() {
       <nav className="border-b border-slate-200 px-4 py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <Link href="/" className="text-lg font-black">FixMy.Money</Link>
-          <TrackedLink href="/signup?plan=professional&utm_source=affiliates&utm_medium=landing_page&utm_campaign=partner_signup" eventLabel="Start Free Trial" eventLocation="affiliate_nav" className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-black text-white">
-            Start Free Trial
+          <TrackedLink href="/signup?plan=professional&utm_source=affiliates&utm_medium=landing_page&utm_campaign=partner_signup" eventLabel="Start $1 Trial" eventLocation="affiliate_nav" className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-black text-white">
+            Start $1 Trial
           </TrackedLink>
         </div>
       </nav>

@@ -21,7 +21,7 @@ const vendors = {
     pricing: '$49/month Personal; business plans start at $179/month. Annual billing is advertised at 20% off.',
     source: 'https://www.creditrepaircloud.com/pricing',
     suitedFor: 'Agencies that want a long-established platform with lead capture, dispute tools, client access, billing, and a broad education ecosystem.',
-    differences: ['FixMy.Money centers each case on source-linked evidence and named human verification.', 'FixMy.Money Start is $99/month for up to 300 active clients; Credit Repair Cloud Start is publicly listed at $179/month.', 'Both products publicly document report imports, client workflows, dispute tools, billing, and client access.'],
+    differences: ['FixMy.Money centers each case on source-linked evidence and named human verification.', 'FixMy.Money Pro is $99/month for up to 300 active clients; Credit Repair Cloud Start is publicly listed at $179/month.', 'Both products publicly document report imports, client workflows, dispute tools, billing, and client access.'],
   },
   disputefox: {
     name: 'DisputeFox',
@@ -35,7 +35,7 @@ const vendors = {
     pricing: 'Monthly plans are publicly listed at $149 Kickstart, $199 Essential, and $299 Advanced; Executive pricing requires a call.',
     source: 'https://scoreceo.com/plans-pricing-of-scoreceo-credit-repair-software/',
     suitedFor: 'Agencies seeking extensive sales, marketing, contract, integration, and customizable workflow capabilities in one platform.',
-    differences: ['FixMy.Money leads with source-linked evidence, named verification, and approval history.', 'ScoreCEO publicly documents a wider named integration catalog and configurable sales/marketing workflows.', 'FixMy.Money Start is $99/month for up to 300 active clients; ScoreCEO Kickstart is $149/month for up to 50 active clients.'],
+    differences: ['FixMy.Money leads with source-linked evidence, named verification, and approval history.', 'ScoreCEO publicly documents a wider named integration catalog and configurable sales/marketing workflows.', 'FixMy.Money Pro is $99/month for up to 300 active clients; ScoreCEO Kickstart is $149/month for up to 50 active clients.'],
   },
   disputepanda: {
     name: 'Dispute Panda',
@@ -56,14 +56,14 @@ const vendors = {
     pricing: 'Monthly plans are publicly listed at $107 Starting, $169 Growing, and $329 Enterprise.',
     source: 'https://clientdisputemanagersoftware.com/pricing/',
     suitedFor: 'Agencies that value built-in training, masterminds, structured dispute playbooks, and a broad business operating suite.',
-    differences: ['FixMy.Money Start is $99/month and centers the workflow on evidence review and named approval.', 'Client Dispute Manager publicly documents certifications, training, dispute playbooks, AI and Metro 2 workflows, CRM, billing, and portals.', 'FixMy.Money keeps source facts, reviewer decisions, delivery, responses, and outcomes in one traceable chain.'],
+    differences: ['FixMy.Money Pro is $99/month and centers the workflow on evidence review and named approval.', 'Client Dispute Manager publicly documents certifications, training, dispute playbooks, AI and Metro 2 workflows, CRM, billing, and portals.', 'FixMy.Money keeps source facts, reviewer decisions, delivery, responses, and outcomes in one traceable chain.'],
   },
   'credit-admiral': {
     name: 'Credit Admiral',
     pricing: 'Monthly plans are publicly listed at $199 for 250 clients, $299 for 500, $399 for 1,000, and $599 for 2,000.',
     source: 'https://creditadmiral.com/pricing/',
     suitedFor: 'Established agencies that specifically need built-in arbitration workflows, automated billing, print-and-mail, and a mobile app.',
-    differences: ['Credit Admiral publicly documents arbitration, notary, debt-settlement, mobile-app, and furnisher-contact capabilities.', 'FixMy.Money focuses on source-linked evidence, named verification, human approval, and traceable bureau outcomes.', 'FixMy.Money Start is $99/month for up to 300 active clients; Credit Admiral starts at $199/month for up to 250.'],
+    differences: ['Credit Admiral publicly documents arbitration, notary, debt-settlement, mobile-app, and furnisher-contact capabilities.', 'FixMy.Money focuses on source-linked evidence, named verification, human approval, and traceable bureau outcomes.', 'FixMy.Money Pro is $99/month for up to 300 active clients; Credit Admiral starts at $199/month for up to 250.'],
   },
 } as const;
 
@@ -97,7 +97,7 @@ comparisonPages['credit-repair-cloud-vs-disputefox-vs-fixmy-money'] = {
   slug: 'credit-repair-cloud-vs-disputefox-vs-fixmy-money', kind: 'versus', eyebrow: 'Three-way comparison',
   title: 'Credit Repair Cloud vs DisputeFox vs FixMy.Money', description: 'Compare three agency platforms by operating style—not by an endless checklist.',
   suitedFor: 'Credit Repair Cloud suits buyers seeking an established all-in-one ecosystem. DisputeFox suits agencies prioritizing branding, communications, and scale. FixMy.Money suits teams that want evidence review and accountable approvals at the center.',
-  pricing: `Credit Repair Cloud business plans start at $179/month. DisputeFox publicly lists Scaling at $499/month; complete lower-tier pricing was not captured. FixMy.Money Start is $99/month. ${verified}`,
+  pricing: `Credit Repair Cloud business plans start at $179/month. DisputeFox publicly lists Scaling at $499/month; complete lower-tier pricing was not captured. FixMy.Money Pro is $99/month. ${verified}`,
   differences: ['Choose Credit Repair Cloud for its long-established ecosystem and broad agency toolset.', 'Choose DisputeFox when branded client experiences, communications, and high limits are central.', 'Choose FixMy.Money when source-linked evidence, named review, approval, and traceable outcomes matter most.'], migration: standardMigration,
 };
 
@@ -106,7 +106,7 @@ const guides = [
   ['best-credit-repair-software-under-150-per-month', 'Best credit-repair software under $150 per month', 'Compare the real operating limits below $150—not just headline prices. Client caps, users, storage, billing, report imports, and review controls determine value.'],
   ['best-evidence-based-credit-dispute-software', 'Best evidence-based credit-dispute software', 'Evidence-based software should preserve the source, separate a suspected issue from a verified fact, record who approved it, and connect the decision to the eventual outcome.'],
 ] as const;
-for (const [slug, title, suitedFor] of guides) comparisonPages[slug] = { slug, kind: 'guide', eyebrow: 'Buyer guide', title, description: 'A practical selection guide for credit-repair agencies comparing software by workflow, documented capability, and cost.', suitedFor, pricing: `FixMy.Money plans are $39, $99, and $199 per month. Competitor prices referenced on this site are verified against public vendor pages and dated.`, differences: ['Start with the operating constraint you need to solve.', 'Confirm each must-have on the vendor’s current plan page or in a live demo.', 'Run the same sample client through every shortlisted product before migrating.'], migration: standardMigration };
+for (const [slug, title, suitedFor] of guides) comparisonPages[slug] = { slug, kind: 'guide', eyebrow: 'Buyer guide', title, description: 'A practical selection guide for credit-repair agencies comparing software by workflow, documented capability, and cost.', suitedFor, pricing: `FixMy.Money plans are $39, $99, and $249 per month. Competitor prices referenced on this site are verified against public vendor pages and dated.`, differences: ['Start with the operating constraint you need to solve.', 'Confirm each must-have on the vendor’s current plan page or in a live demo.', 'Run the same sample client through every shortlisted product before migrating.'], migration: standardMigration };
 
 comparisonPages.switch = {
   slug: 'switch', kind: 'migration', eyebrow: 'Switch to FixMy.Money', title: 'Move platforms without leaving a client behind.', description: 'A guided migration package for agencies moving clients, documents, dispute history, templates, and workflow settings.', suitedFor: 'Agencies moving from Credit Repair Cloud, DisputeFox, ScoreCEO, Dispute Panda, DisputeBee, Client Dispute Manager, Credit Admiral, or spreadsheets.', pricing: 'Migration support is included with eligible agency onboarding. Final scope and promotional terms are confirmed before work begins.', differences: ['Free assisted migration', '30-day parallel-access plan', 'CSV import templates', 'Live onboarding session', 'No-client-left-behind verification report'], migration: standardMigration,

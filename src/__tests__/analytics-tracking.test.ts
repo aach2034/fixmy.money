@@ -87,9 +87,15 @@ describe('Google Analytics funnel tracking', () => {
       read('src/app/api/stripe/webhook/route.ts'),
       read('src/app/sign-up-login-screen/components/AuthForm.tsx'),
       read('src/app/checkout/components/CheckoutContent.tsx'),
+      read('src/app/onboarding/components/OnboardingContent.tsx'),
+      read('src/app/credit-audit/components/CreditAuditContent.tsx'),
+      read('src/app/dispute-wizard/components/DisputeWizardContent.tsx'),
+      read('src/app/clients/[clientId]/negative-items/components/NegativeItemsContent.tsx'),
+      read('src/app/dashboard/page.tsx'),
     ].join('\n');
     for (const eventName of [
       'landing_page_view',
+      'homepage_view',
       'pricing_view',
       'tool_started',
       'tool_completed',
@@ -100,6 +106,14 @@ describe('Google Analytics funnel tracking', () => {
       'trial_started',
       'checkout_started',
       'subscription_started',
+      'onboarding_started',
+      'onboarding_completed',
+      'credit_report_import_started',
+      'credit_report_import_completed',
+      'credit_audit_viewed',
+      'dispute_wizard_started',
+      'dispute_created',
+      'letter_generated',
       'professional_lead',
       'mortgage_partner_lead',
       'affiliate_referral',
@@ -108,6 +122,18 @@ describe('Google Analytics funnel tracking', () => {
     }
     expect(analytics).not.toContain('mixpanel');
     expect(analytics).not.toContain('segment');
+  });
+
+  it('adds page and device context without tracking client identifiers', () => {
+    const analytics = read('src/lib/analytics.ts');
+    const directFunnelSources = [
+      read('src/app/credit-audit/components/CreditAuditContent.tsx'),
+      read('src/app/dispute-wizard/components/DisputeWizardContent.tsx'),
+      read('src/app/clients/[clientId]/negative-items/components/NegativeItemsContent.tsx'),
+    ].join('\n');
+    expect(analytics).toContain('page_path');
+    expect(analytics).toContain('device_type');
+    expect(directFunnelSources).not.toMatch(/trackEvent\([^)]*client_id/s);
   });
 
   it('tracks organic funnel milestones after signup', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   BadgeCheck,
@@ -21,7 +21,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { CHECKOUT_PLANS, PLANS } from '@/lib/stripe/plans';
-import { trackCtaClick, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
+import { trackCtaClick, trackEvent, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
 
 const NAV_LINKS = [
   { label: 'How It Works', href: '#how-it-works' },
@@ -217,6 +217,18 @@ function AudienceCard({ type, onStart }: { type: 'individuals' | 'business'; onS
 export default function HomepageContent() {
   const checkoutPlans = useMemo(() => new Set(CHECKOUT_PLANS.map((plan) => plan.id)), []);
 
+  useEffect(() => {
+    const pricing = document.getElementById('pricing');
+    if (!pricing || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      trackEvent('pricing_view', { source_page: 'homepage', authenticated: false });
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(pricing);
+    return () => observer.disconnect();
+  }, []);
+
   const start = (plan = 'professional', location = 'homepage') => {
     trackTrialSignup(plan, location);
     const selectedPlan = pricingPlans.find((item) => item.id === plan);
@@ -236,7 +248,7 @@ export default function HomepageContent() {
           <div className="relative mx-auto grid max-w-[1320px] min-w-0 items-center gap-6 xl:gap-8 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
             <div className="py-3 lg:py-4">
               <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">
-                AI-POWERED CREDIT INTELLIGENCE
+                AI-POWERED CREDIT SOFTWARE FOR INDIVIDUALS & PROFESSIONALS
               </span>
               <h1 className="mt-4 max-w-[560px] text-[38px] font-black leading-[1.07] text-[#071f4b] xl:text-[42px]">
                 AI Analyzes Your Credit.
@@ -244,7 +256,7 @@ export default function HomepageContent() {
                 <span className="block text-[#079735]">You Take Action.</span>
               </h1>
               <p className="mt-4 max-w-[535px] text-[15px] font-medium leading-7 text-slate-700">
-                Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
+                FixMy.Money is credit intelligence software that analyzes credit reports, identifies potential reporting issues, prioritizes what to review, and organizes dispute letters and follow-up—whether you are working on your own credit or managing clients.
               </p>
               <div className="mt-5 grid max-w-[560px] grid-cols-3 gap-4">
                 {FEATURES.map(({ icon: Icon, title, copy }) => (
@@ -320,14 +332,14 @@ export default function HomepageContent() {
                 </div>
               </div>
               <div className="text-center">
-                <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">AI-POWERED CREDIT INTELLIGENCE</span>
+                <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">AI-POWERED CREDIT SOFTWARE</span>
                 <h1 className="mt-4 text-[30px] font-black leading-[1.12] text-[#061642]">
                   AI Analyzes Your Credit.
                   <span className="block">We Find What Matters.</span>
                   <span className="block text-[#079735]">You Take Action.</span>
                 </h1>
                 <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-5 text-[#061642]">
-                  Instantly analyze your credit report, identify potentially disputable items, prioritize what to tackle first, and generate professional dispute letters - all in one place.
+                  Credit intelligence software for analyzing reports, prioritizing potential issues, and organizing dispute workflows for yourself or your clients.
                 </p>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center">

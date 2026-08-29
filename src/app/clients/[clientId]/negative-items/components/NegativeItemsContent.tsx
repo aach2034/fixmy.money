@@ -9,6 +9,7 @@ import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditRepor
 import { isCollectionItem } from '@/lib/creditReport/negativeItemClassification';
 import DisputeReasonSelect from '@/components/DisputeReasonSelect';
 import ImportWizard from '@/components/ImportWizard';
+import { trackEvent } from '@/lib/analytics';
 
 interface NegativeItem {
   id: string;
@@ -283,6 +284,12 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       // Update negative items status
       await supabase.from('negative_items').update({ dispute_status: 'ready' }).in('id', [...selected]).eq('owner_id', user.id);
 
+      trackEvent('dispute_created', {
+        bureau_count: bureaus.length,
+        items_count: selectedItems.length,
+        round_number: nextRound,
+        authenticated: true,
+      });
       toast.success(`Dispute Round ${nextRound} created with ${selectedItems.length} items`);
       router.push(`/clients/${clientId}/disputes/${round.id}`);
     } catch (err: any) {

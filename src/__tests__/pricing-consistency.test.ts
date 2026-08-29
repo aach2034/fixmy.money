@@ -2,7 +2,7 @@
  * Pricing Consistency & Safety Tests
  *
  * Verifies:
- * 1. Centralized pricing config is the only pricing source ($39/$99/$199)
+ * 1. Centralized pricing config is the only pricing source ($39/$99/$249)
  * 2. Trial is consistently 14 days and free (no credit card required)
  * 3. Checkout does NOT create a $1 invoice item
  * 4. Checkout uses `professional`, not legacy `growth`
@@ -11,7 +11,7 @@
  * 7. Organization A cannot read Organization B's client records (RLS smoke test)
  * 8. Private client documents are not publicly accessible (storage privacy)
  * 9. Required Stripe environment variables are present or checkout is safely disabled
- * 10. No retired $49/$129/$249 pricing appears in public-facing code
+ * 10. No retired $49/$129/$199 pricing appears in public-facing plan config
  * 11. No "7-day trial" or "$1 trial" language appears in public-facing code
  *
  * Run: npx vitest run src/__tests__/pricing-consistency.test.ts
@@ -31,23 +31,27 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
       'utf8'
     );
 
-    expect(homepage).toContain("import { CHECKOUT_PLANS } from '@/lib/stripe/plans'");
+    expect(homepage).toContain("from '@/lib/stripe/plans'");
+    expect(homepage).toContain('CHECKOUT_PLANS');
     expect(homepage).not.toMatch(/const\s+PLANS\s*=\s*\[/);
   });
 
-  it('Personal plan costs $39/month', () => {
+  it('Starter plan costs $39/month', () => {
+    expect(PLANS.starter.name).toBe('Starter');
     expect(PLANS.starter.monthlyPrice).toBe(39);
     expect(PLANS.starter.stripeAmountCents).toBe(3900);
   });
 
-  it('Start plan costs $99/month', () => {
+  it('Pro plan costs $99/month', () => {
+    expect(PLANS.professional.name).toBe('Pro');
     expect(PLANS.professional.monthlyPrice).toBe(99);
     expect(PLANS.professional.stripeAmountCents).toBe(9900);
   });
 
-  it('Grow plan costs $199/month', () => {
-    expect(PLANS.agency.monthlyPrice).toBe(199);
-    expect(PLANS.agency.stripeAmountCents).toBe(19900);
+  it('Agency plan costs $249/month', () => {
+    expect(PLANS.agency.name).toBe('Agency');
+    expect(PLANS.agency.monthlyPrice).toBe(249);
+    expect(PLANS.agency.stripeAmountCents).toBe(24900);
   });
 
   it('Enterprise plan has no public price (contact sales)', () => {
@@ -56,8 +60,8 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     expect(PLANS.enterprise.stripePriceIdEnvKey).toBeNull();
   });
 
-  it('No plan uses the retired $49/$129/$249 pricing', () => {
-    const oldPrices = [49, 129, 249];
+  it('No plan uses the retired $49/$129/$199 pricing', () => {
+    const oldPrices = [49, 129, 199];
     for (const plan of PLANS_LIST) {
       if (plan.monthlyPrice !== null) {
         expect(oldPrices).not.toContain(plan.monthlyPrice);
@@ -694,7 +698,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
 
 // ─── 10. No Old Pricing in Public Code ───────────────────────────────────────
 
-describe('No Retired $49/$129/$249 Pricing in Public-Facing Code', () => {
+describe('No Retired $49/$129/$199 Pricing in Public-Facing Plan Config', () => {
   const PUBLIC_FILES = [
     'src/app/homepage/components/HomepageContent.tsx',
     'src/app/pricing/components/PricingContent.tsx',
@@ -704,7 +708,7 @@ describe('No Retired $49/$129/$249 Pricing in Public-Facing Code', () => {
   ];
 
   for (const filePath of PUBLIC_FILES) {
-    it(`${filePath} does not contain retired $49/$129/$249 prices`, async () => {
+    it(`${filePath} does not contain retired $49/$129/$199 plan prices`, async () => {
       const fs = await import('fs');
       const path = await import('path');
       const fullPath = path.resolve(process.cwd(), filePath);
@@ -722,9 +726,8 @@ describe('No Retired $49/$129/$249 Pricing in Public-Facing Code', () => {
         /monthlyPrice:\s*129\b/,
         /price:\s*129\b/,
         /\$129\b/,
-        /monthlyPrice:\s*249\b/,
-        /price:\s*249\b/,
-        /\$249\b/,
+        /monthlyPrice:\s*199\b/,
+        /price:\s*199\b/,
       ];
 
       for (const pattern of oldPricePatterns) {

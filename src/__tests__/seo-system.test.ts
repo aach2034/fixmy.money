@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PRIVATE_ROUTE_PREFIXES, PUBLIC_SEO_PAGES, SEO_PAGES, canonicalUrl, createSeoMetadata } from '@/lib/seo/config';
 import { getSeoHealthReport } from '@/lib/seo/health';
-import { softwareSchema } from '@/lib/seo/schema';
+import { faqSchema, softwareSchema } from '@/lib/seo/schema';
 import sitemap from '@/app/sitemap';
 
 describe('central SEO system', () => {
@@ -19,7 +19,7 @@ describe('central SEO system', () => {
 
   it('uses the visible paid trial and centralized live pricing in Product offers', () => {
     const schema = softwareSchema();
-    expect(schema.offers.map(offer => offer.price)).toEqual([39, 99, 199]);
+    expect(schema.offers.map(offer => offer.price)).toEqual([39, 99, 249]);
     expect(schema.offers.every(offer => offer.description.includes('$1 paid trial for 14 days'))).toBe(true);
   });
 
@@ -38,10 +38,18 @@ describe('central SEO system', () => {
     expect(urls).toContain('https://fixmy.money/affiliates');
     expect(urls).toContain('https://fixmy.money/tools');
     expect(urls).toContain('https://fixmy.money/credit-report-help/how-to-dispute-a-collection');
-    expect(urls).toContain('https://fixmy.money/alternatives/credit-repair-cloud');
+    expect(urls).not.toContain('https://fixmy.money/alternatives/credit-repair-cloud');
+    expect(urls).toContain('https://fixmy.money/credit-repair-cloud-alternative');
     for (const prefix of PRIVATE_ROUTE_PREFIXES) {
       expect(urls.some(url => new URL(url).pathname === prefix || new URL(url).pathname.startsWith(`${prefix}/`))).toBe(false);
     }
+  });
+
+  it('builds FAQ structured data from the same questions rendered on acquisition pages', () => {
+    const schema = faqSchema([{ q: 'Is line two required?', a: 'No.' }]);
+    expect(schema['@type']).toBe('FAQPage');
+    expect(schema.mainEntity[0].name).toBe('Is line two required?');
+    expect(schema.mainEntity[0].acceptedAnswer.text).toBe('No.');
   });
 
   it('keeps acquisition pages software-positioned and free of outcome guarantees', () => {

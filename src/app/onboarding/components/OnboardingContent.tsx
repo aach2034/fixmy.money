@@ -9,6 +9,7 @@ import { Building2, User, CreditCard, CheckCircle2, ArrowRight, Loader2, Upload,
 
 import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
 import { DEFAULT_PROVIDERS, ReportProvider } from '@/lib/affiliates/reportProviders';
+import { trackEvent } from '@/lib/analytics';
 
 
 interface OnboardingStep {
@@ -77,6 +78,10 @@ export default function OnboardingContent() {
       router.replace('/login');
     }
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (user) trackEvent('onboarding_started', { authenticated: true });
+  }, [user]);
 
   const validateCompany = (): boolean => {
     const newErrors: Partial<CompanyFormData> = {};
@@ -169,6 +174,7 @@ export default function OnboardingContent() {
         .eq('id', user.id);
       if (finishError) throw finishError;
 
+      trackEvent('onboarding_completed', { authenticated: true, destination });
       toast.success('Welcome to FixMy.Money! 🎉');
       router.push(destination);
     } catch (err) {

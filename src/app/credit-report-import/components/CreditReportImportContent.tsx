@@ -888,6 +888,12 @@ export default function CreditReportImportContent() {
       file_type: file.type || 'unknown',
       file_name_extension: fileNameLower.split('.').pop() ?? 'unknown',
     });
+    trackEvent('credit_report_import_started', {
+      provider: selectedProvider,
+      file_type: file.type || 'unknown',
+      file_name_extension: fileNameLower.split('.').pop() ?? 'unknown',
+      authenticated: true,
+    });
     setUploading(true);
     await new Promise(r => setTimeout(r, 400));
     setUploading(false);
@@ -1286,6 +1292,14 @@ export default function CreditReportImportContent() {
         accounts_count: parsedReport.accounts.length,
         negative_items_count: parsedReport.negativeAccounts.length,
         draft_letters_created: generatedLetters,
+      });
+      trackEvent('credit_report_import_completed', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+        accounts_count: parsedReport.accounts.length,
+        negative_items_count: parsedReport.negativeAccounts.length,
+        draft_letters_created: generatedLetters,
+        authenticated: true,
       });
 
       if (generatedLetters > 0) {

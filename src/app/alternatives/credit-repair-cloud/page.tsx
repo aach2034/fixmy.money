@@ -8,7 +8,8 @@ const page = comparisonPages['credit-repair-cloud-alternative'];
 export const metadata: Metadata = {
   title: 'Credit Repair Cloud Alternative',
   description: page.description,
-  alternates: { canonical: canonicalUrl('/alternatives/credit-repair-cloud') },
+  alternates: { canonical: canonicalUrl('/credit-repair-cloud-alternative') },
+  robots: { index: false, follow: true },
 };
 
 export default function CreditRepairCloudAlternativeNestedPage() {

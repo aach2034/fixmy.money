@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, Download, Loader2, TrendingDown, FileText, Clock, Users, BarChart2 } from 'lucide-react';
 import { getReportingBureaus, scoreDisputeStrength, selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
-import { trackOrganicConversionStep } from '@/lib/analytics';
+import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 interface AuditClient {
   id: string;
@@ -63,6 +63,7 @@ export default function CreditAuditContent() {
           .eq('owner_id', user.id)
           .order('name');
         setClients(data ?? []);
+        trackEvent('credit_audit_viewed', { authenticated: true, client_count: data?.length ?? 0 });
       } finally {
         setClientsLoading(false);
       }

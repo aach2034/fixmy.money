@@ -9,7 +9,7 @@ import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
-import { trackOrganicConversionStep } from '@/lib/analytics';
+import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 
 interface WizardClient {
@@ -110,6 +110,10 @@ export default function DisputeWizardContent() {
   const [itemsLoading, setItemsLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedLetterId, setGeneratedLetterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackEvent('dispute_wizard_started', { authenticated: true });
+  }, []);
 
   // Wizard state
   const [selectedClient, setSelectedClient] = useState<WizardClient | null>(
@@ -461,6 +465,11 @@ Date: ${today}`;
       trackOrganicConversionStep('dispute_wizard_letter_generated', {
         bureau: selectedBureau,
         items_count: selectedItems.size,
+      });
+      trackEvent('letter_generated', {
+        bureau: selectedBureau,
+        items_count: selectedItems.size,
+        authenticated: true,
       });
       toast.success(`Letter ${letterId} generated and ready to use`);
     } catch (err: any) {

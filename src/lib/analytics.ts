@@ -23,6 +23,15 @@ function getStoredAttribution(): Record<string, unknown> {
   }
 }
 
+function runtimeEventContext(): Record<string, unknown> {
+  if (typeof window === 'undefined') return {};
+  const width = window.innerWidth;
+  return {
+    page_path: `${window.location.pathname}${window.location.search}`,
+    device_type: width < 768 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop',
+  };
+}
+
 function persistOrganicAttribution(pagePath: string, searchParams: URLSearchParams) {
   if (typeof window === 'undefined') return {};
 
@@ -81,10 +90,14 @@ export function useGoogleAnalytics() {
         page_title: document.title,
         ...attributionEventParams(acquisitionAttribution),
       });
+      if (pathname === '/') {
+        trackEvent('homepage_view', { authenticated: false });
+      }
       if (pathname === '/pricing') {
-        window.gtag('event', 'pricing_view', {
+        trackEvent('pricing_view', {
           page_location: window.location.href,
           page_path: url,
+          authenticated: false,
           ...attributionEventParams(acquisitionAttribution),
         });
       }
@@ -94,7 +107,12 @@ export function useGoogleAnalytics() {
 
 export function trackEvent(eventName: string, eventParams: Record<string, unknown> = {}) {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, { ...getStoredAttribution(), ...attributionEventParams(), ...eventParams });
+    window.gtag('event', eventName, {
+      ...runtimeEventContext(),
+      ...getStoredAttribution(),
+      ...attributionEventParams(),
+      ...eventParams,
+    });
   }
 }
 
