@@ -113,4 +113,112 @@ Inquiries
     expect(read('src/app/credit-report-import/components/CreditReportImportContent.tsx')).not.toContain('Detected — none reported');
     expect(read('src/app/clients/[clientId]/reports/[reportId]/review/components/ReportReviewContent.tsx')).not.toContain('Detected — none reported');
   });
+
+  it('uses confirmed collection evidence consistently for rows and totals', () => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+MIDLAND CREDIT MANAGEMENT
+Account Number: ****1001
+Account Type: Revolving
+Account Status: Current
+Balance: $100
+Date Opened: 01/01/2020
+Bureau: Experian
+
+ACME RECOVERY
+Account Number: ****1002
+Account Type: Collection
+Account Status: Collection account
+Balance: $200
+Date Opened: 02/01/2021
+Bureau: Experian
+`, 'experian');
+
+    expect(parsed.accounts).toHaveLength(2);
+    expect(parsed.collections.map(account => account.accountNumber)).toEqual(['****1002']);
+    expect(parsed.accounts.find(account => account.accountNumber === '****1001')?.isCollection).toBe(false);
+    expect(read('src/app/clients/[clientId]/reports/[reportId]/review/components/ReportReviewContent.tsx')).not.toContain('Collection?');
+  });
+
+  it('keeps adjacent Experian metadata on its identified account without creating another account', () => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+CAPITAL ONE
+Account Number: ****7788
+Balance: $450
+Date Opened: 03/04/2020
+Account Type
+Revolving
+Account Status
+60 days late
+Responsibility
+Individual
+Bureau: Experian
+Inquiries
+`, 'experian');
+
+    expect(parsed.accounts).toHaveLength(1);
+    expect(parsed.accounts[0]).toMatchObject({
+      accountNumber: '****7788',
+      accountType: 'Revolving',
+      status: '60 days late',
+      responsibility: 'Individual',
+      isNegative: true,
+    });
+  });
+
+  it('requires account-specific derogatory evidence for an Experian negative item', () => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+CAPITAL ONE
+Account Number: ****3000
+Account Type: Revolving
+Account Status: Current
+Balance: $300
+Date Opened: 01/01/2022
+Bureau: Experian
+Negative Accounts Summary
+Late payment
+`, 'experian');
+    expect(parsed.accounts).toHaveLength(1);
+    expect(parsed.negativeAccounts).toHaveLength(0);
+  });
+
+  it('penalizes Experian confidence when major metadata remains unknown and readable blocks are unresolved', () => {
+    const sparse = parseCreditReport(`
+Experian Credit Report
+Accounts
+CAPITAL ONE
+Account Number: ****4000
+Balance: $100
+Account Status: Current
+unmatched readable narrative one
+unmatched readable narrative two
+unmatched readable narrative three
+unmatched readable narrative four
+`, 'experian');
+    const coherent = parseCreditReport(`
+Experian Credit Report
+Personal Information
+Name: Jordan Bennett
+Current Address: 123 Main St, Atlanta, GA 30301
+Credit Scores
+Experian Score: 680
+Accounts
+CAPITAL ONE
+Account Number: ****4000
+Account Type: Revolving
+Account Status: Current
+Balance: $100
+Date Opened: 01/01/2022
+Responsibility: Individual
+Bureau: Experian
+`, 'experian');
+
+    expect(sparse.overallConfidence).toBeLessThan(coherent.overallConfidence);
+    expect(coherent.overallConfidence).toBeGreaterThanOrEqual(50);
+  });
 });

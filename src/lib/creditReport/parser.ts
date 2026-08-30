@@ -603,6 +603,30 @@ export function isCollectionAccount(account: Partial<ParsedAccount>): boolean {
   }
 }
 
+function hasConfirmedCollectionEvidence(account: Partial<ParsedAccount>): boolean {
+  const explicitFields = [
+    account.accountType ?? '',
+    account.status ?? '',
+    ...(account.remarks ?? []),
+  ].join(' ').toLowerCase();
+  return /\b(?:collection account|placed for collection|assigned to collection|transferred to collection|medical collection|debt buyer)\b/.test(explicitFields)
+    || /^(?:collection|collections)$/i.test(String(account.accountType ?? '').trim())
+    || /^(?:collection|collections)$/i.test(String(account.status ?? '').trim());
+}
+
+function hasAccountSpecificNegativeEvidence(account: Partial<ParsedAccount>): boolean {
+  const explicitFields = [
+    account.accountType ?? '',
+    account.status ?? '',
+    ...(account.remarks ?? []),
+    account.paymentHistory ?? '',
+  ].join(' ');
+  return hasConfirmedCollectionEvidence(account)
+    || /charge.?off|charged off|late|delinquent|past due|derogatory|repossession|foreclosure|bankruptcy|settled for less|written off/i.test(explicitFields)
+    || (account.pastDue ?? 0) > 0
+    || (account.latePayments ?? []).some(item => item.count > 0);
+}
+
 // ─── Provider auto-detection ─────────────────────────────────────────────────
 
 export function detectProvider(text: string): { provider: SupportedProvider; confidence: number } {
@@ -2264,6 +2288,46 @@ function runGenericSemanticParser(text: string, bureau = 'Unknown'): GenericSema
   };
 }
 
+function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: ParsedAccount[]): ParsedAccount[] {
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  return accounts.map(account => {
+    const identifier = normalizeAccountNumberForKey(account.accountNumber || account.accountNumberMasked || '');
+    if (!identifier) return account;
+    const anchor = lines.findIndex(line => normalizeAccountNumberForKey(line).includes(identifier));
+    if (anchor < 0) return account;
+
+    let start = Math.max(0, anchor - 10);
+    let end = Math.min(lines.length, anchor + 16);
+    for (let i = anchor - 1; i >= start; i -= 1) {
+      const otherIdentifier = normalizeAccountNumberForKey(lines[i]);
+      if (otherIdentifier && otherIdentifier !== identifier && /account|acct/i.test(lines[i])) { start = i + 1; break; }
+    }
+    for (let i = anchor + 1; i < end; i += 1) {
+      const otherIdentifier = normalizeAccountNumberForKey(lines[i]);
+      if (otherIdentifier && otherIdentifier !== identifier && /account|acct/i.test(lines[i])) { end = i; break; }
+    }
+
+    const nearbyText = lines.slice(start, end).join('\n');
+    const fields = parseSemanticFieldPairs(nearbyText);
+    const accountType = account.accountType === 'Unknown' && fields.accountType ? fields.accountType : account.accountType;
+    const status = account.status || fields.status || '';
+    const balance = account.balance ?? (fields.balance ? parseAmount(fields.balance) : null);
+    const dateOpened = account.dateOpened || (fields.dateOpened ? extractDate(fields.dateOpened) : '');
+    const responsibility = account.responsibility || fields.responsibility || '';
+    const remarks = account.remarks.length > 0 ? account.remarks : fields.remarks ? [fields.remarks] : [];
+    return {
+      ...account,
+      accountType,
+      status,
+      balance,
+      dateOpened,
+      responsibility,
+      remarks,
+      rawText: `${account.rawText}\n${nearbyText}`,
+    };
+  });
+}
+
 function buildBlockDispositions(
   text: string,
   provider: SupportedProvider,
@@ -3397,6 +3461,23 @@ export function parseCreditReport(
       stageFailures.push({ stage: 'negative_classification', message: e?.message ?? 'negative classification threw', fatal: false });
       warnings.push({ section: 'Negative Classification', message: `Second-pass classification failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
+    if (provider === 'experian') {
+      accounts = enrichExperianAccountsFromAdjacentMetadata(safeText, accounts).map(account => {
+        const isCollection = hasConfirmedCollectionEvidence(account);
+        const isChargeOff = /charge.?off|charged off/i.test(`${account.accountType} ${account.status} ${account.remarks.join(' ')}`);
+        const isLate = (account.latePayments ?? []).some(item => item.count > 0)
+          || /\b(?:30|60|90|120|150|180)\s+days?\s+late\b|\blate payment\b|\bdelinquent\b/i.test(`${account.status} ${account.remarks.join(' ')}`);
+        const isNegative = hasAccountSpecificNegativeEvidence(account);
+        return {
+          ...account,
+          isCollection,
+          isChargeOff,
+          isLate,
+          isNegative,
+          negativeReason: isNegative ? (isCollection ? 'Collection account' : detectNegativeReason(account)) : '',
+        };
+      });
+    }
     const reconciledAccountCount = accounts.length;
     accounts = accounts.filter(account => isPlausibleCreditorName(account.creditorName ?? ''));
     // Confidence must describe the reconciled identities, not the number of
@@ -3404,6 +3485,16 @@ export function parseCreditReport(
     if (reconciledAccountCount > 0) {
       const legitimateIdentityRatio = accounts.length / reconciledAccountCount;
       accountConfidence = Math.round(accountConfidence * legitimateIdentityRatio);
+    }
+    if (provider === 'experian' && accounts.length > 0) {
+      const metadataCompleteness = accounts.reduce((sum, account) => sum + [
+        account.accountType && account.accountType !== 'Unknown',
+        Boolean(account.status),
+        account.balance !== null,
+        Boolean(account.dateOpened),
+        Boolean(account.responsibility),
+      ].filter(Boolean).length / 5, 0) / accounts.length;
+      accountConfidence = Math.round(accountConfidence * (0.45 + metadataCompleteness * 0.55));
     }
     const blockDispositions = canonicalHtml?.blockDispositions
       ?? buildBlockDispositions(sourceTextForDiagnostics, provider, accounts, fallbackConsumedBlocks, rejectedAccountCandidates);
@@ -3486,7 +3577,7 @@ export function parseCreditReport(
     if (prDetected) {
       sectionsParsed.push('Public Records');
       if (publicRecords.length === 0) {
-        warnings.push({ section: 'Public Records', message: 'Detected — none reported.', severity: 'info' });
+        warnings.push({ section: 'Public Records', message: 'Public records section detected; no public records were reported.', severity: 'info' });
       }
     } else {
       // Public records section not found in this report
@@ -3599,6 +3690,11 @@ export function parseCreditReport(
       sectionConfidence.inquiries * weights.inquiries +
       sectionConfidence.publicRecords * weights.publicRecords
     );
+
+    if (provider === 'experian' && reconciliation.readableBlocks > 0) {
+      const unresolvedRatio = reconciliation.preservedUnclassifiedBlocks / reconciliation.readableBlocks;
+      sectionConfidence.overall = Math.round(sectionConfidence.overall * (1 - Math.min(0.35, unresolvedRatio * 0.5)));
+    }
 
     // Boost: if accounts were found, overall confidence is at least 50
     if (accounts.length > 0 && sectionConfidence.overall < 50) {

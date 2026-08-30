@@ -564,7 +564,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                         onClick={() => updateAccount(acc.id, { _markedCollection: !acc._markedCollection, _markedNegative: !acc._markedCollection ? true : acc._markedNegative })}
                         className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${acc._markedCollection ? 'bg-warning/10 text-warning border-warning/20' : 'bg-muted text-muted-foreground border-border hover:bg-warning/10 hover:text-warning'}`}
                       >
-                        {acc._markedCollection ? 'Collection ✓' : 'Collection?'}
+                        {acc._markedCollection ? 'Collection ✓' : 'Mark Collection'}
                       </button>
                       <button
                         onClick={() => setExpandedAccounts(prev => { const n = new Set(prev); n.has(acc.id) ? n.delete(acc.id) : n.add(acc.id); return n; })}
