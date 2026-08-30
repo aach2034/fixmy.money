@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate, type LetterSenderInfo } from '@/lib/disputes/letterSender';
+import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -46,6 +47,7 @@ interface DisputeItem {
   reportedDataSummary?: string;
   disputeBasis?: string;
   isRecommended?: boolean;
+  findings?: AnomalyFindingView[];
   dateOpened: string;
   dateReported: string;
   dateLastActivity: string;
@@ -204,13 +206,14 @@ export function buildFallbackLetter(params: {
     const factualBasis = item.reportedDataSummary && item.disputeBasis
       ? item.disputeBasis
       : item.disputeReason || 'This item is inaccurate, incomplete, or unverifiable and must be investigated.';
+    const findings = formatAnomalyFindingsForLetter(item.findings ?? []);
     return `Item ${i + 1}:
    Creditor / Furnisher: ${item.creditorName}
    ${acctDisplay}
    Item Type: ${item.type}
    Amount Reported: ${item.amount}
-   Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}${discrepancyLine}${reportedDataLine}
-   Factual Basis: ${factualBasis}${statusLine}${dateLine}`;
+${findings || `   Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}${discrepancyLine}${reportedDataLine}
+   Factual Basis: ${factualBasis}`}${statusLine}${dateLine}`;
   }).join('\n\n');
 
   const docsSection = `SUPPORTING DOCUMENTS ENCLOSED:
@@ -537,7 +540,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           return !selectedBureauKey || selectedBureauKey === 'all' || bureaus.includes(selectedBureauKey);
         });
 
-        let items: DisputeItem[] = scoreDisputeStrength(deduplicateDisputeRows(availableNegativeRows)).map((d: any) => ({
+        let items: DisputeItem[] = deduplicateDisputeRows(scoreDisputeStrength(availableNegativeRows)).map((d: any) => ({
           id: d.id,
           label: `${d.creditor_name ?? 'Unknown'} — ${itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Item'}`,
           type: itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Derogatory Item',
@@ -552,6 +555,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           reportedDataSummary: d.disputeStrength.reportedDataSummary,
           disputeBasis: d.disputeStrength.disputeBasis,
           isRecommended: d.disputeStrength.isRecommended,
+          findings: prepareAnomalyFindings(d.disputeStrength.findings),
           ...getDisputeItemDates(d),
           source: 'negative_items',
         }));

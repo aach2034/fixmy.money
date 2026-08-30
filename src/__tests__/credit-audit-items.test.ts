@@ -291,4 +291,30 @@ describe('credit audit item quality gate', () => {
     expect(scored.disputeStrength.isRecommended).toBe(false);
     expect(scored.disputeStrength.strongestAnomaly).toBe('No factual anomaly detected');
   });
+
+  it('exposes multiple distinct findings for one tradeline with the strongest first', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-multi', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 4812, date_opened: '2021-04-15',
+      },
+      {
+        id: 'ex-multi', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Closed', balance: 0, date_opened: '2022-05-16',
+      },
+    ]));
+
+    const findings = scored.disputeStrength.findings;
+    expect(findings.map(item => item.issueType)).toEqual(expect.arrayContaining([
+      'balance_discrepancy',
+      'status_discrepancy',
+      'date_discrepancy',
+    ]));
+    expect(findings[0].score).toBeGreaterThanOrEqual(findings[1].score);
+    expect(new Set(findings.map(item => item.issueType)).size).toBe(findings.length);
+  });
 });

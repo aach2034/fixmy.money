@@ -9,6 +9,7 @@ import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
+import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 
@@ -42,6 +43,7 @@ interface WizardDisputeItem {
   recommendationReason: string;
   disputeBasis: string;
   isRecommended: boolean;
+  findings: AnomalyFindingView[];
   source: 'negative_items' | 'client_disputes';
 }
 
@@ -237,7 +239,7 @@ export default function DisputeWizardContent() {
         }
 
         if (negativeData && negativeData.length > 0) {
-          const scoredItems = scoreDisputeStrength(deduplicateDisputeRows(negativeData));
+          const scoredItems = deduplicateDisputeRows(scoreDisputeStrength(negativeData));
           setDisputeItems(scoredItems.map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_category ?? 'Item'}`,
@@ -256,6 +258,7 @@ export default function DisputeWizardContent() {
             recommendationReason: d.disputeStrength.recommendedReason,
             disputeBasis: d.disputeStrength.disputeBasis,
             isRecommended: d.disputeStrength.isRecommended,
+            findings: prepareAnomalyFindings(d.disputeStrength.findings),
             source: 'negative_items',
           })));
           setSelectedItems(new Set(scoredItems.filter((item: any) => item.disputeStrength.isRecommended).map((item: any) => item.id)));
@@ -286,6 +289,7 @@ export default function DisputeWizardContent() {
             recommendationReason: 'Legacy dispute item available for review; no imported report discrepancy was detected for ranking.',
             disputeBasis: d.dispute_reason ?? d.negative_reason ?? d.negative_item_type ?? 'Review the reported information for accuracy.',
             isRecommended: false,
+            findings: [],
             source: 'client_disputes',
           })));
         }
@@ -368,16 +372,17 @@ export default function DisputeWizardContent() {
 
       const itemsSection = selectedDisputeItems.map((item, i) => {
         const dates = accountDateSummary(item);
+        const findings = formatAnomalyFindingsForLetter(item.findings);
         const hasDetectedEvidence = Boolean(item.reportedDataSummary && item.disputeBasis);
         const itemReason = hasDetectedEvidence ? item.disputeBasis : finalReason;
         const reportedData = item.reportedDataSummary ? `   Reported Data: ${item.reportedDataSummary}\n` : '';
         const factualBasis = hasDetectedEvidence ? item.disputeBasis : item.strongestAnomaly;
         return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
    Type: ${item.type} | Amount: ${item.amount}
-   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Strength: ${item.strengthLabel}
+   ${dates ? `Report Dates: ${dates}\n` : ''}${findings || `   Dispute Strength: ${item.strengthLabel}
    Discrepancy: ${item.strongestAnomaly}
 ${reportedData}   Factual Basis: ${factualBasis}
-   Dispute Reason: ${itemReason}
+   Dispute Reason: ${itemReason}`}
    Requested Action: ${instruction}`;
       }).join('\n\n');
 
@@ -681,7 +686,17 @@ Date: ${today}`;
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">{item.type} · {item.amount}</p>
                         {accountDateSummary(item) && <p className="mt-1 text-xs text-muted-foreground">{accountDateSummary(item)}</p>}
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Strongest anomaly:</span> {item.strongestAnomaly}</p>
+                        <div className="mt-2 space-y-2">
+                          {item.findings.length > 0 ? item.findings.map((finding, index) => (
+                            <div key={`${finding.issueType}-${finding.reportedData}`} className="rounded-md border border-border/70 bg-background/60 p-2 text-xs leading-relaxed text-muted-foreground">
+                              <p className="font-medium text-foreground">{index === 0 ? 'Strongest finding' : `Additional finding ${index}`}: {finding.title}</p>
+                              <p><span className="font-medium text-foreground">Discrepancy:</span> {finding.discrepancy}</p>
+                              <p><span className="font-medium text-foreground">Reported Data:</span> {finding.reportedData}</p>
+                              <p><span className="font-medium text-foreground">Factual Basis:</span> {finding.factualBasis}</p>
+                              <p><span className="font-medium text-foreground">Dispute Reason:</span> {finding.disputeReason}</p>
+                            </div>
+                          )) : <p className="text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Strongest anomaly:</span> {item.strongestAnomaly}</p>}
+                        </div>
                         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Why ranked here:</span> {item.recommendationReason}</p>
                       </div>
                     </button>
