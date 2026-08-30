@@ -13,6 +13,16 @@ describe('dispute wizard account deduplication', () => {
     expect(rows[0].id).toBe('b');
   });
 
+  it('collapses parser duplicates for an identified account even when categories differ', () => {
+    const rows = deduplicateDisputeRows([
+      { id: 'a', creditor_name: 'Brigit', account_number_masked: '****1234', negative_category: 'other', bureau: 'TransUnion', parser_confidence: 50 },
+      { id: 'b', creditor_name: 'BRIGIT', account_number_masked: '****-1234', negative_category: 'late_payment', bureau: 'TransUnion', parser_confidence: 80 },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe('b');
+  });
+
   it('keeps distinct account numbers from the same creditor', () => {
     const rows = deduplicateDisputeRows([
       { id: 'a', creditor_name: 'Capital One', account_number_masked: '****1234', negative_category: 'late_payment' },

@@ -306,8 +306,27 @@ function valuesByBureau(tradelines: BureauTradelineSnapshot[], field: keyof Bure
   return Object.fromEntries(tradelines.map(row => [String(row.bureau), meaningfulReportValue(row[field])]));
 }
 
-function distinctMeaningful(values: unknown[], normalizer: (value: unknown) => unknown | null = meaningfulReportValue): unknown[] {
-  return [...new Set(values.map(normalizer).filter((value): value is Exclude<unknown, null> => value !== null))];
+function distinctCrossBureauValues(
+  tradelines: BureauTradelineSnapshot[],
+  field: keyof BureauTradelineSnapshot,
+  normalizer: (value: unknown) => unknown | null = meaningfulReportValue,
+): unknown[] {
+  const valuesPerBureau = new Map<string, Set<unknown>>();
+  for (const row of tradelines) {
+    const value = normalizer(row[field]);
+    if (value === null) continue;
+    const bureau = String(row.bureau);
+    const values = valuesPerBureau.get(bureau) ?? new Set<unknown>();
+    values.add(value);
+    valuesPerBureau.set(bureau, values);
+  }
+
+  // Conflicting parser rows within one bureau are not cross-bureau evidence.
+  // Exclude an ambiguous bureau rather than guessing which duplicate is right.
+  const comparable = [...valuesPerBureau.values()]
+    .filter(values => values.size === 1)
+    .map(values => [...values][0]);
+  return comparable.length >= 2 ? [...new Set(comparable)] : [];
 }
 
 function issue(params: Omit<DetectedIssueDraft, 'evidenceCurrentlyAvailable' | 'recommendedAction'> & Partial<Pick<DetectedIssueDraft, 'evidenceCurrentlyAvailable' | 'recommendedAction'>>): DetectedIssueDraft {
@@ -326,7 +345,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
   const furnisher = account.displayName;
   const affectedBureaus = uniqueSortedBureaus(rows.map(row => row.bureau));
 
-  const balanceValues = distinctMeaningful(rows.map(row => row.balance));
+  const balanceValues = distinctCrossBureauValues(rows, 'balance');
   if (balanceValues.length > 1) {
     issues.push(issue({
       issueType: rows.some(row => row.isCollection) ? 'collection_balance_discrepancy' : 'balance_discrepancy',
@@ -343,7 +362,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const statuses = distinctMeaningful(rows.map(row => row.accountStatus), normalizeAccountStatus);
+  const statuses = distinctCrossBureauValues(rows, 'accountStatus', normalizeAccountStatus);
   if (statuses.length > 1) {
     const statusIssueType: DetectedIssueType = rows.some(row => row.isChargeOff || normalizeAccountStatus(row.accountStatus) === 'charge-off')
       ? 'charge_off_status_discrepancy'
@@ -381,7 +400,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const paymentStatuses = distinctMeaningful(rows.map(row => row.paymentStatus), normalizeComparableText);
+  const paymentStatuses = distinctCrossBureauValues(rows, 'paymentStatus', normalizeComparableText);
   if (paymentStatuses.length > 1) {
     issues.push(issue({
       issueType: 'payment_status_discrepancy',
@@ -398,7 +417,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const pastDueValues = distinctMeaningful(rows.map(row => row.pastDue));
+  const pastDueValues = distinctCrossBureauValues(rows, 'pastDue');
   if (pastDueValues.length > 1) {
     issues.push(issue({
       issueType: 'past_due_discrepancy',
@@ -415,7 +434,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const creditLimitValues = distinctMeaningful(rows.map(row => row.creditLimit));
+  const creditLimitValues = distinctCrossBureauValues(rows, 'creditLimit');
   if (creditLimitValues.length > 1) {
     issues.push(issue({
       issueType: 'credit_limit_discrepancy',
@@ -432,7 +451,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const highBalanceValues = distinctMeaningful(rows.map(row => row.highBalance));
+  const highBalanceValues = distinctCrossBureauValues(rows, 'highBalance');
   if (highBalanceValues.length > 1) {
     issues.push(issue({
       issueType: 'high_balance_discrepancy',
@@ -449,7 +468,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const openedDates = distinctMeaningful(rows.map(row => row.dateOpened), normalizeComparableText);
+  const openedDates = distinctCrossBureauValues(rows, 'dateOpened', normalizeComparableText);
   if (openedDates.length > 1) {
     issues.push(issue({
       issueType: 'date_discrepancy',
@@ -466,7 +485,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const lastPaymentDates = distinctMeaningful(rows.map(row => row.lastPaymentDate), normalizeComparableText);
+  const lastPaymentDates = distinctCrossBureauValues(rows, 'lastPaymentDate', normalizeComparableText);
   if (lastPaymentDates.length > 1) {
     issues.push(issue({
       issueType: 'last_payment_date_discrepancy',
@@ -483,7 +502,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const accountTypes = distinctMeaningful(rows.map(row => row.accountType), normalizeComparableText);
+  const accountTypes = distinctCrossBureauValues(rows, 'accountType', normalizeComparableText);
   if (accountTypes.length > 1) {
     issues.push(issue({
       issueType: 'account_type_discrepancy',
@@ -500,7 +519,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const responsibilities = distinctMeaningful(rows.map(row => row.responsibility), normalizeComparableText);
+  const responsibilities = distinctCrossBureauValues(rows, 'responsibility', normalizeComparableText);
   if (responsibilities.length > 1) {
     issues.push(issue({
       issueType: 'responsibility_discrepancy',
@@ -517,7 +536,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const paymentHistories = distinctMeaningful(rows.map(row => row.paymentHistory), normalizeComparableText);
+  const paymentHistories = distinctCrossBureauValues(rows, 'paymentHistory', normalizeComparableText);
   if (paymentHistories.length > 1) {
     issues.push(issue({
       issueType: 'payment_history_discrepancy',
@@ -534,7 +553,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const remarks = distinctMeaningful(rows.map(row => row.remarks), normalizeRemarks);
+  const remarks = distinctCrossBureauValues(rows, 'remarks', normalizeRemarks);
   if (remarks.length > 1) {
     issues.push(issue({
       issueType: 'remarks_discrepancy',
@@ -551,7 +570,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const originalCreditors = distinctMeaningful(rows.map(row => row.originalCreditor), normalizeComparableText);
+  const originalCreditors = distinctCrossBureauValues(rows, 'originalCreditor', normalizeComparableText);
   if (originalCreditors.length > 1) {
     issues.push(issue({
       issueType: 'original_creditor_discrepancy',

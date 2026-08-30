@@ -113,6 +113,19 @@ describe('evidence-driven dispute engine', () => {
         ['TransUnion', '---'],
       ])).toEqual([]);
     });
+
+    it('does not turn conflicting duplicate rows from one bureau into a cross-bureau mismatch', () => {
+      const [canonical] = normalizeCrossBureauAccounts([
+        account({ id: 'eq-other', bureau: 'Equifax', accountStatus: '- - Other', balance: 5866, accountType: 'Revolving', lastPaymentDate: '2026-08-05' }),
+        account({ id: 'eq-chargeoff', bureau: 'Equifax', accountStatus: 'Charge-off', balance: 5866, accountType: 'Revolving account', lastPaymentDate: '2026-08-06' }),
+      ]);
+
+      const crossBureauTypes = new Set([
+        'status_discrepancy', 'charge_off_status_discrepancy', 'balance_discrepancy',
+        'date_discrepancy', 'last_payment_date_discrepancy', 'account_type_discrepancy',
+      ]);
+      expect(detectPotentialIssues(canonical).filter(issue => crossBureauTypes.has(issue.issueType))).toEqual([]);
+    });
   });
 
   describe('field-specific anomaly routing', () => {
