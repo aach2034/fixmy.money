@@ -375,7 +375,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         )}
         <div className="flex gap-4 text-xs text-muted-foreground flex-wrap">
           {report.sectionsParsed.map(s => <span key={s} className="text-success">✓ {s}</span>)}
-          {report.sectionsMissed.map(s => <span key={s} className="text-muted-foreground">— {s}: Detected — none reported</span>)}
+          {report.sectionsMissed.map(s => <span key={s} className="text-muted-foreground">— {s}: Detected — extraction incomplete</span>)}
         </div>
       </div>
 

@@ -12,6 +12,10 @@ interface AuditClient {
   id: string;
   name: string;
   email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
 }
 
 interface AuditResult {
@@ -61,7 +65,7 @@ export default function CreditAuditContent() {
         if (!user) return;
         const { data } = await supabase
           .from('staff_clients')
-          .select('id, name, email')
+          .select('id, name, email, address, city, state, zip')
           .eq('owner_id', user.id)
           .order('name');
         setClients(data ?? []);

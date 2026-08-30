@@ -588,7 +588,7 @@ Date: ${today}`;
             {selectedClient && (
               <div className="space-y-2 pt-2 border-t border-border">
                 <p className="text-xs font-medium text-muted-foreground">Client mailing address for the letter header</p>
-                <input className="input-field" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
+                <textarea rows={2} className="input-field resize-none" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
                 <div className="grid grid-cols-3 gap-2">
                   <input className="input-field" placeholder="City" value={clientCity} onChange={e => setClientCity(e.target.value)} />
                   <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value.toUpperCase())} />
@@ -615,7 +615,7 @@ Date: ${today}`;
             {fromReport && selectedClient && (
               <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Client mailing address required before generation</p>
-                <input className="input-field" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
+                <textarea rows={2} className="input-field resize-none" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
                 <div className="grid grid-cols-3 gap-2">
                   <input className="input-field" placeholder="City" value={clientCity} onChange={e => setClientCity(e.target.value)} />
                   <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value.toUpperCase())} />

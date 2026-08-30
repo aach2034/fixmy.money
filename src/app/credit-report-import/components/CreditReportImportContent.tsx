@@ -1629,7 +1629,7 @@ export default function CreditReportImportContent() {
             {/* Sections parsed/missed */}
             <div className="flex gap-3 text-xs text-muted-foreground flex-wrap">
               {parsedReport.sectionsParsed.map(s => <span key={s} className="text-success">✓ {s}</span>)}
-              {parsedReport.sectionsMissed.map(s => <span key={s} className="text-warning">⚠ {s}: Detected — none reported</span>)}
+              {parsedReport.sectionsMissed.map(s => <span key={s} className="text-warning">⚠ {s}: Detected — extraction incomplete</span>)}
               {(parsedReport.sectionsNotFound ?? []).map(s => <span key={s} className="text-muted-foreground">— {s}: Not detected</span>)}
             </div>
 
