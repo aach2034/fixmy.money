@@ -4,7 +4,6 @@ import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   BadgeCheck,
-  BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
@@ -17,8 +16,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  Star,
-  UserRound,
 } from 'lucide-react';
 import { CHECKOUT_PLANS, PLANS } from '@/lib/stripe/plans';
 import { trackCtaClick, trackEvent, trackPricingPlanSelect, trackTrialSignup } from '@/lib/analytics';
@@ -69,30 +66,32 @@ function Logo({ compact = false }: { compact?: boolean }) {
 
 function Header({ onStart }: { onStart: (plan: string, location: string) => void }) {
   return (
-    <header className="mx-auto hidden h-[70px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:flex">
+    <header className="sticky top-0 z-40 hidden border-b border-slate-200 bg-white/95 backdrop-blur lg:block">
+      <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-8">
       <Logo />
-      <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary navigation">
+      <nav className="flex items-center gap-7" aria-label="Primary navigation">
         {NAV_LINKS.map((link) =>
           link.href.startsWith('#') ? (
-            <a key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-[#061642] hover:text-[#079735]">
+            <a key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 transition hover:text-[#079735]">
               {link.label}
               {link.dropdown && <ChevronDown size={14} />}
             </a>
           ) : (
-            <Link key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-[#061642] hover:text-[#079735]">
+            <Link key={link.label} href={link.href} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 transition hover:text-[#079735]">
               {link.label}
               {link.dropdown && <ChevronDown size={14} />}
             </Link>
           ),
         )}
       </nav>
-      <div className="hidden items-center gap-4 lg:flex">
-        <Link href="/login" onClick={() => trackCtaClick('Sign In', '/login', 'nav')} className="rounded-md border border-[#061642] px-5 py-2.5 text-sm font-bold text-[#061642] hover:bg-[#f5f8fb]">
+      <div className="flex items-center gap-3">
+        <Link href="/login" onClick={() => trackCtaClick('Sign In', '/login', 'nav')} className="rounded-lg px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">
           Sign In
         </Link>
-        <Link href="/signup?plan=professional" onClick={() => onStart('professional', 'nav')} className="rounded-md bg-[#069b35] px-7 py-3 text-sm font-black text-white shadow-lg shadow-green-900/10 hover:bg-[#07862f]">
+        <Link href="/signup?plan=professional" onClick={() => onStart('professional', 'nav')} className="rounded-lg bg-[#079735] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#067d2c]">
           Start $1 Trial
         </Link>
+      </div>
       </div>
     </header>
   );
@@ -196,24 +195,6 @@ function ProductPreview({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
-function AudienceCard({ type, onStart }: { type: 'individuals' | 'business'; onStart: (plan: string, location: string) => void }) {
-  const isBusiness = type === 'business';
-  const href = isBusiness ? '/signup?plan=professional' : '/signup?plan=starter';
-  return (
-    <article className={`flex h-full flex-col rounded-lg border bg-white p-5 text-center shadow-sm ${isBusiness ? 'border-[#071f4b]/25' : 'border-[#00a83b]/30'}`}>
-      <div className="mx-auto mb-2 grid h-7 w-7 place-items-center text-[#061b48]">
-        {isBusiness ? <BriefcaseBusiness size={20} /> : <UserRound size={20} />}
-      </div>
-      <h3 className="text-lg font-black text-[#061642]">{isBusiness ? 'For Businesses' : 'For Individuals'}</h3>
-      <p className="mt-1 text-sm font-semibold text-slate-600">{isBusiness ? 'Manage clients. Grow your business.' : 'Take control of your credit.'}</p>
-      <Link href={href} onClick={() => onStart(isBusiness ? 'professional' : 'starter', isBusiness ? 'hero_business' : 'hero_individual')} className={`mt-4 block rounded-md px-5 py-3 text-sm font-black text-white shadow-sm transition ${isBusiness ? 'bg-[#071f4b] hover:bg-[#0b2d65]' : 'bg-[#00a83b] hover:bg-[#079735]'}`}>
-        {isBusiness ? 'See Business Software' : 'Start $1 Trial'}
-      </Link>
-      <p className="mt-3 text-xs font-semibold text-[#061642]">{isBusiness ? 'Powerful tools for credit pros' : '$1 trial with a card - Cancel anytime'}</p>
-    </article>
-  );
-}
-
 export default function HomepageContent() {
   const checkoutPlans = useMemo(() => new Set(CHECKOUT_PLANS.map((plan) => plan.id)), []);
 
@@ -242,49 +223,52 @@ export default function HomepageContent() {
       <Header onStart={start} />
 
       <main>
-        <section className="relative hidden overflow-hidden px-5 pb-5 pt-0 sm:px-8 lg:block">
-          <div className="absolute right-[9%] top-24 hidden h-[330px] w-[330px] rounded-full bg-[#c7f0d3] opacity-70 blur-sm lg:block" />
-          <div className="absolute right-[5%] top-72 hidden h-[280px] w-[280px] rounded-full bg-[#dff0ff] opacity-80 blur-sm lg:block" />
-          <div className="relative mx-auto grid max-w-[1320px] min-w-0 items-center gap-6 xl:gap-8 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
-            <div className="py-3 lg:py-4">
-              <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">
-                AI-POWERED CREDIT SOFTWARE FOR INDIVIDUALS & PROFESSIONALS
+        <section className="relative hidden overflow-hidden border-b border-slate-200 bg-slate-50 px-8 py-16 lg:block">
+          <div className="relative mx-auto grid max-w-[1240px] min-w-0 items-center gap-12 lg:grid-cols-[minmax(0,.86fr)_minmax(0,1.14fr)]">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3.5 py-2 text-xs font-black tracking-wide text-[#07862f] shadow-sm">
+                <Sparkles size={14} /> AI-POWERED CREDIT INTELLIGENCE
               </span>
-              <h1 className="mt-4 max-w-[560px] text-[38px] font-black leading-[1.07] text-[#071f4b] xl:text-[42px]">
-                AI Analyzes Your Credit.
-                <span className="block">We Find What Matters.</span>
-                <span className="block text-[#079735]">You Take Action.</span>
+              <h1 className="mt-6 max-w-[590px] text-[54px] font-black leading-[1.02] tracking-[-0.045em] text-[#061642] xl:text-[60px]">
+                Turn complex credit reports into a
+                <span className="text-[#079735]"> clear action plan.</span>
               </h1>
-              <p className="mt-4 max-w-[535px] text-[15px] font-medium leading-7 text-slate-700">
+              <p className="mt-6 max-w-[560px] text-lg font-medium leading-8 text-slate-600">
                 FixMy.Money is credit intelligence software that analyzes credit reports, identifies potential reporting issues, prioritizes what to review, and organizes dispute letters and follow-up—whether you are working on your own credit or managing clients.
               </p>
-              <div className="mt-5 grid max-w-[560px] grid-cols-3 gap-4">
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="/signup?plan=starter" onClick={() => start('starter', 'hero_primary')} className="rounded-lg bg-[#079735] px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-900/10 transition hover:bg-[#067d2c]">
+                  Analyze my credit for $1
+                </Link>
+                <Link href="/professionals" onClick={() => trackCtaClick('Explore for professionals', '/professionals', 'hero_secondary')} className="rounded-lg border border-slate-300 bg-white px-6 py-3.5 text-sm font-black text-[#061642] shadow-sm transition hover:border-slate-400 hover:bg-slate-50">
+                  Explore for professionals
+                </Link>
+              </div>
+              <div className="mt-8 grid max-w-[590px] grid-cols-3 gap-5 border-t border-slate-200 pt-6">
                 {FEATURES.map(({ icon: Icon, title, copy }) => (
-                  <div key={title} className="grid min-w-0 grid-cols-[26px_minmax(0,1fr)] items-start gap-3">
-                    <Icon size={26} className="shrink-0 text-[#079735]" strokeWidth={2.1} />
+                  <div key={title} className="grid min-w-0 grid-cols-[22px_minmax(0,1fr)] items-start gap-2.5">
+                    <Icon size={21} className="shrink-0 text-[#079735]" strokeWidth={2.1} />
                     <span className="min-w-0">
-                      <b className="block whitespace-nowrap text-xs text-[#071f4b]">{title}</b>
+                      <b className="block text-xs text-[#071f4b]">{title}</b>
                       <span className="block text-[11px] font-semibold leading-4 text-[#53657d]">{copy}</span>
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 grid max-w-[550px] gap-5 sm:grid-cols-2">
-                <AudienceCard type="individuals" onStart={start} />
-                <AudienceCard type="business" onStart={start} />
-              </div>
             </div>
-            <div className="hidden w-full max-w-[640px] min-w-0 justify-self-start lg:block">
+            <div className="relative w-full min-w-0">
+              <div className="absolute -inset-5 rounded-[28px] bg-gradient-to-br from-emerald-100 via-white to-blue-100" />
+              <div className="relative">
               <ProductPreview />
+              </div>
             </div>
           </div>
 
-          <div className="relative mx-auto mt-3 max-w-[1320px] rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <div className="grid items-center gap-5 lg:grid-cols-[1fr_auto]">
-              <div className="grid gap-5 sm:grid-cols-3">
+          <div className="relative mx-auto mt-14 max-w-[1240px] rounded-xl border border-slate-200 bg-white px-7 py-5 shadow-sm">
+              <div className="grid gap-6 sm:grid-cols-3">
                 {TRUST_ITEMS.map(({ icon: Icon, title, copy }) => (
                   <div key={title} className="flex items-center gap-3">
-                    <Icon size={24} className="text-[#061b48]" />
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100"><Icon size={20} className="text-[#061b48]" /></span>
                     <span>
                       <b className="block text-xs text-[#061642]">{title}</b>
                       <span className="text-[11px] font-semibold text-slate-600">{copy}</span>
@@ -292,30 +276,14 @@ export default function HomepageContent() {
                   </div>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center gap-5 border-slate-200 text-sm font-black text-[#061642] lg:border-l lg:pl-8">
-                <span className="text-[10px] font-bold text-slate-500">FEATURED IN</span>
-                <span>MarketWatch</span>
-                <span className="text-[#4b26c9]">yahoo! finance</span>
-                <span>BENZINGA</span>
-                <span className="font-serif text-lg">Forbes</span>
-              </div>
-            </div>
           </div>
         </section>
 
-        <section className="bg-[#f5f7fb] px-3 py-0 lg:hidden">
-          <div className="mx-auto min-h-screen max-w-[390px] overflow-hidden rounded-[28px] bg-[#061b48] shadow-2xl">
-            <div className="rounded-t-[28px] bg-white px-4 pb-4 pt-2">
-              <div className="mb-4 flex h-7 items-center justify-between text-sm font-black text-black">
-                <span>9:41</span>
-                <span className="text-xs">••• Wi-Fi ▰</span>
-              </div>
-              <div className="mb-5 flex items-center justify-between gap-3">
+        <section className="border-b border-slate-200 bg-slate-50 px-5 pb-14 pt-4 lg:hidden">
+          <div className="mx-auto max-w-xl">
+              <div className="flex items-center justify-between gap-3">
                 <Logo compact />
-                <Link href="/signup?plan=professional" onClick={() => start('professional', 'mobile_preview')} className="rounded-md bg-[#079735] px-4 py-2 text-xs font-black text-white">
-                  Start $1 Trial
-                </Link>
-                <button type="button" popoverTarget="homepage-mobile-nav" className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-[#061642]" aria-label="Toggle navigation" aria-controls="homepage-mobile-nav">
+                <button type="button" popoverTarget="homepage-mobile-nav" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-[#061642] shadow-sm" aria-label="Toggle navigation" aria-controls="homepage-mobile-nav">
                   <Menu size={25} />
                 </button>
               </div>
@@ -331,59 +299,36 @@ export default function HomepageContent() {
                   </Link>
                 </div>
               </div>
-              <div className="text-center">
-                <span className="inline-flex rounded-full bg-[#dff5e4] px-4 py-2 text-xs font-black text-[#07862f]">AI-POWERED CREDIT SOFTWARE</span>
-                <h1 className="mt-4 text-[30px] font-black leading-[1.12] text-[#061642]">
-                  AI Analyzes Your Credit.
-                  <span className="block">We Find What Matters.</span>
-                  <span className="block text-[#079735]">You Take Action.</span>
+              <div className="pt-12">
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-2 text-[11px] font-black tracking-wide text-[#07862f] shadow-sm"><Sparkles size={13} /> AI-POWERED CREDIT INTELLIGENCE</span>
+                <h1 className="mt-5 text-[40px] font-black leading-[1.02] tracking-[-0.04em] text-[#061642]">
+                  Turn complex credit reports into a <span className="text-[#079735]">clear action plan.</span>
                 </h1>
-                <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-5 text-[#061642]">
+                <p className="mt-5 text-base font-medium leading-7 text-slate-600">
                   Credit intelligence software for analyzing reports, prioritizing potential issues, and organizing dispute workflows for yourself or your clients.
                 </p>
               </div>
-              <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                {FEATURES.map(({ icon: Icon, title, copy }) => (
-                  <div key={title}>
-                    <Icon size={20} className="mx-auto text-[#079735]" strokeWidth={2} />
-                    <b className="mt-1 block text-[10px] text-[#061642]">{title}</b>
-                    <span className="text-[9px] font-semibold leading-3 text-slate-600">{copy}</span>
-                  </div>
-                ))}
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                <Link href="/signup?plan=starter" onClick={() => start('starter', 'mobile_hero')} className="rounded-lg bg-[#079735] px-5 py-3.5 text-center text-sm font-black text-white shadow-lg shadow-emerald-900/10">Analyze my credit for $1</Link>
+                <Link href="/professionals" onClick={() => trackCtaClick('Explore for professionals', '/professionals', 'mobile_hero')} className="rounded-lg border border-slate-300 bg-white px-5 py-3.5 text-center text-sm font-black text-[#061642] shadow-sm">For credit professionals</Link>
               </div>
-              <div className="mt-5 grid gap-3">
-                <AudienceCard type="individuals" onStart={start} />
-                <AudienceCard type="business" onStart={start} />
+              <div className="mt-7 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-200 pt-5 text-[11px] font-bold text-slate-600">
+                <span className="flex items-center gap-1.5"><ShieldCheck size={15} className="text-[#079735]" /> Secure</span>
+                <span className="flex items-center gap-1.5"><LockKeyhole size={15} className="text-[#079735]" /> Private</span>
+                <span className="flex items-center gap-1.5"><CalendarClock size={15} className="text-[#079735]" /> Cancel anytime</span>
               </div>
-              <div className="mt-5 grid grid-cols-3 gap-2 text-[10px] font-bold text-[#061642]">
-                {TRUST_ITEMS.map(({ icon: Icon, title }) => (
-                  <span key={title} className="flex items-center justify-center gap-1">
-                    <Icon size={14} /> {title}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-5">
+              <div className="mt-9">
                 <ProductPreview mobile />
               </div>
-            </div>
-            <div className="py-5 text-center text-white">
-              <p className="text-sm font-black">TRUSTED BY THOUSANDS</p>
-              <p className="text-sm">Real people. Real results.</p>
-              <div className="mt-3 flex justify-center gap-1 text-[#4bd85d]">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} size={27} fill="currentColor" />
-                ))}
-              </div>
-            </div>
           </div>
         </section>
 
-        <section id="how-it-works" className="px-5 pb-10 pt-3 sm:px-8">
-          <div className="mx-auto max-w-[1320px] border-t border-slate-200 pt-8">
+        <section id="how-it-works" className="bg-white px-5 py-20 sm:px-8">
+          <div className="mx-auto max-w-[1240px]">
             <div className="grid gap-8 lg:grid-cols-[.72fr_1.28fr]">
               <div>
                 <p className="text-xs font-black text-blue-700">HOW IT WORKS</p>
-                <h2 className="mt-4 text-3xl font-black text-[#061642]">AI That Finds What Others Miss</h2>
+                <h2 className="mt-4 text-4xl font-black tracking-tight text-[#061642]">From report upload to next action.</h2>
                 <p className="mt-4 max-w-lg text-sm font-medium leading-7 text-slate-700">
                   Our AI reviews your full credit report line by line, identifies potentially disputable items, estimates your chances, and prioritizes what to tackle first.
                 </p>
