@@ -207,6 +207,12 @@ export default function DisputeWizardContent() {
         if (negativeError) throw negativeError;
 
         const selectedBureauKey = selectedBureau.trim().toLowerCase();
+        const belongsToSelectedBureau = (item: any) => {
+          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
+            .filter(Boolean)
+            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
+          return bureaus.includes(selectedBureauKey);
+        };
         const filterRows = (rows: any[]) => rows.filter((item: any) => {
           const status = String(item.dispute_status ?? 'draft').toLowerCase();
           if (status === 'resolved') return false;
@@ -217,10 +223,7 @@ export default function DisputeWizardContent() {
             (category !== 'positive' && Boolean(item.negative_reason));
           if (!isNegative) return false;
 
-          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
-            .filter(Boolean)
-            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
-          return bureaus.includes(selectedBureauKey);
+          return true;
         });
 
         let negativeData = filterRows(reportRows ?? []);
@@ -228,7 +231,7 @@ export default function DisputeWizardContent() {
         // Some historical imports have valid negative_items rows but a missing
         // or stale report_id. Fall back to the client's confirmed queue rather
         // than presenting an empty Wizard.
-        if (negativeData.length === 0 && fromReport && preReportId) {
+        if (!negativeData.some(belongsToSelectedBureau) && fromReport && preReportId) {
           const { data: clientRows, error: clientRowsError } = await supabase
             .from('negative_items')
             .select('*')
@@ -239,7 +242,7 @@ export default function DisputeWizardContent() {
         }
 
         if (negativeData && negativeData.length > 0) {
-          const scoredItems = deduplicateDisputeRows(scoreDisputeStrength(negativeData));
+          const scoredItems = deduplicateDisputeRows(scoreDisputeStrength(negativeData).filter(belongsToSelectedBureau));
           setDisputeItems(scoredItems.map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_category ?? 'Item'}`,

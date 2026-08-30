@@ -524,6 +524,12 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         if (negativeError) throw negativeError;
 
         const selectedBureauKey = String(selectedBureau ?? '').trim().toLowerCase();
+        const belongsToSelectedBureau = (item: any) => {
+          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
+            .filter(Boolean)
+            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
+          return !selectedBureauKey || selectedBureauKey === 'all' || bureaus.includes(selectedBureauKey);
+        };
         const availableNegativeRows = (negativeRows ?? []).filter((item: any) => {
           const status = String(item.dispute_status ?? 'draft').toLowerCase();
           if (status === 'resolved') return false;
@@ -534,13 +540,10 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
             (category !== 'positive' && Boolean(item.negative_reason));
           if (!isNegative) return false;
 
-          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
-            .filter(Boolean)
-            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
-          return !selectedBureauKey || selectedBureauKey === 'all' || bureaus.includes(selectedBureauKey);
+          return true;
         });
 
-        let items: DisputeItem[] = deduplicateDisputeRows(scoreDisputeStrength(availableNegativeRows)).map((d: any) => ({
+        let items: DisputeItem[] = deduplicateDisputeRows(scoreDisputeStrength(availableNegativeRows).filter(belongsToSelectedBureau)).map((d: any) => ({
           id: d.id,
           label: `${d.creditor_name ?? 'Unknown'} — ${itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Item'}`,
           type: itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Derogatory Item',
