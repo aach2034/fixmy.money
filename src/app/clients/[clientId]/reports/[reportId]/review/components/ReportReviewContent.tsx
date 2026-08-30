@@ -1,12 +1,12 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, ArrowRight, Info, Loader2, AlertCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import type { ParsedCreditReport, ParsedAccount, SectionConfidence } from '@/lib/creditReport/parser';
-import { DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import { DISPUTE_INSTRUCTIONS, type ParsedCreditReport, type ParsedAccount, type SectionConfidence } from '@/lib/creditReport/parser';
 import DisputeReasonSelect from '@/components/DisputeReasonSelect';
+import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
 
 interface ReportReviewContentProps {
   clientId: string;
@@ -83,7 +83,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .order('created_at', { ascending: true });
 
       // Map DB rows to EditableAccount
-      const parsedAccounts: EditableAccount[] = (allItems ?? []).map((item: any) => ({
+      const sourceAccounts: ParsedAccount[] = Array.isArray(reportData.all_accounts) ? reportData.all_accounts : [];
+      const parsedAccounts: EditableAccount[] = (allItems ?? []).map((item: any) => {
+        const source = sourceAccounts.find(account =>
+          account.accountNumberMasked === item.account_number_masked
+          && account.creditorName === item.creditor_name
+        );
+        return ({
         id: item.id,
         _dbId: item.id,
         creditorName: item.creditor_name ?? '',
@@ -94,8 +100,11 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         responsibility: 'Individual',
         status: item.status ?? '',
         balance: item.balance ?? null,
-        highBalance: null,
-        creditLimit: null,
+        originalBalance: source?.originalBalance ?? null,
+        collectionAmount: source?.collectionAmount ?? null,
+        chargeOffAmount: source?.chargeOffAmount ?? null,
+        highBalance: source?.highBalance ?? null,
+        creditLimit: source?.creditLimit ?? null,
         pastDue: item.past_due ?? null,
         dateOpened: item.date_opened ?? '',
         dateClosed: '',
@@ -121,7 +130,8 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         _disputeInstruction: item.dispute_instruction ?? '',
         _note: item.notes ?? '',
         _deleted: false,
-      }));
+        });
+      });
 
       setAccounts(parsedAccounts);
 
@@ -260,13 +270,8 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       if (reportUpdateError) throw new Error(`Could not finalize report review: ${reportUpdateError.message}`);
 
       const negCount = toSave.filter(a => a._markedNegative).length;
-      const disputableCount = toSave.filter(a => a._markedNegative || a.accountType === 'Hard Inquiry').length;
-      toast.success(`Report saved. ${negCount} negative items ready for dispute.`);
-      if (disputableCount > 0) {
-        router.push(`/dispute-wizard?clientId=${clientId}&clientName=${encodeURIComponent(clientName)}&reportId=${reportId}&fromReport=true`);
-      } else {
-        router.push(`/clients/${clientId}/negative-items`);
-      }
+      toast.success(`Report saved. ${negCount} negative items are ready for credit audit.`);
+      router.push(`/credit-audit?clientId=${clientId}`);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save report');
     } finally {
@@ -275,6 +280,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   };
 
   const tabs = [
+    { id: 'needs-review', label: 'Needs Review', count: accounts.filter(a => !a._deleted && needsAccountReview(a)).length },
     { id: 'all', label: 'All Accounts', count: accounts.filter(a => !a._deleted && a.accountType !== 'Hard Inquiry').length },
     { id: 'negative', label: 'Possible Negative Items', count: accounts.filter(a => !a._deleted && a._markedNegative).length },
     { id: 'collections', label: 'Collections', count: accounts.filter(a => !a._deleted && a._markedCollection).length },
@@ -286,6 +292,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const getTabAccounts = () => {
     const active = accounts.filter(a => !a._deleted);
     switch (activeTab) {
+      case 'needs-review': return active.filter(needsAccountReview);
       case 'all': return active.filter(a => a.accountType !== 'Hard Inquiry');
       case 'negative': return active.filter(a => a._markedNegative);
       case 'collections': return active.filter(a => a._markedCollection);
@@ -333,7 +340,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
             className="btn-primary flex items-center gap-2 text-sm"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save &amp; Continue
+            Run Credit Audit
             <ArrowRight size={14} />
           </button>
         </div>
@@ -512,11 +519,12 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       )}
 
       {/* Accounts tabs (all, negative, collections, inquiries) */}
-      {(activeTab === 'all' || activeTab === 'negative' || activeTab === 'collections' || activeTab === 'inquiries') && (
+      {(activeTab === 'needs-review' || activeTab === 'all' || activeTab === 'negative' || activeTab === 'collections' || activeTab === 'inquiries') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-foreground">
               {activeTab === 'all' && `All Accounts (${getTabAccounts().length})`}
+              {activeTab === 'needs-review' && `Needs Review (${getTabAccounts().length})`}
               {activeTab === 'negative' && `Possible Negative Items (${getTabAccounts().length})`}
               {activeTab === 'collections' && `Collections (${getTabAccounts().length})`}
               {activeTab === 'inquiries' && `Inquiries (${getTabAccounts().length})`}
@@ -546,7 +554,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                       </div>
                       <div className="flex gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
                         <span>Bureau: {acc.bureau}</span>
-                        {acc.balance !== null && <span>Balance: ${acc.balance.toLocaleString()}</span>}
+                        <span>Reported Amount: {formatReportedAmount(acc)}</span>
                         {acc.status && <span>Status: {acc.status}</span>}
                         {acc.negativeReason && <span className="text-danger">{acc.negativeReason}</span>}
                       </div>
@@ -685,7 +693,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           </button>
           <button onClick={handleSaveAll} disabled={saving} className="btn-primary flex items-center gap-2 text-sm">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save Report &amp; Go to Negative Items
+            Run Credit Audit
             <ArrowRight size={14} />
           </button>
         </div>

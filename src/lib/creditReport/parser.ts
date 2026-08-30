@@ -312,6 +312,9 @@ export interface ParsedAccount {
   responsibility: string;
   status: string;
   balance: number | null;
+  originalBalance: number | null;
+  collectionAmount: number | null;
+  chargeOffAmount: number | null;
   highBalance: number | null;
   creditLimit: number | null;
   pastDue: number | null;
@@ -1142,7 +1145,7 @@ export function isValidAccount(account: Partial<ParsedAccount>): boolean {
 // fail validation. This function reassembles those lines into proper account blocks
 // by grouping consecutive field-label + value pairs under a creditor name header.
 
-const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name)|balance|current\s*balance|amount\s*owed|high\s*(?:balance|credit)|credit\s*limit|past\s*due|date\s*(?:opened|closed|reported|updated|of\s*last)|last\s*(?:reported|activity|payment)|(?:current|worst)\s+payment\s+status|payment\s*(?:status|history|pattern)|responsibility|account\s*owner|ecoa|kob|industry|creditor\s*(?:name|type)|furnisher|original\s*creditor|collection\s*agency|remarks?|comments?|dispute\s*status|terms?|months?\s*reviewed|subscriber|bureau|opened|type|open\s*date|close\s*date|charge\s*off|derogatory|status|type\s*of\s*account|pay\s*status|30[- ]days?|60[- ]days?|90[- ]days?|120[- ]days?)/i;
+const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name)|balance|current\s*balance|amount\s*owed|original\s*(?:balance|loan\s*amount|amount)|loan\s*amount|collection\s*amount|amount\s*placed\s*for\s*collection|charge[- ]?off\s*amount|charged\s*off\s*amount|high\s*(?:balance|credit)|credit\s*limit|past\s*due|date\s*(?:opened|closed|reported|updated|of\s*last)|last\s*(?:reported|activity|payment)|(?:current|worst)\s+payment\s+status|payment\s*(?:status|history|pattern)|responsibility|account\s*owner|ecoa|kob|industry|creditor\s*(?:name|type)|furnisher|original\s*creditor|collection\s*agency|remarks?|comments?|dispute\s*status|terms?|months?\s*reviewed|subscriber|bureau|opened|type|open\s*date|close\s*date|charge\s*off|derogatory|status|type\s*of\s*account|pay\s*status|30[- ]days?|60[- ]days?|90[- ]days?|120[- ]days?)/i;
 
 // Labels that indicate a new section (not an account)
 const SECTION_HEADER_RE = /^(?:personal\s+information|inquiries|public\s+records?|credit\s+score|summary|table\s+of\s+contents|hard\s+inquiries|soft\s+inquiries|account\s+(?:history|information)|credit\s+history|credit\s+accounts?|tradelines?|open\s+accounts?|closed\s+accounts?|negative\s+accounts?|potentially\s+negative|equifax\s+accounts?|experian\s+accounts?|transunion\s+accounts?)/i;
@@ -1152,6 +1155,9 @@ const FIELD_LABEL_ALIASES: Array<[keyof SemanticFieldMap, RegExp, SemanticBlockT
   ['accountType', /^(?:account\s+type|type|type\s+of\s+account|kob|industry)$/i, 'account type'],
   ['status', /^(?:account\s+status|current\s+payment\s+status|worst\s+payment\s+status|pay\s+status|payment\s+status|status)$/i, 'account status'],
   ['balance', /^(?:balance|current\s+balance|amount\s+owed)$/i, 'balance'],
+  ['originalBalance', /^(?:original\s+balance|original\s+loan\s+amount|loan\s+amount|original\s+amount)$/i, 'balance'],
+  ['collectionAmount', /^(?:collection\s+amount|amount\s+placed\s+for\s+collection)$/i, 'balance'],
+  ['chargeOffAmount', /^(?:charge[- ]?off\s+amount|charged\s+off\s+amount)$/i, 'balance'],
   ['highBalance', /^(?:high\s+balance|highest\s+balance|high\s+credit)$/i, 'balance'],
   ['creditLimit', /^(?:credit\s+limit|limit|credit\s+line)$/i, 'credit limit'],
   ['pastDue', /^(?:past\s+due|amount\s+past\s+due|past-due)$/i, 'delinquency'],
@@ -1170,6 +1176,9 @@ type SemanticFieldMap = {
   accountType?: string;
   status?: string;
   balance?: string;
+  originalBalance?: string;
+  collectionAmount?: string;
+  chargeOffAmount?: string;
   highBalance?: string;
   creditLimit?: string;
   pastDue?: string;
@@ -1655,6 +1664,9 @@ function extractTriBureauBaseAccount(block: string, bureau: string): ParsedAccou
     responsibility: 'Individual',
     status: '',
     balance: null,
+    originalBalance: null,
+    collectionAmount: null,
+    chargeOffAmount: null,
     highBalance: null,
     creditLimit: null,
     pastDue: null,
@@ -1918,6 +1930,15 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     const balanceValue = fieldValue('balance');
     const balance = balanceValue ? parseAmount(balanceValue) : balanceMatch ? parseAmount(balanceMatch[1]) : null;
 
+    const amountField = (key: keyof SemanticFieldMap, pattern: RegExp) => {
+      const semanticValue = fieldValue(key);
+      const match = block.match(pattern);
+      return semanticValue ? parseAmount(semanticValue) : match ? parseAmount(match[1]) : null;
+    };
+    const originalBalance = amountField('originalBalance', /(?:original balance|original loan amount|loan amount|original amount)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const collectionAmount = amountField('collectionAmount', /(?:collection amount|amount placed for collection)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const chargeOffAmount = amountField('chargeOffAmount', /(?:charge[- ]?off amount|charged off amount)[ \t]*:[ \t]*\$?([\d,]+)/i);
+
     const highBalMatch = block.match(/(?:high balance|highest balance|high credit)[ \t]*:[ \t]*\$?([\d,]+)/i);
     const highBalanceValue = fieldValue('highBalance');
     const highBalance = highBalanceValue ? parseAmount(highBalanceValue) : highBalMatch ? parseAmount(highBalMatch[1]) : null;
@@ -1986,6 +2007,9 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       originalCreditor,
       status,
       balance,
+      originalBalance,
+      collectionAmount,
+      chargeOffAmount,
       pastDue,
       remarks,
       latePayments,
@@ -2019,6 +2043,9 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       responsibility,
       status,
       balance,
+      originalBalance,
+      collectionAmount,
+      chargeOffAmount,
       highBalance,
       creditLimit,
       pastDue,
@@ -2312,6 +2339,12 @@ function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: Pars
     const accountType = account.accountType === 'Unknown' && fields.accountType ? fields.accountType : account.accountType;
     const status = account.status || fields.status || '';
     const balance = account.balance ?? (fields.balance ? parseAmount(fields.balance) : null);
+    const originalBalance = account.originalBalance ?? (fields.originalBalance ? parseAmount(fields.originalBalance) : null);
+    const collectionAmount = account.collectionAmount ?? (fields.collectionAmount ? parseAmount(fields.collectionAmount) : null);
+    const chargeOffAmount = account.chargeOffAmount ?? (fields.chargeOffAmount ? parseAmount(fields.chargeOffAmount) : null);
+    const highBalance = account.highBalance ?? (fields.highBalance ? parseAmount(fields.highBalance) : null);
+    const creditLimit = account.creditLimit ?? (fields.creditLimit ? parseAmount(fields.creditLimit) : null);
+    const pastDue = account.pastDue ?? (fields.pastDue ? parseAmount(fields.pastDue) : null);
     const dateOpened = account.dateOpened || (fields.dateOpened ? extractDate(fields.dateOpened) : '');
     const responsibility = account.responsibility || fields.responsibility || '';
     const remarks = account.remarks.length > 0 ? account.remarks : fields.remarks ? [fields.remarks] : [];
@@ -2320,6 +2353,12 @@ function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: Pars
       accountType,
       status,
       balance,
+      originalBalance,
+      collectionAmount,
+      chargeOffAmount,
+      highBalance,
+      creditLimit,
+      pastDue,
       dateOpened,
       responsibility,
       remarks,
@@ -2424,6 +2463,9 @@ function canonicalFieldLabel(field: keyof SemanticFieldMap): string {
     case 'accountType': return 'Account Type';
     case 'status': return 'Account Status';
     case 'balance': return 'Balance';
+    case 'originalBalance': return 'Original Balance';
+    case 'collectionAmount': return 'Collection Amount';
+    case 'chargeOffAmount': return 'Charge-off Amount';
     case 'highBalance': return 'High Balance';
     case 'creditLimit': return 'Credit Limit';
     case 'pastDue': return 'Past Due';
@@ -2469,6 +2511,9 @@ function renderCanonicalAccountSection(account: ParsedAccount, dispositions: Par
     ['dateReported', account.dateReported || semanticFields.dateReported],
     ['status', account.status || semanticFields.status],
     ['balance', account.balance !== null && account.balance !== undefined ? `$${account.balance.toLocaleString('en-US')}` : semanticFields.balance],
+    ['originalBalance', account.originalBalance !== null && account.originalBalance !== undefined ? `$${account.originalBalance.toLocaleString('en-US')}` : semanticFields.originalBalance],
+    ['collectionAmount', account.collectionAmount !== null && account.collectionAmount !== undefined ? `$${account.collectionAmount.toLocaleString('en-US')}` : semanticFields.collectionAmount],
+    ['chargeOffAmount', account.chargeOffAmount !== null && account.chargeOffAmount !== undefined ? `$${account.chargeOffAmount.toLocaleString('en-US')}` : semanticFields.chargeOffAmount],
     ['highBalance', account.highBalance !== null && account.highBalance !== undefined ? `$${account.highBalance.toLocaleString('en-US')}` : semanticFields.highBalance],
     ['creditLimit', account.creditLimit !== null && account.creditLimit !== undefined ? `$${account.creditLimit.toLocaleString('en-US')}` : semanticFields.creditLimit],
     ['pastDue', account.pastDue !== null && account.pastDue !== undefined ? `$${account.pastDue.toLocaleString('en-US')}` : semanticFields.pastDue],

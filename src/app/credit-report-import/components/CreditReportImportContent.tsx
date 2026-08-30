@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle2, Info, Loader2, X, ArrowRight, RefreshCw, Eye, AlertCircle, ChevronDown, ChevronUp, ScanLine, ShieldCheck, UsersRound, FileUp, ExternalLink, Building2, SearchCheck, Sparkles, ListChecks, LockKeyhole, Bell, WalletCards } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, CheckCircle2, Info, Loader2, X, ArrowRight, RefreshCw, AlertCircle, ChevronDown, ChevronUp, ScanLine, ShieldCheck, UsersRound, FileUp, ExternalLink, Building2, SearchCheck, Sparkles, ListChecks, LockKeyhole, Bell, WalletCards } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ import {
 import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
+import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
 
 type SavedReportItem = {
   id: string;
@@ -1677,21 +1678,23 @@ export default function CreditReportImportContent() {
             )}
           </div>
 
-          {/* Negative items preview */}
+          {/* Exception-first account preview */}
           {parsedReport.negativeAccounts.length > 0 && (
             <div className="card p-5 space-y-3">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <AlertTriangle size={15} className="text-danger" />
-                Negative Items Detected ({parsedReport.negativeAccounts.length})
+                Needs Review ({parsedReport.accounts.filter(needsAccountReview).length})
               </h3>
+              <p className="text-xs text-muted-foreground">High-confidence accounts are ready to save automatically. Only uncertain or incomplete accounts need attention.</p>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {parsedReport.negativeAccounts.map((acc, i) => (
+                {[...parsedReport.accounts].sort((a, b) => Number(needsAccountReview(b)) - Number(needsAccountReview(a))).map((acc, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-border text-xs">
                     <div>
                       <p className="font-medium text-foreground">{acc.creditorName}</p>
-                      <p className="text-muted-foreground">{acc.accountType} · {acc.bureau}</p>
+                      <p className="text-muted-foreground">{acc.accountNumberMasked || 'Account not reported'} · {acc.accountType} · {acc.status || 'Status not reported'} · {acc.bureau}</p>
+                      <p className="text-muted-foreground">Reported Amount: <span className="text-foreground font-medium">{formatReportedAmount(acc)}</span>{acc.isCollection ? ' · Confirmed collection' : ''}</p>
                     </div>
-                    <span className="text-danger text-xs">{acc.negativeReason}</span>
+                    <span className={needsAccountReview(acc) ? 'text-warning text-xs' : 'text-success text-xs'}>{needsAccountReview(acc) ? 'Needs Review' : (acc.negativeReason || 'Ready to save')}</span>
                   </div>
                 ))}
               </div>
@@ -1743,18 +1746,6 @@ export default function CreditReportImportContent() {
                 </button>
               )}
 
-              {/* Review accounts manually button — always shown when accounts exist */}
-              {parsedReport.accounts.length > 0 && selectedClientId && (
-                <button
-                  onClick={handleSaveToClient}
-                  disabled={saving}
-                  className="btn-secondary text-sm flex items-center gap-2"
-                >
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-                  {saving ? saveStage : `Review ${parsedReport.accounts.length} Accounts Manually`}
-                </button>
-              )}
-
               {/* Normal save — disabled if provider unknown + low confidence */}
               <button
                 onClick={handleSaveToClient}
@@ -1762,7 +1753,7 @@ export default function CreditReportImportContent() {
                 className="btn-primary flex items-center gap-2 text-sm"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                {saving ? saveStage : 'Save & Build Investigation Cases'}
+                {saving ? saveStage : 'Save Report'}
                 <ArrowRight size={14} />
               </button>
             </div>
