@@ -194,10 +194,10 @@ export default function ClientManagementContent() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+      <div className="page-container space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Clients</h1>
+            <h1 className="page-title">Clients</h1>
             <p className="text-sm text-muted-foreground mt-0.5">Loading clients…</p>
           </div>
         </div>
@@ -213,7 +213,7 @@ export default function ClientManagementContent() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-screen-2xl mx-auto">
+      <div className="page-container">
         <div className="card p-8 flex flex-col items-center gap-3 text-center">
           <AlertTriangle size={32} className="text-danger" />
           <p className="text-sm font-semibold text-foreground">Failed to load clients</p>
@@ -225,11 +225,11 @@ export default function ClientManagementContent() {
   }
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+    <div className="page-container space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Clients</h1>
+          <h1 className="page-title">Clients</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} clients in your workspace</p>
         </div>
         <div className="flex items-center gap-2">

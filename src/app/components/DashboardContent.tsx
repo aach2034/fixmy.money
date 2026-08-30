@@ -68,7 +68,7 @@ const investigationCards: Array<{ label: string; key: keyof Omit<InvestigationSt
   { label: 'Potential Issues', key: 'potentialIssues', icon: AlertTriangle, tone: 'text-amber-700 bg-amber-50' },
   { label: 'Strong Evidence', key: 'strongEvidence', icon: ShieldCheck, tone: 'text-emerald-700 bg-emerald-50' },
   { label: 'Evidence Needed', key: 'evidenceNeeded', icon: FileSearch, tone: 'text-slate-700 bg-slate-100' },
-  { label: 'Active Investigations', key: 'activeInvestigations', icon: FolderSearch, tone: 'text-cyan-700 bg-cyan-50' },
+  { label: 'Active Investigations', key: 'activeInvestigations', icon: FolderSearch, tone: 'text-green-700 bg-green-50' },
   { label: 'Responses Due', key: 'responsesDue', icon: FileCheck2, tone: 'text-blue-700 bg-blue-50' },
   { label: 'Unresolved Cases', key: 'unresolvedCases', icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50' },
   { label: 'Potential Reinsertions', key: 'potentialReinsertions', icon: RefreshCw, tone: 'text-violet-700 bg-violet-50' },
@@ -147,15 +147,15 @@ export default function DashboardContent() {
 
   const firstName = state.name.split(' ')[0] || 'there';
   return (
-    <div className="mx-auto max-w-screen-2xl space-y-7 p-4 sm:p-6">
-      <header className="overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-xl shadow-slate-200 sm:px-8">
+    <div className="page-container space-y-6">
+      <header className="page-header mb-0 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Evidence-first dispute workspace</p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Welcome back, {firstName}</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">Turn verified report facts and supporting documents into clear, auditable dispute packages—without predictions or promises.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">Evidence-first workspace</p>
+            <h1 className="page-title mt-2">Welcome back, {firstName}</h1>
+            <p className="page-description">Turn verified report facts and supporting documents into clear, auditable dispute packages—without predictions or promises.</p>
           </div>
-          <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/15"><RefreshCw size={15} />Refresh</button>
+          <button onClick={() => void load()} className="btn-secondary"><RefreshCw size={15} />Refresh</button>
         </div>
       </header>
 
@@ -163,41 +163,41 @@ export default function DashboardContent() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Workspace summary">
         {summaryCards.map(({ label, value, icon: Icon, href }) => (
-          <Link key={label} href={href} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md">
-            <div className="flex items-center justify-between"><span className="rounded-xl bg-cyan-50 p-2.5 text-cyan-700"><Icon size={19} /></span><ArrowRight size={16} className="text-slate-300 group-hover:text-cyan-600" /></div>
-            <p className="mt-5 text-3xl font-black tabular-nums text-slate-950">{value === 'clients' ? state.clients.length : state[value]}</p><p className="mt-1 text-sm font-semibold text-slate-600">{label}</p>
+          <Link key={label} href={href} className="group metric-card transition-colors hover:border-green-300">
+            <div className="flex items-center justify-between"><span className="rounded-lg bg-green-50 p-2.5 text-green-700"><Icon size={19} /></span><ArrowRight size={16} className="text-slate-300 group-hover:text-green-600" /></div>
+            <p className="mt-5 text-3xl font-bold tabular-nums tracking-tight text-slate-950">{value === 'clients' ? state.clients.length : state[value]}</p><p className="mt-1 text-sm font-medium text-slate-600">{label}</p>
           </Link>
         ))}
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-cyan-700">Case workflow</p><h2 className="mt-2 text-2xl font-black text-slate-950">From report to review-ready package</h2></div><Link href="/credit-report-import" className="inline-flex items-center gap-2 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-cyan-800"><Upload size={15} />Start with a report</Link></div>
+      <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-green-700">Case workflow</p><h2 className="mt-2 text-2xl font-bold text-slate-950">From report to review-ready package</h2></div><Link href="/credit-report-import" className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-700"><Upload size={15} />Start with a report</Link></div>
         <div className="mt-6 grid gap-3 lg:grid-cols-5">
-          {workflow.map((step, index) => <Link key={step.label} href={step.href} className="group rounded-2xl border border-slate-200 p-4 hover:border-cyan-300 hover:bg-cyan-50/40"><div className="flex items-center justify-between"><span className="text-xs font-black text-slate-400">0{index + 1}</span><step.icon size={18} className="text-cyan-700" /></div><h3 className="mt-5 font-black text-slate-900">{step.label}</h3><p className="mt-2 text-xs leading-5 text-slate-500">{step.detail}</p></Link>)}
+          {workflow.map((step, index) => <Link key={step.label} href={step.href} className="group rounded-2xl border border-slate-200 p-4 hover:border-green-300 hover:bg-green-50/40"><div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-400">0{index + 1}</span><step.icon size={18} className="text-green-700" /></div><h3 className="mt-5 font-bold text-slate-900">{step.label}</h3><p className="mt-2 text-xs leading-5 text-slate-500">{step.detail}</p></Link>)}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-cyan-700">Credit investigations</p>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">Evidence-driven case status</h2>
+            <p className="text-xs font-bold uppercase tracking-widest text-green-700">Credit investigations</p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-950">Evidence-driven case status</h2>
           </div>
-          <Link href="/credit-report-import" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-900 hover:border-cyan-300">
+          <Link href="/credit-report-import" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-900 hover:border-green-300">
             <Upload size={15} />Import report
           </Link>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {investigationCards.map(({ label, key, icon: Icon, tone }) => (
             <div key={key} className="rounded-2xl border border-slate-200 p-4">
               <span className={`inline-flex rounded-xl p-2.5 ${tone}`}><Icon size={18} /></span>
-              <p className="mt-4 text-2xl font-black tabular-nums text-slate-950">{state.investigations[key]}</p>
+              <p className="mt-4 text-2xl font-bold tabular-nums text-slate-950">{state.investigations[key]}</p>
               <p className="mt-1 text-xs font-bold text-slate-500">{label}</p>
             </div>
           ))}
         </div>
         <div className="mt-7">
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Your strongest cases</h3>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">Your strongest cases</h3>
           {state.investigations.strongestCases.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
               Strong cases will appear after imported reporting discrepancies are connected to confirmed evidence.
@@ -207,11 +207,11 @@ export default function DashboardContent() {
               {state.investigations.strongestCases.map(caseRow => (
                 <div key={caseRow.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div>
-                    <p className="text-sm font-black text-slate-900">{caseRow.case_number || 'Case pending number'}</p>
+                    <p className="text-sm font-bold text-slate-900">{caseRow.case_number || 'Case pending number'}</p>
                     <p className="mt-1 text-sm text-slate-600">{caseRow.issue_summary || 'Potential reporting discrepancy'}</p>
                     <p className="mt-1 text-xs text-slate-500">{caseRow.recommended_next_action || 'Review evidence and next action.'}</p>
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase text-emerald-700">{caseRow.evidence_strength || 'insufficient'}</span>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase text-emerald-700">{caseRow.evidence_strength || 'insufficient'}</span>
                 </div>
               ))}
             </div>
@@ -220,8 +220,8 @@ export default function DashboardContent() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6"><h2 className="text-lg font-black text-slate-950">Active cases</h2><p className="mt-1 text-sm text-slate-500">Only records saved in this private workspace appear here.</p>{state.clients.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><Users className="mx-auto text-slate-400" /><h3 className="mt-3 font-bold text-slate-900">No client records</h3><p className="mt-2 text-sm text-slate-500">Add a real client when you are ready. No sample cases will be inserted.</p><Link href="/client-management" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">Add first client<ArrowRight size={14} /></Link></div> : <div className="mt-5 divide-y divide-slate-100">{state.clients.slice(0, 5).map(client => <Link key={client.id} href="/client-management" className="flex items-center justify-between py-4"><div><p className="font-bold text-slate-900">{client.name}</p><p className="text-xs capitalize text-slate-500">{(client.case_stage || 'lead').replaceAll('_', ' ')}</p></div><ArrowRight size={15} className="text-slate-400" /></Link>)}</div>}</div>
-        <aside className="rounded-3xl border border-amber-200 bg-amber-50 p-6"><ShieldCheck className="text-amber-700" /><h2 className="mt-4 text-lg font-black text-amber-950">Readiness, not probability</h2><p className="mt-3 text-sm leading-6 text-amber-900/80">Every recommendation must identify a factual inconsistency, show the evidence used, and explain the deterministic score. Accurate negative information is never marked eligible.</p><Link href="/credit-audit" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-amber-900">Open evidence review<ArrowRight size={14} /></Link></aside>
+        <div className="rounded-xl border border-slate-200 bg-white p-6"><h2 className="text-lg font-bold text-slate-950">Active cases</h2><p className="mt-1 text-sm text-slate-500">Only records saved in this private workspace appear here.</p>{state.clients.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><Users className="mx-auto text-slate-400" /><h3 className="mt-3 font-bold text-slate-900">No client records</h3><p className="mt-2 text-sm text-slate-500">Add a real client when you are ready. No sample cases will be inserted.</p><Link href="/client-management" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">Add first client<ArrowRight size={14} /></Link></div> : <div className="mt-5 divide-y divide-slate-100">{state.clients.slice(0, 5).map(client => <Link key={client.id} href="/client-management" className="flex items-center justify-between py-4"><div><p className="font-bold text-slate-900">{client.name}</p><p className="text-xs capitalize text-slate-500">{(client.case_stage || 'lead').replaceAll('_', ' ')}</p></div><ArrowRight size={15} className="text-slate-400" /></Link>)}</div>}</div>
+        <aside className="rounded-xl border border-amber-200 bg-amber-50 p-6"><ShieldCheck className="text-amber-700" /><h2 className="mt-4 text-lg font-bold text-amber-950">Readiness, not probability</h2><p className="mt-3 text-sm leading-6 text-amber-900/80">Every recommendation must identify a factual inconsistency, show the evidence used, and explain the deterministic score. Accurate negative information is never marked eligible.</p><Link href="/credit-audit" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-amber-900">Open evidence review<ArrowRight size={14} /></Link></aside>
       </section>
     </div>
   );

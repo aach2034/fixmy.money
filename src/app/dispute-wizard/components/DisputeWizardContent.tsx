@@ -489,7 +489,7 @@ Date: ${today}`;
 
   if (generatedLetterId) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="page-container max-w-2xl">
         <div className="card p-8 text-center space-y-4">
           <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto">
             <CheckCircle2 size={32} className="text-success" />
@@ -521,9 +521,9 @@ Date: ${today}`;
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="page-container max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dispute Wizard</h1>
+        <h1 className="page-title">Dispute Wizard</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Step-by-step guided dispute workflow</p>
       </div>
 

@@ -303,7 +303,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
+      <div className="page-container flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={32} className="text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Loading parsed report…</p>
@@ -318,11 +318,11 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const negativeItems = allActive.filter(a => a._markedNegative);
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto space-y-6">
+    <div className="page-container max-w-screen-xl space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Review Parsed Report</h1>
+          <h1 className="page-title">Review parsed report</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {clientName} · Provider: <span className="font-medium capitalize">{report.provider === 'unknown' ? 'Not detected' : report.provider}</span> · Confidence: <span className={`font-medium ${report.overallConfidence >= 70 ? 'text-success' : report.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{report.overallConfidence}%</span>
           </p>

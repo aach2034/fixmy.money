@@ -154,7 +154,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className={`flex items-center border-b border-slate-100 ${collapsed ? 'justify-center px-3 py-4' : 'px-4 py-4'}`}>
         {collapsed ? (
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-white font-bold text-xs">FM</span>
           </div>
         ) : (
@@ -180,14 +180,14 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
         {!hasWorkspaceAccess && !collapsed && (
-          <div className="mx-1 mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+          <div className="mx-1 mb-4 rounded-xl border border-green-200 bg-green-50 p-3">
             <p className="text-sm font-bold text-slate-900">Unlock your workspace</p>
             <p className="mt-1 text-xs leading-5 text-slate-600">
               Choose a plan to access clients, reports, disputes, and letters.
             </p>
             <Link
               href="/billing-subscriptions"
-              className="mt-3 flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700"
+              className="mt-3 flex min-h-9 items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-green-700"
             >
               View plans
             </Link>
@@ -206,9 +206,9 @@ export default function Sidebar() {
                   <div key={`${item.href}-${item.label}`} className="relative group">
                     <Link
                       href={item.href}
-                      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                      className={`flex min-h-10 items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${
                         active
-                          ? 'bg-blue-600 text-white shadow-sm'
+                          ? 'bg-green-50 text-green-800 ring-1 ring-inset ring-green-200'
                           : (item as any).ai
                             ? 'text-violet-600 hover:bg-violet-50 hover:text-violet-700'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -284,7 +284,7 @@ export default function Sidebar() {
             onClick={() => setProfileOpen(!profileOpen)}
             className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-100 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
           >
-            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold shrink-0 ring-2 ring-slate-100">
               {initials}
             </div>
             {!collapsed && (
@@ -345,7 +345,7 @@ export default function Sidebar() {
       {/* Mobile Toggle */}
       <button
         aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
-        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm"
+        className="md:hidden fixed top-4 left-4 z-50 w-11 h-11 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X size={18} className="text-slate-600" /> : <Menu size={18} className="text-slate-600" />}

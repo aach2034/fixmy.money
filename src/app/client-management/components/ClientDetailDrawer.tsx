@@ -101,39 +101,38 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
       <div className="relative bg-white border-l border-slate-200 w-full max-w-lg flex flex-col shadow-2xl overflow-hidden">
 
         {/* ── PROFILE HEADER ── */}
-        <div className="bg-gradient-to-br from-slate-900 to-blue-950 p-6 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-          <button onClick={onClose} className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-lg transition-colors z-10">
-            <X size={18} className="text-white/70" />
+        <div className="relative overflow-hidden border-b border-slate-200 bg-white p-6">
+          <button onClick={onClose} className="absolute top-4 right-4 z-10 rounded-lg p-1.5 transition-colors hover:bg-slate-100" aria-label="Close client profile">
+            <X size={18} className="text-slate-500" />
           </button>
           <div className="flex items-start gap-4 relative">
-            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-white">{client.name}</h2>
+              <h2 className="text-lg font-bold text-slate-950">{client.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <StatusBadge status={client.caseStage as 'active'} />
-                <span className="text-xs text-blue-200">{client.plan} Plan</span>
+                <span className="text-xs font-medium text-slate-500">{client.plan} Plan</span>
               </div>
               <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-slate-300 flex items-center gap-1"><Mail size={11} /> {client.email}</span>
+                <span className="text-xs text-slate-600 flex items-center gap-1"><Mail size={11} /> {client.email}</span>
               </div>
             </div>
           </div>
           {/* KPI row */}
           <div className="grid grid-cols-3 gap-3 mt-5">
             {[
-              { label: 'Credit Score', value: client.score || '—', icon: TrendingUp, color: 'text-blue-300' },
-              { label: 'Disputes', value: client.activeDisputes, icon: Shield, color: 'text-violet-300' },
-              { label: 'Items Removed', value: client.itemsDeleted, icon: CheckCircle2, color: 'text-emerald-300' },
+              { label: 'Credit Score', value: client.score || '—', icon: TrendingUp, color: 'text-blue-600' },
+              { label: 'Disputes', value: client.activeDisputes, icon: Shield, color: 'text-teal-700' },
+              { label: 'Items Removed', value: client.itemsDeleted, icon: CheckCircle2, color: 'text-emerald-600' },
             ].map(kpi => {
               const KpiIcon = kpi.icon;
               return (
-                <div key={kpi.label} className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm border border-white/10">
+                <div key={kpi.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
                   <KpiIcon size={14} className={`${kpi.color} mx-auto mb-1`} />
-                  <p className="text-base font-bold text-white">{kpi.value}</p>
-                  <p className="text-xs text-slate-400">{kpi.label}</p>
+                  <p className="text-base font-bold text-slate-950">{kpi.value}</p>
+                  <p className="text-xs text-slate-500">{kpi.label}</p>
                 </div>
               );
             })}
@@ -143,19 +142,19 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
           <div className="mt-4 relative">
             <button
               onClick={() => setShowImportWizard(true)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all group"
+              className="group flex w-full items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 transition-colors hover:bg-green-100"
             >
               <div className="flex items-center gap-2.5">
                 {client.reportAnalyzed ? (
-                  <RefreshCw size={16} className="text-blue-300" />
+                  <RefreshCw size={16} className="text-green-700" />
                 ) : (
-                  <Upload size={16} className="text-blue-300" />
+                  <Upload size={16} className="text-green-700" />
                 )}
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-green-900">
                   {client.reportAnalyzed ? 'Re-import Updated Report' : 'Import / Audit Credit Report'}
                 </span>
               </div>
-              <ChevronRight size={14} className="text-white/60 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight size={14} className="text-green-700 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
@@ -318,12 +317,12 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
                   ))}
                 </div>
               </div>
-              <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="flex items-center justify-between p-4 bg-blue-600 rounded-2xl text-white hover:bg-blue-700 transition-colors group">
+              <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="group flex items-center justify-between rounded-xl bg-primary p-4 text-white transition-colors hover:bg-green-700">
                 <div className="flex items-center gap-3">
                   <Sparkles size={18} />
                   <div>
                     <p className="text-sm font-bold">Run Full AI Analysis</p>
-                    <p className="text-xs text-blue-200">Generate complete action plan</p>
+                    <p className="text-xs text-green-100">Generate complete action plan</p>
                   </div>
                 </div>
                 <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -368,7 +367,7 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
             <FileText size={14} />
             Generate Letter
           </Link>
-          <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2.5 text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
+          <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
             <Brain size={14} />
             AI Analysis
           </Link>

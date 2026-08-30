@@ -1333,7 +1333,7 @@ export default function CreditReportImportContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fbff] p-4 sm:p-6">
+    <div className="min-h-screen bg-slate-50">
       {showProviderModal && parsedReport && (
         <ProviderSelectionModal
           onSelect={handleReparse}
@@ -1343,21 +1343,21 @@ export default function CreditReportImportContent() {
         />
       )}
 
-      <div className="mx-auto max-w-screen-xl space-y-6">
+      <div className="page-container max-w-screen-xl space-y-6">
         {!parsedReport && (
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="page-header mb-0">
             <div className="max-w-3xl">
               <div className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-success">
                 AI credit report import
               </div>
-              <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[#071942] sm:text-5xl">
-                Import Your Credit Report
+              <h1 className="page-title mt-3">
+                Import credit report
               </h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-[#23345f]">
+              <p className="page-description">
                 Tell us where your report is from, then upload the file. FixMy.Money will read the report, identify accounts, and prepare it for review.
               </p>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl border border-success/20 bg-white px-4 py-3 text-sm shadow-sm">
+            <div className="flex items-center gap-3 rounded-xl border border-success/20 bg-white px-4 py-3 text-sm shadow-sm">
               <ShieldCheck size={26} className="text-success" />
               <div>
                 <p className="font-bold text-[#071942]">Private workspace import</p>
