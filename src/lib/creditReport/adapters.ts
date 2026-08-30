@@ -46,6 +46,7 @@ export interface NormalizedAccount {
   accountStatus: string;
   paymentStatus: string;
   balance: number | null;
+  highBalance?: number | null;
   creditLimit: number | null;
   pastDue: number | null;
   monthlyPayment: number | null;

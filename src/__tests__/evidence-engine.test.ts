@@ -66,7 +66,7 @@ describe('evidence-driven dispute engine', () => {
     const issues = detectPotentialIssues(canonical);
 
     expect(issues.map(issue => issue.issueType)).toContain('balance_discrepancy');
-    expect(issues[0].whyFlagged.toLowerCase()).toContain('different balances');
+    expect(issues[0].whyFlagged.toLowerCase()).toContain('balance differs');
     expect(JSON.stringify(issues).toLowerCase()).not.toContain('violation');
     expect(JSON.stringify(issues).toLowerCase()).not.toContain('error');
   });
@@ -77,6 +77,8 @@ describe('evidence-driven dispute engine', () => {
         bureau,
         accountStatus,
         balance: 0,
+        isChargeOff: false,
+        isCollection: false,
       })));
       return detectPotentialIssues(canonical).filter(issue => issue.issueType === 'status_discrepancy');
     }
@@ -113,6 +115,90 @@ describe('evidence-driven dispute engine', () => {
     });
   });
 
+  describe('field-specific anomaly routing', () => {
+    function issuesFor(overrides: [Partial<NormalizedAccount>, Partial<NormalizedAccount>]) {
+      const [canonical] = normalizeCrossBureauAccounts([
+        account({ bureau: 'Equifax', isChargeOff: false, ...overrides[0] }),
+        account({ bureau: 'Experian', isChargeOff: false, ...overrides[1] }),
+      ]);
+      return detectPotentialIssues(canonical);
+    }
+
+    it('uses balance-specific wording for a balance mismatch', () => {
+      const finding = issuesFor([{ balance: 4812 }, { balance: 0 }])
+        .find(issue => issue.issueType === 'balance_discrepancy');
+
+      expect(finding).toMatchObject({
+        issueTitle: 'Account balance mismatch',
+        whyFlagged: 'The reported account balance differs across bureaus.',
+        disputeReason: 'Incorrect account balance reported across bureaus.',
+      });
+      expect(finding?.factualBasis).toContain('conflicting balance information');
+    });
+
+    it('uses status-specific wording for a status mismatch', () => {
+      const finding = issuesFor([
+        { accountStatus: 'Open', balance: 0 },
+        { accountStatus: 'Closed', balance: 0 },
+      ]).find(issue => issue.issueType === 'status_discrepancy');
+
+      expect(finding?.issueTitle).toBe('Account status mismatch');
+      expect(finding?.disputeReason).toContain('account status');
+    });
+
+    it('uses date-specific wording for a Date Opened mismatch', () => {
+      const finding = issuesFor([
+        { dateOpened: '01/2021', balance: 0 },
+        { dateOpened: '02/2021', balance: 0 },
+      ]).find(issue => issue.issueType === 'date_discrepancy');
+
+      expect(finding?.issueTitle).toBe('Date opened mismatch');
+      expect(finding?.disputeReason).toContain('Date Opened');
+    });
+
+    it('uses payment-status wording for a payment-status mismatch', () => {
+      const finding = issuesFor([
+        { paymentStatus: 'Current', balance: 0 },
+        { paymentStatus: 'Late 30 days', balance: 0 },
+      ]).find(issue => issue.issueType === 'payment_status_discrepancy');
+
+      expect(finding?.issueTitle).toBe('Payment status mismatch');
+      expect(finding?.disputeReason).toContain('payment status');
+    });
+
+    it('keeps two supported field anomalies on the same account distinct', () => {
+      const issues = issuesFor([
+        { balance: 4812, dateOpened: '01/2021' },
+        { balance: 0, dateOpened: '02/2021' },
+      ]);
+
+      expect(issues.map(issue => issue.issueType)).toEqual(expect.arrayContaining(['balance_discrepancy', 'date_discrepancy']));
+      expect(new Set(issues.map(issue => issue.disputeReason)).size).toBe(issues.length);
+    });
+
+    it('deduplicates an identical anomaly finding for the same account and field', () => {
+      const [canonical] = normalizeCrossBureauAccounts([
+        account({ bureau: 'Equifax', balance: 4812, isChargeOff: false }),
+        account({ bureau: 'Experian', balance: 0, isChargeOff: false }),
+        account({ bureau: 'TransUnion', balance: 0, isChargeOff: false }),
+      ]);
+      const balanceFindings = detectPotentialIssues(canonical)
+        .filter(issue => issue.issueType === 'balance_discrepancy');
+
+      expect(balanceFindings).toHaveLength(1);
+    });
+
+    it('does not route different anomaly types to the same dispute reason', () => {
+      const issues = issuesFor([
+        { balance: 4812, accountStatus: 'Open', paymentStatus: 'Current', dateOpened: '01/2021' },
+        { balance: 0, accountStatus: 'Closed', paymentStatus: 'Late 30 days', dateOpened: '02/2021' },
+      ]).filter(issue => ['balance_discrepancy', 'status_discrepancy', 'payment_status_discrepancy', 'date_discrepancy'].includes(issue.issueType));
+
+      expect(issues).toHaveLength(4);
+      expect(new Set(issues.map(issue => issue.disputeReason)).size).toBe(4);
+    });
+  });
+
   it('requires evidence before marking a potential issue strong', () => {
     const [canonical] = normalizeCrossBureauAccounts([
       account({ bureau: 'Equifax', balance: 1847 }),
@@ -146,11 +232,13 @@ describe('evidence-driven dispute engine', () => {
       furnisherName: 'Metro Collection',
       accountNumberMasked: '****2222',
       accountType: 'Collection',
+      responsibility: 'Individual',
       originalCreditor: '',
       collectionAgency: 'Metro Collection',
       accountStatus: 'Collection',
       paymentStatus: '',
       balance: 1847,
+      highBalance: null,
       creditLimit: null,
       pastDue: null,
       dateOpened: '05/2025',
@@ -159,6 +247,7 @@ describe('evidence-driven dispute engine', () => {
       paymentHistory: '',
       remarks: [],
       isCollection: true,
+      isChargeOff: false,
       parserConfidence: 90,
     };
 

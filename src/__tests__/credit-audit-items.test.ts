@@ -86,6 +86,52 @@ describe('credit audit item quality gate', () => {
     expect(scored[0].disputeStrength.reportedDataSummary).toMatch(/TransUnion: \$0/);
   });
 
+  it('generates balance-specific audit and dispute wording', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-balance', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 4812, date_opened: '2021-04-15',
+      },
+      {
+        id: 'ex-balance', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 0, date_opened: '2021-04-15',
+      },
+    ]));
+
+    expect(scored.disputeStrength.issueType).toBe('balance_discrepancy');
+    expect(scored.disputeStrength.anomalyTitle).toBe('Account balance mismatch');
+    expect(scored.disputeStrength.strongestAnomaly).toContain('balance differs');
+    expect(scored.disputeStrength.reportedDataSummary).toContain('Current Balance');
+    expect(scored.disputeStrength.factualBasis).toContain('conflicting balance information');
+    expect(scored.disputeStrength.disputeReason).toContain('account balance');
+    expect(scored.disputeStrength.disputeBasis).not.toContain('different account statuses');
+  });
+
+  it('does not automatically rate an unsubstantiated status difference Strong', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-open', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 0, date_opened: '2021-04-15',
+      },
+      {
+        id: 'ex-closed', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Closed', balance: 0, date_opened: '2021-04-15',
+      },
+    ]));
+
+    expect(scored.disputeStrength.issueType).toBe('status_discrepancy');
+    expect(scored.disputeStrength.strengthLabel).toBe('Moderate');
+    expect(scored.disputeStrength.isRecommended).toBe(false);
+  });
+
   it('converts generic paid-balance findings into evidence-specific letter language', () => {
     const [scored] = scoreDisputeStrength(selectReliableAuditItems([
       {
