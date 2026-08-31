@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   BadgeCheck,
   CalendarClock,
+  Check,
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
@@ -320,6 +321,27 @@ export default function HomepageContent() {
               <div className="mt-9">
                 <ProductPreview mobile />
               </div>
+          </div>
+        </section>
+
+        <section id="security" className="bg-[#0b1742] px-5 py-24 text-white lg:px-8">
+          <div className="mx-auto grid max-w-[1180px] gap-12 lg:grid-cols-2 lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.16em] text-[#71dcb9]">Trust is built in</p>
+              <h2 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Your financial data deserves serious protection.</h2>
+              <p className="mt-6 max-w-xl text-lg leading-8 text-[#abc3bc]">FixMy.Money is designed around data minimization, clear permissions, and security controls that keep sensitive reports private.</p>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                {['256-bit encryption', 'Private by default', 'Secure file handling', 'Transparent data controls'].map(item => (
+                  <div key={item} className="flex items-center gap-3 text-sm font-semibold"><span className="grid size-7 place-items-center rounded-full bg-white/10 text-[#71dcb9]"><Check className="size-4" /></span>{item}</div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[28px] border border-white/10 bg-white/[.06] p-8">
+              <ShieldCheck className="size-12 text-[#71dcb9]" />
+              <h3 className="mt-8 text-2xl font-semibold">Enterprise-grade confidence</h3>
+              <p className="mt-3 leading-7 text-[#abc3bc]">Sensitive uploads are protected in transit and at rest. Your workspace stays yours.</p>
+              <div className="mt-8 space-y-3">{['Encrypted report processing', 'Role-aware workspace access', 'Continuous security monitoring'].map(item => <div key={item} className="rounded-xl border border-white/10 bg-white/[.05] p-4 text-sm">{item}</div>)}</div>
+            </div>
           </div>
         </section>
 
