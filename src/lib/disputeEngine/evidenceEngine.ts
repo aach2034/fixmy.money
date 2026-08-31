@@ -255,6 +255,7 @@ const MISSING_REPORT_VALUE_KEYS = new Set([
   'notprovided',
   'unavailable',
   'undetermined',
+  'account',
 ]);
 
 function meaningfulReportValue(value: unknown): unknown | null {
@@ -294,6 +295,57 @@ function normalizeAccountStatus(value: unknown): string | null {
 function normalizeComparableText(value: unknown): string | null {
   const meaningful = meaningfulReportValue(value);
   return meaningful === null ? null : clean(meaningful);
+}
+
+function normalizeResponsibility(value: unknown): string | null {
+  const meaningful = meaningfulReportValue(value);
+  if (meaningful === null) return null;
+  const normalized = clean(meaningful).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const aliases: Record<string, string> = {
+    individual: 'individual',
+    'individual account': 'individual',
+    joint: 'joint',
+    'joint account': 'joint',
+    'authorized user': 'authorized user',
+    'co maker': 'co-maker',
+    cosigner: 'co-signer',
+    'co signer': 'co-signer',
+  };
+  return aliases[normalized] ?? null;
+}
+
+function normalizeAccountType(value: unknown): string | null {
+  const meaningful = meaningfulReportValue(value);
+  if (meaningful === null) return null;
+  const original = clean(meaningful);
+  if (/[-–—]{1,}|\b(?:unknown|not reported|n\/?a)\b/.test(original)) return null;
+
+  const tokens = original.replace(/[_]+/g, ' ').split(/\s+/).filter(Boolean);
+  if (new Set(tokens).size !== tokens.length) return null;
+
+  const normalized = tokens.join(' ');
+  const aliases: Record<string, string> = {
+    collection: 'collection',
+    'collection account': 'collection',
+    revolving: 'revolving',
+    'revolving account': 'revolving',
+    installment: 'installment',
+    'installment account': 'installment',
+    'open account': 'open account',
+    mortgage: 'mortgage',
+    'mortgage loan': 'mortgage',
+    'auto loan': 'auto loan',
+    'student loan': 'student loan',
+    'credit card': 'credit card',
+    'line of credit': 'line of credit',
+    'charge account': 'charge account',
+  };
+  return aliases[normalized] ?? null;
+}
+
+function hasBalanceEndingStatus(row: BureauTradelineSnapshot): boolean {
+  const status = clean(`${row.accountStatus} ${row.paymentStatus}`);
+  return /\b(?:paid(?: in full)?|settled(?: in full)?|satisfied)\b/.test(status);
 }
 
 function normalizeRemarks(value: unknown): string | null {
@@ -551,7 +603,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const accountTypes = distinctCrossBureauValues(rows, 'accountType', normalizeComparableText);
+  const accountTypes = distinctCrossBureauValues(rows, 'accountType', normalizeAccountType);
   if (accountTypes.length > 1) {
     issues.push(issue({
       issueType: 'account_type_discrepancy',
@@ -568,7 +620,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const responsibilities = distinctCrossBureauValues(rows, 'responsibility', normalizeComparableText);
+  const responsibilities = distinctCrossBureauValues(rows, 'responsibility', normalizeResponsibility);
   if (responsibilities.length > 1) {
     issues.push(issue({
       issueType: 'responsibility_discrepancy',
@@ -637,18 +689,17 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
   }
 
   for (const row of rows) {
-    const paidLike = /paid|settled|closed/i.test(`${row.accountStatus} ${row.paymentStatus}`);
-    if (paidLike && (row.balance ?? 0) > 0) {
+    if (hasBalanceEndingStatus(row) && (row.balance ?? 0) > 0) {
       issues.push(issue({
         issueType: 'paid_account_reporting_balance',
-        issueTitle: 'Closed or paid account with positive balance',
+        issueTitle: 'Paid or settled account with positive balance',
         affectedBureaus: [row.bureau],
         affectedFurnisher: row.furnisherName,
         reportedData: { [String(row.bureau)]: { status: row.accountStatus, paymentStatus: row.paymentStatus, balance: row.balance } },
         conflictingData: { paidOrClosedStatusWithPositiveBalance: true },
-        whyFlagged: 'A tradeline that appears paid, settled, or closed is also reporting a positive balance.',
-        factualBasis: 'The same tradeline reports a paid, settled, or closed status while also reporting a positive outstanding balance.',
-        disputeReason: 'Closed or paid account is reporting an inconsistent positive balance.',
+        whyFlagged: 'A tradeline that explicitly appears paid, settled, or satisfied is also reporting a positive balance.',
+        factualBasis: 'The same tradeline reports a balance-ending status while also reporting a positive outstanding balance.',
+        disputeReason: 'A paid, settled, or satisfied account is reporting an inconsistent positive balance.',
         confidenceLevel: 76,
         evidenceStillNeeded: ['Final statement, settlement letter, payoff confirmation, or payment confirmation showing the balance after resolution'],
       }));

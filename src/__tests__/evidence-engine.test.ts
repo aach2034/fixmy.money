@@ -149,6 +149,24 @@ describe('evidence-driven dispute engine', () => {
       expect(finding?.factualBasis).toContain('conflicting balance information');
     });
 
+    it('does not treat a closed account with a positive balance as inconsistent', () => {
+      const issues = issuesFor([
+        { accountStatus: 'Closed', balance: 443 },
+        { accountStatus: 'Closed', balance: 443 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'paid_account_reporting_balance')).toBeUndefined();
+    });
+
+    it.each(['Paid', 'Settled'])('flags an explicit %s status with a positive balance', accountStatus => {
+      const issues = issuesFor([
+        { accountStatus, balance: 443 },
+        { accountStatus, balance: 443 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'paid_account_reporting_balance')).toBeDefined();
+    });
+
     it('uses status-specific wording for a status mismatch', () => {
       const finding = issuesFor([
         { accountStatus: 'Open', balance: 0 },
@@ -235,6 +253,33 @@ describe('evidence-driven dispute engine', () => {
       expect(issues.find(issue => issue.issueType === 'account_type_discrepancy')).toMatchObject({
         issueTitle: 'Account type mismatch',
       });
+    });
+
+    it('suppresses an ownership mismatch when only one bureau has a meaningful value', () => {
+      const issues = issuesFor([
+        { responsibility: 'Individual Account', balance: 0 },
+        { responsibility: 'account - -', balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'responsibility_discrepancy')).toBeUndefined();
+    });
+
+    it('renders a mismatch for two clean contradictory ownership values', () => {
+      const issues = issuesFor([
+        { responsibility: 'Individual Account', balance: 0 },
+        { responsibility: 'Joint Account', balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'responsibility_discrepancy')).toBeDefined();
+    });
+
+    it('suppresses dirty account-type parser residue', () => {
+      const issues = issuesFor([
+        { accountType: '- COLLECTION COLLECTION', balance: 0 },
+        { accountType: 'Open account - -', balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'account_type_discrepancy')).toBeUndefined();
     });
 
     it('uses payment-status wording for a payment-status mismatch', () => {
