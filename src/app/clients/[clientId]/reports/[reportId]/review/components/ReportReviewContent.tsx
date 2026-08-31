@@ -271,7 +271,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
 
       const negCount = toSave.filter(a => a._markedNegative).length;
       toast.success(`Report saved. ${negCount} negative items are ready for credit audit.`);
-      router.push(`/credit-audit?clientId=${clientId}`);
+      router.push(`/credit-audit?clientId=${clientId}&reportId=${reportId}`);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save report');
     } finally {
@@ -318,21 +318,20 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const negativeItems = allActive.filter(a => a._markedNegative);
 
   return (
-    <div className="page-container max-w-screen-xl space-y-6">
+    <div className="page-container mx-auto max-w-5xl space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="page-title">Review parsed report</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {clientName} · Provider: <span className="font-medium capitalize">{report.provider === 'unknown' ? 'Not detected' : report.provider}</span> · Confidence: <span className={`font-medium ${report.overallConfidence >= 70 ? 'text-success' : report.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{report.overallConfidence}%</span>
-          </p>
+          <p className="text-sm font-semibold text-green-700">Report analysis complete</p>
+          <h1 className="page-title mt-2">We analyzed {clientName}&apos;s credit report.</h1>
+          <p className="text-sm text-muted-foreground mt-1">We found the items that need your attention first.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <button
             onClick={() => router.push(`/clients/${clientId}/negative-items`)}
             className="btn-secondary text-sm"
           >
-            Skip to Negative Items
+            View account details
           </button>
           <button
             onClick={handleSaveAll}
@@ -340,16 +339,16 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
             className="btn-primary flex items-center gap-2 text-sm"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Run Credit Audit
+            Continue Audit
             <ArrowRight size={14} />
           </button>
         </div>
       </div>
 
       {/* Confidence bar */}
-      <div className="card p-4 space-y-3">
+      <details className="card p-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground">Parser Confidence</span>
+          <summary className="cursor-pointer text-sm font-medium text-foreground">View import and extraction details</summary>
           <span className={`text-sm font-bold ${report.overallConfidence >= 70 ? 'text-success' : report.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>
             {report.overallConfidence}%
           </span>
@@ -384,7 +383,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           {report.sectionsParsed.map(s => <span key={s} className="text-success">✓ {s}</span>)}
           {report.sectionsMissed.map(s => <span key={s} className="text-muted-foreground">— {s}: Detected — extraction incomplete</span>)}
         </div>
-      </div>
+      </details>
 
       {/* Warnings */}
       {report.warnings.length > 0 && (
@@ -399,12 +398,11 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: 'Total Accounts', value: allActive.filter(a => a.accountType !== 'Hard Inquiry').length, color: 'text-primary', bg: 'bg-primary/10' },
-          { label: 'Negative Items', value: negativeItems.length, color: negativeItems.length > 0 ? 'text-danger' : 'text-muted-foreground', bg: 'bg-danger/10' },
-          { label: 'Collections', value: allActive.filter(a => a._markedCollection).length, color: 'text-warning', bg: 'bg-warning/10' },
-          { label: 'Inquiries', value: allActive.filter(a => a.accountType === 'Hard Inquiry').length + (report.inquiries?.length ?? 0), color: 'text-muted-foreground', bg: 'bg-muted' },
+          { label: 'Accounts reviewed', value: allActive.filter(a => a.accountType !== 'Hard Inquiry').length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Issues found', value: investigationIssues.length || negativeItems.length, color: investigationIssues.length > 0 || negativeItems.length > 0 ? 'text-slate-950' : 'text-muted-foreground', bg: 'bg-slate-50' },
+          { label: 'Items that need review', value: allActive.filter(a => !a._deleted && needsAccountReview(a)).length, color: 'text-green-700', bg: 'bg-green-50' },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -418,8 +416,8 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         <div className="card p-5 space-y-4 border border-amber-200 bg-amber-50/40">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-foreground">Potential Reporting Issues</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">These are investigation prompts, not legal conclusions. Confirm evidence before generating factual claims.</p>
+              <h2 className="text-lg font-semibold text-foreground">Your findings</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Review these items before creating a dispute.</p>
             </div>
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">{investigationIssues.length} flagged</span>
           </div>
@@ -433,12 +431,12 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                   </div>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">{issue.evidence_strength || 'insufficient'} evidence</span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                <details className="mt-3 text-[11px] text-muted-foreground"><summary className="cursor-pointer font-semibold text-slate-700">View details</summary><div className="mt-2 flex flex-wrap gap-2">
                   <span>Type: {(issue.issue_type || 'potential_issue').replaceAll('_', ' ')}</span>
                   <span>Bureaus: {(issue.affected_bureaus ?? []).join(', ') || 'Unknown'}</span>
                   <span>Furnisher: {issue.affected_furnisher || 'Unknown'}</span>
                   <span>Confidence: {issue.confidence_level ?? 0}%</span>
-                </div>
+                </div></details>
                 {(issue.evidence_still_needed ?? []).length > 0 && (
                   <p className="mt-2 text-xs text-amber-900">
                     Evidence needed: {(issue.evidence_still_needed ?? []).slice(0, 2).join('; ')}
@@ -693,7 +691,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           </button>
           <button onClick={handleSaveAll} disabled={saving} className="btn-primary flex items-center gap-2 text-sm">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Run Credit Audit
+            Continue Audit
             <ArrowRight size={14} />
           </button>
         </div>

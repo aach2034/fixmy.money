@@ -89,13 +89,13 @@ export const hasCompleteMailingAddress = (street: string, city: string, state: s
   !formatMissingMailingAddressError({ address: street, city, state, zip });
 
 const STEPS = [
-  { id: 1, label: 'Select Client', icon: User },
-  { id: 2, label: 'Select Bureau', icon: Building2 },
-  { id: 3, label: 'Select Items', icon: FileText },
-  { id: 4, label: 'Dispute Reason', icon: AlertTriangle },
-  { id: 5, label: 'Instruction', icon: CheckCircle2 },
-  { id: 6, label: 'Attach Docs', icon: Paperclip },
-  { id: 7, label: 'Generate Letter', icon: Send },
+  { id: 1, label: 'Choose client', icon: User },
+  { id: 2, label: 'Choose bureau', icon: Building2 },
+  { id: 3, label: 'Choose findings', icon: FileText },
+  { id: 4, label: 'Review recommendation', icon: AlertTriangle },
+  { id: 5, label: 'Add details', icon: CheckCircle2 },
+  { id: 6, label: 'Supporting documents', icon: Paperclip },
+  { id: 7, label: 'Generate letters', icon: Send },
 ];
 
 export default function DisputeWizardContent() {
@@ -135,6 +135,14 @@ export default function DisputeWizardContent() {
   const [notes, setNotes] = useState('');
   // Banner shown when arriving from report import
   const [fromReportBanner, setFromReportBanner] = useState(fromReport);
+  const nextLabels: Record<number, string> = {
+    1: 'Choose bureau',
+    2: 'Choose findings',
+    3: 'Review recommendation',
+    4: 'Add request details',
+    5: 'Choose supporting documents',
+    6: 'Review letter',
+  };
 
   const supabase = createClient();
 
@@ -523,8 +531,9 @@ Date: ${today}`;
   return (
     <div className="page-container max-w-4xl space-y-6">
       <div>
-        <h1 className="page-title">Dispute Wizard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Step-by-step guided dispute workflow</p>
+        <p className="text-sm font-semibold text-green-700">Guided dispute workflow</p>
+        <h1 className="page-title mt-2">Create your dispute letter</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Complete one clear step at a time. Your progress is saved as you go.</p>
       </div>
 
       {/* Banner shown when arriving from report import */}
@@ -858,7 +867,7 @@ Date: ${today}`;
             disabled={!canProceed()}
             className="btn-primary flex items-center gap-1.5 disabled:opacity-40"
           >
-            Next <ChevronRight size={15} />
+            {nextLabels[step]} <ChevronRight size={15} />
           </button>
         ) : (
           <button

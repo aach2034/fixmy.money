@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, Check, FileCheck2, FileSearch, FolderSearch, Loader2, RefreshCw, ShieldCheck, Upload, Users } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowRight, FileSearch, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
@@ -48,31 +47,6 @@ const EMPTY_INVESTIGATIONS: InvestigationState = {
   strongestCases: [],
 };
 const EMPTY: DashboardState = { name: '', company: '', clients: [], reports: 0, verifiedItems: 0, readyItems: 0, investigations: EMPTY_INVESTIGATIONS };
-
-const workflow = [
-  { label: 'Upload', detail: 'Add a bureau report and supporting documents.', href: '/credit-report-import', icon: Upload },
-  { label: 'Verify', detail: 'Confirm every extracted account and reported fact.', href: '/credit-report-import', icon: FileCheck2 },
-  { label: 'Score', detail: 'Apply transparent evidence-readiness rules.', href: '/credit-audit', icon: ShieldCheck },
-  { label: 'Draft', detail: 'Create an item-specific explanation for review.', href: '/dispute-wizard', icon: FileSearch },
-  { label: 'Approve', detail: 'Consumer reviews and certifies every statement.', href: '/dispute-letter-management', icon: Check },
-];
-
-const summaryCards: Array<{ label: string; value: keyof Pick<DashboardState, 'reports' | 'verifiedItems' | 'readyItems'> | 'clients'; icon: LucideIcon; href: string }> = [
-  { label: 'Clients', value: 'clients', icon: Users, href: '/client-management' },
-  { label: 'Reports uploaded', value: 'reports', icon: Upload, href: '/credit-report-import' },
-  { label: 'Verified negative items', value: 'verifiedItems', icon: FileCheck2, href: '/credit-audit' },
-  { label: 'Selected for dispute', value: 'readyItems', icon: ShieldCheck, href: '/dispute-wizard' },
-];
-
-const investigationCards: Array<{ label: string; key: keyof Omit<InvestigationState, 'strongestCases'>; icon: LucideIcon; tone: string }> = [
-  { label: 'Potential Issues', key: 'potentialIssues', icon: AlertTriangle, tone: 'text-amber-700 bg-amber-50' },
-  { label: 'Strong Evidence', key: 'strongEvidence', icon: ShieldCheck, tone: 'text-emerald-700 bg-emerald-50' },
-  { label: 'Evidence Needed', key: 'evidenceNeeded', icon: FileSearch, tone: 'text-slate-700 bg-slate-100' },
-  { label: 'Active Investigations', key: 'activeInvestigations', icon: FolderSearch, tone: 'text-green-700 bg-green-50' },
-  { label: 'Responses Due', key: 'responsesDue', icon: FileCheck2, tone: 'text-blue-700 bg-blue-50' },
-  { label: 'Unresolved Cases', key: 'unresolvedCases', icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50' },
-  { label: 'Potential Reinsertions', key: 'potentialReinsertions', icon: RefreshCw, tone: 'text-violet-700 bg-violet-50' },
-];
 
 export default function DashboardContent() {
   const { user } = useAuth();
@@ -146,82 +120,44 @@ export default function DashboardContent() {
   if (loading) return <div className="min-h-[70vh] flex items-center justify-center gap-3 text-slate-600"><Loader2 className="animate-spin" size={22} />Loading your secure workspace…</div>;
 
   const firstName = state.name.split(' ')[0] || 'there';
+  const nextAction = state.investigations.strongEvidence > 0
+    ? { title: `Review ${state.investigations.strongEvidence} strong finding${state.investigations.strongEvidence === 1 ? '' : 's'}`, copy: 'These findings have the clearest supporting evidence.', href: '/credit-audit', label: 'Review high-priority findings' }
+    : state.reports === 0
+      ? { title: 'Upload your first credit report', copy: 'We will organize the report and show you what deserves attention.', href: '/credit-report-import', label: 'Upload credit report' }
+      : { title: 'Continue your credit audit', copy: 'Review what we found and choose the next item to address.', href: '/credit-audit', label: 'Continue credit audit' };
   return (
-    <div className="page-container space-y-6">
-      <header className="page-header mb-0 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">Evidence-first workspace</p>
-            <h1 className="page-title mt-2">Welcome back, {firstName}</h1>
-            <p className="page-description">Turn verified report facts and supporting documents into clear, auditable dispute packages—without predictions or promises.</p>
-          </div>
-          <button onClick={() => void load()} className="btn-secondary"><RefreshCw size={15} />Refresh</button>
-        </div>
+    <div className="page-container mx-auto max-w-5xl space-y-6">
+      <header className="py-2">
+        <p className="text-sm font-semibold text-green-700">Your Credit</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Welcome back, {firstName}</h1>
+        <p className="mt-2 max-w-2xl text-base text-slate-600">Here is what matters most and what to do next.</p>
       </header>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Workspace summary">
-        {summaryCards.map(({ label, value, icon: Icon, href }) => (
-          <Link key={label} href={href} className="group metric-card transition-colors hover:border-green-300">
-            <div className="flex items-center justify-between"><span className="rounded-lg bg-green-50 p-2.5 text-green-700"><Icon size={19} /></span><ArrowRight size={16} className="text-slate-300 group-hover:text-green-600" /></div>
-            <p className="mt-5 text-3xl font-bold tabular-nums tracking-tight text-slate-950">{value === 'clients' ? state.clients.length : state[value]}</p><p className="mt-1 text-sm font-medium text-slate-600">{label}</p>
-          </Link>
-        ))}
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-green-700">Case workflow</p><h2 className="mt-2 text-2xl font-bold text-slate-950">From report to review-ready package</h2></div><Link href="/credit-report-import" className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-700"><Upload size={15} />Start with a report</Link></div>
-        <div className="mt-6 grid gap-3 lg:grid-cols-5">
-          {workflow.map((step, index) => <Link key={step.label} href={step.href} className="group rounded-2xl border border-slate-200 p-4 hover:border-green-300 hover:bg-green-50/40"><div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-400">0{index + 1}</span><step.icon size={18} className="text-green-700" /></div><h3 className="mt-5 font-bold text-slate-900">{step.label}</h3><p className="mt-2 text-xs leading-5 text-slate-500">{step.detail}</p></Link>)}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8" aria-labelledby="found-title">
+        <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-green-50 text-green-700"><FileSearch size={20} /></span><div><p className="text-sm font-semibold text-green-700">What FixMy.Money found</p><h2 id="found-title" className="text-xl font-bold text-slate-950">Your report summary</h2></div></div>
+        <div className="mt-7 grid gap-6 sm:grid-cols-3">
+          <div><p className="text-3xl font-bold text-slate-950">{state.investigations.potentialIssues}</p><p className="mt-1 text-sm text-slate-600">Differences worth reviewing</p></div>
+          <div><p className="text-3xl font-bold text-slate-950">{state.verifiedItems}</p><p className="mt-1 text-sm text-slate-600">Negative accounts found</p></div>
+          <div><p className="text-3xl font-bold text-green-700">{state.investigations.strongEvidence}</p><p className="mt-1 text-sm text-slate-600">Strong findings</p></div>
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-green-700">Credit investigations</p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-950">Evidence-driven case status</h2>
-          </div>
-          <Link href="/credit-report-import" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-900 hover:border-green-300">
-            <Upload size={15} />Import report
-          </Link>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {investigationCards.map(({ label, key, icon: Icon, tone }) => (
-            <div key={key} className="rounded-2xl border border-slate-200 p-4">
-              <span className={`inline-flex rounded-xl p-2.5 ${tone}`}><Icon size={18} /></span>
-              <p className="mt-4 text-2xl font-bold tabular-nums text-slate-950">{state.investigations[key]}</p>
-              <p className="mt-1 text-xs font-bold text-slate-500">{label}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-7">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">Your strongest cases</h3>
-          {state.investigations.strongestCases.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-              Strong cases will appear after imported reporting discrepancies are connected to confirmed evidence.
-            </div>
-          ) : (
-            <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
-              {state.investigations.strongestCases.map(caseRow => (
-                <div key={caseRow.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{caseRow.case_number || 'Case pending number'}</p>
-                    <p className="mt-1 text-sm text-slate-600">{caseRow.issue_summary || 'Potential reporting discrepancy'}</p>
-                    <p className="mt-1 text-xs text-slate-500">{caseRow.recommended_next_action || 'Review evidence and next action.'}</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase text-emerald-700">{caseRow.evidence_strength || 'insufficient'}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <section className="rounded-2xl bg-[#061b48] p-6 text-white shadow-sm sm:p-8">
+        <p className="text-sm font-semibold text-emerald-300">What to do next</p>
+        <h2 className="mt-2 text-2xl font-bold">{nextAction.title}</h2>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">{nextAction.copy}</p>
+        <Link href={nextAction.href} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-500 px-5 py-3 text-sm font-bold text-white hover:bg-green-400">{nextAction.label}<ArrowRight size={16} /></Link>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <div className="rounded-xl border border-slate-200 bg-white p-6"><h2 className="text-lg font-bold text-slate-950">Active cases</h2><p className="mt-1 text-sm text-slate-500">Only records saved in this private workspace appear here.</p>{state.clients.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><Users className="mx-auto text-slate-400" /><h3 className="mt-3 font-bold text-slate-900">No client records</h3><p className="mt-2 text-sm text-slate-500">Add a real client when you are ready. No sample cases will be inserted.</p><Link href="/client-management" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">Add first client<ArrowRight size={14} /></Link></div> : <div className="mt-5 divide-y divide-slate-100">{state.clients.slice(0, 5).map(client => <Link key={client.id} href="/client-management" className="flex items-center justify-between py-4"><div><p className="font-bold text-slate-900">{client.name}</p><p className="text-xs capitalize text-slate-500">{(client.case_stage || 'lead').replaceAll('_', ' ')}</p></div><ArrowRight size={15} className="text-slate-400" /></Link>)}</div>}</div>
-        <aside className="rounded-xl border border-amber-200 bg-amber-50 p-6"><ShieldCheck className="text-amber-700" /><h2 className="mt-4 text-lg font-bold text-amber-950">Readiness, not probability</h2><p className="mt-3 text-sm leading-6 text-amber-900/80">Every recommendation must identify a factual inconsistency, show the evidence used, and explain the deterministic score. Accurate negative information is never marked eligible.</p><Link href="/credit-audit" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-amber-900">Open evidence review<ArrowRight size={14} /></Link></aside>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
+        <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-slate-500">More information</p><h2 className="mt-1 text-xl font-bold text-slate-950">Your workspace</h2></div><button onClick={() => void load()} className="btn-secondary"><RefreshCw size={15} />Refresh</button></div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <Link href="/credit-report-import" className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-800 hover:bg-slate-100">{state.reports} reports uploaded<ArrowRight size={14} className="mt-3 text-slate-400" /></Link>
+          <Link href="/client-management" className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-800 hover:bg-slate-100">{state.clients.length} clients<ArrowRight size={14} className="mt-3 text-slate-400" /></Link>
+          <Link href="/dispute-wizard" className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-800 hover:bg-slate-100">{state.readyItems} items selected<ArrowRight size={14} className="mt-3 text-slate-400" /></Link>
+        </div>
       </section>
     </div>
   );
