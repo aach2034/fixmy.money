@@ -43,6 +43,7 @@ export interface NormalizedAccount {
   accountType: string;
   responsibility: string;
   dateOpened: string;
+  dateOpenedField?: 'date_opened';
   accountStatus: string;
   paymentStatus: string;
   balance: number | null;
@@ -55,6 +56,8 @@ export interface NormalizedAccount {
   monthlyPayment: number | null;
   lastPaymentDate: string;
   lastActivityField?: 'date_of_last_activity';
+  collectionActivityDate?: string;
+  collectionActivityField?: 'collection_account_activity';
   dateReported: string;
   paymentHistory: string;
   remarks: string[];
@@ -406,6 +409,7 @@ class GenericAdapter extends BaseAdapter {
       const statusMatch = block.match(/(?:account\s+status|status)[:\s]+([^\n]+)/i);
       const typeMatch = block.match(/(?:account\s+type|type)[:\s]+([^\n]+)/i);
       const dateOpenedMatch = block.match(/(?:date\s+opened|opened)[:\s]+([^\n]+)/i);
+      const collectionActivityMatch = block.match(/(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)[:\s]+([^\n]+)/i);
       const bureauMatch = block.match(/\b(TransUnion|Equifax|Experian)\b/i);
 
       if (!creditorMatch && !accountNumMatch) {
@@ -433,6 +437,9 @@ class GenericAdapter extends BaseAdapter {
         accountType: typeMatch ? typeMatch[1].trim() : '',
         responsibility: 'Individual',
         dateOpened: dateOpenedMatch ? dateOpenedMatch[1].trim() : '',
+        dateOpenedField: /^\s*(?:date\s+opened|opened|open\s+date)\s*(?::|\t|$)/im.test(block)
+          ? 'date_opened'
+          : undefined,
         accountStatus,
         paymentStatus: '',
         balance: balanceMatch ? this.parseAmount(balanceMatch[1]) : null,
@@ -440,6 +447,10 @@ class GenericAdapter extends BaseAdapter {
         pastDue: null,
         monthlyPayment: null,
         lastPaymentDate: '',
+        collectionActivityDate: collectionActivityMatch ? collectionActivityMatch[1].trim() : '',
+        collectionActivityField: /^\s*(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*(?::|\t|$)/im.test(block)
+          ? 'collection_account_activity'
+          : undefined,
         dateReported: '',
         paymentHistory: '',
         remarks,

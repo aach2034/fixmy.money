@@ -10,7 +10,7 @@ import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
 import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
-import { deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
+import { CORRECTION_FIRST_REQUESTED_ACTION, deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 
@@ -77,8 +77,8 @@ const WIZARD_REASON_VALUES = [
 const DISPUTE_REASONS = DISPUTE_REASON_OPTIONS.filter(option => WIZARD_REASON_VALUES.includes(option.value));
 
 const INSTRUCTIONS = [
+  CORRECTION_FIRST_REQUESTED_ACTION,
   'Delete this item from my credit report',
-  'Correct the inaccurate information',
   'Provide method of verification',
   'Validate this debt',
   'Remove unauthorized inquiry',
@@ -126,7 +126,7 @@ export default function DisputeWizardContent() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [disputeReason, setDisputeReason] = useState('');
   const [customReason, setCustomReason] = useState('');
-  const [instruction, setInstruction] = useState('');
+  const [instruction, setInstruction] = useState(CORRECTION_FIRST_REQUESTED_ACTION);
   const [attachedDocs, setAttachedDocs] = useState<string[]>([]);
   const [clientAddress, setClientAddress] = useState('');
   const [clientCity, setClientCity] = useState('');
@@ -527,7 +527,7 @@ Date: ${today}`;
           </div>
           <div className="flex gap-3 justify-center pt-2">
             <a href="/dispute-letter-management" className="btn-primary">View in Dispute Letters</a>
-            <button onClick={() => { setStep(1); setGeneratedLetterId(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(''); }} className="btn-secondary">Start New Dispute</button>
+            <button onClick={() => { setStep(1); setGeneratedLetterId(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(CORRECTION_FIRST_REQUESTED_ACTION); }} className="btn-secondary">Start New Dispute</button>
           </div>
         </div>
       </div>

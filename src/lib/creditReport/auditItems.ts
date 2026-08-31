@@ -241,6 +241,7 @@ function formatEvidenceValue(value: unknown): string {
     pastDue: 'Past Due',
     creditLimit: 'Credit Limit',
     dateOpened: 'Date Opened',
+    collectionActivityDate: 'Collection Activity Date',
     dateReported: 'Last Reported Date',
     lastPaymentDate: 'Last Payment Date',
     accountType: 'Account Type',
@@ -273,6 +274,8 @@ function issueFieldLabel(issue: DetectedIssueDraft): string {
       return 'Past-Due Amount';
     case 'credit_limit_discrepancy':
       return 'Credit Limit';
+    case 'collection_activity_before_opening':
+      return 'Collection Activity Date and Date Opened';
     case 'high_balance_discrepancy':
       return 'High Balance';
     case 'date_discrepancy':
@@ -333,6 +336,7 @@ function scoreIssue(issue: DetectedIssueDraft): number {
     payment_history_discrepancy: 72,
     original_creditor_discrepancy: 72,
     date_discrepancy: 70,
+    collection_activity_before_opening: 72,
     last_payment_date_discrepancy: 68,
     account_type_discrepancy: 66,
     remarks_discrepancy: 62,

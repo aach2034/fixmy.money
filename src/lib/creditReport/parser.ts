@@ -319,10 +319,13 @@ export interface ParsedAccount {
   creditLimit: number | null;
   pastDue: number | null;
   dateOpened: string;
+  dateOpenedField?: 'date_opened';
   dateClosed: string;
   dateReported: string;
   dateLastActivity: string;
   lastActivityField?: 'date_of_last_activity';
+  collectionActivityDate?: string;
+  collectionActivityField?: 'collection_account_activity';
   bureaus: string[];
   bureau: string;
   paymentHistory: string;
@@ -1146,7 +1149,7 @@ export function isValidAccount(account: Partial<ParsedAccount>): boolean {
 // fail validation. This function reassembles those lines into proper account blocks
 // by grouping consecutive field-label + value pairs under a creditor name header.
 
-const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name)|balance|current\s*balance|amount\s*owed|original\s*(?:balance|loan\s*amount|amount)|loan\s*amount|collection\s*amount|amount\s*placed\s*for\s*collection|charge[- ]?off\s*amount|charged\s*off\s*amount|high\s*(?:balance|credit)|credit\s*limit|past\s*due|date\s*(?:opened|closed|reported|updated|of\s*last)|last\s*(?:reported|activity|payment)|(?:current|worst)\s+payment\s+status|payment\s*(?:status|history|pattern)|responsibility|account\s*owner|ecoa|kob|industry|creditor\s*(?:name|type)|furnisher|original\s*creditor|collection\s*agency|remarks?|comments?|dispute\s*status|terms?|months?\s*reviewed|subscriber|bureau|opened|type|open\s*date|close\s*date|charge\s*off|derogatory|status|type\s*of\s*account|pay\s*status|30[- ]days?|60[- ]days?|90[- ]days?|120[- ]days?)/i;
+const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name)|balance|current\s*balance|amount\s*owed|original\s*(?:balance|loan\s*amount|amount)|loan\s*amount|collection\s*amount|amount\s*placed\s*for\s*collection|charge[- ]?off\s*amount|charged\s*off\s*amount|high\s*(?:balance|credit)|credit\s*limit|past\s*due|date\s*(?:opened|closed|reported|updated|of\s*last)|collection(?:\s+account)?\s+activity\s+date|last\s*(?:reported|activity|payment)|(?:current|worst)\s+payment\s+status|payment\s*(?:status|history|pattern)|responsibility|account\s*owner|ecoa|kob|industry|creditor\s*(?:name|type)|furnisher|original\s*creditor|collection\s*agency|remarks?|comments?|dispute\s*status|terms?|months?\s*reviewed|subscriber|bureau|opened|type|open\s*date|close\s*date|charge\s*off|derogatory|status|type\s*of\s*account|pay\s*status|30[- ]days?|60[- ]days?|90[- ]days?|120[- ]days?)/i;
 
 // Labels that indicate a new section (not an account)
 const SECTION_HEADER_RE = /^(?:personal\s+information|inquiries|public\s+records?|credit\s+score|summary|table\s+of\s+contents|hard\s+inquiries|soft\s+inquiries|account\s+(?:history|information)|credit\s+history|credit\s+accounts?|tradelines?|open\s+accounts?|closed\s+accounts?|negative\s+accounts?|potentially\s+negative|equifax\s+accounts?|experian\s+accounts?|transunion\s+accounts?)/i;
@@ -1166,6 +1169,7 @@ const FIELD_LABEL_ALIASES: Array<[keyof SemanticFieldMap, RegExp, SemanticBlockT
   ['dateClosed', /^(?:date\s+closed|closed|closed\s+date|date\s+of\s+closure)$/i, 'closed date'],
   ['dateReported', /^(?:date\s+reported|reported|last\s+reported|date\s+updated)$/i, 'last reported date'],
   ['dateLastActivity', /^(?:date\s+of\s+last\s+activity|last\s+activity|last\s+payment|date\s+of\s+last\s+payment)$/i, 'last reported date'],
+  ['collectionActivityDate', /^(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)$/i, 'last reported date'],
   ['responsibility', /^(?:responsibility|account\s+owner|ecoa|bureau\s+code)$/i, 'account field label'],
   ['remarks', /^(?:remarks?|comments?|consumer\s+statement)$/i, 'account field label'],
   ['paymentHistory', /^(?:payment\s+history|pay\s+history|payment\s+pattern|extended\s+payment\s+history)$/i, 'payment history'],
@@ -1187,6 +1191,7 @@ type SemanticFieldMap = {
   dateClosed?: string;
   dateReported?: string;
   dateLastActivity?: string;
+  collectionActivityDate?: string;
   responsibility?: string;
   remarks?: string;
   paymentHistory?: string;
@@ -1672,11 +1677,18 @@ function extractTriBureauBaseAccount(block: string, bureau: string): ParsedAccou
     creditLimit: null,
     pastDue: null,
     dateOpened: '',
+    dateOpenedField: /^\s*(?:date\s+opened|opened|open\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'date_opened'
+      : undefined,
     dateClosed: '',
     dateReported: '',
     dateLastActivity: '',
     lastActivityField: /^\s*(?:date\s+of\s+last\s+activity|last\s+activity)\s*(?::|\t|$)/im.test(block)
       ? 'date_of_last_activity'
+      : undefined,
+    collectionActivityDate: '',
+    collectionActivityField: /^\s*(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'collection_account_activity'
       : undefined,
     bureaus: bureaus.length > 0 ? bureaus : [bureau || 'Unknown'],
     bureau: bureaus[0] ?? bureau ?? 'Unknown',
@@ -1708,6 +1720,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
   const opened = triBureauValues(block, /^date\s+opened\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const reported = triBureauValues(block, /^(?:last\s+reported|date\s+reported)\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const lastActive = triBureauValues(block, /^date\s+last\s+active\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const collectionActivity = triBureauValues(block, /^(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const accountTypes = triBureauValues(block, /^account\s+type\s*:\s*/i);
   const accountStatuses = triBureauValues(block, /^account\s+status\s*:\s*/i);
   const paymentStatuses = triBureauValues(block, /^(?:payment|pay)\s+status\s*:\s*/i);
@@ -1745,6 +1758,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
     const dateOpened = dateAt(opened, index, base.dateOpened);
     const dateReported = dateAt(reported, index, base.dateReported);
     const dateLastActivity = dateAt(lastActive, index, base.dateLastActivity);
+    const collectionActivityDate = dateAt(collectionActivity, index, base.collectionActivityDate ?? '');
     const bureauRawText = [
       base.creditorName,
       base.originalCreditor ? `(Original Creditor: ${base.originalCreditor})` : '',
@@ -1758,6 +1772,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       dateOpened ? `Date Opened: ${dateOpened}` : '',
       dateReported ? `Last Reported: ${dateReported}` : '',
       dateLastActivity ? `Date Last Active: ${dateLastActivity}` : '',
+      collectionActivityDate ? `Collection Activity Date: ${collectionActivityDate}` : '',
       comment ? `Comments: ${comment}` : '',
     ].filter(Boolean).join('\n');
     const partial: Partial<ParsedAccount> = {
@@ -1802,9 +1817,12 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       highBalance: amountAt(highCredit, index, base.highBalance),
       creditLimit: amountAt(creditLimit, index, base.creditLimit),
       dateOpened,
+      dateOpenedField: base.dateOpenedField,
       dateReported,
       dateLastActivity,
       lastActivityField: base.lastActivityField,
+      collectionActivityDate,
+      collectionActivityField: base.collectionActivityField,
       isNegative: negative,
       negativeReason,
       isCollection: collection,
@@ -1959,6 +1977,9 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     const openedMatch = block.match(/(?:date opened|opened|open date|date of first delinquency)[ \t]*:[ \t]*([^\n]+)/i);
     const openedValue = fieldValue('dateOpened');
     const dateOpened = openedValue ? extractDate(openedValue) : openedMatch ? extractDate(openedMatch[1]) : '';
+    const dateOpenedField = /^\s*(?:date\s+opened|opened|open\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'date_opened' as const
+      : undefined;
 
     const closedMatch = block.match(/(?:date closed|closed date|date of closure)[ \t]*:[ \t]*([^\n]+)/i);
     const closedValue = fieldValue('dateClosed');
@@ -1973,6 +1994,14 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     const dateLastActivity = activityValue ? extractDate(activityValue) : activityMatch ? extractDate(activityMatch[1]) : '';
     const lastActivityField = /^\s*(?:date\s+of\s+last\s+activity|last\s+activity)\s*(?::|\t|$)/im.test(block)
       ? 'date_of_last_activity' as const
+      : undefined;
+    const collectionActivityValue = fieldValue('collectionActivityDate');
+    const collectionActivityMatch = block.match(/(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)[ \t]*:[ \t]*([^\n]+)/i);
+    const collectionActivityDate = collectionActivityValue
+      ? extractDate(collectionActivityValue)
+      : collectionActivityMatch ? extractDate(collectionActivityMatch[1]) : '';
+    const collectionActivityField = /^\s*(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'collection_account_activity' as const
       : undefined;
 
     const responsibilityMatch = block.match(/(?:responsibility|account owner|individual|joint|authorized|ecoa)[ \t]*:[ \t]*([^\n]+)/i);
@@ -2058,10 +2087,13 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       creditLimit,
       pastDue,
       dateOpened,
+      dateOpenedField,
       dateClosed,
       dateReported,
       dateLastActivity,
       lastActivityField,
+      collectionActivityDate,
+      collectionActivityField,
       bureaus,
       bureau: bureaus[0] ?? bureau,
       paymentHistory,
@@ -2482,6 +2514,7 @@ function canonicalFieldLabel(field: keyof SemanticFieldMap): string {
     case 'dateClosed': return 'Date Closed';
     case 'dateReported': return 'Date Reported';
     case 'dateLastActivity': return 'Date Last Activity';
+    case 'collectionActivityDate': return 'Collection Activity Date';
     case 'responsibility': return 'Responsibility';
     case 'remarks': return 'Remarks';
     case 'paymentHistory': return 'Payment History';
@@ -2490,7 +2523,7 @@ function canonicalFieldLabel(field: keyof SemanticFieldMap): string {
 }
 
 function normalizeCanonicalFieldValue(field: keyof SemanticFieldMap, value: string): string {
-  if (field === 'dateOpened' || field === 'dateClosed' || field === 'dateReported' || field === 'dateLastActivity') {
+  if (field === 'dateOpened' || field === 'dateClosed' || field === 'dateReported' || field === 'dateLastActivity' || field === 'collectionActivityDate') {
     return extractDate(value) || value.trim();
   }
   return value.trim();
@@ -2515,9 +2548,10 @@ function renderCanonicalAccountSection(account: ParsedAccount, dispositions: Par
     ['furnisher', account.furnisherName || account.creditorName],
     ['accountNumber', account.accountNumber || semanticFields.accountNumber || account.accountNumberMasked],
     ['accountType', account.accountType || semanticFields.accountType],
-    ['dateOpened', account.dateOpened || semanticFields.dateOpened],
+    ['dateOpened', account.dateOpenedField === 'date_opened' ? account.dateOpened : semanticFields.dateOpened],
     ['dateClosed', account.dateClosed || semanticFields.dateClosed],
     ['dateReported', account.dateReported || semanticFields.dateReported],
+    ['collectionActivityDate', account.collectionActivityDate || semanticFields.collectionActivityDate],
     ['status', account.status || semanticFields.status],
     ['balance', account.balance !== null && account.balance !== undefined ? `$${account.balance.toLocaleString('en-US')}` : semanticFields.balance],
     ['originalBalance', account.originalBalance !== null && account.originalBalance !== undefined ? `$${account.originalBalance.toLocaleString('en-US')}` : semanticFields.originalBalance],

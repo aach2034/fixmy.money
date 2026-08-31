@@ -14,6 +14,7 @@ export type DetectedIssueType =
   | 'high_balance_discrepancy'
   | 'credit_limit_discrepancy'
   | 'date_discrepancy'
+  | 'collection_activity_before_opening'
   | 'last_payment_date_discrepancy'
   | 'account_type_discrepancy'
   | 'responsibility_discrepancy'
@@ -47,9 +48,12 @@ export interface BureauTradelineSnapshot {
   creditLimit: number | null;
   pastDue: number | null;
   dateOpened: string;
+  dateOpenedField?: 'date_opened';
   dateReported: string;
   lastPaymentDate: string;
   lastActivityField?: 'date_of_last_activity';
+  collectionActivityDate?: string;
+  collectionActivityField?: 'collection_account_activity';
   paymentHistory: string;
   remarks: string[];
   isCollection: boolean;
@@ -153,9 +157,12 @@ function toTradeline(account: NormalizedAccount): BureauTradelineSnapshot {
     creditLimit: account.creditLimit,
     pastDue: account.pastDue,
     dateOpened: account.dateOpened,
+    dateOpenedField: account.dateOpenedField,
     dateReported: account.dateReported,
     lastPaymentDate: account.lastPaymentDate,
     lastActivityField: account.lastActivityField,
+    collectionActivityDate: account.collectionActivityDate,
+    collectionActivityField: account.collectionActivityField,
     paymentHistory: account.paymentHistory,
     remarks: account.remarks,
     isCollection: account.isCollection,
@@ -278,6 +285,8 @@ function normalizeAccountStatus(value: unknown): string | null {
   if (meaningful === null) return null;
 
   const normalized = clean(meaningful).replace(/[_-]+/g, ' ');
+  if (/\b(?:charge off|charged off)(?: as bad debt)?\b/.test(normalized)) return 'charge-off';
+  if (/\bseriously past due\b.*\b(?:collection agency|internal collection department)\b/.test(normalized)) return 'collection';
   const statusAliases: Record<string, string> = {
     'account closed': 'closed',
     'closed account': 'closed',
@@ -288,8 +297,51 @@ function normalizeAccountStatus(value: unknown): string | null {
     'charge off': 'charge-off',
     chargeoff: 'charge-off',
     'charged off': 'charge-off',
+    'paid in full': 'paid',
+    settled: 'settled',
+    'settled in full': 'settled',
+    satisfied: 'paid',
   };
   return statusAliases[normalized] ?? normalized;
+}
+
+type StatusFact = 'paid' | 'settled' | 'unpaid' | 'current' | 'collection' | 'charge-off' | 'open' | 'closed';
+
+function normalizedStatusFact(value: unknown): StatusFact | null {
+  const normalized = normalizeAccountStatus(value);
+  if (!normalized) return null;
+  if (normalized === 'paid' || normalized === 'settled' || normalized === 'unpaid' || normalized === 'current' || normalized === 'collection' || normalized === 'charge-off' || normalized === 'open' || normalized === 'closed') {
+    return normalized;
+  }
+  return null;
+}
+
+function hasContradictoryStatuses(tradelines: BureauTradelineSnapshot[]): boolean {
+  const facts = new Set(tradelines.map(row => normalizedStatusFact(row.accountStatus)).filter((fact): fact is StatusFact => fact !== null));
+  const contradictions: Array<[StatusFact, StatusFact]> = [
+    ['paid', 'unpaid'],
+    ['settled', 'unpaid'],
+    ['current', 'collection'],
+    ['current', 'charge-off'],
+    ['open', 'closed'],
+  ];
+  return contradictions.some(([left, right]) => facts.has(left) && facts.has(right));
+}
+
+function parseExplicitDate(value: string): number | null {
+  const trimmed = value.trim();
+  const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const us = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const parts = iso
+    ? [Number(iso[1]), Number(iso[2]), Number(iso[3])]
+    : us
+      ? [Number(us[3]), Number(us[1]), Number(us[2])]
+      : null;
+  if (!parts) return null;
+  const [year, month, day] = parts;
+  const timestamp = Date.UTC(year, month - 1, day);
+  const date = new Date(timestamp);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? timestamp : null;
 }
 
 function normalizeComparableText(value: unknown): string | null {
@@ -463,7 +515,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
   }
 
   const statuses = distinctCrossBureauValues(rows, 'accountStatus', normalizeAccountStatus);
-  if (statuses.length > 1) {
+  if (statuses.length > 1 && hasContradictoryStatuses(rows)) {
     const statusIssueType: DetectedIssueType = rows.some(row => row.isChargeOff || normalizeAccountStatus(row.accountStatus) === 'charge-off')
       ? 'charge_off_status_discrepancy'
       : rows.some(row => row.isCollection || normalizeAccountStatus(row.accountStatus) === 'collection')
@@ -582,6 +634,28 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
       disputeReason: 'Incorrect Date Opened reported across bureaus.',
       confidenceLevel: 68,
       evidenceStillNeeded: ['Original agreement, statement, or creditor record showing the opening date'],
+    }));
+  }
+
+  for (const row of rows) {
+    if (!row.isCollection || row.dateOpenedField !== 'date_opened' || row.collectionActivityField !== 'collection_account_activity') continue;
+    const openedAt = parseExplicitDate(row.dateOpened);
+    const activityAt = parseExplicitDate(row.collectionActivityDate ?? '');
+    if (openedAt === null || activityAt === null || activityAt >= openedAt) continue;
+
+    issues.push(issue({
+      issueType: 'collection_activity_before_opening',
+      issueTitle: 'Collection activity predates reported account opening',
+      affectedBureaus: [row.bureau],
+      affectedFurnisher: row.furnisherName,
+      reportedData: { [String(row.bureau)]: { dateOpened: row.dateOpened, collectionActivityDate: row.collectionActivityDate } },
+      conflictingData: { collectionActivityPredatesOpening: true },
+      whyFlagged: 'The collection account reports qualifying collection activity dated before its reported account opening date.',
+      factualBasis: "The collection account reports activity associated with the collection tradeline before the account's reported opening date.",
+      disputeReason: 'Correct the inaccurate collection-account date information.',
+      confidenceLevel: 72,
+      evidenceStillNeeded: ['Collection account records confirming the correct opening and collection-activity dates'],
+      recommendedAction: 'Correct the inaccurate information',
     }));
   }
 

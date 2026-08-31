@@ -80,7 +80,11 @@ describe('evidence-driven dispute engine', () => {
         isChargeOff: false,
         isCollection: false,
       })));
-      return detectPotentialIssues(canonical).filter(issue => issue.issueType === 'status_discrepancy');
+      return detectPotentialIssues(canonical).filter(issue => [
+        'status_discrepancy',
+        'charge_off_status_discrepancy',
+        'collection_status_discrepancy',
+      ].includes(issue.issueType));
     }
 
     it.each([
@@ -104,6 +108,30 @@ describe('evidence-driven dispute engine', () => {
         ['Experian', 'Account Closed'],
         ['TransUnion', 'Closed Account'],
       ])).toEqual([]);
+    });
+
+    it('treats bureau-specific charge-off wording as the same semantic status', () => {
+      expect(statusIssues([
+        ['Equifax', 'Charge-off'],
+        ['Experian', 'Charged off'],
+        ['TransUnion', 'Charged off as bad debt'],
+      ])).toEqual([]);
+    });
+
+    it('does not treat detailed collection wording and unpaid as contradictory facts', () => {
+      expect(statusIssues([
+        ['Experian', "Seriously past due date / assigned to attorney, collection agency, or credit grantor's internal collection department"],
+        ['Equifax', 'Unpaid'],
+      ])).toEqual([]);
+    });
+
+    it.each([
+      ['Paid', 'Unpaid'],
+      ['Settled', 'Unpaid'],
+      ['Current', 'Collection'],
+      ['Current', 'Charge-off'],
+    ])('keeps a supported factual contradiction: %s vs %s', (left, right) => {
+      expect(statusIssues([['Experian', left], ['Equifax', right]])).toHaveLength(1);
     });
 
     it('requires at least two meaningful statuses before comparing bureaus', () => {
@@ -210,6 +238,80 @@ describe('evidence-driven dispute engine', () => {
         .toBe('The same account is reporting conflicting Date of Last Activity values across the consumer reporting agencies.');
       expect(issues.find(issue => issue.issueType === 'last_payment_date_discrepancy')?.factualBasis)
         .not.toContain('or last payment');
+    });
+
+    it('flags only explicit collection-account activity before an explicit Date Opened', () => {
+      const issues = issuesFor([
+        {
+          isCollection: true,
+          accountType: 'Collection',
+          dateOpened: '2026-04-06',
+          dateOpenedField: 'date_opened',
+          collectionActivityDate: '2026-03-15',
+          collectionActivityField: 'collection_account_activity',
+          balance: 160,
+        },
+        { bureau: 'Experian', balance: 160 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'collection_activity_before_opening')).toMatchObject({
+        issueTitle: 'Collection activity predates reported account opening',
+        recommendedAction: 'Correct the inaccurate information',
+      });
+    });
+
+    it.each([
+      { label: 'missing Date Opened provenance', dateOpenedField: undefined, collectionActivityField: 'collection_account_activity' as const },
+      { label: 'missing collection-activity provenance', dateOpenedField: 'date_opened' as const, collectionActivityField: undefined },
+      { label: 'ambiguous collection date', dateOpenedField: 'date_opened' as const, collectionActivityField: undefined, collectionActivityDate: '2026-03-15' },
+    ])('suppresses collection-date findings with $label', ({ dateOpenedField, collectionActivityField, collectionActivityDate }) => {
+      const issues = issuesFor([
+        {
+          isCollection: true,
+          accountType: 'Collection',
+          dateOpened: '2026-04-06',
+          dateOpenedField,
+          collectionActivityDate: collectionActivityDate ?? '2026-03-15',
+          collectionActivityField,
+          balance: 160,
+        },
+        { balance: 160 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'collection_activity_before_opening')).toBeUndefined();
+    });
+
+    it('does not substitute excluded earlier dates or apply the rule to a non-collection account', () => {
+      const issues = issuesFor([
+        {
+          isCollection: false,
+          dateOpened: '2026-04-06',
+          dateOpenedField: 'date_opened',
+          lastPaymentDate: '2026-03-15',
+          dateReported: '2026-03-15',
+          balance: 160,
+        },
+        { balance: 160 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'collection_activity_before_opening')).toBeUndefined();
+    });
+
+    it.each(['2026-04-06', '2026-04-07', 'garbled-date'])('does not flag same, later, or invalid collection activity dates: %s', collectionActivityDate => {
+      const issues = issuesFor([
+        {
+          isCollection: true,
+          accountType: 'Collection',
+          dateOpened: '2026-04-06',
+          dateOpenedField: 'date_opened',
+          collectionActivityDate,
+          collectionActivityField: 'collection_account_activity',
+          balance: 160,
+        },
+        { balance: 160 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'collection_activity_before_opening')).toBeUndefined();
     });
 
     it('does not expose Multiple as a bureau in consumer-facing evidence', () => {

@@ -1228,4 +1228,57 @@ describe('HTML report and inquiry evidence safety', () => {
     expect(result.accounts.map(account => account.creditorName)).not.toContain('Sou');
     expect(result.diagnostics?.accountFragmentsMerged).toBeGreaterThanOrEqual(1);
   });
+
+  it('records collection-date provenance only for explicit supported labels', () => {
+    const explicit = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      ABC COLLECTIONS
+      Account Number
+      112233XX
+      Account Type
+      Collection
+      Account Status
+      Collection
+      Date Opened
+      04/06/2026
+      Collection Account Activity Date
+      03/15/2026
+      Balance
+      $160
+    `, 'transunion');
+
+    expect(explicit.accounts[0]).toMatchObject({
+      dateOpened: '2026-04-06',
+      dateOpenedField: 'date_opened',
+      collectionActivityDate: '2026-03-15',
+      collectionActivityField: 'collection_account_activity',
+    });
+
+    const excluded = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      XYZ COLLECTIONS
+      Account Number
+      445566XX
+      Account Type
+      Collection
+      Account Status
+      Collection
+      Date Opened
+      04/06/2026
+      Date of Last Payment
+      03/15/2026
+      Date Reported
+      03/16/2026
+      Balance
+      $160
+    `, 'transunion');
+
+    expect(excluded.accounts[0]).toMatchObject({
+      dateOpenedField: 'date_opened',
+    });
+    expect(excluded.accounts[0].collectionActivityDate).toBeFalsy();
+    expect(excluded.accounts[0].collectionActivityField).toBeUndefined();
+  });
 });

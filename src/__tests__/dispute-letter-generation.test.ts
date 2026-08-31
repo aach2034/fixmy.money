@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildFallbackLetter } from '../app/dispute-letter-management/components/GenerateLetterForm';
-import { deduplicateSupportingDocuments } from '../lib/disputes/letterPresentation';
+import { deduplicateSupportingDocuments, requestedActionForIssueTypes } from '../lib/disputes/letterPresentation';
 import {
   buildConsumerSenderBlock,
   formatMissingMailingAddressError,
@@ -94,6 +94,15 @@ describe('dispute letter generation', () => {
     expect(letter.match(/Requested Action:/g)).toHaveLength(1);
     expect(letter).toContain('Finding 1: Balance mismatch');
     expect(letter).toContain('Finding 2: Past-due mismatch');
+  });
+
+  it('keeps ordinary findings correction-first and deletion limited to existing obsolete-reporting logic', () => {
+    expect(requestedActionForIssueTypes(['balance_discrepancy'])).toBe('Correct the inaccurate information');
+    expect(requestedActionForIssueTypes(['past_due_discrepancy'])).toBe('Correct the inaccurate information');
+    expect(requestedActionForIssueTypes(['account_type_discrepancy'])).toBe('Correct the inaccurate information');
+    expect(requestedActionForIssueTypes(['status_discrepancy'])).toBe('Correct the inaccurate information');
+    expect(requestedActionForIssueTypes(['date_discrepancy'])).toBe('Correct the inaccurate information');
+    expect(requestedActionForIssueTypes(['potentially_obsolete_reporting'])).toBe('Delete this item from my credit report');
   });
 
   it('renders account enums and FCRA timing as cautious customer-facing language', () => {

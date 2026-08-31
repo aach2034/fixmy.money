@@ -32,3 +32,11 @@ export function deduplicateSupportingDocuments(labels: string[]): string[] {
     return true;
   });
 }
+
+export const CORRECTION_FIRST_REQUESTED_ACTION = 'Correct the inaccurate information';
+
+export function requestedActionForIssueTypes(issueTypes: string[]): string {
+  return issueTypes.length > 0 && issueTypes.every(issueType => issueType === 'potentially_obsolete_reporting')
+    ? 'Delete this item from my credit report'
+    : CORRECTION_FIRST_REQUESTED_ACTION;
+}

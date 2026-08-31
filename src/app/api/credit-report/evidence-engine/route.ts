@@ -18,6 +18,9 @@ function asNormalizedAccount(row: any): NormalizedAccount {
     accountType: row.accountType ?? row.account_type ?? '',
     responsibility: row.responsibility ?? 'Individual',
     dateOpened: row.dateOpened ?? row.date_opened ?? '',
+    dateOpenedField: row.dateOpenedField === 'date_opened' || row.date_opened_field === 'date_opened'
+      ? 'date_opened'
+      : undefined,
     accountStatus: row.accountStatus ?? row.status ?? '',
     paymentStatus: row.paymentStatus ?? row.payment_status ?? '',
     balance: row.balance ?? null,
@@ -28,6 +31,10 @@ function asNormalizedAccount(row: any): NormalizedAccount {
     lastPaymentDate: row.lastPaymentDate ?? row.last_payment_date ?? row.dateLastActivity ?? row.date_last_activity ?? '',
     lastActivityField: row.lastActivityField === 'date_of_last_activity' || row.last_activity_field === 'date_of_last_activity'
       ? 'date_of_last_activity'
+      : undefined,
+    collectionActivityDate: row.collectionActivityDate ?? row.collection_activity_date ?? '',
+    collectionActivityField: row.collectionActivityField === 'collection_account_activity' || row.collection_activity_field === 'collection_account_activity'
+      ? 'collection_account_activity'
       : undefined,
     dateReported: row.dateReported ?? row.date_reported ?? '',
     paymentHistory: row.paymentHistory ?? row.payment_history ?? '',
