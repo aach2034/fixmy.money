@@ -237,7 +237,9 @@ export function normalizeCrossBureauAccounts(accounts: NormalizedAccount[]): Can
 }
 
 function uniqueSortedBureaus(bureaus: BureauName[]): BureauName[] {
-  return [...new Set(bureaus)].sort((a, b) => BUREAU_ORDER.indexOf(String(a)) - BUREAU_ORDER.indexOf(String(b)));
+  return [...new Set(bureaus)]
+    .filter(bureau => clean(bureau) !== 'multiple')
+    .sort((a, b) => BUREAU_ORDER.indexOf(String(a)) - BUREAU_ORDER.indexOf(String(b)));
 }
 
 const MISSING_REPORT_VALUE_KEYS = new Set([
@@ -304,8 +306,52 @@ function normalizeRemarks(value: unknown): string | null {
   return values.length > 0 ? values.join(' | ') : null;
 }
 
+type RemarkFact = 'disputed' | 'not_disputed' | 'paid' | 'unpaid' | 'open' | 'closed' | 'included_in_bankruptcy' | 'not_included_in_bankruptcy';
+
+function normalizedRemarkFacts(value: unknown): Set<RemarkFact> {
+  const meaningful = meaningfulReportValue(value);
+  if (meaningful === null) return new Set();
+  const text = clean(Array.isArray(meaningful) ? meaningful.join(' ') : meaningful);
+  const facts = new Set<RemarkFact>();
+
+  if (/\b(?:not disputed|consumer does not dispute)\b/.test(text)) facts.add('not_disputed');
+  else if (/\b(?:consumer disputes|account disputed|disputed by consumer)\b/.test(text)) facts.add('disputed');
+
+  if (/\b(?:unpaid|not paid)\b/.test(text)) facts.add('unpaid');
+  else if (/\b(?:paid in full|paid|settled)\b/.test(text)) facts.add('paid');
+
+  if (/\b(?:account open|open account)\b/.test(text)) facts.add('open');
+  if (/\b(?:account closed|closed account|closed by consumer|closed by credit grantor)\b/.test(text)) facts.add('closed');
+
+  if (/\b(?:not included in bankruptcy|excluded from bankruptcy)\b/.test(text)) facts.add('not_included_in_bankruptcy');
+  else if (/\b(?:included in bankruptcy|bankruptcy account)\b/.test(text)) facts.add('included_in_bankruptcy');
+
+  return facts;
+}
+
+function hasContradictoryRemarkFacts(tradelines: BureauTradelineSnapshot[]): boolean {
+  const factsByBureau = new Map<string, Set<RemarkFact>>();
+  for (const row of tradelines) {
+    const facts = normalizedRemarkFacts(row.remarks);
+    if (facts.size > 0) factsByBureau.set(String(row.bureau), facts);
+  }
+
+  const contradictionPairs: Array<[RemarkFact, RemarkFact]> = [
+    ['disputed', 'not_disputed'],
+    ['paid', 'unpaid'],
+    ['open', 'closed'],
+    ['included_in_bankruptcy', 'not_included_in_bankruptcy'],
+  ];
+  const bureauFacts = [...factsByBureau.values()];
+  return contradictionPairs.some(([left, right]) =>
+    bureauFacts.some(facts => facts.has(left)) && bureauFacts.some(facts => facts.has(right))
+  );
+}
+
 function valuesByBureau(tradelines: BureauTradelineSnapshot[], field: keyof BureauTradelineSnapshot): Record<string, unknown> {
-  return Object.fromEntries(tradelines.map(row => [String(row.bureau), meaningfulReportValue(row[field])]));
+  return Object.fromEntries(tradelines
+    .filter(row => clean(row.bureau) !== 'multiple')
+    .map(row => [String(row.bureau), meaningfulReportValue(row[field])]));
 }
 
 function distinctCrossBureauValues(
@@ -557,7 +603,7 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
   }
 
   const remarks = distinctCrossBureauValues(rows, 'remarks', normalizeRemarks);
-  if (remarks.length > 1) {
+  if (remarks.length > 1 && hasContradictoryRemarkFacts(rows)) {
     issues.push(issue({
       issueType: 'remarks_discrepancy',
       issueTitle: 'Remarks or comments mismatch',

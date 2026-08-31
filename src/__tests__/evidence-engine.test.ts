@@ -188,6 +188,53 @@ describe('evidence-driven dispute engine', () => {
         issueTitle: 'Date of last activity mismatch',
         reportedData: { Equifax: '2021-06-01', Experian: '2026-06-08' },
       });
+      expect(issues.find(issue => issue.issueType === 'last_payment_date_discrepancy')?.factualBasis)
+        .toBe('The same account is reporting conflicting Date of Last Activity values across the consumer reporting agencies.');
+      expect(issues.find(issue => issue.issueType === 'last_payment_date_discrepancy')?.factualBasis)
+        .not.toContain('or last payment');
+    });
+
+    it('does not expose Multiple as a bureau in consumer-facing evidence', () => {
+      const [canonical] = normalizeCrossBureauAccounts([
+        account({ bureau: 'Equifax', balance: 100, isChargeOff: false }),
+        account({ bureau: 'Experian', balance: 0, isChargeOff: false }),
+        account({ bureau: 'Multiple', balance: 100, isChargeOff: false }),
+      ]);
+      const finding = detectPotentialIssues(canonical).find(issue => issue.issueType === 'balance_discrepancy');
+
+      expect(finding?.affectedBureaus).toEqual(['Experian', 'Equifax']);
+      expect(finding?.reportedData).toEqual({ Equifax: 100, Experian: 0 });
+    });
+
+    it('suppresses remarks mismatches that are merely different text', () => {
+      const issues = issuesFor([
+        { remarks: ['Account information disputed by consumer'], balance: 0 },
+        { remarks: ['Consumer disputes account information'], balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'remarks_discrepancy')).toBeUndefined();
+    });
+
+    it('renders remarks mismatches only for contradictory normalized facts', () => {
+      const issues = issuesFor([
+        { remarks: ['Account disputed by consumer'], balance: 0 },
+        { remarks: ['Account not disputed'], balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'remarks_discrepancy')).toMatchObject({
+        issueTitle: 'Remarks or comments mismatch',
+      });
+    });
+
+    it('continues to render a valid account-type mismatch', () => {
+      const issues = issuesFor([
+        { accountType: 'Revolving', balance: 0 },
+        { accountType: 'Installment', balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'account_type_discrepancy')).toMatchObject({
+        issueTitle: 'Account type mismatch',
+      });
     });
 
     it('uses payment-status wording for a payment-status mismatch', () => {
