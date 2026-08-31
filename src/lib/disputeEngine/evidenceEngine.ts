@@ -49,6 +49,7 @@ export interface BureauTradelineSnapshot {
   dateOpened: string;
   dateReported: string;
   lastPaymentDate: string;
+  lastActivityField?: 'date_of_last_activity';
   paymentHistory: string;
   remarks: string[];
   isCollection: boolean;
@@ -154,6 +155,7 @@ function toTradeline(account: NormalizedAccount): BureauTradelineSnapshot {
     dateOpened: account.dateOpened,
     dateReported: account.dateReported,
     lastPaymentDate: account.lastPaymentDate,
+    lastActivityField: account.lastActivityField,
     paymentHistory: account.paymentHistory,
     remarks: account.remarks,
     isCollection: account.isCollection,
@@ -485,17 +487,18 @@ export function detectPotentialIssues(account: CanonicalCreditAccount): Detected
     }));
   }
 
-  const lastPaymentDates = distinctCrossBureauValues(rows, 'lastPaymentDate', normalizeComparableText);
-  if (lastPaymentDates.length > 1) {
+  const explicitLastActivityRows = rows.filter(row => row.lastActivityField === 'date_of_last_activity');
+  const lastActivityDates = distinctCrossBureauValues(explicitLastActivityRows, 'lastPaymentDate', normalizeComparableText);
+  if (explicitLastActivityRows.length === rows.length && lastActivityDates.length > 1) {
     issues.push(issue({
       issueType: 'last_payment_date_discrepancy',
       issueTitle: 'Date of last activity mismatch',
       affectedBureaus,
       affectedFurnisher: furnisher,
-      reportedData: valuesByBureau(rows, 'lastPaymentDate'),
-      conflictingData: { lastActivityDatesReported: lastPaymentDates },
+      reportedData: valuesByBureau(explicitLastActivityRows, 'lastPaymentDate'),
+      conflictingData: { lastActivityDatesReported: lastActivityDates },
       whyFlagged: 'The reported date of last activity differs across bureaus.',
-      factualBasis: 'The same account is reporting conflicting dates of last activity or last payment across the consumer reporting agencies.',
+      factualBasis: 'The same account is reporting conflicting Date of Last Activity values across the consumer reporting agencies.',
       disputeReason: 'Incorrect date of last activity reported across bureaus.',
       confidenceLevel: 68,
       evidenceStillNeeded: ['Account statements or payment records showing the correct date of last activity'],

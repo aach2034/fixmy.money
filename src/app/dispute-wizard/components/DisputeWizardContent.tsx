@@ -10,6 +10,7 @@ import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
 import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 
@@ -389,13 +390,20 @@ export default function DisputeWizardContent() {
         const reportedData = item.reportedDataSummary ? `   Reported Data: ${item.reportedDataSummary}\n` : '';
         const factualBasis = hasDetectedEvidence ? item.disputeBasis : item.strongestAnomaly;
         return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
-   Type: ${item.type} | Amount: ${item.amount}
+   Type: ${formatAccountType(item.type)} | Amount: ${item.amount}
    ${dates ? `Report Dates: ${dates}\n` : ''}${findings || `   Dispute Strength: ${item.strengthLabel}
    Discrepancy: ${item.strongestAnomaly}
 ${reportedData}   Factual Basis: ${factualBasis}
    Dispute Reason: ${itemReason}`}
+
    Requested Action: ${instruction}`;
       }).join('\n\n');
+
+      const supportingDocuments = deduplicateSupportingDocuments([
+        'Copy of government-issued photo ID',
+        'Copy of proof of current address',
+        ...attachedDocs,
+      ]);
 
       const letterContent = `${clientAddr}
 
@@ -408,7 +416,7 @@ Re: Formal Credit Dispute — Round ${round}
 
 To Whom It May Concern:
 
-I am writing to formally dispute the following item(s) on my credit report pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i. I request that you investigate each item listed below and correct or delete any information that cannot be verified within 30 days as required by law.
+I am writing to formally dispute the following item(s) on my credit report pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i. I request that you investigate each item listed below within the applicable period required by the FCRA and correct or delete information that is unverifiable or otherwise required to be corrected or removed.
 
 DISPUTED ITEM(S):
 
@@ -416,9 +424,7 @@ ${itemsSection}
 
 ${notes ? `ADDITIONAL INFORMATION:\n${notes}\n` : ''}
 SUPPORTING DOCUMENTS ENCLOSED:
-• Copy of government-issued photo ID
-• Copy of proof of current address
-${attachedDocs.length > 0 ? attachedDocs.map(d => `• ${d}`).join('\n') : ''}
+${supportingDocuments.map(document => `• ${document}`).join('\n')}
 
 Please send written confirmation of your investigation results to the address above. If you cannot verify the accuracy of the disputed information, you must promptly delete or correct it.
 

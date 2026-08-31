@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildFallbackLetter } from '../app/dispute-letter-management/components/GenerateLetterForm';
+import { deduplicateSupportingDocuments } from '../lib/disputes/letterPresentation';
 import {
   buildConsumerSenderBlock,
   formatMissingMailingAddressError,
@@ -63,6 +64,48 @@ describe('dispute letter generation', () => {
     expect(letterContainsGeneratedDisclaimer(letter)).toBe(false);
     expect(letter).not.toContain('LETTER NOTICE');
     expect(letter).not.toContain('FixMy.Money generated this editable draft');
+  });
+
+  it('deduplicates equivalent supporting-document labels while preserving distinct documents', () => {
+    expect(deduplicateSupportingDocuments([
+      'Copy of government-issued photo ID',
+      'Government-issued photo ID',
+      'Proof of current address',
+    ])).toEqual([
+      'Copy of government-issued photo ID',
+      'Proof of current address',
+    ]);
+  });
+
+  it('places one requested action after all findings at the account level', () => {
+    const letter = buildFallbackLetter({
+      sender: sender!, bureau: 'Equifax', template: 'FCRA Section 611', round: 1,
+      items: [{
+        ...disputeItem,
+        findings: [
+          { issueType: 'balance_discrepancy', title: 'Balance mismatch', discrepancy: 'Balances differ.', reportedData: 'Equifax: $100; Experian: $0', factualBasis: 'Balances conflict.', disputeReason: 'Correct the balance.', strengthLabel: 'Moderate', score: 70 },
+          { issueType: 'past_due_discrepancy', title: 'Past-due mismatch', discrepancy: 'Past-due amounts differ.', reportedData: 'Equifax: $100; Experian: $0', factualBasis: 'Past-due amounts conflict.', disputeReason: 'Correct the past-due amount.', strengthLabel: 'Moderate', score: 65 },
+        ],
+      }],
+      notes: '', letterId: 'EQ-1001',
+    });
+
+    expect(letter.indexOf('Requested Action:')).toBeGreaterThan(letter.indexOf('Finding 2: Past-due mismatch'));
+    expect(letter.match(/Requested Action:/g)).toHaveLength(1);
+    expect(letter).toContain('Finding 1: Balance mismatch');
+    expect(letter).toContain('Finding 2: Past-due mismatch');
+  });
+
+  it('renders account enums and FCRA timing as cautious customer-facing language', () => {
+    const letter = buildFallbackLetter({
+      sender: sender!, bureau: 'Equifax', template: 'FCRA Section 611', round: 1,
+      items: [{ ...disputeItem, type: 'charge_off' }], notes: '', letterId: 'EQ-1001',
+    });
+
+    expect(letter).toContain('Item Type: Charge-off');
+    expect(letter).not.toContain('charge_off');
+    expect(letter).toContain('within the applicable period required by the FCRA');
+    expect(letter).not.toContain('within 30 days as required by law');
   });
 
   it('uses the selected client profile for the consumer sender identity', () => {

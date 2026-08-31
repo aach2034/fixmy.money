@@ -322,6 +322,7 @@ export interface ParsedAccount {
   dateClosed: string;
   dateReported: string;
   dateLastActivity: string;
+  lastActivityField?: 'date_of_last_activity';
   bureaus: string[];
   bureau: string;
   paymentHistory: string;
@@ -1674,6 +1675,9 @@ function extractTriBureauBaseAccount(block: string, bureau: string): ParsedAccou
     dateClosed: '',
     dateReported: '',
     dateLastActivity: '',
+    lastActivityField: /^\s*(?:date\s+of\s+last\s+activity|last\s+activity)\s*(?::|\t|$)/im.test(block)
+      ? 'date_of_last_activity'
+      : undefined,
     bureaus: bureaus.length > 0 ? bureaus : [bureau || 'Unknown'],
     bureau: bureaus[0] ?? bureau ?? 'Unknown',
     paymentHistory: '',
@@ -1800,6 +1804,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       dateOpened,
       dateReported,
       dateLastActivity,
+      lastActivityField: base.lastActivityField,
       isNegative: negative,
       negativeReason,
       isCollection: collection,
@@ -1966,6 +1971,9 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     const activityMatch = block.match(/(?:date of last activity|last activity|last payment|date of last payment)[ \t]*:[ \t]*([^\n]+)/i);
     const activityValue = fieldValue('dateLastActivity');
     const dateLastActivity = activityValue ? extractDate(activityValue) : activityMatch ? extractDate(activityMatch[1]) : '';
+    const lastActivityField = /^\s*(?:date\s+of\s+last\s+activity|last\s+activity)\s*(?::|\t|$)/im.test(block)
+      ? 'date_of_last_activity' as const
+      : undefined;
 
     const responsibilityMatch = block.match(/(?:responsibility|account owner|individual|joint|authorized|ecoa)[ \t]*:[ \t]*([^\n]+)/i);
     const responsibility = fieldValue('responsibility') ?? responsibilityMatch?.[1]?.trim() ?? 'Individual';
@@ -2053,6 +2061,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       dateClosed,
       dateReported,
       dateLastActivity,
+      lastActivityField,
       bureaus,
       bureau: bureaus[0] ?? bureau,
       paymentHistory,

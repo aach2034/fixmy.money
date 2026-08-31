@@ -169,6 +169,27 @@ describe('evidence-driven dispute engine', () => {
       expect(finding?.disputeReason).toContain('Date Opened');
     });
 
+    it('suppresses a DOLA mismatch when the mapped date fields are ambiguous', () => {
+      const issues = issuesFor([
+        { lastPaymentDate: '2021-06-01', balance: 0 },
+        { lastPaymentDate: '2026-06-08', balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'last_payment_date_discrepancy')).toBeUndefined();
+    });
+
+    it('renders a DOLA mismatch when every value is explicitly the same supported field', () => {
+      const issues = issuesFor([
+        { lastPaymentDate: '2021-06-01', lastActivityField: 'date_of_last_activity', balance: 0 },
+        { lastPaymentDate: '2026-06-08', lastActivityField: 'date_of_last_activity', balance: 0 },
+      ]);
+
+      expect(issues.find(issue => issue.issueType === 'last_payment_date_discrepancy')).toMatchObject({
+        issueTitle: 'Date of last activity mismatch',
+        reportedData: { Equifax: '2021-06-01', Experian: '2026-06-08' },
+      });
+    });
+
     it('uses payment-status wording for a payment-status mismatch', () => {
       const finding = issuesFor([
         { paymentStatus: 'Current', balance: 0 },

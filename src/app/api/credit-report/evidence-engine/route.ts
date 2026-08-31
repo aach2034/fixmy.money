@@ -26,6 +26,9 @@ function asNormalizedAccount(row: any): NormalizedAccount {
     pastDue: row.pastDue ?? row.past_due ?? null,
     monthlyPayment: row.monthlyPayment ?? null,
     lastPaymentDate: row.lastPaymentDate ?? row.last_payment_date ?? row.dateLastActivity ?? row.date_last_activity ?? '',
+    lastActivityField: row.lastActivityField === 'date_of_last_activity' || row.last_activity_field === 'date_of_last_activity'
+      ? 'date_of_last_activity'
+      : undefined,
     dateReported: row.dateReported ?? row.date_reported ?? '',
     paymentHistory: row.paymentHistory ?? row.payment_history ?? '',
     remarks: row.remarks ?? [],

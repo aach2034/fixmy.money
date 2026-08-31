@@ -8,6 +8,7 @@ import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate, type LetterSenderInfo } from '@/lib/disputes/letterSender';
 import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -139,7 +140,7 @@ const bureauAddresses: Record<string, { name: string; address: string }> = {
 };
 
 const legalLanguageByTemplate: Record<string, string> = {
-  'FCRA Section 611': `Pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i, I am formally requesting that you investigate the item(s) listed below and correct or delete any information that cannot be verified. Under the FCRA, you are required to complete your investigation within 30 days of receipt of this dispute (or 45 days if I submit additional information). If you cannot verify the accuracy of the disputed information, you must promptly delete or correct it.`,
+  'FCRA Section 611': `Pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i, I am formally requesting that you investigate the item(s) listed below within the applicable period required by the FCRA and correct or delete information that is unverifiable or otherwise required to be corrected or removed.`,
   'Method of Verification': `Pursuant to 15 U.S.C. § 1681i(a)(6) of the Fair Credit Reporting Act, I am requesting that you provide me with the method of verification used to confirm the accuracy of the disputed item(s). You are required to provide this information upon request. Please provide the name, address, and telephone number of the person or entity that verified the information, as well as the date of verification.`,
   'Reinvestigation': `This letter serves as a formal request for reinvestigation under 15 U.S.C. § 1681i of the Fair Credit Reporting Act. My previous dispute was not properly investigated, and the inaccurate information remains on my credit report. I am again demanding a thorough investigation. Failure to conduct a proper reinvestigation and correct or delete unverifiable information may constitute a willful violation of the FCRA, subjecting your organization to civil liability under 15 U.S.C. § 1681n.`,
   'Goodwill Deletion': `I am writing to respectfully request a goodwill deletion of the item(s) listed below. This account has been paid/resolved, and I am requesting that you consider removing this entry from my credit report as a gesture of goodwill. I understand you are not legally obligated to do so, but I respectfully ask that you consider my request given my otherwise positive payment history and my commitment to financial responsibility.`,
@@ -156,7 +157,7 @@ const legalLanguageByTemplate: Record<string, string> = {
 };
 
 const instructionByTemplate: Record<string, string> = {
-  'FCRA Section 611': 'Please investigate the disputed item(s) within 30 days as required by law. If you cannot verify the accuracy of the information, delete it from my credit report immediately. Please send written confirmation of your investigation results to the address above.',
+  'FCRA Section 611': 'Please investigate the disputed item(s) within the applicable period required by the FCRA. If the information is unverifiable or otherwise required to be corrected or removed, please correct or delete it as applicable. Please send written confirmation of your investigation results to the address above.',
   'Method of Verification': 'Please provide the complete method of verification within 15 days. Include the name, address, and contact information of the verifying party, the date of verification, and all documentation used. If you cannot provide this information, delete the disputed item immediately.',
   'Reinvestigation': 'Please conduct a thorough reinvestigation of the disputed item(s) within 30 days. Do not simply re-verify with the original furnisher — conduct an independent investigation. Provide written results of your investigation to the address above.',
   'Goodwill Deletion': 'Please review my request and notify me of your decision in writing within 30 days. If you agree to delete the item, please confirm the deletion in writing and update all credit reporting agencies accordingly.',
@@ -210,17 +211,23 @@ export function buildFallbackLetter(params: {
     return `Item ${i + 1}:
    Creditor / Furnisher: ${item.creditorName}
    ${acctDisplay}
-   Item Type: ${item.type}
+   Item Type: ${formatAccountType(item.type)}
    Amount Reported: ${item.amount}
 ${findings || `   Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}${discrepancyLine}${reportedDataLine}
-   Factual Basis: ${factualBasis}`}${statusLine}${dateLine}`;
+   Factual Basis: ${factualBasis}`}${statusLine}${dateLine}
+
+   Requested Action: ${instructionText}`;
   }).join('\n\n');
 
-  const docsSection = `SUPPORTING DOCUMENTS ENCLOSED:
-• Copy of government-issued photo ID
-• Copy of proof of current address (utility bill or bank statement)
-• Copy of Social Security card (last 4 digits visible only)
-${params.items.some(i => i.type.toLowerCase().includes('medical')) ? '• HIPAA authorization revocation notice\n' : ''}${params.round > 1 ? '• Copy of previous dispute letter and bureau response\n' : ''}• Any additional documentation relevant to the disputed item(s)`;
+  const documents = deduplicateSupportingDocuments([
+    'Copy of government-issued photo ID',
+    'Copy of proof of current address (utility bill or bank statement)',
+    'Copy of Social Security card (last 4 digits visible only)',
+    ...(params.items.some(i => i.type.toLowerCase().includes('medical')) ? ['HIPAA authorization revocation notice'] : []),
+    ...(params.round > 1 ? ['Copy of previous dispute letter and bureau response'] : []),
+    'Any additional documentation relevant to the disputed item(s)',
+  ]);
+  const docsSection = `SUPPORTING DOCUMENTS ENCLOSED:\n${documents.map(document => `• ${document}`).join('\n')}`;
 
   const notesSection = params.notes
     ? `\nADDITIONAL INFORMATION:\n${params.notes}\n`
@@ -246,10 +253,6 @@ ${legalText}
 DISPUTED ITEM(S):
 
 ${itemsSection}
-
-REQUESTED ACTION:
-
-${instructionText}
 ${notesSection}
 ${docsSection}
 

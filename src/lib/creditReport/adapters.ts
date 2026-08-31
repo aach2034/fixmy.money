@@ -54,6 +54,7 @@ export interface NormalizedAccount {
   pastDue: number | null;
   monthlyPayment: number | null;
   lastPaymentDate: string;
+  lastActivityField?: 'date_of_last_activity';
   dateReported: string;
   paymentHistory: string;
   remarks: string[];
