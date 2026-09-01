@@ -138,7 +138,6 @@ export async function POST(request: NextRequest) {
         file_type: mimeType,
         file_size_bytes: file.size,
         import_status: 'uploaded',
-        importing_user_id: user.id,
       })
       .select()
       .single();

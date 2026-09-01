@@ -101,6 +101,18 @@ describe('client enrollment report boundary', () => {
   });
 });
 
+describe('credit report upload persistence', () => {
+  it('only inserts columns defined on credit_report_imports', () => {
+    const uploadRoute = read('src/app/api/credit-report/import-upload/route.ts');
+    const importInsert = uploadRoute.slice(
+      uploadRoute.indexOf("from('credit_report_imports')"),
+      uploadRoute.indexOf(".select()", uploadRoute.indexOf("from('credit_report_imports')")),
+    );
+
+    expect(importInsert).not.toContain('importing_user_id');
+  });
+});
+
 describe('canonical client mailing address handoff', () => {
   it('preserves address line 2 in the sender block used by letter preparation and preview', () => {
     const sender = getLetterSenderInfo({
