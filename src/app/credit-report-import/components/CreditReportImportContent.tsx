@@ -65,8 +65,23 @@ function expandCanonicalAccountByBureau(account: ParsedAccountItem): ParsedAccou
 }
 
 function accountsForPersistence(report: ParsedCreditReport): ParsedAccountItem[] {
-  if (report.bureauTradelines?.length) return report.bureauTradelines;
-  return report.accounts.flatMap(account => account.tradelines?.length ? account.tradelines : expandCanonicalAccountByBureau(account));
+  const tradelines = report.bureauTradelines?.length
+    ? report.bureauTradelines
+    : report.accounts.flatMap(account => account.tradelines?.length ? account.tradelines : expandCanonicalAccountByBureau(account));
+
+  // Native SmartCredit exports can repeat the same bureau tradeline in more
+  // than one report section. Remove only exact persistence duplicates before
+  // inserting; cross-bureau rows and materially different classifications stay.
+  const seen = new Set<string>();
+  return tradelines.filter(item => {
+    const category = item.isCollection ? 'collection' : item.isChargeOff ? 'charge_off' : item.isLate ? 'late_payment' : 'other';
+    const key = [item.bureau, item.creditorName, item.accountNumberMasked, category]
+      .map(value => String(value ?? '').trim().toLowerCase())
+      .join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function buildAutomaticDraft(params: {

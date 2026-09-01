@@ -78,6 +78,7 @@ describe('fresh report persistence and handoff contract', () => {
 
     expect(importer).toContain('getActionableUnmatchedBlocks(parsedReport)');
     expect(importer).toContain(".eq('report_id', reportRecord.id)");
+    expect(importer).toContain('if (seen.has(key)) return false');
     expect(importer.indexOf('if (!persistenceMatches)')).toBeLessThan(importer.indexOf('router.push(`/clients/'));
     expect(review).toContain("item.negative_category !== 'hard_inquiry'");
     expect(audit).toContain("savedItemsQuery = savedItemsQuery.eq('report_id', requestedReportId)");
