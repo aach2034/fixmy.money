@@ -141,6 +141,34 @@ Bureau: Experian`, 'experian');
   });
 });
 
+describe('credit audit report selection', () => {
+  it('uses only the latest parsed report when no explicit report is requested', () => {
+    const audit = read('src/app/credit-audit/components/CreditAuditContent.tsx');
+
+    expect(audit).toContain('else reportSnapshotsQuery = reportSnapshotsQuery.limit(1)');
+  });
+
+  it('hands the highest-priority finding and bureau to the guided dispute flow', () => {
+    const audit = read('src/app/credit-audit/components/CreditAuditContent.tsx');
+
+    expect(audit).toContain('id: d.id');
+    expect(audit).toContain('&findingId=${encodeURIComponent(auditResult.priorityItems[0].id)}');
+    expect(audit).toContain('&bureau=${encodeURIComponent(auditResult.priorityItems[0].bureau.split');
+  });
+});
+
+describe('guided finding handoff', () => {
+  it('preselects the handed-off bureau and exact finding and derives its reason', () => {
+    const wizard = read('src/app/dispute-wizard/components/DisputeWizardContent.tsx');
+
+    expect(wizard).toContain("const preFindingId = searchParams.get('findingId')");
+    expect(wizard).toContain("const preBureau = searchParams.get('bureau')");
+    expect(wizard).toContain('mappedItems.find(item => item.id === preFindingId)');
+    expect(wizard).toContain('setDisputeReason(derivedReason)');
+    expect(wizard).toContain("return 'Incorrect payment history'");
+  });
+});
+
 describe('canonical client mailing address handoff', () => {
   it('preserves address line 2 in the sender block used by letter preparation and preview', () => {
     const sender = getLetterSenderInfo({

@@ -76,6 +76,21 @@ const WIZARD_REASON_VALUES = [
 ];
 const DISPUTE_REASONS = DISPUTE_REASON_OPTIONS.filter(option => WIZARD_REASON_VALUES.includes(option.value));
 
+const deriveDisputeReason = (item: WizardDisputeItem) => {
+  if (WIZARD_REASON_VALUES.includes(item.disputeReason)) return item.disputeReason;
+  const context = `${item.disputeReason} ${item.rankingReason} ${item.type} ${item.strongestAnomaly}`.toLowerCase();
+  if (/duplicate/.test(context)) return 'Duplicate account';
+  if (/identity|fraud/.test(context)) return 'Fraudulent account / identity theft';
+  if (/not mine|not my account|ownership/.test(context)) return 'Not my account';
+  if (/unauthorized.*inquiry|inquiry.*unauthorized/.test(context)) return 'Unauthorized inquiry';
+  if (/balance/.test(context)) return 'Incorrect balance';
+  if (/late|payment history|delinquen/.test(context)) return 'Incorrect payment history';
+  if (/last activity/.test(context)) return 'Incorrect date of last activity';
+  if (/date opened|opening date/.test(context)) return 'Incorrect date opened';
+  if (/status/.test(context)) return 'Incorrect account status';
+  return 'Other (specify in notes)';
+};
+
 const INSTRUCTIONS = [
   CORRECTION_FIRST_REQUESTED_ACTION,
   'Delete this item from my credit report',
@@ -105,8 +120,10 @@ export default function DisputeWizardContent() {
   const preClientId = searchParams.get('clientId') ?? '';
   const preClientName = searchParams.get('clientName') ?? '';
   const preReportId = searchParams.get('reportId') ?? '';
+  const preFindingId = searchParams.get('findingId') ?? '';
+  const preBureau = searchParams.get('bureau') ?? '';
 
-  const [step, setStep] = useState(fromReport ? 2 : 1);
+  const [step, setStep] = useState(fromReport && preBureau ? 3 : fromReport ? 2 : 1);
   const [clients, setClients] = useState<WizardClient[]>([]);
   const [clientsLoading, setClientsLoading] = useState(true);
   const [disputeItems, setDisputeItems] = useState<WizardDisputeItem[]>([]);
@@ -122,7 +139,7 @@ export default function DisputeWizardContent() {
   const [selectedClient, setSelectedClient] = useState<WizardClient | null>(
     fromReport && preClientId ? { id: preClientId, name: preClientName } : null
   );
-  const [selectedBureau, setSelectedBureau] = useState('');
+  const [selectedBureau, setSelectedBureau] = useState(preBureau);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [disputeReason, setDisputeReason] = useState('');
   const [customReason, setCustomReason] = useState('');
@@ -252,7 +269,7 @@ export default function DisputeWizardContent() {
 
         if (negativeData && negativeData.length > 0) {
           const scoredItems = deduplicateDisputeRows(scoreDisputeStrength(negativeData).filter(belongsToSelectedBureau));
-          setDisputeItems(scoredItems.map((d: any) => ({
+          const mappedItems: WizardDisputeItem[] = scoredItems.map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_category ?? 'Item'}`,
             type: d.negative_category ?? 'other',
@@ -272,8 +289,16 @@ export default function DisputeWizardContent() {
             isRecommended: d.disputeStrength.isRecommended,
             findings: prepareAnomalyFindings(d.disputeStrength.findings),
             source: 'negative_items',
-          })));
-          setSelectedItems(new Set(scoredItems.filter((item: any) => item.disputeStrength.isRecommended).map((item: any) => item.id)));
+          }));
+          setDisputeItems(mappedItems);
+          const requestedFinding = preFindingId && mappedItems.find(item => item.id === preFindingId);
+          const selected = requestedFinding ? [requestedFinding] : mappedItems.filter(item => item.isRecommended);
+          setSelectedItems(new Set(selected.map(item => item.id)));
+          if (requestedFinding) {
+            const derivedReason = deriveDisputeReason(requestedFinding);
+            setDisputeReason(derivedReason);
+            if (derivedReason === 'Other (specify in notes)') setCustomReason(requestedFinding.disputeBasis);
+          }
         } else {
           // Fallback: load from client_disputes table (legacy path)
           const { data: legacyData } = await supabase
