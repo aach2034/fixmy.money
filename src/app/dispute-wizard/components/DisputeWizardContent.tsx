@@ -284,8 +284,13 @@ export default function DisputeWizardContent() {
             ...getDisputeItemDates(d),
             disputeStrengthScore: d.disputeStrength.dispute_strength_score,
             strengthLabel: d.disputeStrength.strengthLabel,
-            strongestAnomaly: d.disputeStrength.strongestAnomaly,
-            reportedDataSummary: d.disputeStrength.reportedDataSummary,
+            strongestAnomaly: d.disputeStrength.strongestAnomaly === 'No factual anomaly detected'
+              ? (d.negative_reason ?? d.dispute_reason ?? d.status ?? 'Reported negative item')
+              : d.disputeStrength.strongestAnomaly,
+            reportedDataSummary: d.disputeStrength.reportedDataSummary || [
+              d.status && `Account status: ${d.status}`,
+              d.balance != null && `Balance: $${Number(d.balance).toLocaleString()}`,
+            ].filter(Boolean).join('; '),
             recommendationReason: d.disputeStrength.recommendedReason,
             disputeBasis: d.disputeStrength.disputeBasis,
             isRecommended: d.disputeStrength.isRecommended,

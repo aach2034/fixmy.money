@@ -169,6 +169,8 @@ describe('guided finding handoff', () => {
     expect(wizard).toContain('!preFindingAccount || item.accountNumber === preFindingAccount');
     expect(wizard).toContain('setDisputeReason(derivedReason)');
     expect(wizard).toContain("return 'Incorrect payment history'");
+    expect(wizard).toContain("d.disputeStrength.strongestAnomaly === 'No factual anomaly detected'");
+    expect(wizard).toContain("d.status && `Account status: ${d.status}`");
   });
 });
 
