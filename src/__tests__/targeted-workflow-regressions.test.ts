@@ -111,6 +111,14 @@ describe('credit report upload persistence', () => {
 
     expect(importInsert).not.toContain('importing_user_id');
   });
+
+  it('keeps the provider adapter callable from the server-side parse route', () => {
+    const adapters = read('src/lib/creditReport/adapters.ts');
+    const parseRoute = read('src/app/api/credit-report/parse-report/route.ts');
+
+    expect(adapters).not.toMatch(/^['"]use client['"];?/);
+    expect(parseRoute).toContain('parseWithAdapter(normalizedText, providerKey)');
+  });
 });
 
 describe('canonical client mailing address handoff', () => {

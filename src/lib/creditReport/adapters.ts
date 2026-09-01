@@ -1,4 +1,3 @@
-'use client';
 // ─── Provider Adapter Architecture ───────────────────────────────────────────
 // Each adapter converts a provider-specific report into the NormalizedReport schema.
 // No adapter is allowed to crash on malformed input — all errors are captured as warnings.
