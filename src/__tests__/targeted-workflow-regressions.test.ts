@@ -243,4 +243,140 @@ Bureau: Experian
     expect(sparse.overallConfidence).toBeLessThan(coherent.overallConfidence);
     expect(coherent.overallConfidence).toBeGreaterThanOrEqual(50);
   });
+
+  it.each([
+    ['delinquent status', 'Credit card', 'Open/60 days late.', '$450', '60 days late'],
+    ['collection', 'Collection', 'Collection account. $620 past due.', '$620', 'Collection account'],
+    ['charge-off', 'Credit card', 'Account charged off. $830 written off.', '$830', 'Charge-off'],
+  ])('classifies Experian space-delimited %s fields', (_label, accountType, status, pastDue, reason) => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+ACME FINANCIAL
+Account info
+Account name ACME FINANCIAL
+Account number 123456XX
+Date opened Jan 1, 2022
+Status updated Aug 2026
+Account type ${accountType}
+Status ${status}
+Balance ${pastDue}
+Past due amount ${pastDue}
+Responsibility Individual
+Comments -
+Inquiries
+`, 'experian');
+
+    expect(parsed.accounts).toHaveLength(1);
+    expect(parsed.accounts[0]).toMatchObject({ accountType, isNegative: true });
+    expect(parsed.accounts[0].status).toContain(status.split('.')[0]);
+    expect(parsed.accounts[0].negativeReason).toContain(reason);
+  });
+
+  it('attaches standalone Experian late-payment codes without reading the legend as account history', () => {
+    const late = parseCreditReport(`
+Experian Credit Report
+Accounts
+ACME AUTO
+Account info
+Account name ACME AUTO
+Account number 987654XX
+Account type Auto Loan
+Status Open.
+Balance $500
+Payment history
+2026
+Jan
+30
+Feb
+60
+Current / Terms met 30 Past due 30 days 60 Past due 60 days CO Charge off
+Contact info
+Inquiries
+`, 'experian');
+    const positive = parseCreditReport(`
+Experian Credit Report
+Accounts
+ACME AUTO
+Account info
+Account name ACME AUTO
+Account number 987654XX
+Account type Auto Loan
+Status Open/Never late.
+Balance $500
+Payment history
+2026
+Jan
+-
+Current / Terms met 30 Past due 30 days 60 Past due 60 days CO Charge off
+Contact info
+Inquiries
+`, 'experian');
+
+    expect(late.accounts[0].latePayments).toEqual(expect.arrayContaining([{ days: 30, count: 1 }, { days: 60, count: 1 }]));
+    expect(late.negativeAccounts).toHaveLength(1);
+    expect(positive.negativeAccounts).toHaveLength(0);
+  });
+
+  it('attaches Experian remarks and past-due values to the identified account', () => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+ACME BANK
+Account info
+Account name ACME BANK
+Account number 112233XX
+Account type Revolving
+Status Open.
+Balance $900
+Past due amount $125
+Responsibility Individual
+Comments Account is delinquent
+Inquiries
+`, 'experian');
+
+    expect(parsed.accounts[0]).toMatchObject({ pastDue: 125, isNegative: true });
+    expect(parsed.accounts[0].remarks.join(' ')).toContain('Account is delinquent');
+  });
+
+  it('does not classify a closed or positive-balance Experian account as negative without adverse evidence', () => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+ACME BANK
+Account info
+Account name ACME BANK
+Account number 445566XX
+Account type Credit card
+Status Paid, Closed/Never late.
+Balance $0
+Original balance $900
+Responsibility Individual
+Comments -
+Inquiries
+`, 'experian');
+
+    expect(parsed.accounts).toHaveLength(1);
+    expect(parsed.negativeAccounts).toHaveLength(0);
+    expect(parsed.collections).toHaveLength(0);
+  });
+
+  it('classifies an Experian closed account with a written-off status as a charge-off', () => {
+    const parsed = parseCreditReport(`
+Experian Credit Report
+Accounts
+ACME BANK
+Account info
+Account name ACME BANK
+Account number 778899XX
+Account type Credit card
+Status Closed. $429 written off.
+Balance $0
+Comments Purchased by another lender
+Inquiries
+`, 'experian');
+
+    expect(parsed.accounts).toHaveLength(1);
+    expect(parsed.accounts[0]).toMatchObject({ isNegative: true, isChargeOff: true, negativeReason: 'Written off' });
+  });
 });

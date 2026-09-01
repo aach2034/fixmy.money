@@ -627,7 +627,9 @@ function hasAccountSpecificNegativeEvidence(account: Partial<ParsedAccount>): bo
     account.status ?? '',
     ...(account.remarks ?? []),
     account.paymentHistory ?? '',
-  ].join(' ');
+  ].join(' ')
+    .replace(/\bnever\s+late\b/gi, ' ')
+    .replace(/\bexceptional\s+payment\s+history\b/gi, ' ');
   return hasConfirmedCollectionEvidence(account)
     || /charge.?off|charged off|late|delinquent|past due|derogatory|repossession|foreclosure|bankruptcy|settled for less|written off/i.test(explicitFields)
     || (account.pastDue ?? 0) > 0
@@ -1164,7 +1166,7 @@ const FIELD_LABEL_ALIASES: Array<[keyof SemanticFieldMap, RegExp, SemanticBlockT
   ['chargeOffAmount', /^(?:charge[- ]?off\s+amount|charged\s+off\s+amount)$/i, 'balance'],
   ['highBalance', /^(?:high\s+balance|highest\s+balance|high\s+credit)$/i, 'balance'],
   ['creditLimit', /^(?:credit\s+limit|limit|credit\s+line)$/i, 'credit limit'],
-  ['pastDue', /^(?:past\s+due|amount\s+past\s+due|past-due)$/i, 'delinquency'],
+  ['pastDue', /^(?:past\s+due|past\s+due\s+amount|amount\s+past\s+due|past-due)$/i, 'delinquency'],
   ['dateOpened', /^(?:date\s+opened|opened|open\s+date)$/i, 'opened date'],
   ['dateClosed', /^(?:date\s+closed|closed|closed\s+date|date\s+of\s+closure)$/i, 'closed date'],
   ['dateReported', /^(?:date\s+reported|reported|last\s+reported|date\s+updated)$/i, 'last reported date'],
@@ -1223,10 +1225,21 @@ function semanticLabelFor(line: string): [keyof SemanticFieldMap, SemanticBlockT
 
 function splitInlineLabelValue(line: string): { field: keyof SemanticFieldMap; value: string; type: SemanticBlockType } | null {
   const match = line.match(/^([^:：\t]{2,40})(?:[:：]|\t+)\s*(.+)$/);
-  if (!match) return null;
-  const label = semanticLabelFor(match[1]);
+  if (match) {
+    const label = semanticLabelFor(match[1]);
+    if (label) return { field: label[0], value: match[2].trim(), type: label[1] };
+  }
+
+  // Experian's downloadable report commonly renders field/value pairs with a
+  // single space instead of a colon (for example "Status Account charged off"
+  // and "Past due amount $830"). Match only known labels, longest first, so
+  // ordinary prose and "Status updated Aug 2026" are not mistaken for account
+  // facts.
+  const spaced = line.match(/^(account\s+number|account\s+type|original\s+balance|highest\s+balance|credit\s+limit|past\s+due\s+amount|date\s+opened|date\s+closed|responsibility|remarks?|comments?|status|balance)\s+(.+)$/i);
+  if (!spaced || /^status\s+updated\b/i.test(line) || /^balance\s+updated\b/i.test(line)) return null;
+  const label = semanticLabelFor(spaced[1]);
   if (!label) return null;
-  return { field: label[0], value: match[2].trim(), type: label[1] };
+  return { field: label[0], value: spaced[2].trim(), type: label[1] };
 }
 
 function isLikelyFieldValue(line: string): boolean {
@@ -2364,8 +2377,13 @@ function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: Pars
     const anchor = lines.findIndex(line => normalizeAccountNumberForKey(line).includes(identifier));
     if (anchor < 0) return account;
 
-    let start = Math.max(0, anchor - 10);
-    let end = Math.min(lines.length, anchor + 16);
+    // Experian places payment history, contact information, and comments well
+    // below the account-number anchor. Sixteen lines captured only the account
+    // shell and dropped the decisive status/history fields. Use the next
+    // account-number boundary as the hard stop while retaining a conservative
+    // maximum span for malformed extracts.
+    let start = Math.max(0, anchor - 24);
+    let end = Math.min(lines.length, anchor + 180);
     for (let i = anchor - 1; i >= start; i -= 1) {
       const otherIdentifier = normalizeAccountNumberForKey(lines[i]);
       if (otherIdentifier && otherIdentifier !== identifier && /account|acct/i.test(lines[i])) { start = i + 1; break; }
@@ -2376,9 +2394,13 @@ function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: Pars
     }
 
     const nearbyText = lines.slice(start, end).join('\n');
-    const fields = parseSemanticFieldPairs(nearbyText);
+    // Keep the original extracted account block authoritative. Canonical HTML
+    // normalization can shorten Experian's table-shaped payment-history rows.
+    const accountSourceText = `${account.rawText}\n${nearbyText}`;
+    const fields = parseSemanticFieldPairs(accountSourceText);
     const accountType = account.accountType === 'Unknown' && fields.accountType ? fields.accountType : account.accountType;
-    const status = account.status || fields.status || '';
+    const existingStatusIsMetadata = /^(?:updated|as of)\b/i.test(account.status ?? '');
+    const status = (((!account.status || existingStatusIsMetadata) && fields.status) ? fields.status : account.status) ?? '';
     const balance = account.balance ?? (fields.balance ? parseAmount(fields.balance) : null);
     const originalBalance = account.originalBalance ?? (fields.originalBalance ? parseAmount(fields.originalBalance) : null);
     const collectionAmount = account.collectionAmount ?? (fields.collectionAmount ? parseAmount(fields.collectionAmount) : null);
@@ -2388,7 +2410,28 @@ function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: Pars
     const pastDue = account.pastDue ?? (fields.pastDue ? parseAmount(fields.pastDue) : null);
     const dateOpened = account.dateOpened || (fields.dateOpened ? extractDate(fields.dateOpened) : '');
     const responsibility = account.responsibility || fields.responsibility || '';
-    const remarks = account.remarks.length > 0 ? account.remarks : fields.remarks ? [fields.remarks] : [];
+    const meaningfulRemarks = account.remarks.filter(remark => !/^(?:-|--|---|n\/?a|not reported)$/i.test(remark.trim()));
+    const remarks = meaningfulRemarks.length > 0 ? meaningfulRemarks : fields.remarks ? [fields.remarks] : [];
+
+    const accountSourceLines = accountSourceText.split('\n').map(line => line.trim()).filter(Boolean);
+    const paymentHistoryStart = accountSourceLines.findIndex(line => /payment\s+history/i.test(line));
+    const paymentHistoryLines = paymentHistoryStart >= 0
+      ? accountSourceLines.slice(paymentHistoryStart + 1, paymentHistoryStart + 121)
+      : [];
+    const historyCodes: number[] = [];
+    for (const line of paymentHistoryLines) {
+      if (/contact\s+info|comments?/i.test(line) || /current\s*\/\s*terms met/i.test(line)) break;
+      const code = line.trim().match(/^(30|60|90|120|150|180)$/)?.[1];
+      if (code) historyCodes.push(Number(code));
+    }
+    const latePayments = [...(account.latePayments ?? [])];
+    for (const days of [30, 60, 90, 120, 150, 180]) {
+      const count = historyCodes.filter(code => code === days).length;
+      if (count > 0 && !latePayments.some(item => item.days === days)) latePayments.push({ days, count });
+    }
+    const paymentHistory = account.paymentHistory
+      || fields.paymentHistory
+      || (historyCodes.length > 0 ? historyCodes.join(' ') : '');
     return {
       ...account,
       accountType,
@@ -2403,9 +2446,30 @@ function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: Pars
       dateOpened,
       responsibility,
       remarks,
-      rawText: `${account.rawText}\n${nearbyText}`,
+      paymentHistory,
+      latePayments,
+      rawText: accountSourceText,
     };
   });
+}
+
+function classifyExperianAccount(account: ParsedAccount): ParsedAccount {
+  const explicitEvidence = `${account.accountType} ${account.status} ${account.remarks.join(' ')}`
+    .replace(/\bnever\s+late\b/gi, ' ')
+    .replace(/\bexceptional\s+payment\s+history\b/gi, ' ');
+  const isCollection = hasConfirmedCollectionEvidence(account);
+  const isChargeOff = /charge.?off|charged off|written off/i.test(explicitEvidence);
+  const isLate = (account.latePayments ?? []).some(item => item.count > 0)
+    || /\b(?:30|60|90|120|150|180)\s+days?\s+late\b|\blate payment\b|\bdelinquent\b/i.test(explicitEvidence);
+  const isNegative = hasAccountSpecificNegativeEvidence(account);
+  return {
+    ...account,
+    isCollection,
+    isChargeOff,
+    isLate,
+    isNegative,
+    negativeReason: isNegative ? (isCollection ? 'Collection account' : detectNegativeReason(account)) : '',
+  };
 }
 
 function buildBlockDispositions(
@@ -2455,7 +2519,14 @@ function buildBlockDispositions(
     }
 
     const rejected = rejectedAccountCandidates.find(candidate => candidate.block.toLowerCase().includes(block.normalizedText.toLowerCase().slice(0, 40)));
-    const isBoilerplate = classification.type === 'footer/navigation/legal boilerplate' || classification.type === 'provider/header' || classification.type === 'summary/statistics';
+    const isExperianReportNarrative = provider === 'experian' && (
+      /^(?:year of birth|public records|credit scores)$/i.test(block.normalizedText.trim())
+      || /\b(?:fico(?:®)?(?:\s+(?:scores?|high achievers|auto scores?|bankcard scores?))|credit scoring|credit risk|risky borrower|your score|lenders?|available revolving credit|paid as agreed|missed payments?|derogatory indicators?|ratio of (?:your )?revolving balances|number of your accounts)\b/i.test(block.normalizedText)
+    );
+    const isBoilerplate = classification.type === 'footer/navigation/legal boilerplate'
+      || classification.type === 'provider/header'
+      || classification.type === 'summary/statistics'
+      || isExperianReportNarrative;
 
     return {
       ...block,
@@ -3515,22 +3586,6 @@ export function parseCreditReport(
       warnings.push({ section: 'Accounts', message: `Account extraction failed: ${e?.message ?? 'unknown error'}`, severity: 'error' });
     }
 
-    // Only show unparsed block warning for readable blocks, not binary skips
-    if (readableBlocksRejected > 0) {
-      warnings.push({
-        section: 'Parser',
-        message: `${readableBlocksRejected} readable text block(s) could not be matched to accounts. ${binaryBlocksSkippedInAccounts > 0 ? `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were skipped (not counted as rejections). ` : ''}${fallbackUsed ? 'Fallback parser was used to recover accounts.' : ''} See developer console for details.`,
-        severity: 'info',
-      });
-    } else if (binaryBlocksSkippedInAccounts > 0) {
-      // Binary blocks were skipped — inform user without alarming them
-      warnings.push({
-        section: 'Parser',
-        message: `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were detected and skipped. This is normal for image-based PDFs.`,
-        severity: 'info',
-      });
-    }
-
     if (fallbackUsed && rawAccounts.length > 0) {
       warnings.push({
         section: 'Parser',
@@ -3543,28 +3598,16 @@ export function parseCreditReport(
     let bureauTradelines: ParsedAccount[] = rawAccounts;
     let accounts: ParsedAccount[] = rawAccounts;
     try {
-      bureauTradelines = runSecondPassNegativeClassification(rawAccounts);
+      bureauTradelines = provider === 'experian'
+        ? enrichExperianAccountsFromAdjacentMetadata(sourceTextForDiagnostics, rawAccounts).map(classifyExperianAccount)
+        : runSecondPassNegativeClassification(rawAccounts);
       accounts = mergeCanonicalAccounts(bureauTradelines);
     } catch (e: any) {
       stageFailures.push({ stage: 'negative_classification', message: e?.message ?? 'negative classification threw', fatal: false });
       warnings.push({ section: 'Negative Classification', message: `Second-pass classification failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
     if (provider === 'experian') {
-      accounts = enrichExperianAccountsFromAdjacentMetadata(safeText, accounts).map(account => {
-        const isCollection = hasConfirmedCollectionEvidence(account);
-        const isChargeOff = /charge.?off|charged off/i.test(`${account.accountType} ${account.status} ${account.remarks.join(' ')}`);
-        const isLate = (account.latePayments ?? []).some(item => item.count > 0)
-          || /\b(?:30|60|90|120|150|180)\s+days?\s+late\b|\blate payment\b|\bdelinquent\b/i.test(`${account.status} ${account.remarks.join(' ')}`);
-        const isNegative = hasAccountSpecificNegativeEvidence(account);
-        return {
-          ...account,
-          isCollection,
-          isChargeOff,
-          isLate,
-          isNegative,
-          negativeReason: isNegative ? (isCollection ? 'Collection account' : detectNegativeReason(account)) : '',
-        };
-      });
+      accounts = accounts.map(classifyExperianAccount);
     }
     const reconciledAccountCount = accounts.length;
     accounts = accounts.filter(account => isPlausibleCreditorName(account.creditorName ?? ''));
@@ -3584,9 +3627,36 @@ export function parseCreditReport(
       ].filter(Boolean).length / 5, 0) / accounts.length;
       accountConfidence = Math.round(accountConfidence * (0.45 + metadataCompleteness * 0.55));
     }
-    const blockDispositions = canonicalHtml?.blockDispositions
-      ?? buildBlockDispositions(sourceTextForDiagnostics, provider, accounts, fallbackConsumedBlocks, rejectedAccountCandidates);
+    // Reconcile against the final enriched accounts. Canonical HTML block
+    // dispositions are produced before Experian's adjacent metadata is
+    // attached, so reusing them falsely reports already-consumed field rows as
+    // unresolved.
+    const blockDispositions = buildBlockDispositions(
+      sourceTextForDiagnostics,
+      provider,
+      accounts,
+      fallbackConsumedBlocks,
+      rejectedAccountCandidates,
+    );
     const reconciliation = summarizeBlockDispositions(blockDispositions);
+    // The primary block splitter can reject standalone Experian field rows
+    // before the adjacent-metadata pass attaches them to an account. Report
+    // only blocks that remain unresolved after final reconciliation; otherwise
+    // valid status/history rows are misleadingly counted as unmatched.
+    readableBlocksRejected = reconciliation.preservedUnclassifiedBlocks;
+    if (readableBlocksRejected > 0) {
+      warnings.push({
+        section: 'Parser',
+        message: `${readableBlocksRejected} readable text block(s) remain unclassified after account-field reconciliation. ${binaryBlocksSkippedInAccounts > 0 ? `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were skipped (not counted as rejections). ` : ''}${fallbackUsed ? 'Fallback parser was used to recover accounts.' : ''} Review the preserved source blocks before saving.`,
+        severity: 'info',
+      });
+    } else if (binaryBlocksSkippedInAccounts > 0) {
+      warnings.push({
+        section: 'Parser',
+        message: `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were detected and skipped. This is normal for image-based PDFs.`,
+        severity: 'info',
+      });
+    }
     const hasAccountSection = /(?:accounts?|tradelines?|credit accounts?|account information)/i.test(safeText);
 
     if (accounts.length > 0) {
