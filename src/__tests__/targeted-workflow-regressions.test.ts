@@ -11,14 +11,14 @@ describe('fresh report persistence and handoff contract', () => {
   it('shows only final unresolved readable blocks, not pre-reconciliation exclusions', () => {
     const report = {
       unparsedBlocks: Array.from({ length: 48 }, (_, index) => `raw excluded block ${index + 1}`),
-      blockDispositions: [{
-        blockIndex: 0,
-        rawText: 'resolved account metadata',
-        normalizedText: 'resolved account metadata',
+      blockDispositions: Array.from({ length: 48 }, (_, index) => ({
+        blockIndex: index,
+        rawText: `raw excluded block ${index + 1}`,
+        normalizedText: `raw excluded block ${index + 1}`,
         initialClassification: 'unknown',
-        finalDisposition: 'attached-to-account',
-        reason: 'reconciled',
-      }],
+        finalDisposition: 'preserved-unclassified',
+        reason: 'pre-reconciliation exclusion',
+      })),
       diagnostics: { readableTextBlocksRejected: 0 },
     } as any;
 

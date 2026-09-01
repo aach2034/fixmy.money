@@ -21,17 +21,17 @@ export type PersistedClassificationSummary = {
 };
 
 export function getActionableUnmatchedBlocks(report: ParsedCreditReport): string[] {
+  const reconciledCount = report.diagnostics?.readableTextBlocksRejected;
+  if (typeof reconciledCount === 'number') {
+    return reconciledCount > 0 ? report.unparsedBlocks.slice(0, reconciledCount) : [];
+  }
+
   const dispositions = report.blockDispositions ?? report.diagnostics?.blockDispositions;
   if (Array.isArray(dispositions)) {
     return dispositions
       .filter(block => block.finalDisposition === 'preserved-unclassified')
       .map(block => block.normalizedText || block.rawText)
       .filter(Boolean);
-  }
-
-  const reconciledCount = report.diagnostics?.readableTextBlocksRejected;
-  if (typeof reconciledCount === 'number') {
-    return reconciledCount > 0 ? report.unparsedBlocks.slice(0, reconciledCount) : [];
   }
 
   return report.unparsedBlocks;
