@@ -19,6 +19,7 @@ import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDa
 import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
+import { getActionableUnmatchedBlocks, summarizePersistedReportItems } from '@/lib/creditReport/persistenceContract';
 
 type SavedReportItem = {
   id: string;
@@ -1013,9 +1014,12 @@ export default function CreditReportImportContent() {
     });
     setSaving(true);
     setSaveStage('Saving report…');
+    let createdReportId = '';
+    let authenticatedOwnerId = '';
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+      authenticatedOwnerId = user.id;
 
       // Confidence is advisory only. Always persist the parsed report and its
       // accounts so a low-confidence parse never loses client data or blocks
@@ -1056,9 +1060,11 @@ export default function CreditReportImportContent() {
         all_accounts: parsedReport.accounts,
         all_inquiries: parsedReport.inquiries,
         public_records: parsedReport.publicRecords,
+        section_confidence: parsedReport.sectionConfidence,
       }).select().single();
 
       if (reportErr) throw reportErr;
+      createdReportId = reportRecord.id;
 
       // Save ALL accounts as negative_items (with is_negative flag).
       // `positive` is not a valid negative_item_category enum value in the
@@ -1145,6 +1151,44 @@ export default function CreditReportImportContent() {
         .eq('id', selectedClientId)
         .eq('owner_id', user.id);
       if (clientUpdateError) throw new Error(`Report items saved, but client information failed to save: ${clientUpdateError.message}`);
+
+      setSaveStage('Verifying saved classifications...');
+      const { data: persistedReport, error: persistedReportError } = await supabase
+        .from('parsed_credit_reports')
+        .select('id, owner_id, client_id, accounts_count, negative_count, collections_count, inquiries_count, overall_confidence, section_confidence')
+        .eq('id', reportRecord.id)
+        .eq('owner_id', user.id)
+        .single();
+      if (persistedReportError || !persistedReport) throw new Error('The saved report could not be verified.');
+
+      const { data: persistedItems, error: persistedItemsError } = await supabase
+        .from('negative_items')
+        .select('id, bureau, creditor_name, account_number_masked, account_type, negative_category, is_negative, is_collection')
+        .eq('report_id', reportRecord.id)
+        .eq('owner_id', user.id);
+      if (persistedItemsError) throw new Error('The saved classifications could not be verified.');
+
+      const persistedSummary = summarizePersistedReportItems(persistedItems ?? []);
+      const expectedSummary = {
+        accounts: accountRows.length,
+        negatives: accountRows.filter(item => item.is_negative).length,
+        collections: accountRows.filter(item => item.is_collection).length,
+        chargeOffs: accountRows.filter(item => item.negative_category === 'charge_off').length,
+        inquiries: parsedReport.inquiries.filter(inquiry => inquiry.type === 'hard' && isReliableInquiry({
+          creditor_name: inquiry.creditor,
+          bureau: inquiry.bureau,
+          date_reported: inquiry.date,
+        })).length,
+      };
+      const persistenceMatches = persistedReport.owner_id === user.id
+        && persistedReport.client_id === selectedClientId
+        && persistedSummary.accounts === expectedSummary.accounts
+        && persistedSummary.negatives === expectedSummary.negatives
+        && persistedSummary.collections === expectedSummary.collections
+        && persistedSummary.chargeOffs === expectedSummary.chargeOffs
+        && persistedSummary.inquiries === expectedSummary.inquiries
+        && persistedSummary.duplicates === 0;
+      if (!persistenceMatches) throw new Error('Saved report verification did not match the parsed classifications.');
 
       try {
         setSaveStage('Building investigation cases...');
@@ -1311,6 +1355,10 @@ export default function CreditReportImportContent() {
 
       router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
     } catch (err: any) {
+      if (createdReportId && authenticatedOwnerId) {
+        await supabase.from('negative_items').delete().eq('report_id', createdReportId).eq('owner_id', authenticatedOwnerId);
+        await supabase.from('parsed_credit_reports').delete().eq('id', createdReportId).eq('owner_id', authenticatedOwnerId);
+      }
       toast.error(err?.message ?? 'Failed to save report');
     } finally {
       setSaving(false);
@@ -1702,8 +1750,8 @@ export default function CreditReportImportContent() {
           )}
 
           {/* Unparsed blocks debug section — shown only when blocks were rejected */}
-          {parsedReport.unparsedBlocks && parsedReport.unparsedBlocks.length > 0 && (
-            <UnparsedBlocksDebug blocks={parsedReport.unparsedBlocks} />
+          {getActionableUnmatchedBlocks(parsedReport).length > 0 && (
+            <UnparsedBlocksDebug blocks={getActionableUnmatchedBlocks(parsedReport)} />
           )}
 
           {/* Save to client */}

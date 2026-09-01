@@ -3,8 +3,88 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildConsumerSenderBlock, getLetterSenderInfo } from '../lib/disputes/letterSender';
 import { isLikelyCreditorName, parseCreditReport } from '../lib/creditReport/parser';
+import { getActionableUnmatchedBlocks, summarizePersistedReportItems } from '../lib/creditReport/persistenceContract';
 
 const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+
+describe('fresh report persistence and handoff contract', () => {
+  it('shows only final unresolved readable blocks, not pre-reconciliation exclusions', () => {
+    const report = {
+      unparsedBlocks: Array.from({ length: 48 }, (_, index) => `raw excluded block ${index + 1}`),
+      blockDispositions: [{
+        blockIndex: 0,
+        rawText: 'resolved account metadata',
+        normalizedText: 'resolved account metadata',
+        initialClassification: 'unknown',
+        finalDisposition: 'attached-to-account',
+        reason: 'reconciled',
+      }],
+      diagnostics: { readableTextBlocksRejected: 0 },
+    } as any;
+
+    expect(getActionableUnmatchedBlocks(report)).toEqual([]);
+  });
+
+  it('summarizes the exact persisted 18 / 14 / 9 / 5 / 1 result without inquiry inflation', () => {
+    const accounts = Array.from({ length: 18 }, (_, index) => ({
+      id: `account-${index}`,
+      bureau: 'Experian',
+      creditor_name: `Creditor ${index}`,
+      account_number_masked: `****${1000 + index}`,
+      account_type: 'Revolving',
+      negative_category: index < 9 ? 'collection' : index < 14 ? 'charge_off' : null,
+      is_negative: index < 14,
+      is_collection: index < 9,
+    }));
+    const inquiry = {
+      id: 'inquiry-1',
+      bureau: 'Experian',
+      creditor_name: 'Inquiry Creditor',
+      account_number_masked: null,
+      account_type: 'Hard Inquiry',
+      negative_category: 'hard_inquiry',
+      is_negative: true,
+      is_collection: false,
+    };
+
+    expect(summarizePersistedReportItems([...accounts, inquiry])).toEqual({
+      accounts: 18,
+      negatives: 14,
+      collections: 9,
+      chargeOffs: 5,
+      inquiries: 1,
+      duplicates: 0,
+    });
+  });
+
+  it('detects duplicate persisted classifications', () => {
+    const row = {
+      id: 'one',
+      bureau: 'Experian',
+      creditor_name: 'ACME BANK',
+      account_number_masked: '****1234',
+      account_type: 'Revolving',
+      negative_category: 'charge_off',
+      is_negative: true,
+      is_collection: false,
+    };
+    expect(summarizePersistedReportItems([row, { ...row, id: 'two' }]).duplicates).toBe(1);
+  });
+
+  it('keeps Report Review and Credit Audit scoped to the freshly saved report', () => {
+    const importer = read('src/app/credit-report-import/components/CreditReportImportContent.tsx');
+    const review = read('src/app/clients/[clientId]/reports/[reportId]/review/components/ReportReviewContent.tsx');
+    const audit = read('src/app/credit-audit/components/CreditAuditContent.tsx');
+
+    expect(importer).toContain('getActionableUnmatchedBlocks(parsedReport)');
+    expect(importer).toContain(".eq('report_id', reportRecord.id)");
+    expect(importer.indexOf('if (!persistenceMatches)')).toBeLessThan(importer.indexOf('router.push(`/clients/'));
+    expect(review).toContain("item.negative_category !== 'hard_inquiry'");
+    expect(audit).toContain("savedItemsQuery = savedItemsQuery.eq('report_id', requestedReportId)");
+    expect(audit).toContain("reportSnapshotsQuery = reportSnapshotsQuery.eq('id', requestedReportId)");
+    expect(audit).toContain("label: 'Accounts', value: auditResult.accountCount");
+  });
+});
 
 describe('client enrollment report boundary', () => {
   const enrollment = read('src/app/client-management/components/AddClientForm.tsx');

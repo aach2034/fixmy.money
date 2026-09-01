@@ -84,7 +84,8 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
 
       // Map DB rows to EditableAccount
       const sourceAccounts: ParsedAccount[] = Array.isArray(reportData.all_accounts) ? reportData.all_accounts : [];
-      const parsedAccounts: EditableAccount[] = (allItems ?? []).map((item: any) => {
+      const accountItems = (allItems ?? []).filter((item: any) => item.negative_category !== 'hard_inquiry' && item.account_type !== 'Hard Inquiry');
+      const parsedAccounts: EditableAccount[] = accountItems.map((item: any) => {
         const source = sourceAccounts.find(account =>
           account.accountNumberMasked === item.account_number_masked
           && account.creditorName === item.creditor_name
@@ -284,7 +285,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
     { id: 'all', label: 'All Accounts', count: accounts.filter(a => !a._deleted && a.accountType !== 'Hard Inquiry').length },
     { id: 'negative', label: 'Possible Negative Items', count: accounts.filter(a => !a._deleted && a._markedNegative).length },
     { id: 'collections', label: 'Collections', count: accounts.filter(a => !a._deleted && a._markedCollection).length },
-    { id: 'inquiries', label: 'Inquiries', count: accounts.filter(a => !a._deleted && a.accountType === 'Hard Inquiry').length + (report?.inquiries?.length ?? 0) },
+    { id: 'inquiries', label: 'Inquiries', count: report?.inquiries?.length ?? 0 },
     { id: 'personal', label: 'Personal Info', count: null },
     { id: 'warnings', label: 'Parser Warnings', count: report?.warnings?.length ?? 0 },
   ];
@@ -398,11 +399,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       )}
 
       {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { label: 'Accounts reviewed', value: allActive.filter(a => a.accountType !== 'Hard Inquiry').length, color: 'text-slate-950', bg: 'bg-slate-50' },
-          { label: 'Issues found', value: investigationIssues.length || negativeItems.length, color: investigationIssues.length > 0 || negativeItems.length > 0 ? 'text-slate-950' : 'text-muted-foreground', bg: 'bg-slate-50' },
-          { label: 'Items that need review', value: allActive.filter(a => !a._deleted && needsAccountReview(a)).length, color: 'text-green-700', bg: 'bg-green-50' },
+          { label: 'Accounts', value: allActive.length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Negative items', value: negativeItems.length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Collections', value: allActive.filter(a => a._markedCollection).length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Charge-offs', value: allActive.filter(a => a.isChargeOff).length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Inquiries', value: report.inquiries.length, color: 'text-slate-950', bg: 'bg-slate-50' },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
