@@ -83,6 +83,9 @@ describe('fresh report persistence and handoff contract', () => {
     expect(audit).toContain("savedItemsQuery = savedItemsQuery.eq('report_id', requestedReportId)");
     expect(audit).toContain("reportSnapshotsQuery = reportSnapshotsQuery.eq('id', requestedReportId)");
     expect(audit).toContain("label: 'Accounts', value: auditResult.accountCount");
+    expect(audit).toContain("negativeItems.filter(item => item.negative_category !== 'hard_inquiry')");
+    expect(audit).toContain("label: 'Negative items', value: auditResult.negativeItemCount");
+    expect(audit).toContain("label: 'Inquiries', value: auditResult.inquiryCount");
   });
 });
 
