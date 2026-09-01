@@ -45,6 +45,28 @@ describe('canonical client mailing address handoff', () => {
   });
 });
 
+describe('wizard draft persistence handoff', () => {
+  const wizard = read('src/app/dispute-wizard/components/DisputeWizardContent.tsx');
+  const letters = read('src/app/dispute-letter-management/components/DisputeLetterContent.tsx');
+
+  it('does not report success until the persisted draft row and its database id are returned', () => {
+    expect(wizard).toContain("from('dispute_letters').insert({");
+    expect(wizard).toContain("letter_status: 'draft'");
+    expect(wizard).toContain('letter_content: letterContent');
+    expect(wizard).toContain("}).select('id, letter_id').single()");
+    expect(wizard).toContain("if (insertError || !savedLetter?.id)");
+    expect(wizard.indexOf('setGeneratedLetter({ id: savedLetter.id')).toBeGreaterThan(wizard.indexOf("if (insertError || !savedLetter?.id)"));
+  });
+
+  it('opens the exact saved draft from the final CTA and after the Drafts query reloads', () => {
+    expect(wizard).toContain('View Draft Letter');
+    expect(wizard).toContain('draftId=${encodeURIComponent(generatedLetter.id)}');
+    expect(letters).toContain("const requestedDraftId = searchParams.get('draftId')");
+    expect(letters).toContain('letters.find(letter => letter.id === requestedDraftId)');
+    expect(letters).toContain('setPreviewLetter(requestedDraft)');
+  });
+});
+
 describe('Experian navigation and status fragments', () => {
   it.each(['experian/now', 'Experian Now', 'EXPERIAN - NOW', 'experian > now'])(
     'rejects %s as a creditor',

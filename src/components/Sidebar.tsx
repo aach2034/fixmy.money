@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import Image from 'next/image';
+import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { hasActiveSubscription } from '@/lib/subscription/access';
@@ -154,11 +154,14 @@ export default function Sidebar() {
       {/* Logo */}
       <div className={`flex items-center border-b border-slate-100 ${collapsed ? 'justify-center px-3 py-4' : 'px-4 py-4'}`}>
         {collapsed ? (
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-white font-bold text-xs">FM</span>
-          </div>
+          <AppLogo size={32} />
         ) : (
-          <Image src="/assets/images/fix_my_money_logo-1780535345534.png" alt="FixMy.Money" width={130} height={34} className="object-contain h-auto" priority unoptimized />
+          <Link href="/dashboard" className="flex items-center gap-2.5" aria-label="FixMy.Money dashboard">
+            <AppLogo size={34} />
+            <span className="text-[17px] font-semibold tracking-[-.03em] text-[#101d3d]">
+              FixMy<span className="text-[#3fa447]">.Money</span>
+            </span>
+          </Link>
         )}
       </div>
 

@@ -287,26 +287,26 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   return (
     <div className="min-h-screen flex bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* ── LEFT BRAND PANEL ── */}
-      <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex-col justify-between p-10 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-[#071f1b] via-[#083a32] to-[#0b1742] flex-col justify-between p-10 relative overflow-hidden">
         {/* Background elements */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-blue-600/10 blur-3xl" />
-          <div className="absolute bottom-32 right-8 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl" />
-          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-blue-500/5 blur-xl" />
+          <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl" />
+          <div className="absolute bottom-32 right-8 w-48 h-48 rounded-full bg-green-400/10 blur-2xl" />
+          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-emerald-300/5 blur-xl" />
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         </div>
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 mb-12">
             <AppLogo size={40} />
-            <span className="text-white font-bold text-xl tracking-tight">FixMy.Money</span>
+            <span className="text-white font-semibold text-xl tracking-[-.03em]">FixMy<span className="text-[#71dcb9]">.Money</span></span>
           </Link>
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-emerald-400/10 border border-emerald-300/20 text-[#71dcb9] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
             <Sparkles size={12} />
             Evidence-First Agency Platform
           </div>
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
             Run Your Credit Repair<br />
-            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+            <span className="text-[#71dcb9]">
               Business Securely.
             </span>
           </h2>
@@ -319,10 +319,10 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               const FeatIcon = feat.icon;
               return (
                 <div key={feat.label} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
-                    <FeatIcon size={15} className="text-blue-300" />
+                  <div className="w-8 h-8 rounded-lg bg-emerald-400/10 border border-emerald-300/20 flex items-center justify-center shrink-0">
+                    <FeatIcon size={15} className="text-[#71dcb9]" />
                   </div>
-                  <p className="text-blue-100 text-sm font-medium">{feat.label}</p>
+                  <p className="text-emerald-50 text-sm font-medium">{feat.label}</p>
                 </div>
               );
             })}
@@ -349,7 +349,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
             <AppLogo size={32} />
-            <span className="font-bold text-slate-900 text-lg">FixMy.Money</span>
+            <span className="font-semibold text-[#101d3d] text-lg tracking-[-.03em]">FixMy<span className="text-[#3fa447]">.Money</span></span>
           </div>
 
           {/* Signup flow progress (register tab only) */}
@@ -373,13 +373,13 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           {tab !== 'forgot' && <div className="flex bg-white border border-slate-200 rounded-xl p-1 mb-8 shadow-sm">
             <button
               onClick={() => setTab('login')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'login' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'login' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               Sign In
             </button>
             <button
               onClick={() => setTab('register')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'register' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'register' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               Create Account
             </button>

@@ -112,7 +112,7 @@ export default function DisputeWizardContent() {
   const [disputeItems, setDisputeItems] = useState<WizardDisputeItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [generatedLetterId, setGeneratedLetterId] = useState<string | null>(null);
+  const [generatedLetter, setGeneratedLetter] = useState<{ id: string; reference: string } | null>(null);
 
   useEffect(() => {
     trackEvent('dispute_wizard_started', { authenticated: true });
@@ -438,7 +438,7 @@ Date: ${today}`;
       const responseDueDate = new Date();
       responseDueDate.setDate(responseDueDate.getDate() + 30);
 
-      const { error: insertError } = await supabase.from('dispute_letters').insert({
+      const { data: savedLetter, error: insertError } = await supabase.from('dispute_letters').insert({
         owner_id: user.id,
         client_id: selectedClient.id,
         workspace_id: workspace?.id ?? null,
@@ -455,9 +455,9 @@ Date: ${today}`;
         auto_generated: false,
         letter_content: letterContent,
         generated_at: new Date().toISOString(),
-      });
+      }).select('id, letter_id').single();
 
-      if (insertError) throw new Error('We could not save the generated letter. Please try again.');
+      if (insertError || !savedLetter?.id) throw new Error('We could not save the generated letter. Please try again.');
 
       const negativeItemIds = selectedDisputeItems
         .filter(item => item.source === 'negative_items')
@@ -483,7 +483,7 @@ Date: ${today}`;
         task_type: 'dispute_followup',
       }); // non-fatal: task creation does not block the generated letter
 
-      setGeneratedLetterId(letterId);
+      setGeneratedLetter({ id: savedLetter.id, reference: savedLetter.letter_id ?? letterId });
       trackOrganicConversionStep('dispute_wizard_letter_generated', {
         bureau: selectedBureau,
         items_count: selectedItems.size,
@@ -501,7 +501,7 @@ Date: ${today}`;
     }
   };
 
-  if (generatedLetterId) {
+  if (generatedLetter) {
     return (
       <div className="page-container max-w-2xl">
         <div className="card p-8 text-center space-y-4">
@@ -510,7 +510,7 @@ Date: ${today}`;
           </div>
           <h2 className="text-xl font-semibold text-foreground">Letter Generated</h2>
           <p className="text-sm text-muted-foreground">
-            Dispute letter <strong>{generatedLetterId}</strong> has been created for{' '}
+            Dispute letter <strong>{generatedLetter.reference}</strong> has been saved to Drafts for{' '}
             <strong>{selectedClient?.name}</strong> targeting <strong>{selectedBureau}</strong>.
           </p>
           <div className="flex items-start gap-2 p-3 bg-success/5 border border-success/20 rounded-lg text-left">
@@ -526,8 +526,8 @@ Date: ${today}`;
             </p>
           </div>
           <div className="flex gap-3 justify-center pt-2">
-            <a href="/dispute-letter-management" className="btn-primary">View in Dispute Letters</a>
-            <button onClick={() => { setStep(1); setGeneratedLetterId(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(CORRECTION_FIRST_REQUESTED_ACTION); }} className="btn-secondary">Start New Dispute</button>
+            <a href={`/dispute-letter-management?draftId=${encodeURIComponent(generatedLetter.id)}`} className="btn-primary">View Draft Letter</a>
+            <button onClick={() => { setStep(1); setGeneratedLetter(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(CORRECTION_FIRST_REQUESTED_ACTION); }} className="btn-secondary">Start New Dispute</button>
           </div>
         </div>
       </div>

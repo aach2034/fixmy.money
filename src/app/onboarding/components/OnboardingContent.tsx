@@ -188,7 +188,7 @@ export default function OnboardingContent() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 size={32} className="animate-spin text-blue-600" />
+        <Loader2 size={32} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -200,7 +200,7 @@ export default function OnboardingContent() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <AppLogo size={32} />
-            <span className="font-bold text-slate-900">FixMy.Money</span>
+            <span className="font-semibold tracking-[-.03em] text-[#101d3d]">FixMy<span className="text-[#3fa447]">.Money</span></span>
           </div>
           <span className="text-sm text-slate-500">Setup Wizard</span>
         </div>
@@ -222,12 +222,12 @@ export default function OnboardingContent() {
                         isCompleted
                           ? 'bg-emerald-500 text-white'
                           : isActive
-                          ? 'bg-blue-600 text-white ring-4 ring-blue-100' :'bg-slate-200 text-slate-400'
+                          ? 'bg-primary text-white ring-4 ring-green-100' :'bg-slate-200 text-slate-400'
                       }`}
                     >
                       {isCompleted ? <Check size={18} /> : <StepIcon size={18} />}
                     </div>
-                    <p className={`text-xs font-semibold mt-1.5 ${isActive ? 'text-blue-600' : isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    <p className={`text-xs font-semibold mt-1.5 ${isActive ? 'text-primary' : isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
                       {step.title}
                     </p>
                   </div>
