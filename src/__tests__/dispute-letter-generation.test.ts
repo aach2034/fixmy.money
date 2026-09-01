@@ -164,7 +164,13 @@ describe('dispute letter generation', () => {
   it('preserves ambiguous legacy address text and requests missing fields', () => {
     const profile = { address: 'Phone Number\n1ST DIGITAL/SYNOVUS/VT\tPO BOX 85650', city: '', state: '', zip: '' };
     expect(getLegacyMailingAddressBackfill(profile)).toBeNull();
-    expect(formatMissingMailingAddressError(profile)).toBe('Client mailing address is missing: city, state, ZIP code.');
+    expect(formatMissingMailingAddressError(profile)).toBe('Client mailing address is missing: street address, city, state, ZIP code.');
+  });
+
+  it('rejects report labels as a street address even when city, state, and ZIP are present', () => {
+    const profile = { address: 'Phone number\nComments', city: 'Stone Mountain', state: 'GA', zip: '30087' };
+    expect(getLetterSenderInfo({ name: 'Jordan Bennett', ...profile })).toBeNull();
+    expect(formatMissingMailingAddressError(profile)).toBe('Client mailing address is missing: street address.');
   });
 
   it('creates canonical persistence values from an edited profile', () => {

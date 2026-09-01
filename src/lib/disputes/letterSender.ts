@@ -46,6 +46,14 @@ function first(...values: unknown[]): string {
   return values.map(clean).find(Boolean) ?? '';
 }
 
+const NON_ADDRESS_LABEL_RE = /^(?:phone(?:\s+number)?|comments?|remarks?|email|date\s+of\s+birth|social\s+security(?:\s+number)?)\b/i;
+
+function isPlausibleStreetAddress(value: string): boolean {
+  const lines = value.split(/\r?\n/).map(clean).filter(Boolean);
+  if (lines.length === 0 || lines.some(line => NON_ADDRESS_LABEL_RE.test(line))) return false;
+  return /^(?:\d+[A-Za-z]?\s+\S|P\.?\s*O\.?\s+Box\s+\d+)/i.test(lines[0]);
+}
+
 function parseLegacyAddressBlock(value: string): Partial<NormalizedClientMailingAddress> {
   const lines = value.split(/\r?\n/).map(clean).filter(Boolean);
   if (lines.length < 2 || lines.length > 3) return {};
@@ -69,9 +77,11 @@ export function normalizeClientMailingAddress(profile: ConsumerProfileForLetter 
     nested?.address_line1, nested?.address1, nested?.street_address, nested?.address,
   );
   const legacy = parseLegacyAddressBlock(rawStreet);
+  const street = clean(legacy.street ?? rawStreet);
+  const hasValidStreet = isPlausibleStreetAddress(street);
   return {
-    street: clean(legacy.street ?? rawStreet),
-    line2: first(profile?.address_line2, profile?.address2, nested?.address_line2, nested?.address2, legacy.line2),
+    street: hasValidStreet ? street : '',
+    line2: hasValidStreet ? first(profile?.address_line2, profile?.address2, nested?.address_line2, nested?.address2, legacy.line2) : '',
     city: first(profile?.city, nested?.city, legacy.city),
     state: first(profile?.state, profile?.state_code, nested?.state, nested?.state_code, legacy.state).toUpperCase(),
     postalCode: first(profile?.zip, profile?.zip_code, profile?.postal_code, nested?.zip, nested?.zip_code, nested?.postal_code, legacy.postalCode),
@@ -124,7 +134,7 @@ export function getLegacyMailingAddressBackfill(profile: ConsumerProfileForLette
 export function getMissingMailingAddressFields(profile: ConsumerProfileForLetter | null | undefined): MissingMailingAddressField[] {
   const address = normalizeClientMailingAddress(profile);
   const missing: MissingMailingAddressField[] = [];
-  if (!address.street) missing.push('street address');
+  if (!isPlausibleStreetAddress(address.street)) missing.push('street address');
   if (!address.city) missing.push('city');
   if (!/^[A-Z]{2}$/.test(address.state)) missing.push('state');
   if (!/^\d{5}(?:-\d{4})?$/.test(address.postalCode)) missing.push('ZIP code');
