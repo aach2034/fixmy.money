@@ -227,7 +227,7 @@ export default function ClientManagementContent() {
   return (
     <div className="page-container space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Clients</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} clients in your workspace</p>

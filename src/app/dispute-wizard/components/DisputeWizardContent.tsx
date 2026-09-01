@@ -503,7 +503,7 @@ Date: ${today}`;
 
   if (generatedLetter) {
     return (
-      <div className="page-container max-w-2xl">
+      <div className="app-page max-w-2xl">
         <div className="card p-8 text-center space-y-4">
           <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto">
             <CheckCircle2 size={32} className="text-success" />
@@ -535,7 +535,7 @@ Date: ${today}`;
   }
 
   return (
-    <div className="page-container max-w-4xl space-y-6">
+    <div className="app-page page-stack max-w-4xl">
       <div>
         <p className="text-sm font-semibold text-green-700">Guided dispute workflow</p>
         <h1 className="page-title mt-2">Create your dispute letter</h1>

@@ -29,11 +29,11 @@
   --foreground: #0F172A;
   --primary: #16A34A;
   --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;
+  --secondary: #EEF2F7;
   --secondary-foreground: #334155;
   --accent: #0F766E;
   --accent-foreground: #FFFFFF;
-  --muted: #F1F5F9;
+  --muted: #EEF2F7;
   --muted-foreground: #64748B;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
@@ -54,6 +54,12 @@
   --ai-bg: #F0FDFA;
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 64px;
+  --page-max-width: 1536px;
+  --page-padding: clamp(1rem, 2vw, 1.5rem);
+  --section-gap: clamp(1.25rem, 2vw, 1.75rem);
+  --card-padding: clamp(1rem, 1.5vw, 1.5rem);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.035);
+  --shadow-overlay: 0 24px 64px rgba(15, 23, 42, 0.18);
 }
 
 .dark {
@@ -219,7 +225,7 @@
     @apply text-xs text-muted-foreground mt-1;
   }
   .error-text {
-    @apply text-xs text-[#EF4444] mt-1;
+    @apply text-xs font-medium text-danger mt-1;
   }
   .card {
     @apply bg-card border border-border rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.04)];
@@ -234,7 +240,7 @@
     @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
   }
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border;
+    @apply inline-flex min-h-6 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border;
   }
   .nav-item {
     @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer;
@@ -284,6 +290,67 @@
   }
   .status-pill {
     @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold;
+  }
+  .app-shell {
+    @apply flex min-h-screen bg-background overflow-hidden;
+  }
+  .app-content {
+    @apply min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
+  }
+  .app-page {
+    width: min(100%, var(--page-max-width));
+    margin-inline: auto;
+    padding: var(--page-padding);
+  }
+  .page-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-gap);
+  }
+  .page-header {
+    @apply flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between;
+  }
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem];
+  }
+  .page-description {
+    @apply mt-1 max-w-3xl text-sm leading-6 text-muted-foreground;
+  }
+  .page-actions {
+    @apply flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end;
+  }
+  .surface-card {
+    @apply card p-4 sm:p-5;
+  }
+  .table-shell {
+    @apply card overflow-x-auto;
+  }
+  .modal-panel {
+    @apply relative flex w-full max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-border bg-card;
+    box-shadow: var(--shadow-overlay);
+  }
+  .state-panel {
+    @apply card flex flex-col items-center justify-center px-6 py-12 text-center;
+  }
+}
+
+@media (max-width: 639px) {
+  .page-actions > button,
+  .page-actions > a {
+    flex: 1 1 auto;
+  }
+  .table-cell,
+  .table-header {
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

@@ -150,9 +150,9 @@ export default function Sidebar() {
   const visibleNavSections = hasWorkspaceAccess ? NAV_SECTIONS : BILLING_ONLY_SECTIONS;
 
   const SidebarContent = () => (
-    <aside className={`relative flex flex-col bg-white border-r border-slate-200 h-full transition-all duration-200 shrink-0 ${collapsed ? 'w-16' : 'w-60'}`}>
+    <aside className={`relative flex h-full shrink-0 flex-col border-r border-border bg-card transition-all duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
       {/* Logo */}
-      <div className={`flex items-center border-b border-slate-100 ${collapsed ? 'justify-center px-3 py-4' : 'px-4 py-4'}`}>
+      <div className={`flex items-center border-b border-border ${collapsed ? 'justify-center px-3 py-4' : 'px-4 py-4'}`}>
         {collapsed ? (
           <AppLogo size={32} />
         ) : (
@@ -167,7 +167,7 @@ export default function Sidebar() {
 
       {/* Subscription Status Badge */}
       {!collapsed && (
-        <div className="px-4 py-2.5 border-b border-slate-100">
+        <div className="px-4 py-2.5 border-b border-border">
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${statusColor}`}>
               <CheckCircle2 size={10} />
@@ -199,7 +199,7 @@ export default function Sidebar() {
         {visibleNavSections.map(section => (
           <div key={section.label}>
             {!collapsed && (
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-2 mb-1.5">{section.label}</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">{section.label}</p>
             )}
             <div className="space-y-0.5">
               {section.items.map(item => {
@@ -214,7 +214,7 @@ export default function Sidebar() {
                           ? 'bg-green-50 text-green-800 ring-1 ring-inset ring-green-200'
                           : (item as any).ai
                             ? 'text-violet-600 hover:bg-violet-50 hover:text-violet-700'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       } ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
                     >
                       <ItemIcon size={17} className="shrink-0" />
@@ -249,12 +249,12 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile + Logout */}
-      <div className="border-t border-slate-100 p-2">
+      <div className="border-t border-border p-2">
         {/* Settings */}
         <div className="relative group mb-0.5">
           <Link
             href="/workspace-setup"
-            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
+            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
           >
             <Settings size={17} className="shrink-0" />
             {!collapsed && <span className="flex-1 text-left">Settings</span>}
@@ -269,7 +269,7 @@ export default function Sidebar() {
         {/* Notifications */}
         {hasWorkspaceAccess && (
           <div className="relative group mb-0.5">
-            <Link href="/notifications" className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}>
+            <Link href="/notifications" className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}>
               <Bell size={17} className="shrink-0" />
               {!collapsed && <span className="flex-1 text-left">Notifications</span>}
             </Link>
@@ -285,7 +285,7 @@ export default function Sidebar() {
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-100 transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
+            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-muted transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
           >
             <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold shrink-0 ring-2 ring-slate-100">
               {initials}
@@ -293,8 +293,8 @@ export default function Sidebar() {
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-xs font-semibold text-slate-900 truncate">{displayName}</p>
-                  <p className="text-xs text-slate-400 truncate">{displayEmail}</p>
+                  <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
                 </div>
                 <ChevronDown size={13} className={`text-slate-400 shrink-0 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
               </>
@@ -302,7 +302,7 @@ export default function Sidebar() {
           </button>
 
           {profileOpen && !collapsed && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100">
                 <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
                 <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
@@ -331,7 +331,7 @@ export default function Sidebar() {
       <button
         onClick={() => setCollapsed(!collapsed)}
         aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors z-10"
+      className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center shadow-sm hover:bg-muted transition-colors z-10"
       >
         {collapsed ? <ChevronRight size={12} className="text-slate-500" /> : <ChevronLeft size={12} className="text-slate-500" />}
       </button>

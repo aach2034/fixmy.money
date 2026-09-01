@@ -358,11 +358,11 @@ export default function DisputesContent() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+      <div className="app-page page-stack">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Disputes</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Loading disputes…</p>
+            <h1 className="page-title">Disputes</h1>
+            <p className="page-description">Loading disputes…</p>
           </div>
         </div>
         <div className="card p-8 flex items-center justify-center">
@@ -377,7 +377,7 @@ export default function DisputesContent() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-screen-2xl mx-auto">
+      <div className="app-page">
         <div className="card p-8 flex flex-col items-center gap-3 text-center">
           <AlertTriangle size={32} className="text-danger" />
           <p className="text-sm font-semibold text-foreground">Failed to load disputes</p>
@@ -391,16 +391,16 @@ export default function DisputesContent() {
   }
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+    <div className="app-page page-stack">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Disputes</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="page-title">Disputes</h1>
+          <p className="page-description">
             {filtered.length} dispute{filtered.length !== 1 ? 's' : ''} · auto-generated from credit report analysis
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="page-actions">
           <button onClick={fetchDisputes} className="btn-secondary flex items-center gap-1.5">
             <RefreshCw size={14} /> Refresh
           </button>

@@ -1333,7 +1333,7 @@ export default function CreditReportImportContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       {showProviderModal && parsedReport && (
         <ProviderSelectionModal
           onSelect={handleReparse}
@@ -1343,7 +1343,7 @@ export default function CreditReportImportContent() {
         />
       )}
 
-      <div className="page-container max-w-screen-xl space-y-6">
+      <div className="app-page page-stack max-w-screen-xl">
         {!parsedReport && (
           <div className="page-header mb-0">
             <div className="max-w-3xl">

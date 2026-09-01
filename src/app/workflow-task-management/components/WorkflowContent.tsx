@@ -42,10 +42,11 @@ export default function WorkflowContent() {
   ];
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Automation & Workflows</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Real workflow tasks created by your account activity</p>
+    <div className="app-page page-stack">
+      <div className="page-header"><div>
+        <h1 className="page-title">Automation & Workflows</h1>
+        <p className="page-description">Real workflow tasks created by your account activity</p>
+      </div>
       </div>
       {error && <div className="card p-4 text-sm text-danger">{error}</div>}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -57,7 +58,7 @@ export default function WorkflowContent() {
         ))}
       </div>
       {!loading && tasks.length === 0 ? (
-        <div className="card p-10 text-center">
+        <div className="state-panel min-h-64">
           <Zap size={28} className="mx-auto text-muted-foreground mb-3" />
           <h2 className="text-base font-semibold text-foreground">No automation activity yet</h2>
           <p className="text-sm text-muted-foreground mt-1">Tasks created by real dispute and client workflows will appear here. No sample rules or tasks are shown.</p>

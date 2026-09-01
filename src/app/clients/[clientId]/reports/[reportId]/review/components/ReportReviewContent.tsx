@@ -320,13 +320,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   return (
     <div className="page-container mx-auto max-w-5xl space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="page-header">
         <div>
           <p className="text-sm font-semibold text-green-700">Report analysis complete</p>
           <h1 className="page-title mt-2">We analyzed {clientName}&apos;s credit report.</h1>
           <p className="text-sm text-muted-foreground mt-1">We found the items that need your attention first.</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <div className="page-actions shrink-0">
           <button
             onClick={() => router.push(`/clients/${clientId}/negative-items`)}
             className="btn-secondary text-sm"

@@ -127,13 +127,14 @@ export default function BillingContent() {
     );
 
   return (
-    <div className="page-container max-w-6xl space-y-6">
-      <div>
+    <div className="app-page page-stack max-w-6xl">
+      <div className="page-header"><div>
         <h1 className="page-title">Billing center</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="page-description">
           Manage your FixMy.Money subscription and track client billing
           separately.
         </p>
+      </div>
       </div>
 
       <section className="rounded-xl border border-green-200 bg-green-50 p-5 sm:p-6">

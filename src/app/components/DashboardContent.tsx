@@ -126,7 +126,7 @@ export default function DashboardContent() {
       ? { title: 'Upload your first credit report', copy: 'We will organize the report and show you what deserves attention.', href: '/credit-report-import', label: 'Upload credit report' }
       : { title: 'Continue your credit audit', copy: 'Review what we found and choose the next item to address.', href: '/credit-audit', label: 'Continue credit audit' };
   return (
-    <div className="page-container mx-auto max-w-5xl space-y-6">
+    <div className="app-page page-stack max-w-5xl">
       <header className="py-2">
         <p className="text-sm font-semibold text-green-700">Your Credit</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Welcome back, {firstName}</h1>

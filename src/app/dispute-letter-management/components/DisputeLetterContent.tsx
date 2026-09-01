@@ -491,12 +491,12 @@ export default function DisputeLetterContent() {
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Dispute Letters</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} letters · print, mail, and track paper correspondence</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="page-actions">
           <button onClick={handleExportLetters} className="btn-secondary flex items-center gap-1.5">
             <Download size={15} /> Export
           </button>
