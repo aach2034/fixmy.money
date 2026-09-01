@@ -232,7 +232,18 @@ class GenericAdapter extends BaseAdapter {
     const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
 
     const scores = this.extractScores(normalized);
-    const accounts = this.extractAccounts(normalized, lines);
+    const extractedAccounts = this.extractAccounts(normalized, lines);
+    const accounts = extractedAccounts.filter(account => {
+      if (account.creditorName !== 'Unknown Creditor' || !account.accountNumberMasked) return true;
+
+      return !extractedAccounts.some(candidate =>
+        candidate.creditorName !== 'Unknown Creditor' &&
+        candidate.accountNumberMasked === account.accountNumberMasked &&
+        candidate.bureau === account.bureau &&
+        candidate.accountStatus === account.accountStatus &&
+        candidate.balance === account.balance
+      );
+    });
     const inquiries = this.extractInquiries(normalized, lines);
     const clientInfo = this.extractClientInfo(normalized, lines);
     const reportDate = this.extractReportDate(normalized);

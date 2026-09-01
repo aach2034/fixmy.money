@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildConsumerSenderBlock, getLetterSenderInfo } from '../lib/disputes/letterSender';
+import { parseWithAdapter } from '../lib/creditReport/adapters';
 import { isLikelyCreditorName, parseCreditReport } from '../lib/creditReport/parser';
 import { getActionableUnmatchedBlocks, summarizePersistedReportItems } from '../lib/creditReport/persistenceContract';
 
@@ -118,6 +119,25 @@ describe('credit report upload persistence', () => {
 
     expect(adapters).not.toMatch(/^['"]use client['"];?/);
     expect(parseRoute).toContain('parseWithAdapter(normalizedText, providerKey)');
+  });
+
+  it('drops an unidentified duplicate when the same uploaded account has an identified creditor', () => {
+    const parsed = parseWithAdapter(`Experian Credit Report
+Accounts
+QA TEST BANK
+Account Number: ****4242
+Account Type: Revolving
+Account Status: 60 days late
+Balance: $125
+Date Opened: 01/15/2024
+Bureau: Experian`, 'experian');
+
+    expect(parsed.accounts).toHaveLength(1);
+    expect(parsed.accounts[0]).toMatchObject({
+      creditorName: 'QA TEST BANK',
+      accountNumberMasked: '****4242',
+      bureau: 'Experian',
+    });
   });
 });
 
