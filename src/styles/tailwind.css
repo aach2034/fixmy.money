@@ -330,6 +330,23 @@
   color: #cbd5e1;
 }
 
+/* Approved public homepage preview styles. Scoped to avoid changing the app. */
+.approved-homepage .hero-glow {
+  background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+}
+
+.approved-homepage .score-ring {
+  background: conic-gradient(#3fa447 0 68%, #e3e7ee 68% 100%);
+}
+
+.approved-homepage .text-balance {
+  text-wrap: balance;
+}
+
+.approved-homepage .rounded-2xl {
+  border-radius: 12px;
+}
+
 .a11y-dark .bg-violet-500 {
   background-color: #6d28d9;
 }
