@@ -270,17 +270,37 @@ FOR DELETE
 TO authenticated
 USING (false);
 
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC, anon;
+GRANT USAGE ON SCHEMA private TO authenticated, service_role;
+
+-- Querying platform_admins from its own SELECT policy recurses as soon as a
+-- real admin row exists. Keep the privileged lookup outside the exposed schema
+-- and bind it to the caller's authenticated identity.
+CREATE OR REPLACE FUNCTION private.is_active_platform_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.platform_admins AS platform_admin
+    WHERE platform_admin.user_id = (SELECT auth.uid())
+      AND platform_admin.active = true
+  )
+$$;
+
+REVOKE ALL ON FUNCTION private.is_active_platform_admin() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION private.is_active_platform_admin() TO authenticated, service_role;
+
 DROP POLICY IF EXISTS "platform_admins_select" ON public.platform_admins;
 CREATE POLICY "platform_admins_select"
 ON public.platform_admins
 FOR SELECT
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.platform_admins AS pa
-    WHERE pa.user_id = (SELECT auth.uid()) AND pa.active = true
-  )
-);
+USING ((SELECT private.is_active_platform_admin()));
 
 DROP POLICY IF EXISTS "platform_admins_insert" ON public.platform_admins;
 CREATE POLICY "platform_admins_insert"
@@ -383,10 +403,6 @@ WITH CHECK (
 -- Security-definer ownership helpers are required to evaluate ownership across
 -- RLS-protected relations. Keep them out of the exposed public API schema so
 -- they cannot become callable RPC endpoints.
-CREATE SCHEMA IF NOT EXISTS private;
-REVOKE ALL ON SCHEMA private FROM PUBLIC, anon;
-GRANT USAGE ON SCHEMA private TO authenticated, service_role;
-
 CREATE OR REPLACE FUNCTION private.specialist_owns_client(client_account_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -556,7 +572,6 @@ ALTER FUNCTION public.update_import_workflow_updated_at() SET search_path = '';
 ALTER FUNCTION public.update_evidence_engine_updated_at() SET search_path = '';
 ALTER FUNCTION public.update_admin_follow_up_updated_at() SET search_path = '';
 ALTER FUNCTION public.update_admin_retention_alert_updated_at() SET search_path = '';
-ALTER FUNCTION public.update_certified_mailings_updated_at() SET search_path = '';
 
 REVOKE ALL ON FUNCTION public.update_updated_at() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.update_client_portal_updated_at() FROM PUBLIC, anon, authenticated;
@@ -569,7 +584,6 @@ REVOKE ALL ON FUNCTION public.update_import_workflow_updated_at() FROM PUBLIC, a
 REVOKE ALL ON FUNCTION public.update_evidence_engine_updated_at() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.update_admin_follow_up_updated_at() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.update_admin_retention_alert_updated_at() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.update_certified_mailings_updated_at() FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.update_updated_at() TO service_role;
 GRANT EXECUTE ON FUNCTION public.update_client_portal_updated_at() TO service_role;
@@ -582,7 +596,19 @@ GRANT EXECUTE ON FUNCTION public.update_import_workflow_updated_at() TO service_
 GRANT EXECUTE ON FUNCTION public.update_evidence_engine_updated_at() TO service_role;
 GRANT EXECUTE ON FUNCTION public.update_admin_follow_up_updated_at() TO service_role;
 GRANT EXECUTE ON FUNCTION public.update_admin_retention_alert_updated_at() TO service_role;
-GRANT EXECUTE ON FUNCTION public.update_certified_mailings_updated_at() TO service_role;
+
+-- certified_mailings is committed in source but has not yet reached the live
+-- schema. Harden its trigger function when present without blocking a forward
+-- upgrade of the current production-shaped database.
+DO $$
+BEGIN
+  IF to_regprocedure('public.update_certified_mailings_updated_at()') IS NOT NULL THEN
+    EXECUTE 'ALTER FUNCTION public.update_certified_mailings_updated_at() SET search_path = ''''';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.update_certified_mailings_updated_at() FROM PUBLIC, anon, authenticated';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.update_certified_mailings_updated_at() TO service_role';
+  END IF;
+END;
+$$;
 
 -- Browser roles receive only the operations supported by their RLS policies.
 -- This remains correct on a completely new public schema where platform
@@ -598,7 +624,6 @@ GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.affiliate_link_clicks,
   public.bureau_tradelines,
-  public.certified_mailings,
   public.chat_conversations,
   public.chat_messages,
   public.client_accounts,
@@ -641,6 +666,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.utm_tracking,
   public.workspaces
 TO authenticated;
+
+DO $$
+BEGIN
+  IF to_regclass('public.certified_mailings') IS NOT NULL THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON public.certified_mailings TO authenticated';
+  END IF;
+END;
+$$;
 
 GRANT SELECT, INSERT ON
   public.admin_action_audit_logs,

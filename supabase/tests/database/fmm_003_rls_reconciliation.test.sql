@@ -276,7 +276,7 @@ VALUES
   ('22000000-0000-0000-0000-000000000026', '20000000-0000-0000-0000-000000000002', 'Synthetic Consumer B', 'Synthetic Service', 'Isolated RLS fixture');
 
 INSERT INTO public.state_compliance_configs (id, state_code, state_name, status)
-VALUES ('11000000-0000-0000-0000-000000000017', 'ZZ', 'Synthetic State', 'pending');
+VALUES ('11000000-0000-0000-0000-000000000017', 'ZY', 'Synthetic State', 'pending');
 
 INSERT INTO public.audit_logs (id, owner_id, action, description)
 VALUES
@@ -326,7 +326,7 @@ SELECT ok(
 );
 SELECT is((SELECT count(*) FROM public.consumer_services WHERE id = '11000000-0000-0000-0000-000000000016'), 1::bigint, 'owner sees own consumer service');
 SELECT is((SELECT count(*) FROM public.consumer_services WHERE id = '22000000-0000-0000-0000-000000000026'), 0::bigint, 'owner cannot see another tenant consumer service');
-SELECT is((SELECT count(*) FROM public.state_compliance_configs WHERE state_code = 'ZZ'), 1::bigint, 'authenticated owner can read state compliance configuration');
+SELECT is((SELECT count(*) FROM public.state_compliance_configs WHERE state_code = 'ZY'), 1::bigint, 'authenticated owner can read state compliance configuration');
 SELECT is((SELECT count(*) FROM public.audit_logs WHERE id = '11000000-0000-0000-0000-000000000018'), 1::bigint, 'owner sees own immutable audit event');
 SELECT is((SELECT count(*) FROM public.audit_logs WHERE id = '22000000-0000-0000-0000-000000000028'), 0::bigint, 'owner cannot see another tenant audit event');
 SELECT ok(
