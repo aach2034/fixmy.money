@@ -301,3 +301,5 @@ Recommendation: the corrected FMM-003 candidate is suitable for Phase 1C product
 ## Stop condition
 
 Production remains Sites v159 at `a0088ee117e893fa62fa0d8449da64ce02499015`, in maintenance mode, with no FMM-003 migration applied. No Phase 1C, FMM-004, FMM-007, Sites deployment, or launch work began.
+
+After all evidence was committed, the disposable `fmm-003-phase-1b-forward-upgrade` branch was deleted successfully. A final branch listing contained only the production project's default `main` branch.
