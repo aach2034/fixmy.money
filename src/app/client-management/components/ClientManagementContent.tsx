@@ -532,7 +532,7 @@ export default function ClientManagementContent() {
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         title="Add New Client"
-        subtitle="Enroll a new client and optionally upload their credit report for AI analysis"
+        subtitle="Enroll a new client and optionally import a credit report for review"
         size="lg"
       >
         <AddClientForm onClose={() => { setAddModalOpen(false); fetchClients(); }} />

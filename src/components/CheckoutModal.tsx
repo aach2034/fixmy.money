@@ -10,9 +10,9 @@ interface CheckoutModalProps {
 }
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  starter: ['Up to 50 active clients', 'Client portal', 'Dispute management', 'Automated reminders', 'Email support'],
-  professional: ['Up to 100 active clients', 'AI analysis tools', 'Revenue Dashboard', 'Workflow automation', 'Priority Support'],
-  agency: ['Unlimited clients', 'White Label Portal', 'Custom Branding', 'API Access', 'Dedicated Success Manager'],
+  starter: ['Core CRM', 'Client portal', 'Dispute management', 'Credit report import', 'Email support'],
+  professional: ['Everything in Starter', 'Structured report review', 'Workflow templates', 'Response tracking', 'Priority email support'],
+  agency: ['Everything in Pro', 'Data export', 'Onboarding assistance', 'Priority support'],
 };
 
 export default function CheckoutModal({ plan, planName, planPrice, onClose }: CheckoutModalProps) {

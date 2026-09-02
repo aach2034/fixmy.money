@@ -9,6 +9,7 @@ import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate, type LetterSenderInfo } from '@/lib/disputes/letterSender';
 import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
 import { deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
+import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -284,21 +285,8 @@ function LetterPreviewModal({ letterContent, letterId, clientName, bureau, onClo
       toast.error('Pop-up blocked. Please allow pop-ups to print.');
       return;
     }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Dispute Letter ${letterId}</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 1in; color: #000; }
-            pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
-            @media print { body { margin: 0.75in; } }
-          </style>
-        </head>
-        <body><pre>${letterContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></body>
-      </html>
-    `);
-    printWindow.document.close();
+    printWindow.opener = null;
+    renderLetterForPrint(printWindow.document, letterContent, `Dispute Letter ${letterId}`);
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
@@ -309,27 +297,10 @@ function LetterPreviewModal({ letterContent, letterId, clientName, bureau, onClo
       toast.error('Pop-up blocked. Please allow pop-ups to download.');
       return;
     }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Dispute Letter ${letterId}</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 1in; color: #000; }
-            pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
-            @media print { body { margin: 0.75in; } }
-          </style>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 1000);
-            };
-          </script>
-        </head>
-        <body><pre>${letterContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></body>
-      </html>
-    `);
-    printWindow.document.close();
+    printWindow.opener = null;
+    renderLetterForPrint(printWindow.document, letterContent, `Dispute Letter ${letterId}`);
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     toast.success('Use "Save as PDF" in the print dialog to download');
   };
 

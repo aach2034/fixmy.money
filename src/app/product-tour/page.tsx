@@ -8,7 +8,6 @@ import {
   Users,
   UserPlus,
   Upload,
-  Brain,
   FileText,
   GitBranch,
   FolderOpen,
@@ -18,8 +17,6 @@ import {
   CreditCard,
   Zap,
   BarChart3,
-  Palette,
-  UsersRound,
   Play,
   CheckCircle,
 } from 'lucide-react';
@@ -32,8 +29,8 @@ const FEATURES = [
     icon: LayoutDashboard,
     title: 'Agency Dashboard',
     description:
-      "Bird's-eye view of your entire agency. See active clients, open disputes, revenue metrics, team activity, and compliance status at a glance.",
-    highlights: ['Revenue and MRR tracking', 'Active dispute pipeline', 'Client onboarding status', 'Team performance overview'],
+      "See clients, open disputes, workflow tasks, and case status at a glance.",
+    highlights: ['Active dispute pipeline', 'Client onboarding status', 'Workflow tasks', 'Case status overview'],
     color: 'text-blue-600',
     bg: 'bg-blue-50',
   },
@@ -42,8 +39,8 @@ const FEATURES = [
     icon: Users,
     title: 'Client Management',
     description:
-      'Organized client profiles with full dispute history, notes, tasks, timelines, document storage, and complete audit trails.',
-    highlights: ['Client profile with full history', 'Dispute tracking per client', 'Notes and task management', 'Document storage per client'],
+      'Organized client profiles with dispute history, notes, tasks, timelines, and audit records.',
+    highlights: ['Client profile with full history', 'Dispute tracking per client', 'Notes and task management', 'Case timeline'],
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
   },
@@ -68,21 +65,11 @@ const FEATURES = [
     bg: 'bg-slate-50',
   },
   {
-    id: 'ai-analysis',
-    icon: Brain,
-    title: 'AI Report Analysis',
-    description:
-      'AI analyzes uploaded credit reports and identifies dispute opportunities, risk factors, and recommended strategies for each negative item.',
-    highlights: ['Negative item identification', 'Dispute strategy recommendations', 'Risk factor analysis', 'Bureau-specific guidance'],
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-  {
     id: 'dispute-letters',
     icon: FileText,
     title: 'Dispute Letter Generation',
     description:
-      'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion with one click. AI drafts letters based on the specific negative item and dispute strategy.',
+      'Build editable dispute-letter drafts from selected, reviewed account data for Equifax, Experian, and TransUnion.',
     highlights: ['Equifax, Experian, TransUnion letters', 'Item-specific letter content', 'Human review required before sending', 'Letter version history'],
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
@@ -100,10 +87,10 @@ const FEATURES = [
   {
     id: 'documents',
     icon: FolderOpen,
-    title: 'Document Storage',
+    title: 'Document Records',
     description:
-      'Secure cloud storage for credit reports, contracts, dispute evidence, disclosure forms, and compliance documents — organized per client.',
-    highlights: ['Per-client document organization', 'Version history', 'Secure access controls', 'Compliance document templates'],
+      'Review document metadata and case attachments already associated with client records. New client uploads are temporarily disabled.',
+    highlights: ['Per-client document organization', 'Document status', 'Case association', 'Existing record review'],
     color: 'text-teal-600',
     bg: 'bg-teal-50',
   },
@@ -112,8 +99,8 @@ const FEATURES = [
     icon: Globe,
     title: 'Client Portal',
     description:
-      'White-labeled client-facing portal where clients track their own progress, view dispute status, upload documents, and communicate with your team.',
-    highlights: ['White-label branding', 'Dispute status visibility', 'Document upload', 'Secure client messaging'],
+      'Client-facing portal where clients can track progress, view dispute status, and receive case updates.',
+    highlights: ['Dispute status visibility', 'Case timeline', 'Existing document list', 'Client messaging'],
     color: 'text-blue-600',
     bg: 'bg-blue-50',
   },
@@ -140,10 +127,10 @@ const FEATURES = [
   {
     id: 'billing',
     icon: CreditCard,
-    title: 'Billing',
+    title: 'Subscription Billing',
     description:
-      'Stripe-powered billing for client subscriptions, service fees, and invoicing. Manage payment history, failed payments, and billing records without leaving the platform.',
-    highlights: ['Stripe integration', 'Client subscription management', 'Invoice history', 'Failed payment handling'],
+      'Manage your FixMy.Money plan and subscription through Stripe-hosted checkout and billing controls.',
+    highlights: ['Stripe-hosted checkout', 'Plan selection', 'Subscription status', 'Billing portal access'],
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
   },
@@ -166,26 +153,6 @@ const FEATURES = [
     highlights: ['Delivery history', 'Response deadlines', 'Bureau outcomes', 'Next-review tasks'],
     color: 'text-blue-600',
     bg: 'bg-blue-50',
-  },
-  {
-    id: 'white-label',
-    icon: Palette,
-    title: 'White Labeling',
-    description:
-      'Apply your agency branding to the client portal, emails, and documents. Present a professional, branded experience to your clients.',
-    highlights: ['Custom logo and colors', 'Branded client portal', 'Custom email templates', 'Domain customization'],
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-  },
-  {
-    id: 'team',
-    icon: UsersRound,
-    title: 'Team Management',
-    description:
-      'Invite team members, assign roles, and control access permissions. Each team member sees only what they need based on their role.',
-    highlights: ['Role-based access control', 'Team member invitations', 'Permission management', 'Activity tracking per user'],
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
   },
 ];
 

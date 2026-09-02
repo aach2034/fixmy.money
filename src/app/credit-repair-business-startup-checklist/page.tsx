@@ -33,7 +33,7 @@ export default function StartupChecklistPage() {
           <Link href="/" className="font-bold text-lg">FixMy.Money</Link>
           <div className="flex gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-700 hover:text-slate-900">Pricing</Link>
-            <Link href="/demo-mode" className="text-sm font-medium text-slate-700 hover:text-slate-900">Demo</Link>
+            <Link href="/product-tour" className="text-sm font-medium text-slate-700 hover:text-slate-900">Product Tour</Link>
           </div>
         </div>
       </header>
@@ -56,7 +56,7 @@ export default function StartupChecklistPage() {
               <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
                 Start $1 Trial
               </Link>
-              <Link href="/demo-mode" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
+              <Link href="/product-tour" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
                 View Demo
               </Link>
             </div>

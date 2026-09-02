@@ -15,41 +15,11 @@ import {
   isValidCachedOcrExtraction,
   type CachedOcrExtraction,
 } from '@/lib/creditReport/ocrTransport';
-import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
-import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
+import { isReliableInquiry } from '@/lib/creditReport/auditItems';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
 import { getActionableUnmatchedBlocks, summarizePersistedReportItems } from '@/lib/creditReport/persistenceContract';
 
-type SavedReportItem = {
-  id: string;
-  bureau: string | null;
-  creditor_name: string | null;
-  account_number_masked: string | null;
-  negative_category: string | null;
-  negative_reason: string | null;
-  balance: number | null;
-  date_opened?: string | null;
-  date_reported: string | null;
-  date_last_activity?: string | null;
-  parser_confidence: number | null;
-  is_negative?: boolean | null;
-};
-
-type AISelection = {
-  candidate: number;
-  rank: number;
-  strength: 'Strong' | 'Moderate' | 'Review';
-  why: string;
-  disputeReason: string;
-  requestedAction: string;
-};
-
-const BUREAU_ADDRESSES: Record<string, string> = {
-  Equifax: 'Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256',
-  Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
-  TransUnion: 'TransUnion LLC Consumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
-};
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 type ParsedAccountItem = ParsedCreditReport['accounts'][number];
 
@@ -82,64 +52,6 @@ function accountsForPersistence(report: ParsedCreditReport): ParsedAccountItem[]
     seen.add(key);
     return true;
   });
-}
-
-function buildAutomaticDraft(params: {
-  client: any;
-  bureau: string;
-  letterId: string;
-  selections: Array<{ item: SavedReportItem; opinion: AISelection }>;
-}) {
-  const clean = (value: unknown, fallback = '') => safeNormalizeText(String(value ?? ''))
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/[\u0000-\u001F\u007F]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || fallback;
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const address = params.client.address
-    ? `${params.client.address}\n${params.client.city || ''}, ${params.client.state || ''} ${params.client.zip || ''}`
-    : '[Client Address — add and verify before use]';
-  const items = params.selections.map(({ item, opinion }, index) => {
-    const dates = [
-      item.date_opened && `Opened: ${clean(item.date_opened)}`,
-      item.date_reported && `Reported: ${clean(item.date_reported)}`,
-      item.date_last_activity && `Last activity: ${clean(item.date_last_activity)}`,
-    ].filter(Boolean).join(' | ');
-    return `Item ${index + 1}: ${clean(item.creditor_name, 'Reported account')}${item.account_number_masked ? ` (Account: ${clean(item.account_number_masked)})` : ''}
-   Type: ${clean(item.negative_category, 'reported item').replaceAll('_', ' ')}
-   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Reason: ${clean(opinion.disputeReason, 'Review the reported information for accuracy')}
-   Requested Action: ${clean(opinion.requestedAction, 'Investigate and correct or delete if unverifiable')}`;
-  }).join('\n\n');
-
-  return `${params.client.name}
-${address}
-
-${today}
-
-${BUREAU_ADDRESSES[params.bureau] || params.bureau}
-
-Re: Formal Credit Dispute — AI-Assisted Draft
-    Letter Reference: ${params.letterId}
-
-To Whom It May Concern:
-
-I am writing to dispute the specific information identified below pursuant to the Fair Credit Reporting Act, 15 U.S.C. § 1681i. Please conduct a reasonable reinvestigation and correct or delete information that is inaccurate, incomplete, or cannot be verified.
-
-DISPUTED ITEM(S):
-
-${items}
-
-Please provide the written results of your investigation and an updated copy of my credit report. Please send all correspondence to the address above.
-
-Sincerely,
-
-
-_________________________________
-${params.client.name}
-Date: ${today}
-
----
-LETTER NOTICE: This is an editable AI-assisted draft. The subscribing business must verify every fact, confirm the consumer authorized the dispute, add supporting documents, obtain any required signature, and decide whether to use or send it. FixMy.Money does not provide legal advice or guarantee outcomes.`;
 }
 
 const PROVIDERS_LIST: { value: SupportedProvider; label: string }[] = [
@@ -1111,11 +1023,9 @@ export default function CreditReportImportContent() {
           is_collection: item.isCollection,
         };
       });
-      const savedItems: SavedReportItem[] = [];
       if (accountRows.length > 0) {
-        const { data: insertedAccounts, error: accountInsertError } = await supabase.from('negative_items').insert(accountRows).select('id, bureau, creditor_name, account_number_masked, negative_category, negative_reason, balance, date_opened, date_reported, date_last_activity, parser_confidence, is_negative');
+        const { error: accountInsertError } = await supabase.from('negative_items').insert(accountRows);
         if (accountInsertError) throw new Error(`Report saved, but account items failed to save: ${accountInsertError.message}`);
-        savedItems.push(...((insertedAccounts ?? []).filter((item: any) => item.is_negative === true) as SavedReportItem[]));
       }
 
       // Persist only inquiries backed by a creditor, date, and recognized bureau.
@@ -1140,9 +1050,8 @@ export default function CreditReportImportContent() {
             is_collection: false,
           }));
         if (inquiryRows.length > 0) {
-          const { data: insertedInquiries, error: inquiryInsertError } = await supabase.from('negative_items').insert(inquiryRows).select('id, bureau, creditor_name, account_number_masked, negative_category, negative_reason, balance, date_reported, parser_confidence');
+          const { error: inquiryInsertError } = await supabase.from('negative_items').insert(inquiryRows);
           if (inquiryInsertError) throw new Error(`Accounts saved, but inquiries failed to save: ${inquiryInsertError.message}`);
-          savedItems.push(...((insertedInquiries ?? []) as SavedReportItem[]));
         }
       }
 
@@ -1228,110 +1137,7 @@ export default function CreditReportImportContent() {
         toast.warning('Report saved, but investigation indexing needs to be retried from the report review.');
       }
 
-      let generatedLetters = 0;
-      const reliableSavedItems = selectReliableAuditItems(savedItems) as SavedReportItem[];
-      const shouldCreateAutomaticDrafts = false;
-      if (shouldCreateAutomaticDrafts && reliableSavedItems.length > 0) {
-        setSaveStage('AI is ranking the strongest items…');
-        const analysisDate = currentIsoDate();
-        const candidates = reliableSavedItems.slice(0, 20).map((item, index) => ({
-          candidate: index + 1,
-          bureau: item.bureau,
-          category: item.negative_category,
-          balance: item.balance,
-          dateOpened: item.date_opened,
-          dateReported: item.date_reported,
-          dateLastActivity: item.date_last_activity,
-          reportedIssue: item.negative_reason,
-          parserConfidence: item.parser_confidence,
-        }));
-        const aiResponse = await fetch('/api/ai/chat-completion', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: 'OPEN_AI',
-            model: 'gpt-4o',
-            stream: false,
-            parameters: { max_completion_tokens: 1000, temperature: 0.2 },
-            messages: [
-              {
-                role: 'system',
-                content: `You review parsed credit-report items for a credit-repair business. Today's date is ${analysisDate}. Select and rank at most 5 candidates that present the strongest specific, factual, and verifiable dispute opportunities. dateOpened, dateReported, and dateLastActivity are separate fields and must never be conflated. An empty dateReported field alone is not a dispute opportunity and must not be selected. A reporting date is in the future only when it is later than ${analysisDate}; never compare it with your training cutoff. Do not select an item merely because it is negative, and never invent an inaccuracy or promise an outcome. Return JSON only: {"summary":"2 concise sentences","selections":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","why":"why this item was selected","disputeReason":"a narrow factual reason using only supplied facts","requestedAction":"investigate and correct or delete if unverifiable"}]}.`,
-              },
-              {
-                role: 'user',
-                content: `Rank the strongest candidates and explain every selection. No client name or full account number is included:\n${JSON.stringify(candidates)}`,
-              },
-            ],
-          }),
-        });
-        if (!aiResponse.ok) throw new Error('The report was saved, but AI draft generation is temporarily unavailable.');
-        const completion = await aiResponse.json();
-        const raw = completion?.choices?.[0]?.message?.content || '';
-        const opinion = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '').trim()) as { summary: string; selections: AISelection[] };
-        const selections = (opinion.selections ?? [])
-          .filter(selection => Number.isInteger(selection.candidate) && selection.candidate >= 1 && selection.candidate <= reliableSavedItems.length)
-          .filter(selection => {
-            const item = reliableSavedItems[selection.candidate - 1];
-            const explanation = `${selection.why || ''} ${selection.disputeReason || ''}`;
-            return !isUnsupportedMissingReportingDateClaim(explanation) && !isFalseFutureDateClaim(
-              item?.date_reported,
-              explanation,
-              analysisDate,
-            );
-          })
-          .slice(0, 5);
-
-        if (selections.length > 0) {
-          setSaveStage('Creating editable letter drafts…');
-          const { data: clientRecord, error: clientError } = await supabase
-            .from('staff_clients')
-            .select('id, name, email, phone, address, city, state, zip')
-            .eq('id', selectedClientId)
-            .eq('owner_id', user.id)
-            .single();
-          if (clientError) throw clientError;
-
-          const byBureau = new Map<string, Array<{ item: SavedReportItem; opinion: AISelection }>>();
-          selections.forEach(selection => {
-            const item = reliableSavedItems[selection.candidate - 1];
-            const bureau = item.bureau || 'Equifax';
-            byBureau.set(bureau, [...(byBureau.get(bureau) || []), { item, opinion: selection }]);
-          });
-
-          for (const [bureau, bureauSelections] of byBureau.entries()) {
-            const short = ({ Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' } as Record<string, string>)[bureau] || 'DL';
-            const letterId = `${short}-AI-${Math.floor(1000 + Math.random() * 9000)}`;
-            const rationale = `${opinion.summary}\n\n${bureauSelections.map(({ item, opinion: selected }) => `#${selected.rank} ${item.creditor_name || 'Reported item'} (${selected.strength}): ${selected.why}`).join('\n')}`;
-            const letterContent = buildAutomaticDraft({ client: clientRecord, bureau, letterId, selections: bureauSelections });
-            const { error: letterError } = await supabase.from('dispute_letters').insert({
-              owner_id: user.id,
-              client_id: selectedClientId,
-              workspace_id: workspaceId,
-              letter_id: letterId,
-              client_name: clientRecord.name,
-              bureau,
-              items_count: bureauSelections.length,
-              round: 1,
-              sent_date: null,
-              response_due_date: null,
-              days_remaining: 0,
-              letter_status: 'draft',
-              template: 'AI-ranked FCRA Section 611',
-              auto_generated: true,
-              dispute_reason: rationale,
-              priority: bureauSelections.some(({ opinion: selected }) => selected.strength === 'Strong') ? 'high' : 'medium',
-              letter_content: letterContent,
-              generated_at: new Date().toISOString(),
-              generation_error: null,
-            });
-            if (letterError) throw letterError;
-            const selectedIds = bureauSelections.map(({ item }) => item.id);
-            await supabase.from('negative_items').update({ dispute_status: 'generated', is_selected: true, tag_status: 'dispute' }).in('id', selectedIds).eq('owner_id', user.id);
-            generatedLetters++;
-          }
-        }
-      }
+      const generatedLetters = 0;
 
       if (lowConfidence) {
         toast.warning(`Report saved at ${parsedReport.overallConfidence}% confidence. All ${parsedReport.accounts.length} accounts were preserved and are available for selection.`);
@@ -1361,12 +1167,6 @@ export default function CreditReportImportContent() {
         draft_letters_created: generatedLetters,
         authenticated: true,
       });
-
-      if (generatedLetters > 0) {
-        toast.success(`${generatedLetters} AI-ranked letter draft${generatedLetters === 1 ? '' : 's'} created and ready for review.`);
-        router.push(`/dispute-letter-management?autoGenerated=${generatedLetters}`);
-        return;
-      }
 
       router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
     } catch (err: any) {
@@ -1411,7 +1211,7 @@ export default function CreditReportImportContent() {
           <div className="page-header mb-0">
             <div className="max-w-3xl">
               <div className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-success">
-                AI credit report import
+                Structured credit report import
               </div>
               <h1 className="page-title mt-3">
                 Import credit report

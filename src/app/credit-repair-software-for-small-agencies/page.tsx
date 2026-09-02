@@ -34,7 +34,7 @@ export default function SmallAgencySoftwarePage() {
           <Link href="/" className="font-bold text-lg">FixMy.Money</Link>
           <div className="flex gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-700 hover:text-slate-900">Pricing</Link>
-            <Link href="/demo-mode" className="text-sm font-medium text-slate-700 hover:text-slate-900">Demo</Link>
+            <Link href="/product-tour" className="text-sm font-medium text-slate-700 hover:text-slate-900">Product Tour</Link>
           </div>
         </div>
       </header>
@@ -70,13 +70,12 @@ export default function SmallAgencySoftwarePage() {
             <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">Plans for Every Stage</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-              { name: PLANS.starter.name, id: PLANS.starter.id, price: `$${PLANS.starter.monthlyPrice}/mo`, clients: `Up to ${PLANS.starter.maxClients} profiles`, team: `${PLANS.starter.maxTeamMembers} user`, features: PLANS.starter.features.slice(3, 8) },
-              { name: PLANS.professional.name, id: PLANS.professional.id, price: `$${PLANS.professional.monthlyPrice}/mo`, clients: `Up to ${PLANS.professional.maxClients} active clients`, team: `Up to ${PLANS.professional.maxTeamMembers} team members`, features: PLANS.professional.features.slice(3, 8) }].
+              { name: PLANS.starter.name, id: PLANS.starter.id, price: `$${PLANS.starter.monthlyPrice}/mo`, features: PLANS.starter.features },
+              { name: PLANS.professional.name, id: PLANS.professional.id, price: `$${PLANS.professional.monthlyPrice}/mo`, features: PLANS.professional.features }].
               map((plan, i) =>
               <div key={i} className="bg-white rounded-xl border border-slate-200 p-8">
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                   <p className="text-3xl font-extrabold text-blue-600 mb-4">{plan.price}</p>
-                  <p className="text-sm text-slate-600 mb-4">{plan.clients} • {plan.team}</p>
                   <ul className="space-y-3 mb-8">
                     {plan.features.map((f, j) =>
                   <li key={j} className="flex items-center gap-2 text-sm text-slate-700">

@@ -6,6 +6,23 @@ import { ACTIVE_SUBSCRIPTION_STATUSES } from '@/lib/subscription/access';
 
 const MAINTENANCE_MODE = true;
 const MAINTENANCE_PATH = '/maintenance';
+const MAINTENANCE_PASSTHROUGH_PATHS = new Set([
+  '/auth/callback',
+  '/forgot-password',
+  '/reset-password',
+]);
+
+export function shouldRedirectForMaintenance(
+  request: NextRequest,
+  maintenanceMode = MAINTENANCE_MODE
+): boolean {
+  const { pathname } = request.nextUrl;
+  if (!maintenanceMode || pathname === MAINTENANCE_PATH) return false;
+  if (pathname.startsWith('/api/') || MAINTENANCE_PASSTHROUGH_PATHS.has(pathname)) return false;
+
+  const acceptsHtml = request.headers.get('accept')?.includes('text/html') ?? false;
+  return (request.method === 'GET' || request.method === 'HEAD') && acceptsHtml;
+}
 
 function getProjectRef(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -63,16 +80,10 @@ const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const acceptsHtml = request.headers.get('accept')?.includes('text/html') ?? false;
 
   // Keep API callbacks and static assets running while temporarily replacing
   // every visitor-facing page with the maintenance notice.
-  if (
-    MAINTENANCE_MODE &&
-    pathname !== MAINTENANCE_PATH &&
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    acceptsHtml
-  ) {
+  if (shouldRedirectForMaintenance(request)) {
     const url = request.nextUrl.clone();
     url.pathname = MAINTENANCE_PATH;
     url.search = '';

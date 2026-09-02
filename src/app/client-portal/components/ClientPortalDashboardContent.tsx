@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Bell, FileText, Upload, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp, X, Paperclip, RefreshCw } from 'lucide-react';
+import { LogOut, Bell, FileText, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp, X, RefreshCw } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { createClient } from '@/lib/supabase/client';
 
@@ -89,8 +89,6 @@ function StatusBadge({ status }: { status: string }) {
 export default function ClientPortalDashboardContent() {
   const router = useRouter();
   const supabase = createClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [account, setAccount] = useState<ClientAccount | null>(null);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -99,9 +97,6 @@ export default function ClientPortalDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'disputes' | 'updates' | 'documents'>('disputes');
   const [expandedDispute, setExpandedDispute] = useState<string | null>(null);
-  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState('');
-  const [uploadSuccess, setUploadSuccess] = useState('');
   const providers = DEFAULT_PROVIDERS.filter(p => p.isVisible);
 
   useEffect(() => {
@@ -165,55 +160,6 @@ export default function ClientPortalDashboardContent() {
   async function markUpdateRead(updateId: string) {
     await supabase.from('client_updates').update({ is_read: true }).eq('id', updateId);
     setUpdates((prev) => prev.map((u) => u.id === updateId ? { ...u, is_read: true } : u));
-  }
-
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !account) return;
-    setUploadError('');
-    setUploadSuccess('');
-
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      setUploadError('Only PDF, JPG, PNG, and WEBP files are allowed.');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File size must be under 10 MB.');
-      return;
-    }
-
-    try {
-      const filePath = `client-documents/${account.id}/${Date.now()}-${file.name}`;
-      const { error: uploadErr } = await supabase.storage
-        .from('client-documents')
-        .upload(filePath, file, { upsert: false });
-
-      let fileUrl = filePath;
-      if (!uploadErr) {
-        const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(filePath);
-        fileUrl = urlData?.publicUrl || filePath;
-      }
-
-      const { error: dbErr } = await supabase.from('client_documents').insert({
-        client_id: account.id,
-        dispute_id: uploadingFor || null,
-        file_name: file.name,
-        file_url: fileUrl,
-        file_size: file.size,
-        mime_type: file.type,
-        doc_status: 'uploaded',
-      });
-
-      if (dbErr) throw dbErr;
-      setUploadSuccess(`"${file.name}" uploaded successfully.`);
-      setUploadingFor(null);
-      loadData();
-    } catch (err: any) {
-      setUploadError(err?.message || 'Upload failed. Please try again.');
-    }
-
-    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function handleSignOut() {
@@ -320,25 +266,12 @@ export default function ClientPortalDashboardContent() {
 
             <AffiliateDisclosure />
 
-            <div className="flex items-center gap-3 pt-1">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
+            <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
+              <AlertCircle size={16} className="text-warning shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground">
+                Secure document upload is temporarily unavailable. Contact your credit professional for an approved delivery method.
+              </p>
             </div>
-
-            <button
-              onClick={() => {
-                setActiveTab('documents');
-                setUploadingFor(null);
-                setUploadError('');
-                setUploadSuccess('');
-                fileInputRef.current?.click();
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all"
-            >
-              <Upload size={16} />
-              Upload Existing Report
-            </button>
           </div>
         )}
 
@@ -450,21 +383,10 @@ export default function ClientPortalDashboardContent() {
                           </div>
                         )}
 
-                        {/* Upload for this dispute */}
+                        {/* Document upload is intentionally unavailable during containment. */}
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Upload Documents</p>
-                          <button
-                            onClick={() => {
-                              setUploadingFor(dispute.id);
-                              setUploadError('');
-                              setUploadSuccess('');
-                              fileInputRef.current?.click();
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm text-muted-foreground hover:text-primary transition-all"
-                          >
-                            <Paperclip size={14} />
-                            Attach a document for this case
-                          </button>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Case Documents</p>
+                          <p className="text-sm text-muted-foreground">Secure document upload is temporarily unavailable.</p>
                         </div>
                       </div>
                     )}
@@ -521,36 +443,13 @@ export default function ClientPortalDashboardContent() {
         {activeTab === 'documents' && (
           <div className="space-y-4">
             {/* Upload area */}
-            <div className="bg-card border-2 border-dashed border-border rounded-xl p-6 text-center">
-              <Upload size={28} className="mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm font-medium text-foreground mb-1">Upload a document</p>
-              <p className="text-xs text-muted-foreground mb-3">PDF, JPG, PNG or WEBP · Max 10 MB</p>
-              <button
-                onClick={() => {
-                  setUploadingFor(null);
-                  setUploadError('');
-                  setUploadSuccess('');
-                  fileInputRef.current?.click();
-                }}
-                className="btn-primary px-5 py-2 text-sm inline-flex items-center gap-2"
-              >
-                <Upload size={14} />
-                Choose File
-              </button>
+            <div className="bg-warning/10 border border-warning/30 rounded-xl p-6 text-center">
+              <AlertCircle size={28} className="mx-auto text-warning mb-2" />
+              <p className="text-sm font-medium text-foreground mb-1">Document upload temporarily unavailable</p>
+              <p className="text-xs text-muted-foreground">
+                Uploads will return after private storage, signed access, server-side validation, and reliable metadata persistence are in place.
+              </p>
             </div>
-
-            {uploadError && (
-              <div className="rounded-lg bg-danger/10 border border-danger/20 px-4 py-3 flex items-start gap-2">
-                <AlertCircle size={15} className="text-danger shrink-0 mt-0.5" />
-                <p className="text-sm text-danger">{uploadError}</p>
-              </div>
-            )}
-            {uploadSuccess && (
-              <div className="rounded-lg bg-success/10 border border-success/20 px-4 py-3 flex items-start gap-2">
-                <CheckCircle2 size={15} className="text-success shrink-0 mt-0.5" />
-                <p className="text-sm text-success">{uploadSuccess}</p>
-              </div>
-            )}
 
             {/* Document list */}
             {documents.length === 0 ? (
@@ -582,15 +481,6 @@ export default function ClientPortalDashboardContent() {
           </div>
         )}
       </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png,.webp"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
 
       {/* Live Chat Widget */}
       {account && (

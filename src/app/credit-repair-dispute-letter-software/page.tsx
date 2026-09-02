@@ -2,14 +2,14 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
-import { Brain, ArrowRight, AlertTriangle } from 'lucide-react';
+import { FileText, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export const metadata: Metadata = createSeoMetadata("/credit-repair-dispute-letter-software");
 
 const faqs = [
-{ q: 'How does AI dispute generation work?', a: 'Upload a credit report. AI analyzes it and generates draft dispute letters for each negative item. Your staff reviews, customizes, and approves before sending.' },
-{ q: 'Are AI-generated letters CROA-compliant?', a: 'FixMy.Money generates CROA-aware dispute letters. Your staff must review and approve all letters before sending. Compliance is your responsibility.' },
-{ q: 'Can I customize the dispute letters?', a: 'Yes. Edit AI-generated letters before sending. Add custom language, specific dispute reasons, and supporting documentation references.' },
+{ q: 'How are dispute letters created?', a: 'An authorized user selects reviewed report items, dispute reasons, and supporting details. FixMy.Money builds an editable template-based draft for human review.' },
+{ q: 'Are the letters CROA-compliant?', a: 'FixMy.Money provides editable workflow templates. Your staff must review each letter and remains responsible for legal compliance.' },
+{ q: 'Can I customize the dispute letters?', a: 'Yes. Edit drafts before sending and add appropriate language, specific dispute reasons, and supporting documentation references.' },
 { q: 'What bureaus does it support?', a: 'FixMy.Money supports dispute letters for Equifax, Experian, and TransUnion.' }];
 
 
@@ -21,7 +21,7 @@ export default function DisputeLetterSoftwarePage() {
           <Link href="/" className="font-bold text-lg">FixMy.Money</Link>
           <div className="flex gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-700 hover:text-slate-900">Pricing</Link>
-            <Link href="/demo-mode" className="text-sm font-medium text-slate-700 hover:text-slate-900">Demo</Link>
+            <Link href="/product-tour" className="text-sm font-medium text-slate-700 hover:text-slate-900">Product Tour</Link>
           </div>
         </div>
       </header>
@@ -31,21 +31,21 @@ export default function DisputeLetterSoftwarePage() {
         <section className="py-20 bg-gradient-to-br from-slate-900 to-blue-950">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="inline-flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-bold px-4 py-2 rounded-full mb-6">
-              <Brain size={14} />
-              AI-Assisted Drafts
+              <FileText size={14} />
+              Guided Letter Drafts
             </div>
             <h1 className="text-5xl font-extrabold text-white mb-4 leading-tight">
               Credit Repair Dispute Letter Software
             </h1>
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              AI-assisted dispute letter generation. Generate draft letters in seconds. Your staff reviews, approves, and sends.
+              Build editable dispute letter drafts from reviewed account data. Your staff reviews, approves, and sends.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup?plan=professional" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
                 Start $1 Trial
               </Link>
-              <Link href="/demo-mode" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
-                View Demo
+              <Link href="/product-tour" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
+                View Product Tour
               </Link>
             </div>
           </div>
@@ -57,12 +57,12 @@ export default function DisputeLetterSoftwarePage() {
             <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">Dispute Letter Features</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-              { title: 'AI-Assisted Drafts', desc: 'Generate dispute letter drafts for each negative item in seconds.' },
-              { title: 'Staff Review Required', desc: 'All AI-generated content must be reviewed and approved by your staff before sending.' },
-              { title: 'Customizable Templates', desc: 'Edit AI-generated letters. Add custom language and supporting documentation.' },
-              { title: 'Multi-Bureau Support', desc: 'Generate letters for Equifax, Experian, and TransUnion.' },
-              { title: 'Compliance-Aware', desc: 'FixMy.Money generates CROA-aware dispute letters. Your staff ensures compliance.' },
-              { title: 'Batch Generation', desc: 'Generate multiple dispute letters at once for efficiency.' }].
+              { title: 'Reviewed-Item Drafts', desc: 'Build drafts from report items and dispute reasons selected by an authorized user.' },
+              { title: 'Staff Review Required', desc: 'Every draft must be reviewed and approved by your staff before sending.' },
+              { title: 'Customizable Templates', desc: 'Edit letter language and add appropriate supporting-document references.' },
+              { title: 'Multi-Bureau Support', desc: 'Prepare letters for Equifax, Experian, and TransUnion.' },
+              { title: 'Documented Review', desc: 'Keep the selected items and review state connected to the letter workflow.' },
+              { title: 'Print and Text Export', desc: 'Print reviewed letters or download them as text.' }].
               map((f, i) =>
               <div key={i} className="bg-white rounded-xl border border-slate-200 p-6">
                   <h3 className="font-bold text-slate-900 mb-2">{f.title}</h3>
@@ -96,7 +96,7 @@ export default function DisputeLetterSoftwarePage() {
               <div>
                 <p className="text-sm font-bold text-amber-800 mb-2">Legal Disclaimer</p>
                 <p className="text-sm text-amber-700 leading-relaxed">
-                  FixMy.Money generates AI-assisted dispute letter drafts. All AI-generated content must be reviewed, customized, and approved by your staff before sending. FixMy.Money does not provide legal advice. Users are responsible for compliance with CROA, FCRA, TSR, and applicable state laws.
+                  FixMy.Money provides editable letter templates and workflow tools. Every letter must be reviewed, customized, and approved by your staff before sending. FixMy.Money does not provide legal advice. Users are responsible for compliance with CROA, FCRA, TSR, and applicable state laws.
                 </p>
               </div>
             </div>

@@ -6,7 +6,7 @@ import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { hasActiveSubscription } from '@/lib/subscription/access';
-import { LayoutDashboard, Users, FileText, CreditCard, ChevronLeft, ChevronRight, Settings, LogOut, ChevronDown, ScanSearch, Target, Bell, User, Shield, CheckCircle2, X, Menu, MessageSquare, BookOpen, BarChart3, Calendar, Link2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, CreditCard, ChevronLeft, ChevronRight, LogOut, ChevronDown, ScanSearch, Target, Bell, Shield, CheckCircle2, X, Menu, MessageSquare, BookOpen, BarChart3, Calendar, Link2 } from 'lucide-react';
 
 const NAV_SECTIONS = [
   {
@@ -250,22 +250,6 @@ export default function Sidebar() {
 
       {/* User Profile + Logout */}
       <div className="border-t border-border p-2">
-        {/* Settings */}
-        <div className="relative group mb-0.5">
-          <Link
-            href="/workspace-setup"
-            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full ${collapsed ? 'justify-center px-0 py-2.5' : ''}`}
-          >
-            <Settings size={17} className="shrink-0" />
-            {!collapsed && <span className="flex-1 text-left">Settings</span>}
-          </Link>
-          {collapsed && (
-            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-              Settings
-            </div>
-          )}
-        </div>
-
         {/* Notifications */}
         {hasWorkspaceAccess && (
           <div className="relative group mb-0.5">
@@ -309,10 +293,6 @@ export default function Sidebar() {
                 <p className="text-xs text-slate-400 truncate mt-0.5">{displayCompany}</p>
               </div>
               <div className="py-1">
-                <Link href="/workspace-setup" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                  <User size={15} className="text-slate-400" />
-                  Profile & Settings
-                </Link>
                 <Link href="/billing-subscriptions" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                   <CreditCard size={15} className="text-slate-400" />
                   Billing & Plans

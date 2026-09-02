@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { FileText, Download, Send, Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Printer, MailCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
 
 interface RoundItem {
   id: string;
@@ -327,8 +328,8 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
   const printLetter = (letter: GeneratedLetter) => {
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(`<pre style="font-family:monospace;font-size:12px;padding:40px;max-width:700px;margin:0 auto;">${letter.letterContent}</pre>`);
-    win.document.close();
+    win.opener = null;
+    renderLetterForPrint(win.document, letter.letterContent, `Dispute Letter ${letter.bureau}`);
     win.print();
   };
 

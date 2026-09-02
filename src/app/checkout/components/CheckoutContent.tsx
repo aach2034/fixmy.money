@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle2, Shield, Loader2, AlertCircle, RefreshCw, ArrowRight, Check } from 'lucide-react';
+import { CheckCircle2, Shield, Loader2, AlertCircle, ArrowRight, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
@@ -31,7 +31,6 @@ export default function CheckoutContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [restoreLoading, setRestoreLoading] = useState(false);
   const [error, setError] = useState('');
   const checkoutCancelledTracked = useRef(false);
   const emailVerifiedTracked = useRef(false);
@@ -171,37 +170,6 @@ export default function CheckoutContent() {
     }
   };
 
-  const handleRestorePurchase = async () => {
-    if (!user) return;
-    setRestoreLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/stripe/restore-purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      });
-
-      const data = await res.json();
-
-      if (data.activated) {
-        router.replace('/dashboard');
-        return;
-      }
-
-      if (data.message) {
-        setError(data.message);
-      } else {
-        setError('No active payment found. Please complete checkout or contact support.');
-      }
-    } catch {
-      setError('Could not check payment status. Please try again.');
-    } finally {
-      setRestoreLoading(false);
-    }
-  };
-
   if (authLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -333,20 +301,11 @@ export default function CheckoutContent() {
             <span>Secured by Stripe · {TRIAL_CONFIG.label}</span>
           </div>
 
-          {/* Restore Purchase */}
+          {/* Purchase restoration is intentionally unavailable during containment. */}
           <div className="border-t border-gray-200 pt-5 text-center">
-            <p className="text-xs text-gray-500 mb-2">Already paid but not activated?</p>
-            <button
-              onClick={handleRestorePurchase}
-              disabled={restoreLoading}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline disabled:opacity-60"
-            >
-              {restoreLoading ? (
-                <><Loader2 size={14} className="animate-spin" /> Checking payment status…</>
-              ) : (
-                <><RefreshCw size={14} /> Restore Purchase / Check Payment Status</>
-              )}
-            </button>
+            <p className="text-xs text-gray-500">
+              If checkout completed but access is missing, contact support. Automatic purchase restoration is temporarily unavailable.
+            </p>
           </div>
         </div>
       </div>

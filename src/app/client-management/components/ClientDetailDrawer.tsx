@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { X, Mail, Phone, FileText, CheckCircle2, Brain, Sparkles, AlertTriangle, TrendingUp, Calendar, Shield, ChevronRight, Plus, User, Upload, RefreshCw } from 'lucide-react';
+import { X, Mail, Phone, FileText, CheckCircle2, AlertTriangle, TrendingUp, Calendar, Shield, ChevronRight, Plus, User, Upload, RefreshCw } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Link from 'next/link';
 import ImportWizard from '@/components/ImportWizard';
@@ -19,15 +19,7 @@ interface Client {
 }
 
 const TIMELINE: Array<{ id: string; date: string; event: string; detail: string; type: string }> = [];
-const AI_RISK_FACTORS: Array<{ label: string; severity: string }> = [];
-
-const SEVERITY_COLORS: Record<string, string> = {
-  high: 'bg-red-100 text-red-700',
-  medium: 'bg-amber-100 text-amber-700',
-  low: 'bg-slate-100 text-slate-600',
-};
-
-const TABS = ['Overview', 'Disputes', 'AI Analysis', 'Notes', 'Billing'] as const;
+const TABS = ['Overview', 'Disputes', 'Notes', 'Billing'] as const;
 type Tab = typeof TABS[number];
 
 type ClientAddressUpdate = Pick<Client, 'id' | 'address' | 'city' | 'state' | 'zip'>;
@@ -170,7 +162,6 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
               }`}
             >
               {t}
-              {t === 'AI Analysis' && <span className="ml-1 text-xs font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">AI</span>}
             </button>
           ))}
         </div>
@@ -289,47 +280,6 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
             </div>
           )}
 
-          {/* AI ANALYSIS */}
-          {activeTab === 'AI Analysis' && (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-br from-violet-50 to-white border border-violet-100 rounded-2xl p-5">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
-                    <Brain size={18} className="text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">AI Credit Summary</p>
-                    <p className="text-xs text-slate-500">Powered by FixMy AI</p>
-                  </div>
-                  <span className="ml-auto text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">AI</span>
-                </div>
-                <p className="text-sm text-slate-700 leading-relaxed">Run an analysis after importing a verified credit report. No estimated outcomes or sample recommendations are shown.</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Risk Factors</p>
-                <div className="space-y-2">
-                  {AI_RISK_FACTORS.map(rf => (
-                    <div key={rf.label} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                      <AlertTriangle size={14} className={rf.severity === 'high' ? 'text-red-500' : rf.severity === 'medium' ? 'text-amber-500' : 'text-slate-400'} />
-                      <span className="text-sm text-slate-700 flex-1">{rf.label}</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${SEVERITY_COLORS[rf.severity]}`}>{rf.severity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="group flex items-center justify-between rounded-xl bg-primary p-4 text-white transition-colors hover:bg-green-700">
-                <div className="flex items-center gap-3">
-                  <Sparkles size={18} />
-                  <div>
-                    <p className="text-sm font-bold">Run Full AI Analysis</p>
-                    <p className="text-xs text-green-100">Generate complete action plan</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
-          )}
-
           {/* NOTES */}
           {activeTab === 'Notes' && (
             <div className="space-y-3">
@@ -363,13 +313,9 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
 
         {/* ── FOOTER ACTIONS ── */}
         <div className="border-t border-slate-200 p-4 flex gap-2 bg-slate-50">
-          <Link href={`/dispute-letter-management?client=${client.id}`} className="flex-1 btn-primary py-2.5 text-center text-sm rounded-xl flex items-center justify-center gap-2">
+          <Link href={`/dispute-letter-management?client=${client.id}`} className="w-full btn-primary py-2.5 text-center text-sm rounded-xl flex items-center justify-center gap-2">
             <FileText size={14} />
             Generate Letter
-          </Link>
-          <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
-            <Brain size={14} />
-            AI Analysis
           </Link>
         </div>
       </div>

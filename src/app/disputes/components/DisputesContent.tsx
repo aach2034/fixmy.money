@@ -428,7 +428,7 @@ export default function DisputesContent() {
             </Link>
           </div>
           <div className="flex items-center gap-6 mt-2 text-xs text-muted-foreground">
-            {['Upload Report', 'AI Parses Items', 'Disputes Created', 'Generate Letters'].map((step, i) => (
+            {['Import Report', 'Parser Extracts Items', 'Review Findings', 'Generate Letters'].map((step, i) => (
               <React.Fragment key={`step-${i}`}>
                 <span className="flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{i + 1}</span>

@@ -50,13 +50,13 @@ export default function ClientPortalLoginContent() {
             Track your credit repair progress
           </h2>
           <p className="text-blue-100 text-lg leading-relaxed">
-            View your dispute status, follow your case timeline, receive real-time updates, and upload required documents — all in one secure place.
+            View your dispute status, follow your case timeline, and receive case updates in one place.
           </p>
         </div>
         <div className="relative z-10 space-y-4">
           {[
             { icon: Shield, text: 'Secure access to your dispute cases' },
-            { icon: FileText, text: 'Upload supporting documents directly' },
+            { icon: FileText, text: 'Review documents already attached to your cases' },
             { icon: Bell, text: 'Receive automated status updates' },
           ].map((item) => {
             const ItemIcon = item.icon;
@@ -143,33 +143,6 @@ export default function ClientPortalLoginContent() {
               )}
             </button>
           </form>
-
-          {/* Demo credentials */}
-          <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Demo Access</p>
-            <div className="space-y-1">
-              <p className="text-sm text-foreground">
-                <span className="text-muted-foreground">Email:</span>{' '}
-                <button
-                  type="button"
-                  onClick={() => setEmail('client@demo.com')}
-                  className="font-mono text-primary hover:underline"
-                >
-                  client@demo.com
-                </button>
-              </p>
-              <p className="text-sm text-foreground">
-                <span className="text-muted-foreground">Password:</span>{' '}
-                <button
-                  type="button"
-                  onClick={() => setPassword('client123')}
-                  className="font-mono text-primary hover:underline"
-                >
-                  client123
-                </button>
-              </p>
-            </div>
-          </div>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             This portal is for clients only.{' '}

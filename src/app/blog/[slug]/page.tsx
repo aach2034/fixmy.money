@@ -313,7 +313,7 @@ export default async function BlogArticlePage({ params }: Props) {
                 <Link href={primaryCtaHref} className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   {primaryCtaLabel} <ArrowRight size={14} />
                 </Link>
-                <Link href="/demo-mode" className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+                <Link href="/product-tour" className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   Explore Demo
                 </Link>
               </div>
