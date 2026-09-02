@@ -1,9 +1,9 @@
 # FMM-003 Phase 1B: production-shaped forward-upgrade rehearsal
 
-Date: 2026-09-02  
-Production baseline: Sites v159 at `a0088ee117e893fa62fa0d8449da64ce02499015`  
-Phase 1A source commit: `ff4acdf74c7598fd2b593537f139c1afd47b80f2`  
-Phase 1B correction commit: `fdb4a21` (`Fix FMM-003 production-shaped upgrades`)  
+Date: 2026-09-02
+Production baseline: Sites v159 at `a0088ee117e893fa62fa0d8449da64ce02499015`
+Phase 1A source commit: `ff4acdf74c7598fd2b593537f139c1afd47b80f2`
+Phase 1B correction commit: `fdb4a21` (`Fix FMM-003 production-shaped upgrades`)
 Source branch: `codex/fmm-003-rls-reconciliation`
 
 ## Outcome

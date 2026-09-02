@@ -734,4 +734,3 @@ CREATE POLICY webhook_failures_no_delete ON public.webhook_failures AS PERMISSIV
 CREATE POLICY users_manage_own_workspaces ON public.workspaces AS PERMISSIVE FOR ALL TO authenticated USING ((owner_id = ( SELECT auth.uid() AS uid))) WITH CHECK ((owner_id = ( SELECT auth.uid() AS uid)));
 
 COMMIT;
-
