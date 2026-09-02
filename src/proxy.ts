@@ -4,6 +4,9 @@ import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-
 import { PRIVATE_ROUTE_PREFIXES } from '@/lib/seo/config';
 import { ACTIVE_SUBSCRIPTION_STATUSES } from '@/lib/subscription/access';
 
+const MAINTENANCE_MODE = true;
+const MAINTENANCE_PATH = '/maintenance';
+
 function getProjectRef(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   return url.match(/https:\/\/([^.]+)\./)?.[1] ?? '';
@@ -59,6 +62,35 @@ const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
 const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const acceptsHtml = request.headers.get('accept')?.includes('text/html') ?? false;
+
+  // Keep API callbacks and static assets running while temporarily replacing
+  // every visitor-facing page with the maintenance notice.
+  if (
+    MAINTENANCE_MODE &&
+    pathname !== MAINTENANCE_PATH &&
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    acceptsHtml
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = MAINTENANCE_PATH;
+    url.search = '';
+
+    const response = NextResponse.redirect(url, 307);
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    response.headers.set('Retry-After', '3600');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    return response;
+  }
+
+  if (pathname === MAINTENANCE_PATH) {
+    const response = NextResponse.next({ request });
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    return response;
+  }
+
   // PHASE 1 GUARD: If FixMy.Money is misconfigured to use the Partix database,
   // return a 503 with a clear message instead of silently contaminating Partix data.
   if (isPartixDatabase()) {
@@ -81,7 +113,6 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
   if (!hasSupabaseConfig) {
-    const { pathname } = request.nextUrl;
     const protectedPaths = [
       '/dashboard',
       '/clients',
@@ -149,7 +180,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   const shouldNoIndex = PRIVATE_ROUTE_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`)) || request.nextUrl.searchParams.has('filter') || request.nextUrl.searchParams.has('page') || request.nextUrl.searchParams.has('sort');
 
   // Client portal routes — redirect to client portal login if not authenticated
