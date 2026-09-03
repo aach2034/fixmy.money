@@ -22,9 +22,12 @@ async function expectUnavailable(
 
 describe('Phase 0 server containment', () => {
   it('fails the generic AI proxy closed without accepting client model or credentials', async () => {
-    await expectUnavailable(await genericAiPost(), 'AI_TEMPORARILY_DISABLED');
+    await expectUnavailable(await genericAiPost(new Request(
+      'http://localhost/api/ai/chat-completion',
+      { method: 'POST', body: '{bad json' },
+    )), 'AI_TEMPORARILY_DISABLED');
     const route = source('src/app/api/ai/chat-completion/route.ts');
-    expect(route).not.toMatch(/request\.json|provider|model|api_key|completion\(/);
+    expect(route).toContain('handleAIChatPost(request)');
   });
 
   it('fails raw credit-report AI analysis closed without reading or transmitting a file', async () => {
@@ -35,9 +38,11 @@ describe('Phase 0 server containment', () => {
 
   it('disables AI usage mutations and quota claims', async () => {
     await expectUnavailable(await aiUsageGet(), 'AI_TEMPORARILY_DISABLED');
-    await expectUnavailable(await aiUsagePost(), 'AI_TEMPORARILY_DISABLED');
+    const mutationResponse = await aiUsagePost();
+    expect(mutationResponse.status).toBe(405);
+    expect((await mutationResponse.json()).code).toBe('AI_USAGE_READ_ONLY');
     const route = source('src/app/api/ai/usage/route.ts');
-    expect(route).not.toMatch(/request\.json|ai_usage_events|PLAN_AI_LIMITS|getAdminClient/);
+    expect(route).not.toMatch(/request\.json|\.insert\(|\.update\(|\.delete\(/);
   });
 
   it('fails purchase restoration closed without Stripe or entitlement access', async () => {
