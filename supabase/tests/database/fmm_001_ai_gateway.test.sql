@@ -9,6 +9,20 @@ SELECT ok(
 );
 
 SELECT ok(
+  to_regclass('public.ai_usage_events_legacy_fmm001') IS NOT NULL,
+  'legacy AI usage ledger is preserved'
+);
+
+SELECT ok(
+  NOT has_table_privilege(
+    'authenticated',
+    'public.ai_usage_events_legacy_fmm001',
+    'SELECT,INSERT,UPDATE,DELETE'
+  ),
+  'authenticated clients cannot access the preserved legacy ledger'
+);
+
+SELECT ok(
   (SELECT relation.relrowsecurity
    FROM pg_class AS relation
    JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace

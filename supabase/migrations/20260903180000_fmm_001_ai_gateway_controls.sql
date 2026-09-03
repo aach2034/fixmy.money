@@ -1,4 +1,55 @@
 -- Generated with Supabase CLI; version ordered after the already-applied FMM-004 migrations.
+DO $$
+BEGIN
+  IF to_regclass('public.ai_usage_events_legacy_fmm001') IS NOT NULL THEN
+    RAISE EXCEPTION 'FMM-001 legacy AI usage archive already exists';
+  END IF;
+
+  IF to_regclass('public.ai_usage_events') IS NULL
+     OR NOT EXISTS (
+       SELECT 1
+       FROM pg_catalog.pg_attribute
+       WHERE attrelid = 'public.ai_usage_events'::regclass
+         AND attname = 'user_id'
+         AND NOT attisdropped
+     )
+     OR NOT EXISTS (
+       SELECT 1
+       FROM pg_catalog.pg_attribute
+       WHERE attrelid = 'public.ai_usage_events'::regclass
+         AND attname = 'feature'
+         AND NOT attisdropped
+     )
+  THEN
+    RAISE EXCEPTION 'expected legacy AI usage table shape was not found';
+  END IF;
+
+  LOCK TABLE public.ai_usage_events IN ACCESS EXCLUSIVE MODE;
+  ALTER TABLE public.ai_usage_events RENAME TO ai_usage_events_legacy_fmm001;
+  ALTER TABLE public.ai_usage_events_legacy_fmm001
+    RENAME CONSTRAINT ai_usage_events_pkey TO ai_usage_events_legacy_fmm001_pkey;
+END;
+$$;
+
+DROP POLICY IF EXISTS ai_usage_events_select_members
+  ON public.ai_usage_events_legacy_fmm001;
+DROP POLICY IF EXISTS "ai_usage_events_select"
+  ON public.ai_usage_events_legacy_fmm001;
+DROP POLICY IF EXISTS "ai_usage_events_insert"
+  ON public.ai_usage_events_legacy_fmm001;
+DROP POLICY IF EXISTS "ai_usage_events_no_update"
+  ON public.ai_usage_events_legacy_fmm001;
+DROP POLICY IF EXISTS "ai_usage_events_no_delete"
+  ON public.ai_usage_events_legacy_fmm001;
+
+ALTER TABLE public.ai_usage_events_legacy_fmm001 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.ai_usage_events_legacy_fmm001
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.ai_usage_events_legacy_fmm001 TO service_role;
+
+COMMENT ON TABLE public.ai_usage_events_legacy_fmm001 IS
+  'Read-only archive of the pre-FMM-001 AI usage ledger; retained without data loss.';
+
 CREATE TABLE public.ai_usage_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE RESTRICT,

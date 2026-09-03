@@ -344,6 +344,12 @@ describe("FMM-001 database guardrails", () => {
     const sql = fs.readFileSync(path.join(migrations, filename!), "utf8");
     expect(sql).toContain("ENABLE ROW LEVEL SECURITY");
     expect(sql).toContain(
+      "ALTER TABLE public.ai_usage_events RENAME TO ai_usage_events_legacy_fmm001",
+    );
+    expect(sql).toContain(
+      "REVOKE ALL ON TABLE public.ai_usage_events_legacy_fmm001",
+    );
+    expect(sql).toContain(
       "REVOKE ALL ON TABLE public.ai_usage_events FROM PUBLIC, anon, authenticated",
     );
     expect(sql).toContain("pg_catalog.pg_advisory_xact_lock");
