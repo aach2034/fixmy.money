@@ -361,5 +361,13 @@ describe("FMM-001 database guardrails", () => {
     expect(sql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.reserve_ai_usage[\s\S]*TO service_role/,
     );
+
+    const actorIndex = fs.readFileSync(
+      path.join(migrations, "20260903181000_fmm_001_ai_usage_actor_index.sql"),
+      "utf8",
+    );
+    expect(actorIndex).toContain(
+      "ON public.ai_usage_events (actor_id)",
+    );
   });
 });

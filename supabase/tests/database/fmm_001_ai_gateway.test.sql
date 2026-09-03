@@ -47,6 +47,17 @@ SELECT ok(
 );
 
 SELECT ok(
+  EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_usage_events'
+      AND indexname = 'ai_usage_events_actor_id_idx'
+  ),
+  'AI usage actor foreign key has a covering index'
+);
+
+SELECT ok(
   NOT has_function_privilege(
     'authenticated',
     'public.reserve_ai_usage(uuid,uuid,text,text,integer,integer,integer,integer,integer,integer,integer,integer)',
