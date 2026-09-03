@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 const CONTAINMENT_CONTROLS = [
   'Raw credit-report files are not sent to external AI providers.',
   'The generic AI proxy is disabled and fails closed.',
-  'Automatic purchase restoration is disabled and cannot change entitlement.',
+  'Automatic purchase restoration is permanently removed and cannot change entitlement.',
   'Client document uploads are disabled until private storage controls are complete.',
   'Additional workspace creation and switching are disabled during authorization review.',
 ];

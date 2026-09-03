@@ -66,13 +66,25 @@ export async function logProductAnalyticsEvent(input: {
       .maybeSingle();
     profile = data;
   } else if (input.stripeCustomerId) {
-    const { data } = await admin
-      .from('user_profiles')
-      .select('id,account_type,utm_source,utm_campaign,landing_page,last_utm_source,last_utm_campaign,last_landing_page')
+    const { data: entitlement } = await admin
+      .from('workspace_entitlements')
+      .select('workspaces!inner(owner_id)')
       .eq('stripe_customer_id', input.stripeCustomerId)
       .maybeSingle();
-    profile = data;
-    userId = String(data?.id || '');
+    const joinedWorkspace = entitlement?.workspaces as unknown as
+      | { owner_id?: string }
+      | Array<{ owner_id?: string }>
+      | null;
+    const workspace = Array.isArray(joinedWorkspace) ? joinedWorkspace[0] : joinedWorkspace;
+    userId = String(workspace?.owner_id || '');
+    if (userId) {
+      const { data } = await admin
+        .from('user_profiles')
+        .select('id,account_type,utm_source,utm_campaign,landing_page,last_utm_source,last_utm_campaign,last_landing_page')
+        .eq('id', userId)
+        .maybeSingle();
+      profile = data;
+    }
   }
 
   if (!userId) return { recorded: false, reason: 'user_not_resolved' } as const;

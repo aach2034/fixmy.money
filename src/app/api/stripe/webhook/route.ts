@@ -4,6 +4,12 @@ import { getAdminClient } from '@/lib/supabase/admin';
 import { sendTransactionalEmail, formatDate, getPlanAmount } from '@/lib/email/emailService';
 import { logProductAnalyticsEvent } from '@/lib/analytics/server';
 import { PLANS, type PlanId } from '@/lib/stripe/plans';
+import { getStripeServerClient } from '@/lib/stripe/server';
+import {
+  applyStripeSubscriptionEntitlement,
+  createSupabaseEntitlementStore,
+  type StripeSubscriptionLike,
+} from '@/lib/subscription/server';
 
 async function safeLogProductAnalyticsEvent(input: Parameters<typeof logProductAnalyticsEvent>[0]) {
   try {
@@ -11,14 +17,6 @@ async function safeLogProductAnalyticsEvent(input: Parameters<typeof logProductA
   } catch (error) {
     console.error('[Webhook] Product analytics write failed:', error instanceof Error ? error.message : 'unknown');
   }
-}
-
-function getStripeInstance(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey || secretKey === 'your-stripe-secret-key-here' || secretKey.trim() === '') {
-    throw new Error('STRIPE_SECRET_KEY is not configured.');
-  }
-  return new Stripe(secretKey);
 }
 
 function stripeObjectId(value: string | { id: string } | null | undefined): string | undefined {
@@ -45,7 +43,7 @@ function invoicePaymentIntentId(invoice: Stripe.Invoice): string | undefined {
 
 async function getCustomerInfo(customerId: string): Promise<{ email: string; name: string }> {
   try {
-    const stripe = getStripeInstance();
+    const stripe = getStripeServerClient();
     const customer = await stripe.customers.retrieve(customerId);
     if (customer.deleted) return { email: '', name: '' };
     return {
@@ -54,44 +52,6 @@ async function getCustomerInfo(customerId: string): Promise<{ email: string; nam
     };
   } catch {
     return { email: '', name: '' };
-  }
-}
-
-async function updateUserSubscription(
-  customerId: string,
-  data: {
-    subscription_status?: string;
-    subscription_plan?: string;
-    trial_start?: number | null;
-    trial_end?: number | null;
-    subscription_id?: string;
-    paid_trial?: boolean;
-  }
-) {
-  try {
-    const supabaseAdmin = getAdminClient();
-    const updatePayload: Record<string, unknown> = { stripe_customer_id: customerId };
-    if (data.subscription_status !== undefined) updatePayload.subscription_status = data.subscription_status;
-    if (data.subscription_plan !== undefined) updatePayload.subscription_plan = data.subscription_plan;
-    if (data.trial_start !== undefined) {
-      updatePayload.trial_start = data.trial_start ? new Date(data.trial_start * 1000).toISOString() : null;
-    }
-    if (data.trial_end !== undefined) {
-      updatePayload.trial_end = data.trial_end ? new Date(data.trial_end * 1000).toISOString() : null;
-    }
-    if (data.subscription_id !== undefined) updatePayload.subscription_id = data.subscription_id;
-    if (data.paid_trial !== undefined) updatePayload.paid_trial = data.paid_trial;
-
-    const { error } = await supabaseAdmin
-      .from('user_profiles')
-      .update(updatePayload)
-      .eq('stripe_customer_id', customerId);
-
-    if (error) {
-      console.error('[Webhook] Failed to update user_profiles:', error.message);
-    }
-  } catch (err) {
-    console.error('[Webhook] Failed to update user subscription in Supabase:', err instanceof Error ? err.message : 'unknown error');
   }
 }
 
@@ -107,7 +67,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    const stripe = getStripeInstance();
+    const stripe = getStripeServerClient();
     event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Webhook signature verification failed';
@@ -137,19 +97,12 @@ export async function POST(req: NextRequest) {
       // Resolve workspace_id from stripe_customer_id (trusted server-side lookup)
       let workspaceId = data.workspaceId;
       if (!workspaceId && data.stripeCustomerId) {
-        const { data: profile } = await supabaseAdmin
-          .from('user_profiles')
-          .select('id')
+        const { data: entitlement } = await supabaseAdmin
+          .from('workspace_entitlements')
+          .select('workspace_id')
           .eq('stripe_customer_id', data.stripeCustomerId)
-          .single();
-        if (profile?.id) {
-          const { data: workspace } = await supabaseAdmin
-            .from('workspaces')
-            .select('id')
-            .eq('owner_id', profile.id)
-            .single();
-          workspaceId = workspace?.id;
-        }
+          .maybeSingle();
+        workspaceId = entitlement?.workspace_id;
       }
       if (!workspaceId) return;
 
@@ -202,6 +155,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const supabaseAdmin = getAdminClient();
+    const entitlementStore = createSupabaseEntitlementStore(supabaseAdmin);
+    const applySubscription = async (subscription: Stripe.Subscription) => {
+      return await applyStripeSubscriptionEntitlement({
+        subscription: subscription as unknown as StripeSubscriptionLike,
+        stripeEventCreatedAt: new Date(event.created * 1000),
+        store: entitlementStore,
+      });
+    };
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -212,45 +173,18 @@ export async function POST(req: NextRequest) {
           let plan = session.metadata?.plan || 'starter';
           const userId = session.metadata?.userId || '';
 
-          let trialStart: number | null = null;
           let trialEnd: number | null = null;
-          let subscriptionId = '';
 
           if (session.subscription) {
             try {
-              const stripe = getStripeInstance();
+              const stripe = getStripeServerClient();
               const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-              trialStart = subscription.trial_start;
               trialEnd = subscription.trial_end;
-              subscriptionId = subscription.id;
-
-              await updateUserSubscription(customerId, {
-                subscription_status: 'trial_active',
-                subscription_plan: plan,
-                trial_start: trialStart,
-                trial_end: trialEnd,
-                subscription_id: subscriptionId,
-                paid_trial: true,
-              });
-
-              if (userId) {
-                await supabaseAdmin.from('user_profiles').update({
-                  stripe_customer_id: customerId,
-                  subscription_status: 'trial_active',
-                  subscription_plan: plan,
-                  trial_start: trialStart ? new Date(trialStart * 1000).toISOString() : null,
-                  trial_end: trialEnd ? new Date(trialEnd * 1000).toISOString() : null,
-                  subscription_id: subscriptionId,
-                  paid_trial: true,
-                }).eq('id', userId);
-              }
+              plan = subscription.metadata?.plan || plan;
+              await applySubscription(subscription);
             } catch (subErr) {
               console.error('[Webhook] Failed to retrieve subscription:', subErr instanceof Error ? subErr.message : 'unknown');
-              await updateUserSubscription(customerId, {
-                subscription_status: 'trial_active',
-                subscription_plan: plan,
-                paid_trial: true,
-              });
+              throw subErr;
             }
           }
 
@@ -298,28 +232,7 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const plan = subscription.metadata?.plan || 'starter';
         const userId = subscription.metadata?.userId || '';
-        const status = subscription.status === 'trialing' ? 'trial_active' : subscription.status;
-
-        await updateUserSubscription(subscription.customer as string, {
-          subscription_status: status,
-          subscription_plan: plan,
-          trial_start: subscription.trial_start,
-          trial_end: subscription.trial_end,
-          subscription_id: subscription.id,
-          paid_trial: subscription.status === 'trialing',
-        });
-
-        if (userId) {
-          await supabaseAdmin.from('user_profiles').update({
-            stripe_customer_id: subscription.customer as string,
-            subscription_status: status,
-            subscription_plan: plan,
-            trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
-            trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-            subscription_id: subscription.id,
-            paid_trial: subscription.status === 'trialing',
-          }).eq('id', userId);
-        }
+        await applySubscription(subscription);
 
         await logBillingEvent('customer.subscription.created', {
           stripeCustomerId: subscription.customer as string,
@@ -344,21 +257,14 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         const plan = subscription.metadata?.plan || 'starter';
-        const status = subscription.status === 'trialing' ? 'trial_active' : subscription.status;
-        const { data: previousProfile } = await supabaseAdmin
-          .from('user_profiles')
-          .select('id,subscription_plan')
+        const { data: previousEntitlement } = await supabaseAdmin
+          .from('workspace_entitlements')
+          .select('plan_id')
           .eq('stripe_customer_id', subscription.customer as string)
           .maybeSingle();
-        const previousPlan = String(previousProfile?.subscription_plan || '');
+        const previousPlan = String(previousEntitlement?.plan_id || '');
 
-        await updateUserSubscription(subscription.customer as string, {
-          subscription_status: status,
-          subscription_plan: plan,
-          trial_start: subscription.trial_start,
-          trial_end: subscription.trial_end,
-          subscription_id: subscription.id,
-        });
+        await applySubscription(subscription);
 
         await logBillingEvent('customer.subscription.updated', {
           stripeCustomerId: subscription.customer as string,
@@ -383,7 +289,7 @@ export async function POST(req: NextRequest) {
           });
           await safeLogProductAnalyticsEvent({
             eventName: 'subscription_started',
-            userId: previousProfile?.id || subscription.metadata?.userId || null,
+            userId: subscription.metadata?.userId || null,
             stripeCustomerId: subscription.customer as string,
             properties: { plan },
             dedupeKey: `stripe:${event.id}:subscription_started`,
@@ -412,7 +318,7 @@ export async function POST(req: NextRequest) {
         if (previousPlan && previousPlan !== plan && previousPrice != null && currentPrice != null && currentPrice > previousPrice) {
           await safeLogProductAnalyticsEvent({
             eventName: 'subscription_upgraded',
-            userId: previousProfile?.id || subscription.metadata?.userId || null,
+            userId: subscription.metadata?.userId || null,
             stripeCustomerId: subscription.customer as string,
             properties: { plan, previous_plan: previousPlan },
             dedupeKey: `stripe:${event.id}:subscription_upgraded`,
@@ -424,12 +330,7 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        await updateUserSubscription(subscription.customer as string, {
-          subscription_status: 'canceled',
-          subscription_plan: subscription.metadata?.plan || undefined,
-          trial_end: null,
-          paid_trial: false,
-        });
+        await applySubscription(subscription);
         await logBillingEvent('customer.subscription.deleted', {
           stripeCustomerId: subscription.customer as string,
           stripeSubscriptionId: subscription.id,
@@ -482,9 +383,8 @@ export async function POST(req: NextRequest) {
         const subscriptionId = invoiceSubscriptionId(invoice);
         const paymentIntentId = invoicePaymentIntentId(invoice);
         if (invoice.customer && subscriptionId) {
-          await updateUserSubscription(invoice.customer as string, {
-            subscription_status: 'active',
-          });
+          const subscription = await getStripeServerClient().subscriptions.retrieve(subscriptionId);
+          await applySubscription(subscription);
         }
         await logBillingEvent('invoice.payment_succeeded', {
           stripeCustomerId: invoice.customer as string,
@@ -503,10 +403,9 @@ export async function POST(req: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = invoiceSubscriptionId(invoice);
         const paymentIntentId = invoicePaymentIntentId(invoice);
-        if (invoice.customer) {
-          await updateUserSubscription(invoice.customer as string, {
-            subscription_status: 'past_due',
-          });
+        if (invoice.customer && subscriptionId) {
+          const subscription = await getStripeServerClient().subscriptions.retrieve(subscriptionId);
+          await applySubscription(subscription);
         }
         await logBillingEvent('invoice.payment_failed', {
           stripeCustomerId: invoice.customer as string,
@@ -566,7 +465,7 @@ export async function POST(req: NextRequest) {
           if (email) {
             let plan = 'starter';
             try {
-              const stripe = getStripeInstance();
+              const stripe = getStripeServerClient();
               const subscription = await stripe.subscriptions.retrieve(subscriptionId);
               plan = subscription.metadata?.plan || 'starter';
             } catch { /* non-blocking */ }

@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-guard';
 import { PRIVATE_ROUTE_PREFIXES } from '@/lib/seo/config';
-import { ACTIVE_SUBSCRIPTION_STATUSES } from '@/lib/subscription/access';
+import { getWorkspaceEntitlementDecision } from '@/lib/subscription/server';
 import { includeCookieInVary } from '@/lib/auth/session-isolation';
 
 const MAINTENANCE_MODE = false;
@@ -77,13 +77,10 @@ const ONBOARDING_GATED_PATHS = [
 const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
   (path) => !['/billing-subscriptions', '/onboarding', '/admin'].includes(path)
 );
-const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
-
 interface CurrentWorkspaceContext {
   workspace_id: string;
   workspace_owner_id: string;
   onboarding_completed: boolean;
-  subscription_status: string;
 }
 
 export async function proxy(request: NextRequest) {
@@ -320,54 +317,25 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // SUBSCRIPTION GATE (server-side): Stripe webhooks are the source of truth.
-  // A failed renewal keeps full access for 3 days. From day 4 onward, only the
-  // billing recovery surface remains available; payment success clears the
-  // failure timestamp and restores access automatically.
+  // SUBSCRIPTION GATE (server-side): a workspace-bound entitlement record is
+  // reconciled from Stripe and expires closed when its verification is stale.
   const isSubscriptionGated = SUBSCRIPTION_GATED_PATHS.some((p) => pathname.startsWith(p));
   if (user && isSubscriptionGated) {
     try {
-      const status = currentWorkspace?.subscription_status || '';
-      let failedAt: number | null = null;
+      if (!currentWorkspace?.workspace_id) throw new Error('No selected workspace');
+      const entitlement = await getWorkspaceEntitlementDecision({
+        workspaceId: currentWorkspace.workspace_id,
+      });
 
-      if (status === 'past_due') {
-        const workspace = currentWorkspace ? { id: currentWorkspace.workspace_id } : null;
-
-        if (workspace?.id) {
-          const { data: lastPaid } = await supabase
-            .from('billing_events')
-            .select('stripe_created_at')
-            .eq('workspace_id', workspace.id)
-            .eq('event_type', 'invoice.payment_succeeded')
-            .order('stripe_created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          let failedQuery = supabase
-            .from('billing_events')
-            .select('stripe_created_at')
-            .eq('workspace_id', workspace.id)
-            .eq('event_type', 'invoice.payment_failed')
-            .order('stripe_created_at', { ascending: true })
-            .limit(1);
-
-          if (lastPaid?.stripe_created_at) {
-            failedQuery = failedQuery.gt('stripe_created_at', lastPaid.stripe_created_at);
-          }
-
-          const { data: firstFailure } = await failedQuery.maybeSingle();
-          failedAt = firstFailure?.stripe_created_at
-            ? new Date(firstFailure.stripe_created_at).getTime()
-            : null;
-        }
-      }
-      const inFullAccessGrace =
-        status === 'past_due' && failedAt !== null && Date.now() - failedAt < FULL_ACCESS_GRACE_MS;
-
-      if (!ACTIVE_SUBSCRIPTION_STATUSES.has(status) && !inFullAccessGrace) {
+      if (!entitlement.decision.canAccess) {
         const url = request.nextUrl.clone();
         url.pathname = '/billing-subscriptions';
-        url.searchParams.set('reason', status === 'past_due' ? 'payment_retry' : 'subscription_required');
+        url.searchParams.set(
+          'reason',
+          entitlement.row.stripe_status === 'past_due'
+            ? 'payment_retry'
+            : entitlement.decision.reason
+        );
         return carryAuthState(NextResponse.redirect(url));
       }
     } catch {

@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
-import { hasActiveSubscription } from '@/lib/subscription/access';
 import { LayoutDashboard, Users, FileText, CreditCard, ChevronLeft, ChevronRight, LogOut, ChevronDown, ScanSearch, Target, Bell, Shield, CheckCircle2, X, Menu, MessageSquare, BookOpen, BarChart3, Calendar, Link2 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -89,8 +88,13 @@ interface CurrentWorkspaceContext {
   workspace_owner_id: string;
   member_role: string;
   onboarding_completed: boolean;
-  subscription_status: string;
-  subscription_plan: string;
+}
+
+interface WorkspaceEntitlement {
+  canAccess: boolean;
+  state: 'active' | 'trial' | 'grace' | 'expired';
+  planId: string | null;
+  stripeStatus: string;
 }
 
 export default function Sidebar() {
@@ -105,11 +109,10 @@ export default function Sidebar() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [workspaceMemberships, setWorkspaceMemberships] = useState<WorkspaceMembershipOption[]>([]);
   const [workspaceContext, setWorkspaceContext] = useState<CurrentWorkspaceContext | null>(null);
+  const [entitlement, setEntitlement] = useState<WorkspaceEntitlement | null>(null);
   const [profile, setProfile] = useState<{
     full_name: string | null;
     email: string | null;
-    subscription_status: string | null;
-    subscription_plan: string | null;
     company_name: string | null;
   } | null>(null);
 
@@ -120,15 +123,16 @@ export default function Sidebar() {
     if (!user) return () => { active = false; };
     const fetchProfile = async () => {
       try {
-        const [profileResult, membershipsResult, contextResult] = await Promise.all([
+        const [profileResult, membershipsResult, contextResult, entitlementResponse] = await Promise.all([
           supabase
             .from('user_profiles')
-            .select('full_name, email, subscription_status, subscription_plan, company_name')
+            .select('full_name, email, company_name')
             .eq('id', user.id)
             .single(),
           supabase
             .rpc('available_workspace_contexts'),
           supabase.rpc('current_workspace_context'),
+          fetch('/api/stripe/entitlement'),
         ]);
         if (profileResult.error) throw profileResult.error;
         if (membershipsResult.error) throw membershipsResult.error;
@@ -137,6 +141,7 @@ export default function Sidebar() {
           setProfile(profileResult.data);
           setWorkspaceMemberships((membershipsResult.data || []) as unknown as WorkspaceMembershipOption[]);
           setWorkspaceContext((contextResult.data?.[0] || null) as CurrentWorkspaceContext | null);
+          setEntitlement(entitlementResponse.ok ? await entitlementResponse.json() : null);
         }
       } catch (err) {
         console.error('[Sidebar] profile fetch error:', err);
@@ -179,13 +184,17 @@ export default function Sidebar() {
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const displayEmail = profile?.email || user?.email || '';
   const displayCompany = workspaceContext?.workspace_name || profile?.company_name || user?.user_metadata?.company_name || 'My Company';
-  const subStatus = workspaceContext?.subscription_status || 'inactive';
-  const subPlan = workspaceContext?.subscription_plan || '';
+  const subStatus = entitlement?.state === 'trial'
+    ? 'trialing'
+    : entitlement?.state === 'grace'
+      ? 'past_due'
+      : entitlement?.state || 'inactive';
+  const subPlan = entitlement?.planId || '';
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
   const statusLabel = PLAN_LABELS[subPlan] || PLAN_LABELS[subStatus] || 'Free';
   const statusColor = STATUS_COLORS[subStatus] || STATUS_COLORS['inactive'];
-  const hasWorkspaceAccess = profileLoaded && Boolean(workspaceContext) && hasActiveSubscription(subStatus);
+  const hasWorkspaceAccess = profileLoaded && Boolean(workspaceContext) && Boolean(entitlement?.canAccess);
   const visibleNavSections = hasWorkspaceAccess ? NAV_SECTIONS : BILLING_ONLY_SECTIONS;
 
   const SidebarContent = () => (
@@ -212,8 +221,11 @@ export default function Sidebar() {
               <CheckCircle2 size={10} />
               {profileLoaded ? `${statusLabel} Plan` : 'Checking plan…'}
             </span>
-            {(subStatus === 'trial_active' || subStatus === 'trialing') && (
+            {subStatus === 'trialing' && (
               <span className="text-xs text-slate-400">Trial active</span>
+            )}
+            {subStatus === 'past_due' && entitlement?.canAccess && (
+              <span className="text-xs text-slate-400">Payment grace</span>
             )}
           </div>
           {workspaceMemberships.length > 1 && workspaceContext && (

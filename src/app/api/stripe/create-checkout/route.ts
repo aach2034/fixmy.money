@@ -3,16 +3,12 @@ import Stripe from 'stripe';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { PLANS, CHECKOUT_PLANS, getStripePriceId, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
-
-function getStripeInstance(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey || secretKey === 'your-stripe-secret-key-here' || secretKey.trim() === '') {
-    throw new Error('STRIPE_SECRET_KEY is not configured.');
-  }
-  return new Stripe(secretKey);
-}
-
-const ACTIVE_STATUSES = ['trialing', 'active', 'trial_active'];
+import { getStripeServerClient } from '@/lib/stripe/server';
+import {
+  bindStripeCustomerToWorkspace,
+  getSelectedWorkspaceContext,
+  getWorkspaceEntitlementDecision,
+} from '@/lib/subscription/server';
 const INTEGRATION_ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
 const ATTRIBUTION_FIELDS = [
   'anonymous_id',
@@ -54,7 +50,7 @@ function sanitizeAttribution(input: unknown): Record<string, string> {
 export async function POST(req: NextRequest) {
   let stripe: Stripe;
   try {
-    stripe = getStripeInstance();
+    stripe = getStripeServerClient();
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Stripe is not configured';
     console.error('[Stripe] Configuration error:', message);
@@ -72,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabaseAdmin = getAdminClient();
-    const { plan, name, attribution: rawAttribution } = await req.json();
+    const { plan, attribution: rawAttribution } = await req.json();
     const userId = user.id;
     const email = user.email;
     const attribution = sanitizeAttribution(rawAttribution);
@@ -85,32 +81,31 @@ export async function POST(req: NextRequest) {
     const planConfig = PLANS[plan as PlanId];
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money';
 
+    const workspace = await getSelectedWorkspaceContext(supabase);
+    if (!workspace || workspace.workspace_owner_id !== userId || workspace.member_role !== 'owner') {
+      return NextResponse.json({ error: 'Only the workspace owner can start or change billing.' }, { status: 403 });
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('full_name, email')
+      .eq('id', userId)
+      .single();
+
     // ── DUPLICATE PAYMENT GUARD ──────────────────────────────────────────────
-    {
-      const { data: existingProfile } = await supabaseAdmin
-        .from('user_profiles')
-        .select('subscription_status, subscription_plan, stripe_customer_id')
-        .eq('id', userId)
-        .single();
-
-      if (existingProfile && ACTIVE_STATUSES.includes(existingProfile.subscription_status || '')) {
-        console.log('[Stripe] User already has active subscription. Skipping checkout.');
-        return NextResponse.json({ alreadyActive: true, redirectTo: '/dashboard' });
-      }
+    const entitlement = await getWorkspaceEntitlementDecision({
+      workspaceId: workspace.workspace_id,
+      forceReconcile: true,
+    });
+    if (entitlement.decision.canAccess) {
+      console.log('[Stripe] Workspace already has verified subscription access. Skipping checkout.');
+      return NextResponse.json({ alreadyActive: true, redirectTo: '/dashboard' });
     }
 
-    // Look up existing Stripe customer ID from Supabase
-    let existingCustomerId: string | null = null;
-    {
-      const { data: profile } = await supabaseAdmin
-        .from('user_profiles')
-        .select('stripe_customer_id, email')
-        .eq('id', userId)
-        .single();
-      if (profile?.stripe_customer_id) {
-        existingCustomerId = profile.stripe_customer_id;
-      }
-    }
+    // Reuse only the customer already bound to this exact workspace. Email
+    // search is intentionally prohibited because it can claim another account.
+    const existingCustomerId = entitlement.row.stripe_customer_id;
+    let existingCustomerMissing = false;
 
     let customer: Stripe.Customer | null = null;
 
@@ -120,40 +115,32 @@ export async function POST(req: NextRequest) {
         if (!existing.deleted) {
           customer = existing as Stripe.Customer;
         }
-      } catch {
-        existingCustomerId = null;
+      } catch (error) {
+        const stripeError = error as { statusCode?: number; code?: string; raw?: { code?: string } };
+        const missing = stripeError.statusCode === 404
+          || stripeError.code === 'resource_missing'
+          || stripeError.raw?.code === 'resource_missing';
+        if (!missing) throw error;
+        existingCustomerMissing = true;
       }
     }
 
     if (!customer) {
-      const lookupEmail = email || undefined;
-      if (lookupEmail) {
-        const existingCustomers = await stripe.customers.list({ email: lookupEmail, limit: 1 });
-        if (existingCustomers.data.length > 0) {
-          customer = existingCustomers.data[0];
-
-          const subs = await stripe.subscriptions.list({ customer: customer.id, status: 'all', limit: 5 });
-          const activeSub = subs.data.find(s => ['trialing', 'active'].includes(s.status));
-          if (activeSub) {
-            await supabaseAdmin.from('user_profiles').update({
-                stripe_customer_id: customer.id,
-                subscription_status: activeSub.status === 'trialing' ? 'trial_active' : 'active',
-                subscription_plan: plan,
-                subscription_id: activeSub.id,
-                trial_start: activeSub.trial_start ? new Date(activeSub.trial_start * 1000).toISOString() : null,
-                trial_end: activeSub.trial_end ? new Date(activeSub.trial_end * 1000).toISOString() : null,
-              }).eq('id', userId);
-            return NextResponse.json({ alreadyActive: true, redirectTo: '/dashboard' });
-          }
-        }
-      }
-      if (!customer) {
-        customer = await stripe.customers.create({
-          email: email || undefined,
-          name: name || undefined,
-          metadata: { plan, userId, ...attribution },
-        });
-      }
+      customer = await stripe.customers.create({
+        email: email || profile?.email || undefined,
+        name: profile?.full_name || undefined,
+        metadata: {
+          plan,
+          userId,
+          workspaceId: workspace.workspace_id,
+          ...attribution,
+        },
+      });
+      await bindStripeCustomerToWorkspace({
+        workspaceId: workspace.workspace_id,
+        stripeCustomerId: customer.id,
+        expectedPreviousCustomerId: existingCustomerMissing ? existingCustomerId : null,
+      });
     }
 
     if (customer.id) {
@@ -165,12 +152,14 @@ export async function POST(req: NextRequest) {
       if (attribution.anonymous_id) attributionUpdate.anonymous_id = attribution.anonymous_id;
       if (attribution.referral_code) attributionUpdate.last_referral_code = attribution.referral_code;
 
-      const { error: profileUpdateError } = await supabaseAdmin
-        .from('user_profiles')
-        .update({ stripe_customer_id: customer.id, ...attributionUpdate })
-        .eq('id', userId);
-      if (profileUpdateError) {
-        console.warn('[Stripe] Non-blocking profile attribution update failed:', profileUpdateError.message);
+      if (Object.keys(attributionUpdate).length > 0) {
+        const { error: profileUpdateError } = await supabaseAdmin
+          .from('user_profiles')
+          .update(attributionUpdate)
+          .eq('id', userId);
+        if (profileUpdateError) {
+          console.warn('[Stripe] Non-blocking profile attribution update failed:', profileUpdateError.message);
+        }
       }
     }
 
@@ -223,12 +212,12 @@ export async function POST(req: NextRequest) {
         trial_settings: {
           end_behavior: { missing_payment_method: 'cancel' },
         },
-        metadata: { plan, userId, ...attribution },
+        metadata: { plan, userId, workspaceId: workspace.workspace_id, ...attribution },
       },
       payment_method_collection: 'always',
       success_url: `${siteUrl}/dashboard?checkout=success&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/checkout?plan=${plan}&cancelled=1`,
-      metadata: { plan, userId, ...attribution },
+      metadata: { plan, userId, workspaceId: workspace.workspace_id, ...attribution },
       custom_text: {
         submit: {
           message: `$${TRIAL_CONFIG.chargeCents / 100} today for ${TRIAL_CONFIG.durationDays} days. Then $${monthlyAmount / 100}/month unless canceled.`,

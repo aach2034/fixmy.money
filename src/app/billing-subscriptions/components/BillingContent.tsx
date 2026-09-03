@@ -15,13 +15,18 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { PLANS } from "@/lib/stripe/plans";
-import { hasActiveSubscription } from "@/lib/subscription/access";
 
 type Subscription = {
-  stripe_customer_id: string | null;
-  subscription_status: string | null;
-  subscription_plan: string | null;
-  trial_end: string | null;
+  canAccess: boolean;
+  state: "active" | "trial" | "grace" | "expired";
+  reason: string;
+  planId: string | null;
+  stripeStatus: string;
+  trialEndsAt: string | null;
+  currentPeriodEndsAt: string | null;
+  graceEndsAt: string | null;
+  verifiedAt: string | null;
+  hasBillingAccount: boolean;
 };
 
 type ClientBilling = {
@@ -45,16 +50,11 @@ export default function BillingContent() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const profile = await supabase
-        .from("user_profiles")
-        .select(
-          "stripe_customer_id, subscription_status, subscription_plan, trial_end",
-        )
-        .eq("id", user.id)
-        .single();
-      if (profile.error) toast.error("Could not load your subscription.");
-      setSubscription(profile.data as Subscription | null);
-      if (hasActiveSubscription(profile.data?.subscription_status)) {
+      const response = await fetch("/api/stripe/entitlement", { method: "POST" });
+      const entitlement = response.ok ? await response.json() as Subscription : null;
+      if (!entitlement) toast.error("Could not verify your subscription.");
+      setSubscription(entitlement);
+      if (entitlement?.canAccess) {
         const clientRows = await supabase
           .from("staff_clients")
           .select("id, name, email, plan, subscription_status")
@@ -108,8 +108,8 @@ export default function BillingContent() {
     }
   };
 
-  const status = subscription?.subscription_status || "inactive";
-  const isActive = hasActiveSubscription(status);
+  const status = subscription?.state || "expired";
+  const isActive = Boolean(subscription?.canAccess);
   const paid = clients.filter((c) => c.subscription_status === "paid").length;
   const overdue = clients.filter(
     (c) => c.subscription_status === "overdue",
@@ -147,7 +147,7 @@ export default function BillingContent() {
               Your FixMy.Money subscription
             </p>
             <h2 className="text-xl font-bold text-slate-900 mt-1 capitalize">
-              {subscription?.subscription_plan || "No plan selected"}
+              {subscription?.planId || "No plan selected"}
             </h2>
             <div className="flex items-center gap-2 mt-2">
               {isActive ? (
@@ -158,10 +158,15 @@ export default function BillingContent() {
               <span className="text-sm font-semibold text-slate-700 capitalize">
                 {status.replace("_", " ")}
               </span>
-              {subscription?.trial_end && (
+              {subscription?.trialEndsAt && (
                 <span className="text-xs text-slate-500">
                   · Trial ends{" "}
-                  {new Date(subscription.trial_end).toLocaleDateString()}
+                  {new Date(subscription.trialEndsAt).toLocaleDateString()}
+                </span>
+              )}
+              {subscription?.graceEndsAt && status === "grace" && (
+                <span className="text-xs text-slate-500">
+                  · Payment grace ends {new Date(subscription.graceEndsAt).toLocaleDateString()}
                 </span>
               )}
             </div>
@@ -171,7 +176,7 @@ export default function BillingContent() {
               cancel.
             </p>
           </div>
-          {subscription?.stripe_customer_id ? (
+          {subscription?.hasBillingAccount ? (
             <button
               onClick={manageBilling}
               disabled={portalLoading}

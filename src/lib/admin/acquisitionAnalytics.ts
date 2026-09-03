@@ -19,6 +19,8 @@ type AttributionProfileRow = {
   paid_trial: boolean | null;
 };
 
+type AttributionIdentityRow = Omit<AttributionProfileRow, 'subscription_status' | 'paid_trial'>;
+
 export type FunnelStage = {
   key: string;
   label: string;
@@ -162,13 +164,23 @@ export async function getAcquisitionAnalytics() {
 
   const [eventsResult, profilesResult] = await Promise.all([
     admin.from('product_analytics_events').select('event_name,user_id,occurred_at').order('occurred_at', { ascending: false }),
-    admin.from('user_profiles').select('id,utm_source,utm_medium,utm_campaign,landing_page,subscription_status,paid_trial'),
+    admin.from('user_profiles').select('id,utm_source,utm_medium,utm_campaign,landing_page'),
   ]);
   if (eventsResult.error) throw eventsResult.error;
   if (profilesResult.error) throw profilesResult.error;
 
   const events = (eventsResult.data ?? []) as EventRow[];
-  const profiles = (profilesResult.data ?? []) as AttributionProfileRow[];
+  const subscriptionByCustomer = new Map(
+    summaries.customers.map(customer => [customer.id, customer])
+  );
+  const profiles = ((profilesResult.data ?? []) as AttributionIdentityRow[]).map(profile => {
+    const customer = subscriptionByCustomer.get(profile.id);
+    return {
+      ...profile,
+      subscription_status: customer?.subscriptionStatus || 'none',
+      paid_trial: customer?.paidTrial || false,
+    };
+  });
   const stages = buildFunnelStages({
     customerIds,
     customers: summaries.realCustomers,

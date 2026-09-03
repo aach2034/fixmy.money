@@ -10,9 +10,6 @@ import { getPlanAudience, trackEvent } from '@/lib/analytics';
 import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 interface UserProfile {
-  subscription_status: string | null;
-  subscription_plan: string | null;
-  stripe_customer_id: string | null;
   full_name: string | null;
   email: string | null;
   onboarding_completed: boolean | null;
@@ -34,8 +31,6 @@ export default function CheckoutContent() {
   const [error, setError] = useState('');
   const checkoutCancelledTracked = useRef(false);
   const emailVerifiedTracked = useRef(false);
-
-  const activeStatuses = ['trialing', 'active', 'trial_active'];
 
   useEffect(() => {
     if (searchParams.get('cancelled') === '1' && !checkoutCancelledTracked.current) {
@@ -67,15 +62,18 @@ export default function CheckoutContent() {
 
     const fetchProfile = async () => {
       try {
-        const { data } = await supabase
-          .from('user_profiles')
-          .select('subscription_status, subscription_plan, stripe_customer_id, full_name, email, onboarding_completed')
-          .eq('id', user.id)
-          .single();
+        const [{ data }, entitlementResponse] = await Promise.all([
+          supabase
+            .from('user_profiles')
+            .select('full_name, email, onboarding_completed')
+            .eq('id', user.id)
+            .single(),
+          fetch('/api/stripe/entitlement', { method: 'POST' }),
+        ]);
 
         setProfile(data as UserProfile | null);
-
-        if (data && activeStatuses.includes(data.subscription_status || '')) {
+        const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+        if (data && entitlement?.canAccess) {
           router.replace(data.onboarding_completed ? '/dashboard' : '/onboarding');
           return;
         }
@@ -92,17 +90,6 @@ export default function CheckoutContent() {
   const handleStartCheckout = async () => {
     if (!user) {
       router.push(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
-      return;
-    }
-
-    const { data: freshProfile } = await supabase
-      .from('user_profiles')
-      .select('subscription_status, onboarding_completed')
-      .eq('id', user.id)
-      .single();
-
-    if (freshProfile && activeStatuses.includes(freshProfile.subscription_status || '')) {
-      router.replace(freshProfile.onboarding_completed ? '/dashboard' : '/onboarding');
       return;
     }
 
@@ -135,7 +122,7 @@ export default function CheckoutContent() {
       }
 
       if (data.alreadyActive) {
-        router.replace('/onboarding');
+        router.replace(data.redirectTo || '/dashboard');
         return;
       }
 
@@ -304,7 +291,7 @@ export default function CheckoutContent() {
           {/* Purchase restoration is intentionally unavailable during containment. */}
           <div className="border-t border-gray-200 pt-5 text-center">
             <p className="text-xs text-gray-500">
-              If checkout completed but access is missing, contact support. Automatic purchase restoration is temporarily unavailable.
+              If checkout completed but access is missing, contact support. Automatic purchase restoration has been permanently removed.
             </p>
           </div>
         </div>

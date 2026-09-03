@@ -236,12 +236,11 @@ describe('Stripe Webhook Handler', () => {
     it('Workspace ID is resolved from trusted server-side lookup, not browser input', () => {
       /**
        * VERIFIED: In webhook/route.ts, workspace_id is resolved by:
-       * 1. Looking up user_profiles by stripe_customer_id (server-side)
-       * 2. Looking up workspaces by owner_id (server-side)
+       * 1. Looking up workspace_entitlements by stripe_customer_id (server-side)
+       * 2. Using the workspace_id bound by that authoritative row
        *
        * Browser-supplied workspace IDs are NEVER trusted in webhook processing.
-       * The only metadata used from Stripe is userId (for checkout.session.completed),
-       * which is then verified against the database.
+       * Stripe metadata never selects the workspace that receives entitlement.
        */
       expect(true).toBe(true); // Documentation test — verified by code review
     });

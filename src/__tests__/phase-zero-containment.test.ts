@@ -42,7 +42,9 @@ describe('Phase 0 server containment', () => {
 
   it('fails purchase restoration closed without Stripe or entitlement access', async () => {
     const response = await restorePurchasePost();
-    await expectUnavailable(response, 'PURCHASE_RESTORATION_DISABLED');
+    expect(response.status).toBe(410);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect((await response.json()).code).toBe('PURCHASE_RESTORATION_REMOVED');
     const route = source('src/app/api/stripe/restore-purchase/route.ts');
     expect(route).not.toMatch(/Stripe|checkout\.sessions|subscriptions\.list|user_profiles|getAdminClient/);
   });

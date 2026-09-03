@@ -100,14 +100,15 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('subscription_status, subscription_plan, onboarding_completed')
+          .select('onboarding_completed')
           .eq('id', session.user.id)
           .single();
 
         if (cancelled) return;
 
-        const activeStatuses = ['trialing', 'active', 'trial_active'];
-        if (profile && activeStatuses.includes(profile.subscription_status || '')) {
+        const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
+        const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+        if (profile && entitlement?.canAccess) {
           if (!profile.onboarding_completed) {
             router.replace('/onboarding');
           } else {
@@ -136,11 +137,12 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       if (session) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('subscription_status, onboarding_completed')
+          .select('onboarding_completed')
           .eq('id', session.user.id)
           .single();
-        const activeStatuses = ['trialing', 'active', 'trial_active'];
-        if (profile && activeStatuses.includes(profile.subscription_status || '')) {
+        const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
+        const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+        if (profile && entitlement?.canAccess) {
           if (!profile.onboarding_completed) {
             router.push('/onboarding');
           } else {

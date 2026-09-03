@@ -224,8 +224,10 @@ describe('Checkout Route — Paid Trial Safety', () => {
     const source = fs.readFileSync(routePath, 'utf-8');
 
     expect(source).toContain('alreadyActive');
-    expect(source).toContain('ACTIVE_STATUSES');
-    expect(source).toContain('subscription_status');
+    expect(source).toContain('getWorkspaceEntitlementDecision');
+    expect(source).toContain('entitlement.decision.canAccess');
+    expect(source).not.toContain('ACTIVE_STATUSES');
+    expect(source).not.toContain(".select('subscription_status");
   });
 
   it('uses dynamic payment methods and tags the checkout integration', async () => {
@@ -309,18 +311,18 @@ describe('Professional Plan ID — not legacy growth', () => {
 // ─── 5. Duplicate Checkout Prevention ────────────────────────────────────────
 
 describe('Duplicate Checkout Prevention', () => {
-  it('ACTIVE_STATUSES includes trialing, active, and trial_active', async () => {
+  it('uses the centralized Stripe-verified entitlement decision', async () => {
     const fs = await import('fs');
     const path = await import('path');
-    const routePath = path.resolve(
+    const accessPath = path.resolve(
       process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
+      'src/lib/subscription/access.ts'
     );
-    const source = fs.readFileSync(routePath, 'utf-8');
+    const source = fs.readFileSync(accessPath, 'utf-8');
 
     expect(source).toContain("'trialing'");
     expect(source).toContain("'active'");
-    expect(source).toContain("'trial_active'");
+    expect(source).toContain('evaluateWorkspaceEntitlement');
   });
 
   it('Checkout returns alreadyActive:true when user has active subscription', async () => {
@@ -677,9 +679,14 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
       'src/app/api/stripe/create-checkout/route.ts'
     );
     const source = fs.readFileSync(routePath, 'utf-8');
+    const stripeServer = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/lib/stripe/server.ts'),
+      'utf-8'
+    );
 
     expect(source).toContain('503');
-    expect(source).toContain('STRIPE_SECRET_KEY');
+    expect(source).toContain('getStripeServerClient');
+    expect(stripeServer).toContain('STRIPE_SECRET_KEY');
   });
 
   it('STRIPE_PROFESSIONAL_PRICE_ID env var key exists in plans.ts', () => {
@@ -797,7 +804,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     }
   });
 
-  it('Stripe checkout route uses STRIPE_SECRET_KEY (server-only)', async () => {
+  it('Stripe checkout route uses the server-only Stripe client', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -805,9 +812,15 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
       'src/app/api/stripe/create-checkout/route.ts'
     );
     const source = fs.readFileSync(routePath, 'utf-8');
+    const stripeServer = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/lib/stripe/server.ts'),
+      'utf-8'
+    );
 
-    expect(source).toContain('STRIPE_SECRET_KEY');
+    expect(source).toContain('getStripeServerClient');
+    expect(stripeServer).toContain('STRIPE_SECRET_KEY');
     expect(source).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');
+    expect(stripeServer).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');
   });
 
   it('Webhook route uses STRIPE_WEBHOOK_SECRET (server-only)', async () => {
