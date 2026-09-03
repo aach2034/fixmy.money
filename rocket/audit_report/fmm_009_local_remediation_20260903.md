@@ -4,6 +4,8 @@ Status: **PASS locally — NOT DEPLOYED**
 
 FMM-009 now extends the FMM-004 Stripe-verified workspace entitlement authority with one versioned plan catalog and a centralized fail-closed authorization service.
 
+Compatibility correction: persisted legacy `growth` values resolve to canonical `professional` in server and database authorization. The migration validates these rows through a separate alias table and never rewrites their stored `plan_id`; all other unknown values remain fail-closed.
+
 Implemented controls:
 
 - Added immutable catalog version `2026-09-03.v1` with client, seat, storage, and feature allowances for every supported plan.
@@ -17,12 +19,13 @@ Implemented controls:
 Focused verification:
 
 - FMM-009 policy plus reused FMM-004 lifecycle, subscription-access, and pricing suites: **119/119 passed**.
+- Legacy `growth` compatibility regression suite: **14/14 passed**; the earlier 119/119 base result remains valid and was not redundantly rerun.
 - TypeScript (`tsc --noEmit`): **PASS**.
 - Targeted ESLint on changed TypeScript/TSX: **PASS**.
 - Vinext production build (5/5 stages): **PASS**.
 
 Remaining risk and production gate:
 
-- The migration was statically verified locally; this host has no disposable local Postgres runtime for executing its triggers. Production authorization must require a schema backup, migration review/application, and isolated transactional fixtures.
+- The corrected migration preserves and validates legacy `growth` rows through a non-destructive alias to canonical `professional`. It was statically verified locally; this host has no disposable local Postgres runtime for executing its triggers. Production authorization must require a schema backup, migration review/application, and isolated transactional fixtures.
 - Production verification must prove in-limit success and over-limit denial for clients, seats, storage, and excluded features; concurrent allocation serialization; and correct upgrade, downgrade, cancellation, and fixed grace-period behavior without deleting customer data.
 - No production deployment, schema/configuration change, or data mutation occurred.

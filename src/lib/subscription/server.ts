@@ -282,7 +282,13 @@ export function buildVerifiedEntitlementRow(input: {
     accessState = Date.parse(graceEndsAt) > verifiedAt.getTime() ? 'grace' : 'expired';
   }
 
-  const planId = subscription.metadata?.plan?.trim() || existing.plan_id;
+  const reportedPlanId = subscription.metadata?.plan?.trim() || null;
+  // `growth` is the persisted compatibility alias for `professional`. Do not
+  // rewrite customer rows merely because Stripe reports the canonical name;
+  // genuine upgrades/downgrades to a different tier still reconcile normally.
+  const planId = existing.plan_id === 'growth' && reportedPlanId === 'professional'
+    ? 'growth'
+    : reportedPlanId || existing.plan_id;
   return {
     ...existing,
     stripe_customer_id: stripeCustomerId,

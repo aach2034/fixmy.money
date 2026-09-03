@@ -35,18 +35,24 @@ export class PlanAuthorizationError extends Error {
   }
 }
 
+/** Resolve persisted legacy values without mutating the entitlement record. */
+export function resolveCanonicalPlanId(planId: string | null): PlanId | null {
+  if (planId === 'growth') return 'professional';
+  return planId && planId in PLANS ? planId as PlanId : null;
+}
+
 export function evaluatePlanAuthorization(input: PlanAuthorizationInput): PlanAuthorizationDecision {
   if (!input.entitlement.canAccess) {
     return { allowed: false, catalogVersion: PLAN_CATALOG_VERSION, reason: 'ENTITLEMENT_REQUIRED' };
   }
-  if (!input.planId || !(input.planId in PLANS)) {
+  const planId = resolveCanonicalPlanId(input.planId);
+  if (!planId) {
     return { allowed: false, catalogVersion: PLAN_CATALOG_VERSION, reason: 'PLAN_NOT_CONFIGURED' };
   }
   if (input.catalogVersion !== undefined && input.catalogVersion !== PLAN_CATALOG_VERSION) {
     return { allowed: false, catalogVersion: PLAN_CATALOG_VERSION, reason: 'PLAN_CATALOG_MISMATCH' };
   }
 
-  const planId = input.planId as PlanId;
   const plan = PLANS[planId];
   if (input.feature && !plan.enabledFeatures.includes(input.feature)) {
     return { allowed: false, catalogVersion: PLAN_CATALOG_VERSION, reason: 'FEATURE_NOT_INCLUDED' };

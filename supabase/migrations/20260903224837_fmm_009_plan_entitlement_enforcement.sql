@@ -26,13 +26,68 @@ VALUES
   ('2026-09-03.v1', 'agency', 600, 6, 107374182400, ARRAY['core_crm','client_portal','credit_report_import','ai_assistant','team_access','data_export']),
   ('2026-09-03.v1', 'enterprise', NULL, NULL, NULL, ARRAY['core_crm','client_portal','credit_report_import','ai_assistant','team_access','data_export']);
 
+-- Compatibility aliases are separate from the canonical catalog. They allow
+-- legacy persisted values to resolve without rewriting customer entitlements.
+CREATE TABLE private.plan_catalog_aliases (
+  catalog_version text NOT NULL,
+  alias_plan_id text NOT NULL,
+  canonical_plan_id text NOT NULL,
+  PRIMARY KEY (catalog_version, alias_plan_id),
+  FOREIGN KEY (catalog_version, canonical_plan_id)
+    REFERENCES private.plan_catalog(catalog_version, plan_id),
+  CHECK (alias_plan_id <> canonical_plan_id)
+);
+REVOKE ALL ON TABLE private.plan_catalog_aliases FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE private.plan_catalog_aliases TO service_role;
+INSERT INTO private.plan_catalog_aliases (catalog_version, alias_plan_id, canonical_plan_id)
+VALUES ('2026-09-03.v1', 'growth', 'professional');
+
 ALTER TABLE public.workspace_entitlements
   ADD COLUMN plan_catalog_version text NOT NULL DEFAULT '2026-09-03.v1';
 
-ALTER TABLE public.workspace_entitlements
-  ADD CONSTRAINT workspace_entitlements_plan_catalog_fkey
-  FOREIGN KEY (plan_catalog_version, plan_id)
-  REFERENCES private.plan_catalog(catalog_version, plan_id);
+CREATE OR REPLACE FUNCTION private.validate_workspace_entitlement_plan()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.plan_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM private.plan_catalog
+    WHERE catalog_version = NEW.plan_catalog_version AND plan_id = NEW.plan_id
+    UNION ALL
+    SELECT 1 FROM private.plan_catalog_aliases
+    WHERE catalog_version = NEW.plan_catalog_version AND alias_plan_id = NEW.plan_id
+  ) THEN
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'PLAN_NOT_CONFIGURED';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.validate_workspace_entitlement_plan() FROM PUBLIC, anon, authenticated;
+
+CREATE TRIGGER workspace_entitlements_validate_plan
+BEFORE INSERT OR UPDATE OF plan_id, plan_catalog_version ON public.workspace_entitlements
+FOR EACH ROW EXECUTE FUNCTION private.validate_workspace_entitlement_plan();
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.workspace_entitlements entitlement
+    WHERE entitlement.plan_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM private.plan_catalog catalog
+        WHERE catalog.catalog_version = entitlement.plan_catalog_version
+          AND catalog.plan_id = entitlement.plan_id
+        UNION ALL
+        SELECT 1 FROM private.plan_catalog_aliases alias
+        WHERE alias.catalog_version = entitlement.plan_catalog_version
+          AND alias.alias_plan_id = entitlement.plan_id
+      )
+  ) THEN
+    RAISE EXCEPTION 'PLAN_NOT_CONFIGURED';
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION private.enforce_workspace_plan_allocation()
 RETURNS trigger
@@ -73,7 +128,12 @@ BEGIN
   SELECT * INTO catalog
   FROM private.plan_catalog
   WHERE catalog_version = entitlement.plan_catalog_version
-    AND plan_id = entitlement.plan_id;
+    AND plan_id = COALESCE(
+      (SELECT alias.canonical_plan_id FROM private.plan_catalog_aliases alias
+       WHERE alias.catalog_version = entitlement.plan_catalog_version
+         AND alias.alias_plan_id = entitlement.plan_id),
+      entitlement.plan_id
+    );
   IF NOT FOUND THEN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'PLAN_NOT_CONFIGURED';
   END IF;

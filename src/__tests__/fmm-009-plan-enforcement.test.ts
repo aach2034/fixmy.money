@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PLAN_CATALOG_VERSION, PLANS } from '@/lib/stripe/plans';
-import { evaluatePlanAuthorization } from '@/lib/subscription/planEnforcement';
+import { evaluatePlanAuthorization, resolveCanonicalPlanId } from '@/lib/subscription/planEnforcement';
+import { buildVerifiedEntitlementRow } from '@/lib/subscription/server';
+import { resolveAIPlanLimits } from '@/lib/ai/gateway';
 
 const active = { canAccess: true, state: 'active', reason: 'active_subscription' } as const;
 const denied = { canAccess: false, state: 'expired', reason: 'subscription_canceled' } as const;
@@ -42,6 +44,39 @@ describe('FMM-009 plan entitlement enforcement', () => {
     expect(evaluatePlanAuthorization({ planId: 'starter', entitlement: active, feature: 'ai_assistant' }).allowed).toBe(true);
   });
 
+  it('resolves legacy growth to professional for limits, features, and AI usage', () => {
+    expect(resolveCanonicalPlanId('growth')).toBe('professional');
+    expect(evaluatePlanAuthorization({ planId: 'growth', entitlement: active, limit: 'clients', currentUsage: { ...usage, clients: 299 } }))
+      .toMatchObject({ allowed: true, planId: 'professional' });
+    expect(evaluatePlanAuthorization({ planId: 'growth', entitlement: active, limit: 'clients', currentUsage: { ...usage, clients: 300 } }))
+      .toMatchObject({ allowed: false, reason: 'CLIENTS_LIMIT_REACHED' });
+    expect(evaluatePlanAuthorization({ planId: 'growth', entitlement: active, feature: 'team_access' })).toMatchObject({ allowed: true, planId: 'professional' });
+    expect(evaluatePlanAuthorization({ planId: 'growth', entitlement: active, feature: 'data_export' })).toMatchObject({ allowed: false, reason: 'FEATURE_NOT_INCLUDED' });
+    expect(resolveAIPlanLimits(resolveCanonicalPlanId('growth'))).toEqual(resolveAIPlanLimits('professional'));
+  });
+
+  it('preserves growth during active, downgrade, cancellation, and grace reconciliation', () => {
+    const existing = {
+      workspace_id: 'workspace-growth', stripe_customer_id: 'cus_growth', stripe_subscription_id: 'sub_growth',
+      stripe_status: 'active', access_state: 'active', plan_id: 'growth', trial_ends_at: null,
+      current_period_ends_at: '2026-10-03T00:00:00.000Z', grace_ends_at: null,
+      last_verified_at: '2026-09-03T00:00:00.000Z', last_stripe_event_created_at: null,
+      last_reconciliation_error: null,
+    } as const;
+    const subscription = (status: 'active' | 'past_due' | 'canceled', plan = 'professional') => ({
+      id: 'sub_growth', customer: 'cus_growth', status, trial_start: null, trial_end: null,
+      metadata: { plan }, items: { data: [{ current_period_end: 1790985600 }] },
+    });
+    const activeRow = buildVerifiedEntitlementRow({ existing, subscription: subscription('active'), stripeCustomerId: 'cus_growth', verifiedAt: new Date('2026-09-03T12:00:00Z') });
+    const graceRow = buildVerifiedEntitlementRow({ existing: activeRow, subscription: subscription('past_due'), stripeCustomerId: 'cus_growth', verifiedAt: new Date('2026-09-03T13:00:00Z') });
+    const canceledRow = buildVerifiedEntitlementRow({ existing: graceRow, subscription: subscription('canceled'), stripeCustomerId: 'cus_growth', verifiedAt: new Date('2026-09-03T14:00:00Z') });
+    expect([activeRow.plan_id, graceRow.plan_id, canceledRow.plan_id]).toEqual(['growth', 'growth', 'growth']);
+    expect(graceRow.access_state).toBe('grace');
+    expect(canceledRow.access_state).toBe('expired');
+    const upgraded = buildVerifiedEntitlementRow({ existing: activeRow, subscription: subscription('active', 'agency'), stripeCustomerId: 'cus_growth', verifiedAt: new Date('2026-09-03T15:00:00Z') });
+    expect(upgraded.plan_id).toBe('agency');
+  });
+
   it.each(['active', 'trial', 'grace'] as const)('accepts a current FMM-004 %s decision', state => {
     expect(evaluatePlanAuthorization({ planId: 'professional', entitlement: { canAccess: true, state, reason: state === 'grace' ? 'payment_grace' : state === 'trial' ? 'active_trial' : 'active_subscription' } }).allowed).toBe(true);
   });
@@ -49,7 +84,9 @@ describe('FMM-009 plan entitlement enforcement', () => {
   it('enforces catalog and limits again in the database to prevent browser bypass', () => {
     const migration = fs.readFileSync(path.resolve(process.cwd(), 'supabase/migrations/20260903224837_fmm_009_plan_entitlement_enforcement.sql'), 'utf8');
     expect(migration).toContain('CREATE TABLE private.plan_catalog');
-    expect(migration).toContain('workspace_entitlements_plan_catalog_fkey');
+    expect(migration).toContain('CREATE TABLE private.plan_catalog_aliases');
+    expect(migration).toContain("VALUES ('2026-09-03.v1', 'growth', 'professional')");
+    expect(migration).not.toMatch(/UPDATE public\.workspace_entitlements[\s\S]*plan_id\s*=/i);
     expect(migration).toContain('staff_clients_enforce_plan_limit');
     expect(migration).toContain('workspace_memberships_enforce_plan_limit');
     expect(migration).toContain('client_documents_enforce_plan_limit');

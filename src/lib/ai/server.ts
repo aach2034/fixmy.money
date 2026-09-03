@@ -56,7 +56,7 @@ export async function authorizeAIGateway(): Promise<AIGatewayAuthorization> {
   if (!entitlement.decision.canAccess) {
     throw new AIGatewayAuthorizationError("AI_ENTITLEMENT_REQUIRED", 403);
   }
-  await authorizeWorkspacePlanOperation({
+  const planAuthorization = await authorizeWorkspacePlanOperation({
     workspaceId: workspace.workspace_id,
     feature: "ai_assistant",
   });
@@ -65,7 +65,7 @@ export async function authorizeAIGateway(): Promise<AIGatewayAuthorization> {
     actorId: user.id,
     workspaceId: workspace.workspace_id,
     workspaceOwnerId: workspace.workspace_owner_id,
-    planId: entitlement.row.plan_id,
+    planId: planAuthorization.planId,
   };
 }
 
