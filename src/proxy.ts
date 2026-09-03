@@ -4,7 +4,7 @@ import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-
 import { PRIVATE_ROUTE_PREFIXES } from '@/lib/seo/config';
 import { ACTIVE_SUBSCRIPTION_STATUSES } from '@/lib/subscription/access';
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 const MAINTENANCE_PATH = '/maintenance';
 const MAINTENANCE_PASSTHROUGH_PATHS = new Set([
   '/auth/callback',

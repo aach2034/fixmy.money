@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
-import { proxy, shouldRedirectForMaintenance } from '@/proxy';
+import { shouldRedirectForMaintenance } from '@/proxy';
 
 function request(pathname: string, init?: RequestInit) {
   return new NextRequest(`https://fixmy.money${pathname}`, {
@@ -11,21 +11,20 @@ function request(pathname: string, init?: RequestInit) {
   });
 }
 
-describe('v158 maintenance proxy compatibility', () => {
-  it('redirects visitor pages to the notice with non-cacheable headers', async () => {
-    const response = await proxy(request('/dashboard?filter=active'));
+describe('maintenance proxy control', () => {
+  it('keeps production visitor routes open when maintenance mode is inactive', () => {
+    expect(shouldRedirectForMaintenance(request('/dashboard'))).toBe(false);
+  });
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('https://fixmy.money/maintenance');
-    expect(response.headers.get('cache-control')).toContain('no-store');
-    expect(response.headers.get('x-robots-tag')).toContain('noindex');
+  it('retains the maintenance redirect behavior if it is re-enabled', () => {
+    expect(shouldRedirectForMaintenance(request('/dashboard'), true)).toBe(true);
   });
 
   it('does not redirect the maintenance page to itself', () => {
     expect(shouldRedirectForMaintenance(request('/maintenance'))).toBe(false);
   });
 
-  it('can evaluate maintenance-inactive behavior without changing production mode', () => {
+  it('can explicitly evaluate maintenance-inactive behavior', () => {
     expect(shouldRedirectForMaintenance(request('/dashboard'), false)).toBe(false);
   });
 
@@ -57,8 +56,8 @@ describe('v158 maintenance proxy compatibility', () => {
     '/%6daintenance',
     '/maintenance/dashboard',
     '/maintenance%2F..%2Fdashboard',
-  ])('normalizes alternate maintenance-looking paths to the canonical notice: %s', pathname => {
-    expect(shouldRedirectForMaintenance(request(pathname))).toBe(true);
+  ])('normalizes alternate maintenance-looking paths when maintenance is enabled: %s', pathname => {
+    expect(shouldRedirectForMaintenance(request(pathname), true)).toBe(true);
   });
 
   it('does not read or log request bodies', () => {
