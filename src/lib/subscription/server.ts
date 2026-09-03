@@ -19,6 +19,7 @@ export interface WorkspaceEntitlementRow {
   stripe_status: StripeSubscriptionStatus;
   access_state: WorkspaceEntitlementState;
   plan_id: string | null;
+  plan_catalog_version?: string | null;
   trial_ends_at: string | null;
   current_period_ends_at: string | null;
   grace_ends_at: string | null;
@@ -109,6 +110,7 @@ function defaultRow(workspaceId: string): WorkspaceEntitlementRow {
     stripe_status: 'none',
     access_state: 'expired',
     plan_id: null,
+    plan_catalog_version: null,
     trial_ends_at: null,
     current_period_ends_at: null,
     grace_ends_at: null,
@@ -140,6 +142,7 @@ export function createSupabaseEntitlementStore(admin: SupabaseClient): Workspace
     'stripe_status',
     'access_state',
     'plan_id',
+    'plan_catalog_version',
     'trial_ends_at',
     'current_period_ends_at',
     'grace_ends_at',

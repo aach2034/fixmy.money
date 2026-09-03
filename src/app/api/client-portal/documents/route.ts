@@ -8,6 +8,8 @@ import {
   validateClientDocumentContent,
   validateClientDocumentMetadata,
 } from '@/lib/clientPortal/documentStorage';
+import { authorizeWorkspacePlanOperation, } from '@/lib/subscription/planServer';
+import { PlanAuthorizationError } from '@/lib/subscription/planEnforcement';
 
 const MAX_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -94,6 +96,20 @@ export async function POST(request: NextRequest) {
   const content = validateClientDocumentContent(metadata, bytes);
   if (!content.valid) {
     return NextResponse.json({ error: content.message, code: content.code }, { status: 400 });
+  }
+
+  try {
+    await authorizeWorkspacePlanOperation({
+      workspaceId: scopedRelationship.workspace_id,
+      feature: 'client_portal',
+      limit: 'storage_bytes',
+      increment: file.size,
+    });
+  } catch (error) {
+    if (error instanceof PlanAuthorizationError) {
+      return NextResponse.json({ error: error.code, code: error.code }, { status: error.status });
+    }
+    throw error;
   }
 
   const storagePath = buildClientDocumentPath({

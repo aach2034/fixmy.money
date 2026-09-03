@@ -38,39 +38,18 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get workspace_id for this user
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select('id')
-
-        .single();
-
       const bureaus: string[] = [];
       if (data.bureausEQ) bureaus.push('EQ');
       if (data.bureausEX) bureaus.push('EX');
       if (data.bureausTU) bureaus.push('TU');
 
-      // Insert client record
-      const { data: createdClient, error: clientError } = await supabase
-        .from('staff_clients')
-        .insert({
-          owner_id: user.id,
-          workspace_id: workspace?.id ?? null,
-          name: `${data.firstName} ${data.lastName}`.trim(),
-          email: data.email,
-          phone: data.phone,
-          plan: data.plan,
-          assigned_staff: data.assignedStaff,
-          bureaus,
-          case_stage: 'lead',
-          subscription_status: 'pending',
-          last_activity: 'Just added',
-          report_analyzed: false,
-        })
-        .select('id')
-        .single();
-
-      if (clientError) throw clientError;
+      const clientResponse = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, bureaus }),
+      });
+      const createdClient = await clientResponse.json().catch(() => null);
+      if (!clientResponse.ok || !createdClient?.id) throw new Error(createdClient?.error || 'Failed to enroll client');
 
       toast.success(`${data.firstName} ${data.lastName} enrolled successfully`);
 

@@ -12,6 +12,7 @@ import type {
   AIModel,
   AIUsageReservation,
 } from "./gateway";
+import { authorizeWorkspacePlanOperation } from "@/lib/subscription/planServer";
 
 export interface AIGatewayAuthorization {
   actorId: string;
@@ -55,6 +56,10 @@ export async function authorizeAIGateway(): Promise<AIGatewayAuthorization> {
   if (!entitlement.decision.canAccess) {
     throw new AIGatewayAuthorizationError("AI_ENTITLEMENT_REQUIRED", 403);
   }
+  await authorizeWorkspacePlanOperation({
+    workspaceId: workspace.workspace_id,
+    feature: "ai_assistant",
+  });
 
   return {
     actorId: user.id,

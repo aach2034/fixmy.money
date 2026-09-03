@@ -20,6 +20,19 @@
 export const PLAN_IDS = ['starter', 'professional', 'agency', 'enterprise'] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
 
+/** Immutable identifier persisted with entitlement decisions and usage records. */
+export const PLAN_CATALOG_VERSION = '2026-09-03.v1' as const;
+
+export const PLAN_FEATURE_IDS = [
+  'core_crm',
+  'client_portal',
+  'credit_report_import',
+  'ai_assistant',
+  'team_access',
+  'data_export',
+] as const;
+export type PlanFeatureId = (typeof PLAN_FEATURE_IDS)[number];
+
 export interface PlanConfig {
   id: PlanId;
   name: string;
@@ -29,6 +42,7 @@ export interface PlanConfig {
   maxClients: number | null;   // null = unlimited
   maxTeamMembers: number | null; // null = unlimited
   storageGb: number | null;    // null = custom
+  enabledFeatures: readonly PlanFeatureId[];
   description: string;
   features: string[];
   badge: string | null;
@@ -50,6 +64,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxClients: 3,
     maxTeamMembers: 1,
     storageGb: 5,
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant'],
     description: 'For learning the core credit-review workflow.',
     features: [
       'Core CRM',
@@ -75,6 +90,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxClients: 300,
     maxTeamMembers: 3,
     storageGb: 25,
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access'],
     description: 'For credit professionals using the structured review workflow.',
     features: [
       'Everything in Starter',
@@ -101,6 +117,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxClients: 600,
     maxTeamMembers: 6,
     storageGb: 100,
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
     description: 'For established credit-repair organizations.',
     features: [
       'Everything in Pro',
@@ -123,6 +140,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxClients: null,
     maxTeamMembers: null,
     storageGb: null,
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
     description: 'Custom pricing for large agencies and multi-location operations.',
     features: [
       'Everything in Agency',
