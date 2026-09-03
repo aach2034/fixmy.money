@@ -99,11 +99,12 @@ export default function OnboardingContent() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '') || 'business'}-${user.id.slice(0, 8)}`;
-      // Save to workspace
+      // Signup creates the owner's workspace and membership transactionally.
+      // Updating that row directly avoids an INSERT/ON CONFLICT path, whose
+      // proposed row cannot satisfy the tenant-bound UPDATE policy.
       const { error: wsError } = await supabase
         .from('workspaces')
-        .upsert({
-          owner_id: user.id,
+        .update({
           name: companyData.companyName,
           slug: workspaceSlug,
           phone: companyData.phone || null,
@@ -113,7 +114,10 @@ export default function OnboardingContent() {
           state: companyData.state || null,
           zip: companyData.zip || null,
           business_type: companyData.businessType,
-        }, { onConflict: 'owner_id' });
+        })
+        .eq('owner_id', user.id)
+        .select('id')
+        .single();
 
       if (wsError) {
         throw wsError;

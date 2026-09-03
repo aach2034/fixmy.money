@@ -138,4 +138,18 @@ describe('Onboarding gate — redirect behavior', () => {
     expect(onboarding).toContain("handleFinishOnboarding('/dashboard')");
     expect(onboarding).not.toContain('href={item.href}');
   });
+
+  it('updates the signup-created workspace without an RLS-incompatible upsert', () => {
+    const onboarding = read('src/app/onboarding/components/OnboardingContent.tsx');
+    const workspaceWrite = onboarding.slice(
+      onboarding.indexOf(".from('workspaces')"),
+      onboarding.indexOf('if (wsError)'),
+    );
+
+    expect(workspaceWrite).toContain('.update({');
+    expect(workspaceWrite).toContain(".eq('owner_id', user.id)");
+    expect(workspaceWrite).toContain(".select('id')");
+    expect(workspaceWrite).toContain('.single()');
+    expect(workspaceWrite).not.toContain('.upsert(');
+  });
 });
