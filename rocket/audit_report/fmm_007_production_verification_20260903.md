@@ -1,6 +1,6 @@
 # FMM-007 production verification
 
-Status: **REMEDIATION DEPLOYED — INDEPENDENT RETEST PENDING**
+Status: **PASS / CLOSED**
 
 Independent verifier: **Craig Frankel**
 
@@ -28,4 +28,8 @@ The bounded remediation was deployed as Sites version 162 from `e29a538cc84f17dd
 
 Release checks passed: 10/10 new session-isolation regressions, 43/43 focused auth/readiness checks, TypeScript, targeted lint, and the production build. The complete unrelated application suite remained at 979 passing and the same three pre-existing credit-report assertion failures. Anonymous production smoke tests confirmed missing and invalid verification credentials fail closed, remove only a dummy local auth cookie, and return private/no-store responses. No real account or session was used for deployment validation.
 
-No production customer record, Auth identity, server-side session, billing record, subscription, document, or storage object was deleted or modified by this remediation. Formal closure is prohibited until Craig Frankel personally repeats the new-user verification and records an independent PASS. FMM-004 remains unauthorized.
+No production customer record, Auth identity, server-side session, billing record, subscription, document, or storage object was deleted or modified by this remediation.
+
+## Independent verification
+
+On September 3, 2026, Craig Frankel reported **PASS** after personally repeating the production signup and email-verification flow. This closes the independent-verification gate and formally closes FMM-007. FMM-004 remains unauthorized and no other finding begins from this closure record.
