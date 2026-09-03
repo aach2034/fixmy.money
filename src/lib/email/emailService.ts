@@ -1,7 +1,7 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-interface SendEmailOptions {
+export interface SendEmailOptions {
   type:
     | 'trial_confirmation' |'subscription_started' |'renewal_reminder' |'analysis_complete' |'dispute_recommendations_ready' |'client_notification';
   to: string;

@@ -99,11 +99,13 @@ describe('Google Analytics funnel tracking', () => {
 
   it('records authoritative subscription lifecycle events from signed Stripe webhooks', () => {
     const webhook = read('src/app/api/stripe/webhook/route.ts');
-    expect(webhook).toContain("eventName: 'trial_started'");
-    expect(webhook).toContain("eventName: 'subscription_started'");
-    expect(webhook).toContain("eventName: 'subscription_upgraded'");
-    expect(webhook).toContain("eventName: 'subscription_cancelled'");
-    expect(webhook).toContain('safeLogProductAnalyticsEvent');
+    const processor = read('src/lib/stripe/webhookProcessor.ts');
+    expect(webhook).toContain('processStripeWebhookBusinessEvent');
+    expect(processor).toContain("eventName: 'trial_started'");
+    expect(processor).toContain("eventName: 'subscription_started'");
+    expect(processor).toContain("eventName: 'subscription_upgraded'");
+    expect(processor).toContain("eventName: 'subscription_cancelled'");
+    expect(processor).toContain('logProductAnalyticsEvent');
   });
 
   it('defines the requested funnel events without adding another analytics vendor', () => {
@@ -111,6 +113,7 @@ describe('Google Analytics funnel tracking', () => {
       read('src/lib/analytics.ts'),
       read('src/app/credit-report-import/components/CreditReportImportContent.tsx'),
       read('src/app/api/stripe/webhook/route.ts'),
+      read('src/lib/stripe/webhookProcessor.ts'),
       read('src/app/sign-up-login-screen/components/AuthForm.tsx'),
       read('src/app/checkout/components/CheckoutContent.tsx'),
       read('src/app/onboarding/components/OnboardingContent.tsx'),
