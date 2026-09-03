@@ -137,8 +137,25 @@ SELECT is((SELECT is_nullable FROM information_schema.columns WHERE table_schema
 SELECT is((SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='client_disputes' AND column_name='workspace_client_id'), 'NO', 'portal dispute relationship is mandatory');
 SELECT is((SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename IN ('client_accounts','client_disputes','client_updates','client_documents','chat_conversations','chat_messages') AND (coalesce(qual,'') ILIKE '%jwt%email%' OR coalesce(with_check,'') ILIKE '%jwt%email%')), 0::bigint, 'portal policies never authorize by email');
 SELECT is((SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='private' AND p.proname LIKE 'specialist_owns_%'), 0::bigint, 'email ownership helper generation is removed');
-SELECT is((SELECT count(*) FROM public.workspace_memberships WHERE role='owner' AND status='active'), 2::bigint, 'owner memberships were created automatically');
-SELECT is((SELECT count(*) FROM public.workspace_client_memberships), 3::bigint, 'one relationship exists per client dossier');
+SELECT is((
+  SELECT count(*)
+  FROM public.workspace_memberships
+  WHERE role='owner'
+    AND status='active'
+    AND workspace_id IN (
+      '71100000-0000-0000-0000-000000000010',
+      '72200000-0000-0000-0000-000000000020'
+    )
+), 2::bigint, 'owner memberships were created automatically');
+SELECT is((
+  SELECT count(*)
+  FROM public.workspace_client_memberships
+  WHERE staff_client_id IN (
+    '71110000-0000-0000-0000-000000000011',
+    '71120000-0000-0000-0000-000000000012',
+    '72210000-0000-0000-0000-000000000021'
+  )
+), 3::bigint, 'one relationship exists per client dossier');
 SELECT is((SELECT count(*) FROM public.workspaces WHERE owner_id='75000000-0000-0000-0000-000000000005'), 0::bigint, 'portal Auth identity did not receive a business workspace');
 SELECT is((SELECT count(*) FROM public.client_disputes WHERE owner_id IS NULL OR workspace_id IS NULL OR staff_client_id IS NULL), 0::bigint, 'portal dispute tenant keys are derived');
 SELECT is((SELECT count(*) FROM public.chat_messages WHERE workspace_client_id IS NULL OR workspace_id IS NULL OR sender_user_id IS NULL), 0::bigint, 'chat tenant and sender keys are mandatory');

@@ -111,8 +111,29 @@ async function ownsClientEmail(
   anonKey: string,
   recipient: string,
 ) {
+  const workspaceResponse = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/current_workspace_context`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    },
+  );
+  if (!workspaceResponse.ok) return false;
+
+  const workspaceRows = await workspaceResponse.json();
+  const workspaceId = Array.isArray(workspaceRows) && workspaceRows.length === 1
+    ? text(workspaceRows[0]?.workspace_id, 36)
+    : "";
+  if (!workspaceId) return false;
+
   const params = new URLSearchParams({
     select: "id",
+    workspace_id: `eq.${workspaceId}`,
     email: `ilike.${recipient}`,
     limit: "1",
   });

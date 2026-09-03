@@ -847,6 +847,8 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     expect(source).toContain('const isServiceRole = authHeader ===');
     expect(source).toContain('Invalid or expired session');
     expect(source).toContain('Recipient is not one of your clients');
+    expect(source).toContain('/rest/v1/rpc/current_workspace_context');
+    expect(source).toContain('workspace_id: `eq.${workspaceId}`');
   });
 });
 

@@ -1,20 +1,20 @@
 # FMM-007 production deployment runbook
 
-Status: **PRODUCTION-READY; DEPLOYMENT NOT AUTHORIZED OR PERFORMED**
+Status: **DEPLOYED; TECHNICAL VERIFICATION PASS; INDEPENDENT SIGN-OFF PENDING**
 
 Finding: **FMM-007 — Fix workspace/client tenancy**
 
 Production project: `agxzfdyvewptjwdfuvwq`
 
-Production mutation during preparation: **NONE**
+Production deployment completed: **September 3, 2026 UTC**
 
 ## Qualified change set
 
 Apply only these forward migrations, in order:
 
-1. `20260903011932_fmm_007_workspace_client_tenancy.sql`
+1. `20260903024247_fmm_007_workspace_client_tenancy.sql`
    - SHA-256: `be6d6e42ccde553f93b7361061f1655c82ba10b3693a98159dc4abd4d5bda41a`
-2. `20260903012353_fmm_007_tenant_constraints_and_policies.sql`
+2. `20260903024321_fmm_007_tenant_constraints_and_policies.sql`
    - SHA-256: `0becd086cae722580315ca7437686c4259bb4fec362b4781e73d08a36bb6fa0f`
 
 Then deploy the matching application and `send-email` Edge Function changes from the same reviewed revision. Do not replay any older migration, use a destructive schema reset, delete or merge a customer row, move a storage object, or modify billing or subscription state.
@@ -48,6 +48,17 @@ The migration package preserved these shapes in a disposable production-shaped d
 
 Stop without further production changes if any migration errors, a preflight mismatch, an ambiguous mapping, a missing identity/workspace binding, a protected-row count or hash change, an unexpected storage-path change, or any successful cross-tenant access is observed. Stop if rollback readiness, the named operator, or the independent verifier is unavailable.
 
-## Authorization boundary
+## Deployment result
 
-Separate explicit authorization is still required to apply the two production migrations and deploy the matching application and Edge Function revision. This runbook does not authorize FMM-004, billing changes, entitlement changes, customer deletion, Auth/session deletion, document deletion, storage-object deletion, or any other audit finding.
+- Both qualified migrations were applied atomically under the production ledger versions shown above; their SQL hashes remain unchanged.
+- The application was published as Sites version 160 from reviewed revision `b850f4897880e3b362e7ad924321e3a67c631a33`; maintenance mode remains enabled.
+- `send-email` version 11 is active with JWT verification enabled. A release-gate finding was resolved before deployment by requiring an explicit selected-workspace match in addition to RLS for client notifications.
+- Production passed all 47 tenant-isolation assertions in a rollback-only transaction. The owner, admin, specialist, viewer, multi-workspace staff, portal, shared-portal, invitation, unrelated-user, storage, and mixed-tenant constraint cases passed.
+- Production contains 27 workspace memberships, 14 workspace-client relationships, and 149/149 workspace-bound credit accounts, with zero binding mismatches and zero retained synthetic test rows.
+- Existing customer, billing, document, storage-object, Auth user, identity, and session counts remained unchanged. One refresh token was independently created during the verification window; FMM-007 did not delete, revoke, rewrite, or create that token.
+- Recent Site, Edge Function, Auth, Data API, and Storage logs showed no server errors. The email endpoint rejected an unauthenticated request with HTTP 401.
+- The security advisor reports five expected authenticated `SECURITY DEFINER` RPC warnings. Each function is intentionally authenticated-only, has fixed search path and internal tenant/identity checks, and passed the production isolation matrix. Performance advisories are non-blocking and remain outside FMM-007.
+
+## Closure boundary
+
+Craig Frankel remains the named independent verifier. Engineering deployment and operator verification are complete, but FMM-007 must not be marked formally closed until Craig records an independent PASS. This runbook does not authorize FMM-004, billing changes, entitlement changes, customer deletion, Auth/session deletion, document deletion, storage-object deletion, or any other audit finding.

@@ -148,7 +148,7 @@ describe('FMM-007 source invariants', () => {
     );
     const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
     const migration = readFileSync(
-      'supabase/migrations/20260903012353_fmm_007_tenant_constraints_and_policies.sql',
+      'supabase/migrations/20260903024321_fmm_007_tenant_constraints_and_policies.sql',
       'utf8'
     );
     expect(importer).toContain('createOcrCachePath(workspaceOwnerId, fileHash)');
