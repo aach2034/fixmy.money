@@ -1,6 +1,6 @@
 # FMM-009 corrected production deployment evidence — 2026-09-03
 
-Status: **PASS / OPEN pending independent production verification**
+Status: **PASS / CLOSED**
 
 - Authorized application commit: `7d9e08985204164caaad6c7079577fcdec845cdc`
 - Production Sites version: `169`
@@ -21,4 +21,8 @@ Status: **PASS / OPEN pending independent production verification**
 - Post-deployment customer-data counts match preflight exactly: 30 workspaces, 29 entitlements, 14 clients, 30 memberships, zero documents, zero document bytes, and zero AI usage events. The four legacy `growth` entitlements remain present.
 - Post-DDL security advisor produced no new FMM-009-specific finding. Existing project advisories remain outside this deployment scope.
 
-No legitimate production customer data was deleted or normalized. FMM-009 must not be formally closed until independent production verification reports PASS.
+No legitimate production customer data was deleted or normalized.
+
+## Independent verification and closure
+
+On September 3, 2026, Craig Frankel independently verified FMM-009 in production and reported **PASS**. This satisfies the final closure gate; FMM-009 is formally **PASS / CLOSED**.
