@@ -1,8 +1,10 @@
-# FMM-001 production deployment evidence
+# FMM-001 production closure evidence
 
-Status: **PASS — awaiting Craig Frankel independent verification**
+Status: **PASS / CLOSED**
 
-FMM-001 is deployed but is not formally closed.
+Independent verifier: **Craig Frankel — PASS**
+
+FMM-001 is deployed and formally closed.
 
 ## Release
 
@@ -33,6 +35,6 @@ FMM-001 is deployed but is not formally closed.
 - Relevant Worker invocations completed with outcome `ok`; no runtime exception was observed.
 - Local focused tests passed 32/32, TypeScript passed, focused lint passed, and the production build passed.
 
-## Closure gate
+## Closure
 
-Craig Frankel must independently verify the affected AI gateway behavior and report PASS before FMM-001 may be formally marked **PASS / CLOSED**.
+Craig Frankel independently verified the production FMM-001 controls and reported PASS. This satisfies the final closure gate; FMM-001 is formally **PASS / CLOSED**.
