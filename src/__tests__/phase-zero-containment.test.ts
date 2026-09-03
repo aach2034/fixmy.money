@@ -56,12 +56,12 @@ describe('Phase 0 server containment', () => {
 });
 
 describe('Phase 0 interface containment', () => {
-  it('does not retain a client-document upload or public URL path', () => {
+  it('keeps client-document storage behind the remediated server routes without public URLs', () => {
     const portal = source('src/app/client-portal/components/ClientPortalDashboardContent.tsx');
     expect(portal).not.toContain('.storage');
     expect(portal).not.toContain('getPublicUrl');
     expect(portal).not.toMatch(/from\(['"]client_documents['"]\)\.insert/);
-    expect(portal).toContain('Document upload temporarily unavailable');
+    expect(portal).toContain("fetch('/api/client-portal/documents'");
   });
 
   it('does not expose production demo credentials', () => {

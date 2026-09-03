@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Bell, FileText, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp, X, RefreshCw } from 'lucide-react';
+import { LogOut, Bell, FileText, Upload, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp, X, Paperclip, RefreshCw, ExternalLink } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { createClient } from '@/lib/supabase/client';
+import { CLIENT_DOCUMENT_FORMATS_LABEL, MAX_CLIENT_DOCUMENT_BYTES, validateClientDocumentMetadata } from '@/lib/clientPortal/documentStorage';
 
 import ClientChatWidget from './ClientChatWidget';
 import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
@@ -58,7 +59,6 @@ interface ClientDocument {
   id: string;
   dispute_id: string | null;
   file_name: string;
-  file_url: string;
   doc_status: string;
   uploaded_at: string;
 }
@@ -98,6 +98,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function ClientPortalDashboardContent() {
   const router = useRouter();
   const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [account, setAccount] = useState<ClientAccount | null>(null);
   const [relationships, setRelationships] = useState<WorkspaceClientMembership[]>([]);
   const [activeRelationship, setActiveRelationship] = useState<WorkspaceClientMembership | null>(null);
@@ -108,6 +109,11 @@ export default function ClientPortalDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'disputes' | 'updates' | 'documents'>('disputes');
   const [expandedDispute, setExpandedDispute] = useState<string | null>(null);
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const providers = DEFAULT_PROVIDERS.filter(p => p.isVisible);
 
   useEffect(() => {
@@ -167,8 +173,9 @@ export default function ClientPortalDashboardContent() {
 
       const { data: docs } = await supabase
         .from('client_documents')
-        .select('*')
+        .select('id, dispute_id, file_name, doc_status, uploaded_at')
         .eq('workspace_client_id', selectedRelationship.id)
+        .neq('doc_status', 'pending')
         .order('uploaded_at', { ascending: false });
       setDocuments(docs || []);
 
@@ -183,6 +190,79 @@ export default function ClientPortalDashboardContent() {
   async function markUpdateRead(updateId: string) {
     await supabase.from('client_updates').update({ is_read: true }).eq('id', updateId);
     setUpdates((prev) => prev.map((u) => u.id === updateId ? { ...u, is_read: true } : u));
+  }
+
+  function chooseDocument(disputeId: string | null) {
+    setUploadingFor(disputeId);
+    setUploadError('');
+    setUploadSuccess('');
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    const relationship = activeRelationship;
+    if (!file || !relationship || uploading) return;
+
+    setUploadError('');
+    setUploadSuccess('');
+    const validation = validateClientDocumentMetadata({ fileName: file.name, mimeType: file.type, size: file.size });
+    if (!validation.valid) {
+      setUploadError(validation.message);
+      event.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.set('file', file);
+      formData.set('relationshipId', relationship.id);
+      formData.set('uploadId', crypto.randomUUID());
+      if (uploadingFor) formData.set('disputeId', uploadingFor);
+
+      const response = await fetch('/api/client-portal/documents', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string; document?: { fileName?: string } };
+      if (!response.ok || !payload.document) {
+        throw new Error(payload.error || 'The document was not saved. Please retry.');
+      }
+
+      setUploadSuccess(`“${payload.document.fileName || validation.safeFileName}” uploaded successfully.`);
+      setUploadingFor(null);
+      await loadData(relationship.id);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'The document was not saved. Please retry.');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  }
+
+  async function openDocument(documentId: string) {
+    if (openingDocumentId) return;
+    setUploadError('');
+    setOpeningDocumentId(documentId);
+    const documentWindow = window.open('about:blank', '_blank');
+    if (documentWindow) documentWindow.opener = null;
+    try {
+      const response = await fetch(`/api/client-portal/documents/${encodeURIComponent(documentId)}/access`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string; url?: string };
+      if (!response.ok || !payload.url) throw new Error(payload.error || 'Document access is temporarily unavailable.');
+      if (documentWindow) documentWindow.location.replace(payload.url);
+      else window.location.assign(payload.url);
+    } catch (error) {
+      documentWindow?.close();
+      setUploadError(error instanceof Error ? error.message : 'Document access is temporarily unavailable.');
+    } finally {
+      setOpeningDocumentId(null);
+    }
   }
 
   async function handleSignOut() {
@@ -308,12 +388,17 @@ export default function ClientPortalDashboardContent() {
 
             <AffiliateDisclosure />
 
-            <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
-              <AlertCircle size={16} className="text-warning shrink-0 mt-0.5" />
-              <p className="text-sm text-foreground">
-                Secure document upload is temporarily unavailable. Contact your credit professional for an approved delivery method.
-              </p>
-            </div>
+            <button
+              onClick={() => {
+                setActiveTab('documents');
+                chooseDocument(null);
+              }}
+              disabled={uploading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all disabled:opacity-60"
+            >
+              <Upload size={16} />
+              {uploading ? 'Uploading…' : 'Upload Existing Report'}
+            </button>
           </div>
         )}
 
@@ -425,10 +510,16 @@ export default function ClientPortalDashboardContent() {
                           </div>
                         )}
 
-                        {/* Document upload is intentionally unavailable during containment. */}
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Case Documents</p>
-                          <p className="text-sm text-muted-foreground">Secure document upload is temporarily unavailable.</p>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Upload Documents</p>
+                          <button
+                            onClick={() => chooseDocument(dispute.id)}
+                            disabled={uploading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm text-muted-foreground hover:text-primary transition-all disabled:opacity-60"
+                          >
+                            <Paperclip size={14} />
+                            {uploading && uploadingFor === dispute.id ? 'Uploading…' : 'Attach a document for this case'}
+                          </button>
                         </div>
                       </div>
                     )}
@@ -485,13 +576,34 @@ export default function ClientPortalDashboardContent() {
         {activeTab === 'documents' && (
           <div className="space-y-4">
             {/* Upload area */}
-            <div className="bg-warning/10 border border-warning/30 rounded-xl p-6 text-center">
-              <AlertCircle size={28} className="mx-auto text-warning mb-2" />
-              <p className="text-sm font-medium text-foreground mb-1">Document upload temporarily unavailable</p>
-              <p className="text-xs text-muted-foreground">
-                Uploads will return after private storage, signed access, server-side validation, and reliable metadata persistence are in place.
+            <div className="bg-card border-2 border-dashed border-border rounded-xl p-6 text-center">
+              <Upload size={28} className="mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm font-medium text-foreground mb-1">Upload a document</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                {CLIENT_DOCUMENT_FORMATS_LABEL} · Max {MAX_CLIENT_DOCUMENT_BYTES / 1024 / 1024} MB
               </p>
+              <button
+                onClick={() => chooseDocument(null)}
+                disabled={uploading}
+                className="btn-primary px-5 py-2 text-sm inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                <Upload size={14} />
+                {uploading ? 'Uploading…' : 'Choose File'}
+              </button>
             </div>
+
+            {uploadError && (
+              <div className="rounded-lg bg-danger/10 border border-danger/20 px-4 py-3 flex items-start gap-2">
+                <AlertCircle size={15} className="text-danger shrink-0 mt-0.5" />
+                <p className="text-sm text-danger">{uploadError}</p>
+              </div>
+            )}
+            {uploadSuccess && (
+              <div className="rounded-lg bg-success/10 border border-success/20 px-4 py-3 flex items-start gap-2">
+                <CheckCircle2 size={15} className="text-success shrink-0 mt-0.5" />
+                <p className="text-sm text-success">{uploadSuccess}</p>
+              </div>
+            )}
 
             {/* Document list */}
             {documents.length === 0 ? (
@@ -515,6 +627,14 @@ export default function ClientPortalDashboardContent() {
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCfg.color}`}>
                         {statusCfg.label}
                       </span>
+                      <button
+                        onClick={() => openDocument(doc.id)}
+                        disabled={Boolean(openingDocumentId)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-60"
+                      >
+                        <ExternalLink size={13} />
+                        {openingDocumentId === doc.id ? 'Opening…' : 'Open'}
+                      </button>
                     </div>
                   );
                 })}
@@ -523,6 +643,14 @@ export default function ClientPortalDashboardContent() {
           </div>
         )}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png,.webp"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
 
       {/* Live Chat Widget */}
       {account && activeRelationship && (
