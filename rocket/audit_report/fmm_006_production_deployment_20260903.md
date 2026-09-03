@@ -1,6 +1,6 @@
 # FMM-006 production deployment verification
 
-Status: **PASS — DEPLOYED; OPEN pending independent verification**
+Status: **PASS / CLOSED**
 
 Authorized commit `d7a60195c7de852fe001937d81e58c28950e24d1` was deployed as Sites version 167 (deployment `appgdep_6a99c9e2ea8c819191c06b7e80480a57`). The publish completed successfully at `https://fixmy-money.adamchamilton.chatgpt.site` with production environment revision 9 preserved.
 
@@ -23,4 +23,6 @@ Focused synthetic production verification: **PASS**
 - completed-upload idempotent retry: PASS; and
 - synthetic cleanup: PASS — document rows, objects, portal accounts, workspace relationships, workspaces, profiles, and Auth users all verified at zero remaining.
 
-FMM-006 is not closed. Craig Frankel's independent production verification and PASS remain required for formal closure.
+## Independent verification
+
+On September 3, 2026, Craig Frankel independently verified FMM-006 in production and reported **PASS**. This satisfies the final closure gate; FMM-006 is formally **PASS / CLOSED**.
