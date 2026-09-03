@@ -6,6 +6,7 @@ import {
   normalizeCrossBureauAccounts,
 } from '@/lib/disputeEngine/evidenceEngine';
 import type { NormalizedAccount } from '@/lib/creditReport/adapters';
+import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
 import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 function asNormalizedAccount(row: any): NormalizedAccount {
@@ -47,7 +48,7 @@ function asNormalizedAccount(row: any): NormalizedAccount {
     isCollection: Boolean(row.isCollection ?? row.is_collection),
     isChargeOff: Boolean(row.isChargeOff ?? row.is_charge_off),
     isLate: Boolean(row.isLate ?? row.is_late),
-    rawText: row.rawText ?? row.raw_text_source ?? '',
+    rawText: '',
     parserConfidence: row.parserConfidence ?? row.parser_confidence ?? 0,
   };
 }
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
         report_date: report.report_date ?? '',
         accounts_count: accounts.length,
         bureaus: [...new Set(accounts.map((account: NormalizedAccount) => account.bureau || 'Unknown'))],
-        snapshot_data: { accounts: canonicalAccounts },
+        snapshot_data: stripRawReportArtifacts({ accounts: canonicalAccounts }),
       })
       .select('id')
       .single();
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
           collection_agency: first?.collectionAgency ?? '',
           last_seen_snapshot_id: reportSnapshot.id,
           latest_reported_at: first?.dateReported ?? '',
-          normalized_fields: canonical,
+          normalized_fields: stripRawReportArtifacts(canonical),
         }, { onConflict: 'owner_id,client_id,canonical_key' })
         .select('id')
         .single();
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
         last_payment_date: row.lastPaymentDate,
         payment_history: row.paymentHistory,
         remarks: row.remarks,
-        raw_tradeline: row,
+        raw_tradeline: stripRawReportArtifacts(row),
         parser_confidence: row.parserConfidence,
       }));
       if (tradelineRows.length > 0) {

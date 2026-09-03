@@ -16,6 +16,7 @@ import type {
 export interface AIGatewayAuthorization {
   actorId: string;
   workspaceId: string;
+  workspaceOwnerId: string;
   planId: string | null;
 }
 
@@ -58,6 +59,7 @@ export async function authorizeAIGateway(): Promise<AIGatewayAuthorization> {
   return {
     actorId: user.id,
     workspaceId: workspace.workspace_id,
+    workspaceOwnerId: workspace.workspace_owner_id,
     planId: entitlement.row.plan_id,
   };
 }

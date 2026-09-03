@@ -39,7 +39,7 @@ function unavailable() {
   });
 }
 
-async function readBoundedJson(request: Request): Promise<unknown> {
+export async function readBoundedJson(request: Request): Promise<unknown> {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     throw new AIGatewayError(

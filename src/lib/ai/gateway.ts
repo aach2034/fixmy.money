@@ -8,8 +8,14 @@ export const AI_RESERVATION_TTL_SECONDS = 120;
 export const AI_MODEL_ALLOWLIST = ["gpt-5.4-mini"] as const;
 export type AIModel = (typeof AI_MODEL_ALLOWLIST)[number];
 
-export const AI_OPERATION_IDS = ["agency_assistant"] as const;
+export const AI_OPERATION_IDS = [
+  "agency_assistant",
+  "credit_report_analysis",
+] as const;
 export type AIOperationId = (typeof AI_OPERATION_IDS)[number];
+
+export const AI_CLIENT_OPERATION_IDS = ["agency_assistant"] as const;
+type AIClientOperationId = (typeof AI_CLIENT_OPERATION_IDS)[number];
 
 interface AIOperationConfig {
   model: AIModel;
@@ -28,6 +34,17 @@ export const AI_OPERATION_CATALOG: Record<AIOperationId, AIOperationConfig> = {
       "Give concise operational guidance based only on the user prompt.",
       "Do not invent consumer facts, legal conclusions, credit outcomes, or completed actions.",
       "Do not request or reproduce account numbers, Social Security numbers, or report contents.",
+    ].join(" "),
+  },
+  credit_report_analysis: {
+    model: "gpt-5.4-mini",
+    maxOutputTokens: 512,
+    timeoutMs: 25_000,
+    systemPrompt: [
+      "You are the FixMy.Money credit-report review assistant.",
+      "The user payload is an aggregate, minimized schema without identity or raw report text.",
+      "Describe review priorities only; do not make legal conclusions, promise outcomes, or infer missing identity, creditor, account-number, address, or free-text details.",
+      "Treat all results as suggestions requiring human review.",
     ].join(" "),
   },
 };
@@ -143,10 +160,10 @@ function hasExactKeys(
   );
 }
 
-function isOperationId(value: unknown): value is AIOperationId {
+function isClientOperationId(value: unknown): value is AIClientOperationId {
   return (
     typeof value === "string" &&
-    AI_OPERATION_IDS.includes(value as AIOperationId)
+    AI_CLIENT_OPERATION_IDS.includes(value as AIClientOperationId)
   );
 }
 
@@ -169,7 +186,7 @@ export function parseAIGatewayRequest(value: unknown): AIGatewayRequest {
       "Expected only operation and input fields.",
     );
   }
-  if (!isOperationId(value.operation)) {
+  if (!isClientOperationId(value.operation)) {
     throw new AIGatewayError(
       "AI_OPERATION_NOT_ALLOWED",
       400,

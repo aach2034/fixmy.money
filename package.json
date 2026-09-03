@@ -66,6 +66,7 @@
     "seed-test": "tsx scripts/seed-test-fixtures.ts",
     "teardown-test": "tsx scripts/seed-test-fixtures.ts --teardown",
     "reconcile:fmm004": "tsx scripts/reconcile-fmm-004-entitlements.ts",
+    "purge:fmm002": "tsx scripts/purge-fmm-002-raw-artifacts.ts",
     "migrate:export": "tsx scripts/export-source-schema.ts",
     "migrate:auth": "tsx scripts/migrate-auth-users.ts",
     "migrate:data": "tsx scripts/migrate-to-fixmymoney-project.ts",

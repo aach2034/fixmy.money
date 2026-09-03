@@ -9,12 +9,7 @@ import { DEFAULT_PROVIDERS, getProviders, ReportProvider, trackAffiliateClick } 
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, validateCreditReportExtraction, type PdfExtractionResult } from '@/lib/creditReport/pdfUtils';
 import { hashPdfFile, ocrPdfLocally } from '@/lib/creditReport/localOcr';
-import {
-  OCR_STORAGE_BUCKET,
-  createOcrCachePath,
-  isValidCachedOcrExtraction,
-  type CachedOcrExtraction,
-} from '@/lib/creditReport/ocrTransport';
+import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
 import { isReliableInquiry } from '@/lib/creditReport/auditItems';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
@@ -636,29 +631,7 @@ export default function CreditReportImportContent() {
 
     try {
       const fileHash = await hashPdfFile(file);
-      const [{ data: { user } }, { data: workspaceRows }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.rpc('current_workspace_context'),
-      ]);
-      const workspaceOwnerId = workspaceRows?.[0]?.workspace_owner_id as string | undefined;
-      const cachePath = user && workspaceOwnerId
-        ? createOcrCachePath(workspaceOwnerId, fileHash)
-        : null;
-      let cached: CachedOcrExtraction | null = null;
-
-      if (cachePath) {
-        const { data } = await supabase.storage.from(OCR_STORAGE_BUCKET).download(cachePath);
-        if (data) {
-          try {
-            const parsed = JSON.parse(await data.text()) as unknown;
-            if (isValidCachedOcrExtraction(parsed, fileHash)) cached = parsed;
-          } catch {
-            cached = null;
-          }
-        }
-      }
-
-      const result = cached ?? await ocrPdfLocally(file, progress => {
+      const result = await ocrPdfLocally(file, progress => {
         setOcrProgress({ current: progress.currentPage, total: progress.totalPages });
         setOcrStatus(prev => prev ? {
           ...prev,
@@ -694,7 +667,7 @@ export default function CreditReportImportContent() {
         nativeExtractionQuality: extraction.nativeExtractionQuality,
         meanOcrConfidence,
         extractionQuality: validation.quality,
-        cacheHit: Boolean(cached),
+        cacheHit: false,
         errorMessage: validation.valid
           ? undefined
           : 'OCR_FAILED: Readable credit-report text could not be verified before parsing.',
@@ -720,39 +693,10 @@ export default function CreditReportImportContent() {
         processingDurationMs,
         openAiGenerationCount: 0,
         finalStatus: validation.valid ? 'ready_for_parser' : 'OCR_FAILED',
-        cacheHit: Boolean(cached),
+        cacheHit: false,
       });
 
       if (!validation.valid) return null;
-
-      if (!cached && cachePath) {
-        const cacheValue: CachedOcrExtraction = {
-          version: 1,
-          sha256: fileHash,
-          createdAt: new Date().toISOString(),
-          text: result.text,
-          totalPages: result.totalPages,
-          nativePages,
-          ocrPages,
-          failedPages,
-          meanOcrConfidence,
-          nativeExtractionQuality: extraction.nativeExtractionQuality,
-          extractionQuality: validation.quality,
-          processingDurationMs: result.processingDurationMs,
-          pages: result.pages,
-          pageResults,
-          primaryOcrSuccesses,
-          primaryOcrFailures,
-          retryRecoveries,
-          fallbackRecoveries,
-          capability: result.capability,
-        };
-        await supabase.storage.from(OCR_STORAGE_BUCKET).upload(
-          cachePath,
-          new Blob([JSON.stringify(cacheValue)], { type: 'application/json' }),
-          { contentType: 'application/json', upsert: true },
-        );
-      }
 
       return {
         text: result.text,
@@ -771,7 +715,7 @@ export default function CreditReportImportContent() {
           extractionQuality: validation.quality,
           processingDurationMs,
           openAiGenerationCount: 0,
-          cacheHit: Boolean(cached),
+          cacheHit: false,
           pageResults: pageResults.map(page => ({
             pageNumber: page.pageNumber,
             finalStatus: page.finalStatus,
@@ -986,11 +930,11 @@ export default function CreditReportImportContent() {
         collections_count: accountItemsForPersistence.filter(item => item.isCollection).length,
         inquiries_count: parsedReport.inquiries.length,
         public_records_count: parsedReport.publicRecords.length,
-        raw_text: parsedReport.rawText.slice(0, 50000),
+        raw_text: '',
         file_name: fileName,
         status: 'pending_review',
         // Store ALL accounts (not just negative) as JSON for review screen
-        all_accounts: parsedReport.accounts,
+        all_accounts: stripRawReportArtifacts(parsedReport.accounts),
         all_inquiries: parsedReport.inquiries,
         public_records: parsedReport.publicRecords,
         section_confidence: parsedReport.sectionConfidence,
@@ -1024,7 +968,7 @@ export default function CreditReportImportContent() {
           bureaus_reporting: item.bureaus,
           remarks: item.remarks,
           parser_confidence: item.parserConfidence,
-          raw_text_source: item.rawText.slice(0, 2000),
+          raw_text_source: '',
           is_negative: item.isNegative,
           is_collection: item.isCollection,
         };
@@ -1229,7 +1173,7 @@ export default function CreditReportImportContent() {
               <ShieldCheck size={26} className="text-success" />
               <div>
                 <p className="font-bold text-[#071942]">Private workspace import</p>
-                <p className="text-xs text-[#52627f]">Your report is processed for your signed-in account.</p>
+                <p className="text-xs text-[#52627f]">Raw files and OCR text are processed locally/server-side and are never sent to external AI. Optional AI review requires separate consent and sends only minimized categories.</p>
               </div>
             </div>
           </div>

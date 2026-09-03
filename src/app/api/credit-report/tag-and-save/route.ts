@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { NormalizedReport } from '@/lib/creditReport/adapters';
+import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
 import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
         is_selected: isDispute,
         is_negative: item.isNegative,
         is_collection: item.isCollection,
-        raw_text_source: (item.rawText || '').slice(0, 2000),
+        raw_text_source: '',
         parser_confidence: item.parserConfidence,
         remarks: item.remarks || [],
         bureaus_reporting: item.bureaus || [item.bureau],
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest) {
         parsed_report_id: parsedReportId,
         provider: parsed?.detectedProvider || 'unknown',
         report_date: parsed?.reportDate || '',
-        snapshot_data: parsed || {},
+        snapshot_data: stripRawReportArtifacts(parsed || {}),
         scores: parsed?.scores || [],
         personal_info: parsed?.clientInfo || {},
         accounts_count: allItemsForPersistence.length,
