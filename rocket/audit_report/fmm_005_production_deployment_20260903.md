@@ -1,6 +1,6 @@
 # FMM-005 production deployment verification
 
-Status: **PASS — DEPLOYED / OPEN PENDING INDEPENDENT VERIFICATION**
+Status: **PASS / CLOSED**
 
 Authorized commit `b692e1dc762284ab6770e1f1b758460b377dc215` was deployed as Sites version 166 (deployment `appgdep_6a99bfa2c6d48191a4f877f829232baf`). The publish completed successfully at `https://fixmy-money.adamchamilton.chatgpt.site` and the custom production domain served the release.
 
@@ -17,4 +17,6 @@ Focused synthetic verification against that exact release passed 117/117 asserti
 - representative Experian, Equifax, and TransUnion fixtures; and
 - corrected Experian reported-amount precedence and status-conflict review behavior.
 
-FMM-005 is not formally closed. Craig Frankel must independently verify the affected production flow and report PASS before closure.
+## Independent verification
+
+On September 3, 2026, Craig Frankel independently verified FMM-005 in production and reported **PASS**. This satisfies the final closure gate; FMM-005 is formally **PASS / CLOSED**.
