@@ -1,5 +1,6 @@
 import { extractCreditReportDate } from './dateValidation';
 import { isReliableInquiry } from './auditItems';
+import { determineAnalyzerOutcome, type AnalyzerOutcome } from './analyzerOutcome';
 
 export type SupportedProvider =
   | 'smartcredit' | 'myscoreiq' | 'identityiq' | 'myfreescorenow' | 'privacyguard' |'experian' | 'transunion' | 'equifax' | 'annualcreditreport' | 'creditkarma' | 'unknown';
@@ -430,6 +431,7 @@ export interface ParsedCreditReport {
   bureauTradelines?: ParsedAccount[];
   canonicalAccounts?: ParsedAccount[];
   blockDispositions?: ParseBlockDisposition[];
+  analysisOutcome?: AnalyzerOutcome;
 }
 
 // ─── Comprehensive negative detection keywords ────────────────────────────────
@@ -3927,6 +3929,18 @@ export function parseCreditReport(
     // Log diagnostics to developer console (never exposes raw consumer report data)
     logDiagnostics(diagnostics);
 
+    const analysisOutcome = determineAnalyzerOutcome({
+      provider,
+      providerConfidence,
+      overallConfidence,
+      sectionConfidence,
+      accounts,
+      warnings,
+      negativeClassificationRan,
+      sectionStatuses,
+      diagnostics,
+    });
+
     return {
       provider,
       providerConfidence,
@@ -3961,6 +3975,7 @@ export function parseCreditReport(
       bureauTradelines,
       canonicalAccounts: accounts,
       blockDispositions,
+      analysisOutcome,
     };
   } catch (fatalErr: any) {
     stageFailures.push({ stage: 'account_parsing', message: fatalErr?.message ?? 'fatal parser error', fatal: true });
@@ -4027,6 +4042,13 @@ export function parseCreditReport(
       sectionStatuses: failedSectionStatuses,
       negativeClassificationRan: false,
       unparsedBlocks: [],
+      analysisOutcome: {
+        state: 'failed',
+        reasons: ['PARSER_FATAL'],
+        requiresHumanReview: true,
+        canPersistDraft: false,
+        canMarkAnalyzed: false,
+      },
       diagnostics: {
         providerSelected: forceProvider ?? 'unknown',
         providerConfidence: 0,

@@ -20,7 +20,9 @@ describe('Experian reported amount and exception review regressions', () => {
   it('flags low-confidence accounts', () => expect(needsAccountReview({ creditorName: 'Acme', accountNumberMasked: '****1234', bureau: 'Experian', accountType: 'Installment', status: 'Closed', parserConfidence: 69 })).toBe(true));
   it('flags unknown metadata', () => expect(needsAccountReview({ creditorName: 'Acme', accountNumberMasked: '****1234', bureau: 'Experian', accountType: 'Unknown', status: 'Closed', parserConfidence: 90 })).toBe(true));
   it('keeps save-to-audit and audit-to-dispute as explicit separate actions', () => {
-    expect(read('src/app/clients/[clientId]/reports/[reportId]/review/components/ReportReviewContent.tsx')).toContain('Run Credit Audit');
+    const review = read('src/app/clients/[clientId]/reports/[reportId]/review/components/ReportReviewContent.tsx');
+    expect(review).toContain('Continue Audit');
+    expect(review).toContain('router.push(`/credit-audit?clientId=${clientId}&reportId=${reportId}`)');
     expect(read('src/app/credit-audit/components/CreditAuditContent.tsx')).toContain('Start Dispute');
   });
   it('extracts and persists distinct Experian amount fields in the report snapshot', () => {
@@ -29,6 +31,6 @@ describe('Experian reported amount and exception review regressions', () => {
     expect(parser).toContain("['collectionAmount'");
     expect(parser).toContain("['chargeOffAmount'");
     expect(parser).toContain("['originalBalance'");
-    expect(importer).toContain('all_accounts: parsedReport.accounts');
+    expect(importer).toContain('all_accounts: stripRawReportArtifacts(parsedReport.accounts)');
   });
 });

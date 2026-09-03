@@ -14,6 +14,12 @@ import { isReliableInquiry } from '@/lib/creditReport/auditItems';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
 import { getActionableUnmatchedBlocks, summarizePersistedReportItems } from '@/lib/creditReport/persistenceContract';
+import { determineAnalyzerOutcome } from '@/lib/creditReport/analyzerOutcome';
+import {
+  SUPPORTED_CREDIT_REPORT_FORMATS_LABEL,
+  validateCreditReportFileContent,
+  validateCreditReportFileMetadata,
+} from '@/lib/creditReport/reportFileValidation';
 
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 type ParsedAccountItem = ParsedCreditReport['accounts'][number];
@@ -49,6 +55,10 @@ function accountsForPersistence(report: ParsedCreditReport): ParsedAccountItem[]
   });
 }
 
+function analyzerOutcomeFor(report: ParsedCreditReport) {
+  return report.analysisOutcome ?? determineAnalyzerOutcome(report);
+}
+
 const PROVIDERS_LIST: { value: SupportedProvider; label: string }[] = [
   { value: 'unknown', label: 'Auto-detect' },
   { value: 'smartcredit', label: 'SmartCredit' },
@@ -75,7 +85,7 @@ type ImportProviderCard = {
   preferred?: boolean;
 };
 
-const UPLOAD_FORMATS = 'PDF, TXT, HTML, DOC, DOCX';
+const UPLOAD_FORMATS = SUPPORTED_CREDIT_REPORT_FORMATS_LABEL;
 
 const PROVIDER_UPLOAD_GUIDANCE: ImportProviderCard[] = [
   {
@@ -549,6 +559,8 @@ export default function CreditReportImportContent() {
     try {
       const forceProvider = provider && provider !== 'unknown' ? provider : undefined;
       const result = parseCreditReport(text, forceProvider, meta ?? ocrMeta ?? undefined);
+      const analysisOutcome = analyzerOutcomeFor(result);
+      result.analysisOutcome = analysisOutcome;
       const extractionMeta = meta ?? ocrMeta;
       if (extractionMeta?.fileHash) {
         console.info('[CreditReport/Extraction]', {
@@ -563,7 +575,7 @@ export default function CreditReportImportContent() {
           parserConfidence: result.overallConfidence,
           processingDurationMs: extractionMeta.processingDurationMs ?? null,
           openAiGenerationCount: extractionMeta.openAiGenerationCount ?? 0,
-          finalStatus: 'parsed',
+          finalStatus: analysisOutcome.state,
           cacheHit: extractionMeta.cacheHit ?? false,
         });
       }
@@ -579,6 +591,12 @@ export default function CreditReportImportContent() {
         };
       });
 
+      if (analysisOutcome.state === 'failed') {
+        setParsedReport(result);
+        toast.error('The report could not be parsed safely. Try the original report, select the provider, or use manual review.');
+        return null;
+      }
+
       // Show provider modal if confidence < 60% and provider is unknown
       if (result.providerConfidence < 60 && result.provider === 'unknown') {
         setShowProviderModal(true);
@@ -591,8 +609,8 @@ export default function CreditReportImportContent() {
 
       setParsedReport(result);
 
-      if (result.overallConfidence < 60) {
-        toast.warning(`Parsed with ${result.overallConfidence}% confidence. Review results carefully.`);
+      if (analysisOutcome.state === 'needs_review') {
+        toast.warning(`Parsing requires review (${result.overallConfidence}% confidence). No automated analysis was marked successful.`);
       } else {
         const negCount = result.negativeAccounts.length;
         const accCount = result.accounts.length;
@@ -747,14 +765,17 @@ export default function CreditReportImportContent() {
 
   const handleFile = async (file: File) => {
     if (!file) return;
-    const allowed = ['application/pdf', 'text/plain', 'text/html', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const fileNameLower = file.name.toLowerCase();
-    const allowedExtensions = ['.pdf', '.txt', '.html', '.doc', '.docx'];
-    if (!allowed.includes(file.type) && !allowedExtensions.some(extension => fileNameLower.endsWith(extension))) {
-      toast.error(`Please upload one of these supported formats: ${UPLOAD_FORMATS}`);
+    const metadataValidation = validateCreditReportFileMetadata({
+      fileName: file.name,
+      mimeType: file.type,
+      size: file.size,
+    });
+    if (!metadataValidation.valid) {
+      toast.error(metadataValidation.message);
       trackEvent('credit_import_upload_failed', {
         provider: selectedProvider,
-        reason: 'unsupported_file_type',
+        reason: metadataValidation.code.toLowerCase(),
         file_type: file.type || 'unknown',
       });
       return;
@@ -778,7 +799,19 @@ export default function CreditReportImportContent() {
     setUploading(false);
 
     try {
-      const isPdf = file.type === 'application/pdf' || fileNameLower.endsWith('.pdf');
+      const fileBytes = new Uint8Array(await file.arrayBuffer());
+      const contentValidation = validateCreditReportFileContent(metadataValidation, fileBytes);
+      if (!contentValidation.valid) {
+        toast.error(contentValidation.message);
+        trackEvent('credit_import_upload_failed', {
+          provider: selectedProvider,
+          reason: contentValidation.code.toLowerCase(),
+          file_type: file.type || 'unknown',
+        });
+        return;
+      }
+
+      const isPdf = metadataValidation.format === 'pdf';
 
       if (isPdf) {
         // ── PDF handling: detect image-based vs text-based ──────────────────
@@ -813,18 +846,20 @@ export default function CreditReportImportContent() {
             provider: parsed.provider,
             accounts_count: parsed.accounts.length,
             negative_items_count: parsed.negativeAccounts.length,
+            parse_outcome: analyzerOutcomeFor(parsed).state,
           });
         }
-        setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
+        setOcrStatus(prev => prev ? {
+          ...prev,
+          stage: parsed ? 'done' : 'failed',
+          errorMessage: parsed ? prev.errorMessage : 'REPORT_PARSE_FAILED: The extracted report could not be parsed safely.',
+        } : prev);
         return;
 
       } else {
-        // Non-PDF file (TXT, HTML, DOC) — decode directly
+        // Non-PDF file (TXT, HTML, JSON) — validated and decoded as UTF-8.
         setOcrStatus(null);
-        const arrayBuffer = await file.arrayBuffer();
-        const decoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: true });
-        const rawDecoded = decoder.decode(arrayBuffer);
-        const text = safeNormalizeText(rawDecoded);
+        const text = safeNormalizeText(contentValidation.text ?? '');
 
         if (!text || text.trim().length < 20) {
           toast.info('File appears to be empty or unreadable.');
@@ -845,6 +880,7 @@ export default function CreditReportImportContent() {
             provider: parsed.provider,
             accounts_count: parsed.accounts.length,
             negative_items_count: parsed.negativeAccounts.length,
+            parse_outcome: analyzerOutcomeFor(parsed).state,
           });
         }
       }
@@ -882,6 +918,11 @@ export default function CreditReportImportContent() {
   const handleSaveToClient = async () => {
     if (!selectedClientId) { toast.error('Select a client to save this report to'); return; }
     if (!parsedReport) return;
+    const analysisOutcome = analyzerOutcomeFor(parsedReport);
+    if (!analysisOutcome.canPersistDraft) {
+      toast.error('This failed parse cannot be saved. Re-parse the report or enter the information manually.');
+      return;
+    }
     trackEvent('credit_import_review_clicked', {
       provider: parsedReport.provider,
       parser_confidence: parsedReport.overallConfidence,
@@ -898,10 +939,9 @@ export default function CreditReportImportContent() {
       if (!user) throw new Error('Not authenticated');
       authenticatedOwnerId = user.id;
 
-      // Confidence is advisory only. Always persist the parsed report and its
-      // accounts so a low-confidence parse never loses client data or blocks
-      // the letter workflow.
-      const lowConfidence = parsedReport.overallConfidence < 50;
+      // Review-only parses may be preserved as drafts, but failed parses never
+      // persist and only threshold-clearing parses may be marked analyzed.
+      const lowConfidence = analysisOutcome.state === 'needs_review';
       trackOrganicConversionStep('credit_report_upload_started', {
         provider: parsedReport.provider,
         parser_confidence: parsedReport.overallConfidence,
@@ -1011,9 +1051,9 @@ export default function CreditReportImportContent() {
         .filter(score => Number.isFinite(score) && score > 0)
         .sort((a, b) => b - a)[0];
       const clientUpdates: Record<string, unknown> = {
-        report_analyzed: true,
-        last_activity: 'Credit report saved',
+        last_activity: analysisOutcome.canMarkAnalyzed ? 'Credit report saved' : 'Credit report saved for review',
       };
+      if (analysisOutcome.canMarkAnalyzed) clientUpdates.report_analyzed = true;
       if (personalAddress?.street) clientUpdates.address = personalAddress.street;
       if (personalAddress?.city) clientUpdates.city = personalAddress.city;
       if (personalAddress?.state) clientUpdates.state = personalAddress.state;
@@ -1063,33 +1103,35 @@ export default function CreditReportImportContent() {
         && persistedSummary.duplicates === 0;
       if (!persistenceMatches) throw new Error('Saved report verification did not match the parsed classifications.');
 
-      try {
-        setSaveStage('Building investigation cases...');
-        const { data: sessionData } = await supabase.auth.getSession();
-        const evidenceResponse = await fetch('/api/credit-report/evidence-engine', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
-          },
-          body: JSON.stringify({
-            parsedReportId: reportRecord.id,
-            clientId: selectedClientId,
-          }),
-        });
-        if (!evidenceResponse.ok) {
-          const payload = await evidenceResponse.json().catch(() => null);
-          throw new Error(payload?.error ?? 'Evidence engine indexing failed');
+      if (analysisOutcome.canMarkAnalyzed) {
+        try {
+          setSaveStage('Building investigation cases...');
+          const { data: sessionData } = await supabase.auth.getSession();
+          const evidenceResponse = await fetch('/api/credit-report/evidence-engine', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+            },
+            body: JSON.stringify({
+              parsedReportId: reportRecord.id,
+              clientId: selectedClientId,
+            }),
+          });
+          if (!evidenceResponse.ok) {
+            const payload = await evidenceResponse.json().catch(() => null);
+            throw new Error(payload?.error ?? 'Evidence engine indexing failed');
+          }
+        } catch (engineError: any) {
+          console.warn('[CreditReportImport] Evidence engine indexing skipped:', engineError?.message ?? engineError);
+          toast.warning('Report saved, but investigation indexing needs to be retried from the report review.');
         }
-      } catch (engineError: any) {
-        console.warn('[CreditReportImport] Evidence engine indexing skipped:', engineError?.message ?? engineError);
-        toast.warning('Report saved, but investigation indexing needs to be retried from the report review.');
       }
 
       const generatedLetters = 0;
 
       if (lowConfidence) {
-        toast.warning(`Report saved at ${parsedReport.overallConfidence}% confidence. All ${parsedReport.accounts.length} accounts were preserved and are available for selection.`);
+        toast.warning(`Report saved as needs review at ${parsedReport.overallConfidence}% confidence. It was not marked analyzed.`);
       } else {
         const negCount = parsedReport.negativeAccounts.length;
         toast.success(`Report saved. ${parsedReport.accounts.length} accounts queued for review. ${negCount} flagged as negative.`);
@@ -1132,8 +1174,12 @@ export default function CreditReportImportContent() {
 
   // Determine save button state
   const getSaveWarning = (report: ParsedCreditReport): { type: 'ok' | 'warn' | 'block'; message: string } => {
-    if (report.overallConfidence < 50) {
-      return { type: 'warn', message: `Parser confidence is ${report.overallConfidence}%. The report and every detected account will still be saved; verify item details before using a letter.` };
+    const outcome = analyzerOutcomeFor(report);
+    if (outcome.state === 'failed') {
+      return { type: 'block', message: 'Parsing failed. This result cannot be saved or treated as analyzed.' };
+    }
+    if (outcome.state === 'needs_review') {
+      return { type: 'warn', message: `Parser confidence is ${report.overallConfidence}%. Saving creates a review draft and does not mark the report analyzed.` };
     }
     if (report.overallConfidence < 60 && report.provider === 'unknown') {
       return { type: 'block', message: `Provider unknown at ${report.overallConfidence}% confidence. Select a provider before saving, or continue with manual review.` };
@@ -1181,7 +1227,7 @@ export default function CreditReportImportContent() {
 
         {!parsedReport ? (
           <div className="space-y-6">
-            <input ref={fileRef} type="file" className="hidden" accept=".pdf,.txt,.doc,.docx,.html" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            <input ref={fileRef} type="file" className="hidden" accept=".pdf,.txt,.html,.htm,.json" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-5">
@@ -1419,6 +1465,9 @@ export default function CreditReportImportContent() {
                   Parser confidence: <span className={`font-medium ${parsedReport.overallConfidence >= 70 ? 'text-success' : parsedReport.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{parsedReport.overallConfidence}%</span>
                   {parsedReport.reportDate && <> · Report Date: <span className="font-medium">{parsedReport.reportDate}</span></>}
                 </p>
+                <p className={`mt-1 text-xs font-bold uppercase ${analyzerOutcomeFor(parsedReport).state === 'success' ? 'text-success' : analyzerOutcomeFor(parsedReport).state === 'needs_review' ? 'text-warning' : 'text-danger'}`}>
+                  Parse outcome: {analyzerOutcomeFor(parsedReport).state.replace('_', ' ')}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => { setParsedReport(null); setShowProviderModal(false); }} className="btn-secondary text-xs flex items-center gap-1">
@@ -1561,7 +1610,7 @@ export default function CreditReportImportContent() {
               {/* Normal save — disabled if provider unknown + low confidence */}
               <button
                 onClick={handleSaveToClient}
-                disabled={saving || !selectedClientId || (parsedReport.providerConfidence < 60 && parsedReport.provider === 'unknown' && parsedReport.accounts.length === 0)}
+                disabled={saving || !selectedClientId || !analyzerOutcomeFor(parsedReport).canPersistDraft || (parsedReport.providerConfidence < 60 && parsedReport.provider === 'unknown' && parsedReport.accounts.length === 0)}
                 className="btn-primary flex items-center gap-2 text-sm"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}

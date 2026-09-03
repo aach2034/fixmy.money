@@ -5,6 +5,7 @@
 import { normalizeCreditReportToHtml, safeNormalizeText, type SupportedProvider } from './parser';
 import { extractCreditReportDate } from './dateValidation';
 import { isReliableInquiry } from './auditItems';
+import type { AnalyzerOutcome } from './analyzerOutcome';
 
 // ─── Normalized Schema ────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ export interface NormalizedReport {
   inquiries: NormalizedInquiry[];
   publicRecords: NormalizedPublicRecord[];
   collections: NormalizedCollection[];
+  analysisOutcome?: AnalyzerOutcome;
 }
 
 // ─── Negative classification helpers ─────────────────────────────────────────

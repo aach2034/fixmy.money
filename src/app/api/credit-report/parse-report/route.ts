@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { parseWithAdapter, compareReports, type NormalizedAccount, type NormalizedReport } from '@/lib/creditReport/adapters';
 import { safeNormalizeText, type SupportedProvider } from '@/lib/creditReport/parser';
 import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
+import { determineAnalyzerOutcome } from '@/lib/creditReport/analyzerOutcome';
 import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
@@ -83,8 +84,40 @@ export async function POST(request: NextRequest) {
     const providerKey = provider as SupportedProvider;
     const parsed: NormalizedReport = parseWithAdapter(normalizedText, providerKey);
 
+    const analysisOutcome = determineAnalyzerOutcome(parsed);
+    parsed.analysisOutcome = analysisOutcome;
+    if (analysisOutcome.state === 'failed') {
+      await supabase
+        .from('credit_report_imports')
+        .update({
+          import_status: 'failed',
+          detected_provider: parsed.detectedProvider,
+          provider_confidence: parsed.providerConfidence,
+          parser_adapter: parsed.adapterUsed,
+          parser_version: parsed.parserVersion,
+          accounts_parsed: 0,
+          accounts_rejected: parsed.accountsRejected,
+          diagnostic_log: {
+            importId,
+            clientId,
+            finalStatus: analysisOutcome.state,
+            reasonCodes: analysisOutcome.reasons,
+          },
+        })
+        .eq('id', importId)
+        .eq('owner_id', authorization.workspaceOwnerId)
+        .eq('client_id', authorization.clientId);
+
+      return NextResponse.json({
+        success: false,
+        outcome: analysisOutcome,
+        error: 'The report could not be parsed safely. Select the correct provider or use manual review.',
+        code: 'REPORT_PARSE_FAILED',
+      }, { status: 422 });
+    }
+
     // ── Determine import status ───────────────────────────────────────────────
-    const isLowConfidence = parsed.sectionConfidence.overall < 40;
+    const isLowConfidence = analysisOutcome.state === 'needs_review';
     const importStatus = isLowConfidence ? 'needs_review' : 'parsed';
     const persistedAccountCount = expandedAccountCount(parsed.accounts);
     const persistedNegativeCount = expandedAccountCount(parsed.accounts.filter(account => account.isNegative));
@@ -180,6 +213,8 @@ export async function POST(request: NextRequest) {
           unmatchedRecords: parsed.accountsRejected,
           unicodeNormalizationWarnings: unicodeWarnings,
           warnings: parsed.warnings.map(w => ({ section: w.section, severity: w.severity })),
+          finalStatus: analysisOutcome.state,
+          reasonCodes: analysisOutcome.reasons,
         },
       })
       .eq('id', importId)
@@ -202,7 +237,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      success: true,
+      success: analysisOutcome.state === 'success',
+      outcome: analysisOutcome,
       parsedReportId: parsedReport.id,
       parsed,
       comparison,

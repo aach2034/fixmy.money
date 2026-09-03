@@ -19,6 +19,7 @@ import {
   minimizeReportForExternalAI,
   parseCreditReportAnalysisRequest,
 } from "./aiPrivacy";
+import { isStoredReportEligibleForAutomatedAnalysis } from "./analyzerOutcome";
 
 type StoredReport = Record<string, unknown>;
 
@@ -88,6 +89,13 @@ export async function handleCreditReportAnalysisPost(
     });
     if (!report) {
       throw new AIGatewayError("REPORT_AI_REPORT_NOT_FOUND", 404, "Report not found or access denied.");
+    }
+    if (!isStoredReportEligibleForAutomatedAnalysis(report)) {
+      throw new AIGatewayError(
+        "REPORT_AI_REQUIRES_REVIEW",
+        409,
+        "The report is incomplete or below the automated-analysis confidence threshold.",
+      );
     }
 
     const minimizedReport = minimizeReportForExternalAI(report);
