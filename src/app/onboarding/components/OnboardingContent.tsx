@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@/lib/supabase/client';
 import AppLogo from '@/components/ui/AppLogo';
 import { toast } from 'sonner';
 import { Building2, User, CreditCard, CheckCircle2, ArrowRight, Loader2, Shield, Check, Sparkles, FileText, AlertCircle } from 'lucide-react';
@@ -40,7 +39,6 @@ interface CompanyFormData {
 export default function OnboardingContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const supabase = createClient();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -81,6 +79,22 @@ export default function OnboardingContent() {
     if (user) trackEvent('onboarding_started', { authenticated: true });
   }, [user]);
 
+  // Resume from server-authoritative state; never infer completion from local UI.
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    fetch('/api/onboarding', { cache: 'no-store' })
+      .then(async response => response.ok ? response.json() : null)
+      .then(status => {
+        if (!active || !status) return;
+        if (status.state === 'completed') router.replace('/dashboard');
+        else if (status.nextStep === 'connect') setCurrentStep(2);
+        else if (status.nextStep === 'finish') setCurrentStep(3);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [user, router]);
+
   const validateCompany = (): boolean => {
     const newErrors: Partial<CompanyFormData> = {};
     if (!companyData.companyName.trim()) newErrors.companyName = 'Company name is required';
@@ -95,43 +109,12 @@ export default function OnboardingContent() {
 
     setSaving(true);
     try {
-      const workspaceSlug = `${companyData.companyName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '') || 'business'}-${user.id.slice(0, 8)}`;
-      // Signup creates the owner's workspace and membership transactionally.
-      // Updating that row directly avoids an INSERT/ON CONFLICT path, whose
-      // proposed row cannot satisfy the tenant-bound UPDATE policy.
-      const { error: wsError } = await supabase
-        .from('workspaces')
-        .update({
-          name: companyData.companyName,
-          slug: workspaceSlug,
-          phone: companyData.phone || null,
-          website: companyData.website || null,
-          address: companyData.address || null,
-          city: companyData.city || null,
-          state: companyData.state || null,
-          zip: companyData.zip || null,
-          business_type: companyData.businessType,
-        })
-        .eq('owner_id', user.id)
-        .select('id')
-        .single();
-
-      if (wsError) {
-        throw wsError;
-      }
-
-      // Update user profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({
-          full_name: companyData.ownerName,
-          company_name: companyData.companyName,
-        })
-        .eq('id', user.id);
-      if (profileError) throw profileError;
+      const response = await fetch('/api/onboarding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(companyData),
+      });
+      if (!response.ok) throw new Error('ONBOARDING_COMPANY_SAVE_REJECTED');
 
       setCurrentStep(2);
       toast.success('Company setup saved!');
@@ -151,11 +134,8 @@ export default function OnboardingContent() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error: finishError } = await supabase
-        .from('user_profiles')
-        .update({ onboarding_completed: true })
-        .eq('id', user.id);
-      if (finishError) throw finishError;
+      const finishResponse = await fetch('/api/onboarding', { method: 'POST' });
+      if (!finishResponse.ok) throw new Error('ONBOARDING_COMPLETION_REJECTED');
 
       trackEvent('onboarding_completed', { authenticated: true, destination });
       toast.success('Welcome to FixMy.Money! 🎉');
