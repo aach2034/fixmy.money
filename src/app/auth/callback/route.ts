@@ -1,51 +1,144 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  AUTH_CACHE_HEADERS,
+  AUTH_FAILURE_PATH,
+  getSafeCallbackPath,
+  includeCookieInVary,
+  isSupabaseAuthCookie,
+} from '@/lib/auth/session-isolation';
+
+const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
+
+type PendingCookie = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
+
+function createAuthRedirect(
+  request: NextRequest,
+  path: string,
+  pendingCookies: PendingCookie[] = [],
+  pendingHeaders: Record<string, string> = {}
+): NextResponse {
+  const response = NextResponse.redirect(new URL(path, request.url));
+
+  pendingCookies.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options);
+  });
+  Object.entries(pendingHeaders).forEach(([name, value]) => response.headers.set(name, value));
+  Object.entries(AUTH_CACHE_HEADERS).forEach(([name, value]) => response.headers.set(name, value));
+  response.headers.set('Vary', includeCookieInVary(response.headers.get('Vary')));
+
+  return response;
+}
+
+function createFailedAuthRedirect(request: NextRequest): NextResponse {
+  const response = createAuthRedirect(request, AUTH_FAILURE_PATH);
+
+  // Remove only local Supabase authentication material. This does not revoke,
+  // delete, or otherwise mutate any server-side user or session record.
+  request.cookies.getAll().filter(({ name }) => isSupabaseAuthCookie(name)).forEach(({ name }) => {
+    response.cookies.set(name, '', {
+      path: '/',
+      expires: new Date(0),
+      maxAge: 0,
+      sameSite: 'none',
+      secure: true,
+      partitioned: true,
+    });
+  });
+
+  return response;
+}
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/onboarding';
-  const type = searchParams.get('type');
-  const plan = searchParams.get('plan') || 'professional';
+  const tokenHash = searchParams.get('token_hash');
 
-  if (code) {
-    try {
-      const supabase = await createClient();
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (!error) {
-        if (type === 'recovery') {
-          return NextResponse.redirect(`${origin}/reset-password`);
-        }
-        if (type === 'signup') {
-          // New signup: always go to checkout first, then onboarding.
-          // Checkout sets up the subscription; onboarding gate enforces setup before dashboard.
-          return NextResponse.redirect(`${origin}/checkout?plan=${plan}&verified=1`);
-        }
-        // Login email confirmation or other flows: check onboarding status
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (user) {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('onboarding_completed')
-            .eq('id', user.id)
-            .single();
-
-          if (!profile || !profile.onboarding_completed) {
-            return NextResponse.redirect(`${origin}/onboarding`);
-          }
-        }
-
-        return NextResponse.redirect(`${origin}${next}`);
-      }
-      console.error('[Auth Callback] exchangeCodeForSession error:', error.message);
-    } catch (err) {
-      console.error('[Auth Callback] Unexpected error:', err);
-    }
+  if (!code && !tokenHash) {
+    return createFailedAuthRedirect(request);
   }
 
-  // Fallback: redirect to sign-in page
-  return NextResponse.redirect(`${origin}/sign-up-login-screen`);
+  const pendingCookies: PendingCookie[] = [];
+  let pendingHeaders: Record<string, string> = {};
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll(cookiesToSet, headers) {
+          cookiesToSet.forEach(cookie => {
+            const existingIndex = pendingCookies.findIndex(({ name }) => name === cookie.name);
+            if (existingIndex >= 0) pendingCookies[existingIndex] = cookie;
+            else pendingCookies.push(cookie);
+          });
+          pendingHeaders = { ...pendingHeaders, ...headers };
+        },
+      },
+    }
+  );
+
+  try {
+    const { data: exchangeData, error: exchangeError } = tokenHash
+      ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' })
+      : await supabase.auth.exchangeCodeForSession(code!);
+    const exchangedUserId = exchangeData.session?.user?.id;
+
+    if (exchangeError || !exchangeData.session || !exchangedUserId) {
+      console.error(
+        '[Auth Callback] Unable to establish a verified session:',
+        exchangeError?.message || 'No session returned'
+      );
+      return createFailedAuthRedirect(request);
+    }
+
+    // Bind the redirect to the identity proven by the newly exchanged access
+    // token. Never use a pre-existing browser session to complete this flow.
+    const {
+      data: { user: verifiedUser },
+      error: verificationError,
+    } = await supabase.auth.getUser(exchangeData.session.access_token);
+
+    if (verificationError || !verifiedUser || verifiedUser.id !== exchangedUserId) {
+      console.error(
+        '[Auth Callback] Exchanged session identity verification failed:',
+        verificationError?.message || 'Identity mismatch'
+      );
+      return createFailedAuthRedirect(request);
+    }
+
+    const type = searchParams.get('type');
+    let destination: string;
+
+    if (type === 'recovery') {
+      destination = '/reset-password';
+    } else if (type === 'signup') {
+      const requestedPlan = searchParams.get('plan') || 'professional';
+      const plan = ALLOWED_PLANS.has(requestedPlan) ? requestedPlan : 'professional';
+      destination = `/checkout?plan=${encodeURIComponent(plan)}&verified=1`;
+    } else if (type === 'client_signup') {
+      destination = searchParams.has('next')
+        ? getSafeCallbackPath(searchParams.get('next'))
+        : '/client-portal/login';
+    } else {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('onboarding_completed')
+        .eq('id', verifiedUser.id)
+        .single();
+
+      destination = profile?.onboarding_completed
+        ? getSafeCallbackPath(searchParams.get('next'))
+        : '/onboarding';
+    }
+
+    return createAuthRedirect(request, destination, pendingCookies, pendingHeaders);
+  } catch (error) {
+    console.error('[Auth Callback] Unexpected error:', error);
+    return createFailedAuthRedirect(request);
+  }
 }

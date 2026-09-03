@@ -6,7 +6,7 @@ import AppLogo from '@/components/ui/AppLogo';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { clearLocalAuthState, createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { getPlanAudience, trackEvent } from '@/lib/analytics';
 import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
@@ -55,7 +55,11 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const { signIn, signUp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const authTransitionFailed = searchParams.get('auth_transition') === 'verification_failed';
+  const [supabase] = useState(() => {
+    if (authTransitionFailed) clearLocalAuthState();
+    return createClient();
+  });
   const signupStartedTracked = useRef(false);
 
   const planFromUrl = searchParams.get('plan') || 'starter';
@@ -84,6 +88,11 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
     captureCurrentAttribution();
     let cancelled = false;
     const checkSession = async () => {
+      if (authTransitionFailed) {
+        clearLocalAuthState();
+        window.history.replaceState({}, '', '/login');
+        return;
+      }
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
@@ -392,6 +401,11 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                 <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
                 <p className="text-sm text-slate-500">Sign in to your FixMy.Money workspace</p>
               </div>
+              {authTransitionFailed && (
+                <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  For your protection, the previous browser session was cleared because this verification link could not safely establish its account. Sign in with the account from the verification email.
+                </div>
+              )}
               <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
                 <div>
                   <label htmlFor="login-email" className="label-text">Email address</label>

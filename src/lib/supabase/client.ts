@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { isSupabaseAuthCookie } from '@/lib/auth/session-isolation';
 
 const PFX = 'sb_';
 
@@ -56,6 +57,29 @@ const deleteCookie = (name: string) => {
     });
   });
 };
+
+export function isSupabaseAuthStorageKey(name: string): boolean {
+  const normalized = name.startsWith(PFX) ? name.slice(PFX.length) : name;
+  return isSupabaseAuthCookie(normalized);
+}
+
+export function clearLocalAuthState(): void {
+  if (typeof document !== 'undefined') {
+    fromCookies()
+      .filter(({ name }) => isSupabaseAuthStorageKey(name))
+      .forEach(({ name }) => deleteCookie(name));
+  }
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      Object.keys(localStorage)
+        .filter(isSupabaseAuthStorageKey)
+        .forEach((name) => localStorage.removeItem(name));
+    } catch {
+      // Storage can be unavailable in privacy-restricted browsers.
+    }
+  }
+}
 
 const getToken = () =>
   (canUseCookies() ? fromCookies() : fromStorage())

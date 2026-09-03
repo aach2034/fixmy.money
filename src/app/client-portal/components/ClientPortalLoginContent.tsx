@@ -27,7 +27,8 @@ export default function ClientPortalLoginContent() {
     try {
       const supabase = createClient();
       if (createAccess) {
-        const redirectUrl = `${window.location.origin}/client-portal/login?invite=${encodeURIComponent(invitationToken)}`;
+        const clientPortalPath = `/client-portal/login?invite=${encodeURIComponent(invitationToken)}`;
+        const redirectUrl = `${window.location.origin}/auth/callback?type=client_signup&next=${encodeURIComponent(clientPortalPath)}`;
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-guard';
 import { PRIVATE_ROUTE_PREFIXES } from '@/lib/seo/config';
 import { ACTIVE_SUBSCRIPTION_STATUSES } from '@/lib/subscription/access';
+import { includeCookieInVary } from '@/lib/auth/session-isolation';
 
 const MAINTENANCE_MODE = false;
 const MAINTENANCE_PATH = '/maintenance';
@@ -175,6 +176,7 @@ export async function proxy(request: NextRequest) {
 
   injectTokenFromHeader(request);
   let supabaseResponse = NextResponse.next({ request });
+  let authResponseHeaders: Record<string, string> = {};
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -184,10 +186,17 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
+        setAll(cookiesToSet, headers) {
+          cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
+          });
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options);
+          });
+          authResponseHeaders = { ...authResponseHeaders, ...headers };
+          Object.entries(headers).forEach(([name, value]) => {
+            supabaseResponse.headers.set(name, value);
           });
         },
       },
@@ -198,6 +207,19 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const carryAuthState = (response: NextResponse): NextResponse => {
+    supabaseResponse.cookies.getAll().forEach(cookie => response.cookies.set(cookie));
+    Object.entries(authResponseHeaders).forEach(([name, value]) => response.headers.set(name, value));
+    response.headers.set(
+      'Cache-Control',
+      'private, no-cache, no-store, must-revalidate, max-age=0'
+    );
+    response.headers.set('Expires', '0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Vary', includeCookieInVary(response.headers.get('Vary')));
+    return response;
+  };
+
   const shouldNoIndex = PRIVATE_ROUTE_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`)) || request.nextUrl.searchParams.has('filter') || request.nextUrl.searchParams.has('page') || request.nextUrl.searchParams.has('sort');
 
   // Client portal routes — redirect to client portal login if not authenticated
@@ -207,7 +229,7 @@ export async function proxy(request: NextRequest) {
   if (!user && isClientPortal) {
     const url = request.nextUrl.clone();
     url.pathname = '/client-portal/login';
-    return NextResponse.redirect(url);
+    return carryAuthState(NextResponse.redirect(url));
   }
 
   // Redirect unauthenticated users away from protected routes
@@ -246,7 +268,7 @@ export async function proxy(request: NextRequest) {
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (!user && isProtected) {
-    return redirectToLoginWithReturnPath(request);
+    return carryAuthState(redirectToLoginWithReturnPath(request));
   }
 
   // Staff routes require one explicit active workspace membership. Selecting a
@@ -266,7 +288,7 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = portalAccount ? '/client-portal/dashboard' : '/login';
       url.search = '';
-      return NextResponse.redirect(url);
+      return carryAuthState(NextResponse.redirect(url));
     }
   }
 
@@ -288,13 +310,13 @@ export async function proxy(request: NextRequest) {
       if (!profile || !profile.onboarding_completed) {
         const url = request.nextUrl.clone();
         url.pathname = '/onboarding';
-        return NextResponse.redirect(url);
+        return carryAuthState(NextResponse.redirect(url));
       }
     } catch {
       // On DB error, redirect to onboarding as a safe fallback
       const url = request.nextUrl.clone();
       url.pathname = '/onboarding';
-      return NextResponse.redirect(url);
+      return carryAuthState(NextResponse.redirect(url));
     }
   }
 
@@ -346,13 +368,13 @@ export async function proxy(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = '/billing-subscriptions';
         url.searchParams.set('reason', status === 'past_due' ? 'payment_retry' : 'subscription_required');
-        return NextResponse.redirect(url);
+        return carryAuthState(NextResponse.redirect(url));
       }
     } catch {
       const url = request.nextUrl.clone();
       url.pathname = '/billing-subscriptions';
       url.searchParams.set('reason', 'subscription_check_failed');
-      return NextResponse.redirect(url);
+      return carryAuthState(NextResponse.redirect(url));
     }
   }
 
@@ -360,11 +382,20 @@ export async function proxy(request: NextRequest) {
   if (pathname === '/sign-up-login-screen' || pathname.startsWith('/sign-up-login-screen/')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    return NextResponse.redirect(url, { status: 301 });
+    return carryAuthState(NextResponse.redirect(url, { status: 301 }));
   }
 
   if (shouldNoIndex) {
     supabaseResponse.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  }
+  if (
+    user ||
+    isProtected ||
+    isClientPortal ||
+    pathname === '/login' ||
+    pathname.startsWith('/auth/')
+  ) {
+    carryAuthState(supabaseResponse);
   }
   return supabaseResponse;
 }
