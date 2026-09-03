@@ -76,6 +76,23 @@ const STATUS_COLORS: Record<string, string> = {
   inactive: 'bg-slate-100 text-slate-600',
 };
 
+interface WorkspaceMembershipOption {
+  workspace_id: string;
+  workspace_name: string;
+  member_role: string;
+  is_selected: boolean;
+}
+
+interface CurrentWorkspaceContext {
+  workspace_id: string;
+  workspace_name: string;
+  workspace_owner_id: string;
+  member_role: string;
+  onboarding_completed: boolean;
+  subscription_status: string;
+  subscription_plan: string;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -86,6 +103,8 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [workspaceMemberships, setWorkspaceMemberships] = useState<WorkspaceMembershipOption[]>([]);
+  const [workspaceContext, setWorkspaceContext] = useState<CurrentWorkspaceContext | null>(null);
   const [profile, setProfile] = useState<{
     full_name: string | null;
     email: string | null;
@@ -101,13 +120,24 @@ export default function Sidebar() {
     if (!user) return () => { active = false; };
     const fetchProfile = async () => {
       try {
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('full_name, email, subscription_status, subscription_plan, company_name')
-          .eq('id', user.id)
-          .single();
-        if (error) throw error;
-        if (active) setProfile(data);
+        const [profileResult, membershipsResult, contextResult] = await Promise.all([
+          supabase
+            .from('user_profiles')
+            .select('full_name, email, subscription_status, subscription_plan, company_name')
+            .eq('id', user.id)
+            .single(),
+          supabase
+            .rpc('available_workspace_contexts'),
+          supabase.rpc('current_workspace_context'),
+        ]);
+        if (profileResult.error) throw profileResult.error;
+        if (membershipsResult.error) throw membershipsResult.error;
+        if (contextResult.error) throw contextResult.error;
+        if (active) {
+          setProfile(profileResult.data);
+          setWorkspaceMemberships((membershipsResult.data || []) as unknown as WorkspaceMembershipOption[]);
+          setWorkspaceContext((contextResult.data?.[0] || null) as CurrentWorkspaceContext | null);
+        }
       } catch (err) {
         console.error('[Sidebar] profile fetch error:', err);
       } finally {
@@ -137,16 +167,25 @@ export default function Sidebar() {
     }
   };
 
+  const handleWorkspaceChange = async (workspaceId: string) => {
+    const { error } = await supabase.rpc('select_workspace', { requested_workspace_id: workspaceId });
+    if (error) {
+      console.error('[Sidebar] workspace switch error:', error.message);
+      return;
+    }
+    window.location.reload();
+  };
+
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const displayEmail = profile?.email || user?.email || '';
-  const displayCompany = profile?.company_name || user?.user_metadata?.company_name || 'My Company';
-  const subStatus = profile?.subscription_status || 'inactive';
-  const subPlan = profile?.subscription_plan || '';
+  const displayCompany = workspaceContext?.workspace_name || profile?.company_name || user?.user_metadata?.company_name || 'My Company';
+  const subStatus = workspaceContext?.subscription_status || 'inactive';
+  const subPlan = workspaceContext?.subscription_plan || '';
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
   const statusLabel = PLAN_LABELS[subPlan] || PLAN_LABELS[subStatus] || 'Free';
   const statusColor = STATUS_COLORS[subStatus] || STATUS_COLORS['inactive'];
-  const hasWorkspaceAccess = profileLoaded && hasActiveSubscription(profile?.subscription_status);
+  const hasWorkspaceAccess = profileLoaded && Boolean(workspaceContext) && hasActiveSubscription(subStatus);
   const visibleNavSections = hasWorkspaceAccess ? NAV_SECTIONS : BILLING_ONLY_SECTIONS;
 
   const SidebarContent = () => (
@@ -177,6 +216,22 @@ export default function Sidebar() {
               <span className="text-xs text-slate-400">Trial active</span>
             )}
           </div>
+          {workspaceMemberships.length > 1 && workspaceContext && (
+            <label className="mt-2 block text-[11px] font-semibold text-muted-foreground">
+              Workspace
+              <select
+                value={workspaceContext.workspace_id}
+                onChange={(event) => handleWorkspaceChange(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+              >
+                {workspaceMemberships.map((membership) => (
+                  <option key={membership.workspace_id} value={membership.workspace_id}>
+                    {membership.workspace_name || 'Workspace'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       )}
 

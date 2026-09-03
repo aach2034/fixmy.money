@@ -6,6 +6,7 @@ import {
   normalizeCrossBureauAccounts,
 } from '@/lib/disputeEngine/evidenceEngine';
 import type { NormalizedAccount } from '@/lib/creditReport/adapters';
+import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 function asNormalizedAccount(row: any): NormalizedAccount {
   return {
@@ -75,28 +76,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'parsedReportId and clientId are required' }, { status: 400 });
     }
 
+    const authorization = await authorizeStaffClient(supabase, user.id, clientId, 'write');
+    if (!authorization) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+    const ownerId = authorization.workspaceOwnerId;
+
     const { data: report, error: reportError } = await supabase
       .from('parsed_credit_reports')
       .select('id, owner_id, client_id, provider, report_date, all_accounts')
       .eq('id', parsedReportId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', ownerId)
       .single();
 
     if (reportError || !report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
-    if (report.client_id && report.client_id !== clientId) {
+    if (!sameAuthorizedClient(report, authorization)) {
       return NextResponse.json({ error: 'Report/client mismatch' }, { status: 403 });
-    }
-
-    const { data: clientRow } = await supabase
-      .from('staff_clients')
-      .select('id')
-      .eq('id', clientId)
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!clientRow) {
-      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
     const accounts = Array.isArray(report.all_accounts)
@@ -112,7 +108,8 @@ export async function POST(request: NextRequest) {
     const { data: existingSnapshot } = await supabase
       .from('report_snapshots')
       .select('id')
-      .eq('owner_id', user.id)
+      .eq('owner_id', ownerId)
+      .eq('client_id', clientId)
       .eq('parsed_report_id', parsedReportId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -121,7 +118,7 @@ export async function POST(request: NextRequest) {
     const { data: reportSnapshot, error: snapshotError } = existingSnapshot
       ? { data: existingSnapshot, error: null }
       : await supabase.from('report_snapshots').insert({
-        owner_id: user.id,
+        owner_id: ownerId,
         client_id: clientId,
         parsed_report_id: parsedReportId,
         import_id: importId || null,
@@ -146,8 +143,9 @@ export async function POST(request: NextRequest) {
       const { data: creditAccount, error: accountError } = await supabase
         .from('credit_accounts')
         .upsert({
-          owner_id: user.id,
+          owner_id: ownerId,
           client_id: clientId,
+          workspace_id: authorization.workspaceId,
           canonical_key: canonical.canonicalKey,
           display_name: canonical.displayName,
           creditor_name: first?.creditorName ?? canonical.displayName,
@@ -166,7 +164,7 @@ export async function POST(request: NextRequest) {
       normalizedCount++;
 
       const tradelineRows = canonical.tradelines.map(row => ({
-        owner_id: user.id,
+        owner_id: ownerId,
         client_id: clientId,
         credit_account_id: creditAccount.id,
         parsed_report_id: parsedReportId,
@@ -201,7 +199,7 @@ export async function POST(request: NextRequest) {
         const { data: existingIssue } = await supabase
           .from('detected_issues')
           .select('id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', ownerId)
           .eq('credit_account_id', creditAccount.id)
           .eq('report_snapshot_id', reportSnapshot.id)
           .eq('issue_type', issue.issueType)
@@ -214,7 +212,7 @@ export async function POST(request: NextRequest) {
         const { data: detectedIssue, error: issueError } = await supabase
           .from('detected_issues')
           .insert({
-            owner_id: user.id,
+            owner_id: ownerId,
             client_id: clientId,
             credit_account_id: creditAccount.id,
             report_snapshot_id: reportSnapshot.id,
@@ -239,7 +237,7 @@ export async function POST(request: NextRequest) {
         const { data: existingCases } = await supabase
           .from('credit_cases')
           .select('id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', ownerId)
           .eq('detected_issue_id', detectedIssue.id)
           .limit(1);
 
@@ -247,12 +245,12 @@ export async function POST(request: NextRequest) {
           const { count } = await supabase
             .from('credit_cases')
             .select('id', { count: 'exact', head: true })
-            .eq('owner_id', user.id);
+            .eq('owner_id', ownerId);
           const caseNumber = buildCaseNumber((count ?? 0) + 1);
           const { data: creditCase, error: caseError } = await supabase
             .from('credit_cases')
             .insert({
-              owner_id: user.id,
+              owner_id: ownerId,
               client_id: clientId,
               credit_account_id: creditAccount.id,
               detected_issue_id: detectedIssue.id,
@@ -270,7 +268,7 @@ export async function POST(request: NextRequest) {
           caseCount++;
 
           await supabase.from('case_events').insert({
-            owner_id: user.id,
+            owner_id: ownerId,
             client_id: clientId,
             credit_case_id: creditCase.id,
             event_type: 'potential_issue_detected',

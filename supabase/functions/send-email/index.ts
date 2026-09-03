@@ -109,12 +109,10 @@ async function ownsClientEmail(
   authHeader: string,
   supabaseUrl: string,
   anonKey: string,
-  userId: string,
   recipient: string,
 ) {
   const params = new URLSearchParams({
     select: "id",
-    owner_id: `eq.${userId}`,
     email: `ilike.${recipient}`,
     limit: "1",
   });
@@ -169,7 +167,7 @@ Deno.serve(async (req: Request) => {
     const requestedClientEmail = email(body.clientEmail);
     if (
       requestedClientEmail !== to ||
-      !(await ownsClientEmail(authHeader, supabaseUrl, anonKey, currentUser!.id, to))
+      !(await ownsClientEmail(authHeader, supabaseUrl, anonKey, to))
     ) {
       return json(req, 403, { error: "Recipient is not one of your clients" });
     }
@@ -268,6 +266,7 @@ Deno.serve(async (req: Request) => {
     }
     case "client_notification": {
       const clientName = text(body.clientName, 100) || "there";
+      const portalInviteToken = text(body.portalInviteToken, 200);
       subject = "Welcome to Fix My Money";
       html = template({
         heading: "Your client portal is ready",
@@ -278,7 +277,9 @@ Deno.serve(async (req: Request) => {
           ["Assigned specialist", text(body.assignedStaff, 100) || "Your credit specialist"],
         ],
         ctaLabel: "Open Client Portal",
-        ctaPath: "/client-portal/login",
+        ctaPath: portalInviteToken
+          ? `/client-portal/login?invite=${encodeURIComponent(portalInviteToken)}`
+          : "/client-portal/login",
       });
       break;
     }

@@ -58,7 +58,7 @@ export default function BillingContent() {
         const clientRows = await supabase
           .from("staff_clients")
           .select("id, name, email, plan, subscription_status")
-          .eq("owner_id", user.id)
+
           .order("name");
         setClients((clientRows.data ?? []) as ClientBilling[]);
       } else {

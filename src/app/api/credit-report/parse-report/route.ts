@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { parseWithAdapter, compareReports, type NormalizedAccount, type NormalizedReport } from '@/lib/creditReport/adapters';
 import { safeNormalizeText, type SupportedProvider } from '@/lib/creditReport/parser';
+import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 
@@ -52,31 +53,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'importId, clientId, and textContent are required' }, { status: 400 });
     }
 
-    // ── Validate import record belongs to this user ───────────────────────────
+    const authorization = await authorizeStaffClient(supabase, user.id, clientId, 'write');
+    if (!authorization) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+
+    // Bind the import to the same authorized workspace/client pair.
     const { data: importRecord } = await supabase
       .from('credit_report_imports')
-      .select('*, client_id')
+      .select('*')
       .eq('id', importId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', authorization.workspaceOwnerId)
       .single();
 
     if (!importRecord) {
       return NextResponse.json({ error: 'Import record not found' }, { status: 404 });
     }
 
-    if (importRecord.client_id !== clientId) {
+    if (!sameAuthorizedClient(importRecord, authorization)) {
       return NextResponse.json({ error: 'Import/client mismatch' }, { status: 403 });
-    }
-
-    const { data: clientRow } = await supabase
-      .from('staff_clients')
-      .select('id')
-      .eq('id', clientId)
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!clientRow) {
-      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
     // ── Unicode normalization ─────────────────────────────────────────────────
@@ -98,7 +93,7 @@ export async function POST(request: NextRequest) {
       .from('credit_report_snapshots')
       .select('*')
       .eq('client_id', clientId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', authorization.workspaceOwnerId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -117,7 +112,7 @@ export async function POST(request: NextRequest) {
     const { data: parsedReport, error: saveError } = await supabase
       .from('parsed_credit_reports')
       .insert({
-        owner_id: user.id,
+        owner_id: authorization.workspaceOwnerId,
         client_id: clientId,
         provider: parsed.detectedProvider,
         provider_confidence: parsed.providerConfidence,
@@ -187,7 +182,8 @@ export async function POST(request: NextRequest) {
         },
       })
       .eq('id', importId)
-      .eq('owner_id', user.id);
+      .eq('owner_id', authorization.workspaceOwnerId)
+      .eq('client_id', authorization.clientId);
 
     // ── Diagnostic log ────────────────────────────────────────────────────────
     console.log('[ParseReport] Parse complete', {

@@ -26,7 +26,7 @@ export default function RevenueForecastingContent() {
       const { data, error: queryError } = await supabase
         .from('staff_clients')
         .select('plan, subscription_status')
-        .eq('owner_id', auth.user.id);
+        ;
       if (!active) return;
       if (queryError) setError('Revenue data could not be loaded.');
       else setClients((data ?? []) as ClientRow[]);

@@ -43,7 +43,7 @@ export default function DisputesByBureauChart() {
         const { data: rows, error } = await supabase
           .from('disputes_by_bureau')
           .select('month, equifax, experian, transunion')
-          .eq('owner_id', user.id)
+
           .order('created_at', { ascending: true });
 
         if (!error && rows) {

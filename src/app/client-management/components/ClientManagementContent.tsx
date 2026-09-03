@@ -101,7 +101,7 @@ export default function ClientManagementContent() {
       const { data, error: fetchError } = await supabase
         .from('staff_clients')
         .select('*')
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -116,7 +116,7 @@ export default function ClientManagementContent() {
           .from('staff_clients')
           .update(backfill)
           .eq('id', row.id)
-          .eq('owner_id', user.id)
+
           .select('*')
           .single();
         return updateError || !updated ? row : updated;

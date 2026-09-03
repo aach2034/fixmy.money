@@ -12,9 +12,18 @@ import { DEFAULT_PROVIDERS } from '@/lib/affiliates/reportProviders';
 
 interface ClientAccount {
   id: string;
+  auth_user_id: string;
   email: string;
   full_name: string;
   phone: string;
+}
+
+interface WorkspaceClientMembership {
+  id: string;
+  workspace_id: string;
+  staff_client_id: string;
+  client_account_id: string;
+  workspace_name: string;
 }
 
 interface Dispute {
@@ -90,6 +99,8 @@ export default function ClientPortalDashboardContent() {
   const router = useRouter();
   const supabase = createClient();
   const [account, setAccount] = useState<ClientAccount | null>(null);
+  const [relationships, setRelationships] = useState<WorkspaceClientMembership[]>([]);
+  const [activeRelationship, setActiveRelationship] = useState<WorkspaceClientMembership | null>(null);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [updates, setUpdates] = useState<ClientUpdate[]>([]);
@@ -103,7 +114,7 @@ export default function ClientPortalDashboardContent() {
     loadData();
   }, []);
 
-  async function loadData() {
+  async function loadData(requestedRelationshipId?: string) {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -112,16 +123,28 @@ export default function ClientPortalDashboardContent() {
       const { data: acct } = await supabase
         .from('client_accounts')
         .select('*')
-        .eq('email', user.email)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (!acct) { router.push('/client-portal/login'); return; }
       setAccount(acct);
 
+      const { data: linkedRelationships } = await supabase
+        .rpc('available_portal_relationships');
+
+      const availableRelationships = (linkedRelationships || []) as unknown as WorkspaceClientMembership[];
+      const selectedRelationship = availableRelationships.find(
+        (relationship) => relationship.id === requestedRelationshipId
+      ) || availableRelationships[0];
+
+      if (!selectedRelationship) { router.push('/client-portal/login'); return; }
+      setRelationships(availableRelationships);
+      setActiveRelationship(selectedRelationship);
+
       const { data: disp } = await supabase
         .from('client_disputes')
         .select('*')
-        .eq('client_id', acct.id)
+        .eq('workspace_client_id', selectedRelationship.id)
         .order('opened_at', { ascending: false });
       setDisputes(disp || []);
 
@@ -138,14 +161,14 @@ export default function ClientPortalDashboardContent() {
       const { data: upd } = await supabase
         .from('client_updates')
         .select('*')
-        .eq('client_id', acct.id)
+        .eq('workspace_client_id', selectedRelationship.id)
         .order('created_at', { ascending: false });
       setUpdates(upd || []);
 
       const { data: docs } = await supabase
         .from('client_documents')
         .select('*')
-        .eq('client_id', acct.id)
+        .eq('workspace_client_id', selectedRelationship.id)
         .order('uploaded_at', { ascending: false });
       setDocuments(docs || []);
 
@@ -237,6 +260,23 @@ export default function ClientPortalDashboardContent() {
           </p>
         </div>
 
+        {relationships.length > 1 && activeRelationship && (
+          <label className="block max-w-sm text-sm text-muted-foreground">
+            Credit professional
+            <select
+              value={activeRelationship.id}
+              onChange={(event) => loadData(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+            >
+              {relationships.map((relationship) => (
+                <option key={relationship.id} value={relationship.id}>
+                  {relationship.workspace_name || 'Workspace'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {/* Credit Report CTA — shown when no report uploaded yet */}
         {!hasCreditReport && (
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
@@ -258,7 +298,9 @@ export default function ClientPortalDashboardContent() {
                   key={provider.key}
                   provider={provider}
                   sourcePage="client-portal"
-                  clientId={account?.id}
+                  clientId={activeRelationship?.staff_client_id}
+                  workspaceClientId={activeRelationship?.id}
+                  agencyId={activeRelationship?.workspace_id}
                   compact={true}
                 />
               ))}
@@ -483,9 +525,9 @@ export default function ClientPortalDashboardContent() {
       </div>
 
       {/* Live Chat Widget */}
-      {account && (
+      {account && activeRelationship && (
         <ClientChatWidget
-          clientAccountId={account.id}
+          workspaceClientId={activeRelationship.id}
           clientName={account.full_name}
         />
       )}

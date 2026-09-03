@@ -484,7 +484,7 @@ export default function CreditReportImportContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
-      const { data: ws } = await supabase.from('workspaces').select('id').eq('owner_id', user.id).single();
+      const { data: ws } = await supabase.from('workspaces').select('id').single();
       const wsId = ws?.id ?? null;
       setWorkspaceId(wsId);
       const loaded = await getProviders(wsId);
@@ -498,7 +498,7 @@ export default function CreditReportImportContent() {
     if (clientsLoaded) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('staff_clients').select('id, name').eq('owner_id', user.id).order('name');
+    const { data } = await supabase.from('staff_clients').select('id, name').order('name');
     setClients(data ?? []);
     setClientsLoaded(true);
   };
@@ -636,8 +636,14 @@ export default function CreditReportImportContent() {
 
     try {
       const fileHash = await hashPdfFile(file);
-      const { data: { user } } = await supabase.auth.getUser();
-      const cachePath = user ? createOcrCachePath(user.id, fileHash) : null;
+      const [{ data: { user } }, { data: workspaceRows }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.rpc('current_workspace_context'),
+      ]);
+      const workspaceOwnerId = workspaceRows?.[0]?.workspace_owner_id as string | undefined;
+      const cachePath = user && workspaceOwnerId
+        ? createOcrCachePath(workspaceOwnerId, fileHash)
+        : null;
       let cached: CachedOcrExtraction | null = null;
 
       if (cachePath) {
@@ -1073,7 +1079,7 @@ export default function CreditReportImportContent() {
         .from('staff_clients')
         .update(clientUpdates)
         .eq('id', selectedClientId)
-        .eq('owner_id', user.id);
+        ;
       if (clientUpdateError) throw new Error(`Report items saved, but client information failed to save: ${clientUpdateError.message}`);
 
       setSaveStage('Verifying saved classifications...');
@@ -1081,7 +1087,7 @@ export default function CreditReportImportContent() {
         .from('parsed_credit_reports')
         .select('id, owner_id, client_id, accounts_count, negative_count, collections_count, inquiries_count, overall_confidence, section_confidence')
         .eq('id', reportRecord.id)
-        .eq('owner_id', user.id)
+
         .single();
       if (persistedReportError || !persistedReport) throw new Error('The saved report could not be verified.');
 
@@ -1089,7 +1095,7 @@ export default function CreditReportImportContent() {
         .from('negative_items')
         .select('id, bureau, creditor_name, account_number_masked, account_type, negative_category, is_negative, is_collection')
         .eq('report_id', reportRecord.id)
-        .eq('owner_id', user.id);
+        ;
       if (persistedItemsError) throw new Error('The saved classifications could not be verified.');
 
       const persistedSummary = summarizePersistedReportItems(persistedItems ?? []);
@@ -1104,8 +1110,7 @@ export default function CreditReportImportContent() {
           date_reported: inquiry.date,
         })).length,
       };
-      const persistenceMatches = persistedReport.owner_id === user.id
-        && persistedReport.client_id === selectedClientId
+      const persistenceMatches = persistedReport.client_id === selectedClientId
         && persistedSummary.accounts === expectedSummary.accounts
         && persistedSummary.negatives === expectedSummary.negatives
         && persistedSummary.collections === expectedSummary.collections
@@ -1171,8 +1176,8 @@ export default function CreditReportImportContent() {
       router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
     } catch (err: any) {
       if (createdReportId && authenticatedOwnerId) {
-        await supabase.from('negative_items').delete().eq('report_id', createdReportId).eq('owner_id', authenticatedOwnerId);
-        await supabase.from('parsed_credit_reports').delete().eq('id', createdReportId).eq('owner_id', authenticatedOwnerId);
+        await supabase.from('negative_items').delete().eq('report_id', createdReportId);
+        await supabase.from('parsed_credit_reports').delete().eq('id', createdReportId);
       }
       toast.error(err?.message ?? 'Failed to save report');
     } finally {

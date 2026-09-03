@@ -43,9 +43,9 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
+      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).single();
       setClientName(clientData?.name ?? 'Client');
-      const { data } = await supabase.from('generated_dispute_letters').select('*').eq('client_id', clientId).eq('owner_id', user.id).order('created_at', { ascending: false });
+      const { data } = await supabase.from('generated_dispute_letters').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
       setLetters((data ?? []).map((row: any) => ({
         id: row.id,
         bureau: row.bureau,

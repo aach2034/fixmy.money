@@ -53,7 +53,6 @@ export async function loadCertifiedMailingContext(params: {
     .from(letterSource)
     .select(selectFields)
     .eq('id', letterId)
-    .eq('owner_id', userId)
     .single();
 
   if (letterError || !letter) {
@@ -69,7 +68,6 @@ export async function loadCertifiedMailingContext(params: {
     .from('staff_clients')
     .select('id, name, email, phone, address, city, state, zip')
     .eq('id', typedLetter.client_id)
-    .eq('owner_id', userId)
     .single();
 
   if (clientError || !client) {

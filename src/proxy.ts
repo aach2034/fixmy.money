@@ -78,6 +78,13 @@ const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
 );
 const FULL_ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
+interface CurrentWorkspaceContext {
+  workspace_id: string;
+  workspace_owner_id: string;
+  onboarding_completed: boolean;
+  subscription_status: string;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -242,6 +249,27 @@ export async function proxy(request: NextRequest) {
     return redirectToLoginWithReturnPath(request);
   }
 
+  // Staff routes require one explicit active workspace membership. Selecting a
+  // workspace changes the database-enforced RLS boundary for every subsequent
+  // query, so memberships in multiple agencies can never be blended silently.
+  let currentWorkspace: CurrentWorkspaceContext | null = null;
+  const requiresWorkspace = isProtected && !pathname.startsWith('/admin');
+  if (user && requiresWorkspace) {
+    const { data: workspaceRows, error: workspaceError } = await supabase.rpc('current_workspace_context');
+    currentWorkspace = (workspaceRows?.[0] || null) as CurrentWorkspaceContext | null;
+    if (workspaceError || !currentWorkspace) {
+      const { data: portalAccount } = await supabase
+        .from('client_accounts')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+      const url = request.nextUrl.clone();
+      url.pathname = portalAccount ? '/client-portal/dashboard' : '/login';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // ONBOARDING GATE (server-side):
   // If the user is authenticated but has NOT completed onboarding,
   // block access to all app routes and redirect to /onboarding.
@@ -250,11 +278,11 @@ export async function proxy(request: NextRequest) {
 
   if (user && isOnboardingGated && !pathname.startsWith('/onboarding')) {
     try {
-      const { data: profile } = await supabase
+      const profile = currentWorkspace || (await supabase
         .from('user_profiles')
         .select('onboarding_completed')
         .eq('id', user.id)
-        .single();
+        .single()).data;
 
       // If profile missing or onboarding not completed → redirect to /onboarding
       if (!profile || !profile.onboarding_completed) {
@@ -277,21 +305,11 @@ export async function proxy(request: NextRequest) {
   const isSubscriptionGated = SUBSCRIPTION_GATED_PATHS.some((p) => pathname.startsWith(p));
   if (user && isSubscriptionGated) {
     try {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('subscription_status')
-        .eq('id', user.id)
-        .single();
-
-      const status = profile?.subscription_status || '';
+      const status = currentWorkspace?.subscription_status || '';
       let failedAt: number | null = null;
 
       if (status === 'past_due') {
-        const { data: workspace } = await supabase
-          .from('workspaces')
-          .select('id')
-          .eq('owner_id', user.id)
-          .single();
+        const workspace = currentWorkspace ? { id: currentWorkspace.workspace_id } : null;
 
         if (workspace?.id) {
           const { data: lastPaid } = await supabase

@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { sendTransactionalEmail } from '@/lib/email/emailService';
 
 interface AddClientFormData {
   firstName: string;
@@ -43,7 +42,7 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
       const { data: workspace } = await supabase
         .from('workspaces')
         .select('id')
-        .eq('owner_id', user.id)
+
         .single();
 
       const bureaus: string[] = [];
@@ -52,7 +51,7 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
       if (data.bureausTU) bureaus.push('TU');
 
       // Insert client record
-      const { error: clientError } = await supabase
+      const { data: createdClient, error: clientError } = await supabase
         .from('staff_clients')
         .insert({
           owner_id: user.id,
@@ -75,17 +74,31 @@ export default function AddClientForm({ onClose }: { onClose: () => void }) {
 
       toast.success(`${data.firstName} ${data.lastName} enrolled successfully`);
 
-      // Send welcome email (non-blocking)
-      if (data.email) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        void sendTransactionalEmail({
-          type: 'client_notification',
-          to: data.email,
-          clientName: `${data.firstName} ${data.lastName}`,
-          clientEmail: data.email,
-          assignedStaff: data.assignedStaff,
-          clientPlan: data.plan,
-        }, sessionData.session?.access_token);
+      // Create an opaque, tenant-bound portal invitation. Email is only the
+      // delivery address; accepting the token binds the immutable Auth UUID.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (createdClient?.id && accessToken) {
+        const invitationResponse = await fetch('/api/workspaces/client-invitations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            clientId: createdClient.id,
+            email: data.email,
+            clientName: `${data.firstName} ${data.lastName}`,
+            assignedStaff: data.assignedStaff,
+            clientPlan: data.plan,
+          }),
+        });
+        const invitationResult = await invitationResponse.json().catch(() => null);
+        if (!invitationResponse.ok || !invitationResult?.emailSent) {
+          toast.warning('Client saved, but the portal invitation email needs to be resent.');
+        }
+      } else {
+        toast.warning('Client saved, but the portal invitation email needs to be resent.');
       }
 
       onClose();

@@ -441,7 +441,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         const { data, error } = await supabase
           .from('staff_clients')
           .select('id, name, email, phone, address, city, state, zip')
-          .eq('owner_id', user.id)
+
           .order('name', { ascending: true });
         if (error) {
           toast.error(`Failed to load clients: ${error.message}`);
@@ -493,7 +493,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         const { data: negativeRows, error: negativeError } = await supabase
           .from('negative_items')
           .select('*')
-          .eq('owner_id', user.id)
+
           .eq('client_id', selectedClient);
         if (negativeError) throw negativeError;
 
@@ -542,8 +542,8 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           let legacyQuery = supabase
             .from('client_disputes')
             .select('*')
-            .eq('owner_id', user.id)
-            .eq('client_id', selectedClient)
+
+            .eq('staff_client_id', selectedClient)
             .not('dispute_status', 'eq', 'resolved');
           if (selectedBureau && selectedBureau !== 'All') legacyQuery = legacyQuery.eq('bureau', selectedBureau);
           const { data: legacyRows, error: legacyError } = await legacyQuery.order('priority', { ascending: true });
@@ -617,7 +617,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
       const { data: workspace } = await supabase
         .from('workspaces')
         .select('id')
-        .eq('owner_id', user.id)
+
         .single();
 
       const selectedDisputeItems = disputeItems.filter(item => selectedItems.has(item.id));
@@ -629,14 +629,14 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         .from('staff_clients')
         .update(addressUpdate)
         .eq('id', data.clientId)
-        .eq('owner_id', user.id);
+        ;
       if (addressUpdateError) throw new Error('Client mailing address could not be saved.');
 
       const { data: clientInfo, error: clientError } = await supabase
         .from('staff_clients')
         .select('id, name, email, phone, address, city, state, zip')
         .eq('id', data.clientId)
-        .eq('owner_id', user.id)
+
         .single();
       if (clientError || !clientInfo) throw new Error('Selected client profile could not be refreshed.');
 

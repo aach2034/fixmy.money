@@ -19,8 +19,8 @@ export default function NotificationsPage() {
     if (!user) return;
     (async () => {
       const [clientsResult, lettersResult, profileResult] = await Promise.all([
-        supabase.from('staff_clients').select('id, name, subscription_status, next_task_due, next_task_label').eq('owner_id', user.id),
-        supabase.from('generated_dispute_letters').select('id, bureau, response_due_date, status').eq('owner_id', user.id),
+        supabase.from('staff_clients').select('id, name, subscription_status, next_task_due, next_task_label'),
+        supabase.from('generated_dispute_letters').select('id, bureau, response_due_date, status'),
         supabase.from('user_profiles').select('subscription_status').eq('id', user.id).single(),
       ]);
       const next: Alert[] = [];

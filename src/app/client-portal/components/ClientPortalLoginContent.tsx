@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, Shield, FileText, Bell } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
@@ -11,7 +11,14 @@ export default function ClientPortalLoginContent() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [invitationToken, setInvitationToken] = useState('');
+  const [createAccess, setCreateAccess] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('invite') || '';
+    setInvitationToken(token);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,9 +26,36 @@ export default function ClientPortalLoginContent() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
-      router.push('/client-portal/dashboard');
+      if (createAccess) {
+        const redirectUrl = `${window.location.origin}/client-portal/login?invite=${encodeURIComponent(invitationToken)}`;
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectUrl,
+            data: { is_client: true, account_type: 'consumer' },
+          },
+        });
+        if (signUpError) throw signUpError;
+        if (!data.session) {
+          setError('Check your email to confirm the new account, then return to this invitation.');
+          return;
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+      }
+
+      if (invitationToken) {
+        const { data: invitationType, error: invitationError } = await supabase.rpc(
+          'accept_workspace_invitation',
+          { invitation_token: invitationToken }
+        );
+        if (invitationError) throw invitationError;
+        router.push(invitationType === 'staff' ? '/dashboard' : '/client-portal/dashboard');
+      } else {
+        router.push('/client-portal/dashboard');
+      }
     } catch (err: any) {
       setError(err?.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -85,8 +119,14 @@ export default function ClientPortalLoginContent() {
           </div>
 
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-foreground mb-1">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your client portal to track your disputes</p>
+            <h1 className="text-2xl font-semibold text-foreground mb-1">
+              {createAccess ? 'Create client access' : 'Welcome back'}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {invitationToken
+                ? 'Use the invited email address so access is bound to the correct client relationship.'
+                : 'Sign in to your client portal to track your disputes'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -99,7 +139,7 @@ export default function ClientPortalLoginContent() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+              autoComplete="email"
               />
             </div>
             <div>
@@ -112,7 +152,7 @@ export default function ClientPortalLoginContent() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  autoComplete="current-password"
+                  autoComplete={createAccess ? 'new-password' : 'current-password'}
                 />
                 <button
                   type="button"
@@ -139,10 +179,20 @@ export default function ClientPortalLoginContent() {
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>Sign In <ArrowRight size={16} /></>
+                <>{createAccess ? 'Create Access' : 'Sign In'} <ArrowRight size={16} /></>
               )}
             </button>
           </form>
+
+          {invitationToken && (
+            <button
+              type="button"
+              onClick={() => { setCreateAccess((value) => !value); setError(''); }}
+              className="mt-4 w-full text-sm font-medium text-primary hover:underline"
+            >
+              {createAccess ? 'Already have an account? Sign in' : 'New client? Create portal access'}
+            </button>
+          )}
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             This portal is for clients only.{' '}

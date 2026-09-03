@@ -41,7 +41,7 @@ export default function ClientPipelineContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { if (active) setLoading(false); return; }
       await purgeLegacyProductionSeeds(supabase, user.id);
-      const { data, error: queryError } = await supabase.from('staff_clients').select('id, name, email, phone, credit_score, plan, case_stage, active_disputes, report_analyzed, enrolled_date, created_at, subscription_status').eq('owner_id', user.id).order('created_at', { ascending: false });
+      const { data, error: queryError } = await supabase.from('staff_clients').select('id, name, email, phone, credit_score, plan, case_stage, active_disputes, report_analyzed, enrolled_date, created_at, subscription_status').order('created_at', { ascending: false });
       if (!active) return;
       if (queryError) setError('Client pipeline could not be loaded.');
       else setRows((data ?? []).filter(row => !isLegacySeedClient(row)));

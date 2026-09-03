@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { authorizeStaffClient } from '@/lib/workspaces/authorization';
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -60,15 +61,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client ID required' }, { status: 400 });
     }
 
-    // ── Validate client belongs to this user ──────────────────────────────────
-    const { data: clientRow } = await supabase
-      .from('staff_clients')
-      .select('id, name')
-      .eq('id', clientId)
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!clientRow) {
+    // Service-role clients bypass RLS. Rebind the requested client to its
+    // workspace and verify the actor's active membership before any data use.
+    const authorization = await authorizeStaffClient(supabase, user.id, clientId, 'write');
+    if (!authorization) {
       return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
@@ -128,7 +124,7 @@ export async function POST(request: NextRequest) {
     const { data: importRecord, error: importError } = await supabase
       .from('credit_report_imports')
       .insert({
-        owner_id: user.id,
+        owner_id: authorization.workspaceOwnerId,
         client_id: clientId,
         import_method: importMethod,
         provider,

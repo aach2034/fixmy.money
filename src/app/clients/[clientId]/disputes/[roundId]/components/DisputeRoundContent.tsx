@@ -127,10 +127,10 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
+      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).single();
       setClientName(clientData?.name ?? '');
 
-      const { data: roundData } = await supabase.from('dispute_rounds').select('*').eq('id', roundId).eq('owner_id', user.id).single();
+      const { data: roundData } = await supabase.from('dispute_rounds').select('*').eq('id', roundId).single();
       if (roundData) {
         setRound({
           id: roundData.id,
@@ -144,7 +144,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
         });
       }
 
-      const { data: itemsData } = await supabase.from('dispute_round_items').select('*').eq('round_id', roundId).eq('owner_id', user.id);
+      const { data: itemsData } = await supabase.from('dispute_round_items').select('*').eq('round_id', roundId);
       setItems((itemsData ?? []).map((row: any) => ({
         id: row.id,
         negativeItemId: row.negative_item_id ?? null,
@@ -158,7 +158,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
         status: row.status,
       })));
 
-      const { data: lettersData } = await supabase.from('generated_dispute_letters').select('*').eq('round_id', roundId).eq('owner_id', user.id);
+      const { data: lettersData } = await supabase.from('generated_dispute_letters').select('*').eq('round_id', roundId);
       setLetters((lettersData ?? []).map((row: any) => ({
         id: row.id,
         bureau: row.bureau,
@@ -234,12 +234,12 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       }).eq('id', roundId);
 
       // Update round items status
-      await supabase.from('dispute_round_items').update({ status: 'generated' }).eq('round_id', roundId).eq('owner_id', user.id);
+      await supabase.from('dispute_round_items').update({ status: 'generated' }).eq('round_id', roundId);
 
       // Update negative items status
       const negItemIds = items.map(i => i.negativeItemId).filter((id): id is string => Boolean(id));
       if (negItemIds.length > 0) {
-        await supabase.from('negative_items').update({ dispute_status: 'generated' }).in('id', negItemIds).eq('owner_id', user.id);
+        await supabase.from('negative_items').update({ dispute_status: 'generated' }).in('id', negItemIds);
       }
 
       setLetters(newLetters);

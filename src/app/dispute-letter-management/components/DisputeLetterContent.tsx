@@ -139,12 +139,12 @@ export default function DisputeLetterContent() {
         supabase
           .from('dispute_letters')
           .select('*')
-          .eq('owner_id', user.id)
+
           .order('created_at', { ascending: false }),
         supabase
           .from('negative_items')
           .select('client_id, creditor_name, date_reported')
-          .eq('owner_id', user.id),
+          ,
       ]);
 
       if (fetchError) {
@@ -165,7 +165,7 @@ export default function DisputeLetterContent() {
             generation_error: repaired.generation_error ?? INVALID_DATE_GENERATION_ERROR,
           })
           .eq('id', row.id)
-          .eq('owner_id', user.id)
+
           .eq('letter_status', 'draft')
           .eq('auto_generated', true);
         if (repairError) throw repairError;
@@ -196,7 +196,7 @@ export default function DisputeLetterContent() {
         .from('dispute_letters')
         .delete()
         .eq('id', id)
-        .eq('owner_id', user.id);
+        ;
       if (delError) throw delError;
       setLetters(prev => prev.filter(l => l.id !== id));
       toast.error(`Letter ${letterId} deleted`);
@@ -418,7 +418,7 @@ export default function DisputeLetterContent() {
       .from('dispute_letters')
       .delete()
       .in('id', draftIds)
-      .eq('owner_id', user.id)
+
       .eq('letter_status', 'draft');
     if (deleteError) {
       toast.error('Could not delete the selected drafts.');

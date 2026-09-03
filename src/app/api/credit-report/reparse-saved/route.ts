@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { parseCreditReport, type ParsedCreditReport } from '@/lib/creditReport/parser';
 import { isReliableInquiry } from '@/lib/creditReport/auditItems';
+import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 const PROTECTED_STATUSES = new Set(['sent', 'waiting_for_response', 'updated', 'verified', 'closed']);
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
@@ -79,11 +80,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Maintenance repair is limited to the approved reports' }, { status: 403 });
   }
 
-  let reportsQuery = admin
+  const reportsQuery = admin
     .from('parsed_credit_reports')
     .select('id, owner_id, client_id, raw_text')
     .in('id', reportIds);
-  if (!maintenanceAuthorized && user) reportsQuery = reportsQuery.eq('owner_id', user.id);
   const { data: reports, error: reportsError } = await reportsQuery;
   if (reportsError) return customerSafeError('We could not load the saved report. Please try again.');
   if ((reports ?? []).length !== reportIds.length) {
@@ -95,7 +95,13 @@ export async function POST(request: NextRequest) {
     if (maintenanceAuthorized && APPROVED_MAINTENANCE_REPORTS[report.id] !== report.owner_id) {
       return NextResponse.json({ error: `Ownership verification failed for report ${report.id}` }, { status: 403 });
     }
-    const ownerId = maintenanceAuthorized ? report.owner_id : user!.id;
+    const authorization = maintenanceAuthorized || !user || !report.client_id
+      ? null
+      : await authorizeStaffClient(admin, user.id, report.client_id, 'write');
+    if (!maintenanceAuthorized && (!authorization || !sameAuthorizedClient(report, authorization))) {
+      return NextResponse.json({ error: 'One or more reports were not found or access was denied' }, { status: 403 });
+    }
+    const ownerId = maintenanceAuthorized ? report.owner_id : authorization!.workspaceOwnerId;
     const { data: oldItems, error: itemsError } = await admin
       .from('negative_items')
       .select('*')

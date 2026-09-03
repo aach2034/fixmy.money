@@ -188,7 +188,7 @@ export default function DisputeWizardContent() {
         const { data } = await supabase
           .from('staff_clients')
           .select('id, name, email, phone, address, city, state, zip')
-          .eq('owner_id', user.id)
+
           .order('name');
         setClients(data ?? []);
 
@@ -223,7 +223,7 @@ export default function DisputeWizardContent() {
         let query = supabase
           .from('negative_items')
           .select('*')
-          .eq('owner_id', user.id);
+          ;
 
         if (fromReport && preReportId) {
           query = query.eq('report_id', preReportId);
@@ -263,7 +263,7 @@ export default function DisputeWizardContent() {
           const { data: clientRows, error: clientRowsError } = await supabase
             .from('negative_items')
             .select('*')
-            .eq('owner_id', user.id)
+
             .eq('client_id', selectedClient.id);
           if (clientRowsError) throw clientRowsError;
           negativeData = filterRows(clientRows ?? []);
@@ -316,8 +316,8 @@ export default function DisputeWizardContent() {
           const { data: legacyData } = await supabase
             .from('client_disputes')
             .select('*')
-            .eq('owner_id', user.id)
-            .eq('client_id', selectedClient.id)
+
+            .eq('staff_client_id', selectedClient.id)
             .eq('bureau', selectedBureau)
             .not('dispute_status', 'eq', 'resolved');
           setDisputeItems(deduplicateDisputeRows(legacyData ?? []).map((d: any) => ({
@@ -379,14 +379,14 @@ export default function DisputeWizardContent() {
         .from('staff_clients')
         .update(addressUpdate)
         .eq('id', selectedClient.id)
-        .eq('owner_id', user.id);
+        ;
       if (addressUpdateError) throw new Error('Client mailing address could not be saved.');
 
       const { data: persistedClient, error: clientError } = await supabase
         .from('staff_clients')
         .select('id, name, email, phone, address, city, state, zip')
         .eq('id', selectedClient.id)
-        .eq('owner_id', user.id)
+
         .single();
       if (clientError || !persistedClient) throw new Error('Selected client profile could not be refreshed.');
 
@@ -400,7 +400,7 @@ export default function DisputeWizardContent() {
       setClientZip(normalizedAddress.postalCode);
 
       const { data: workspace } = await supabase
-        .from('workspaces').select('id').eq('owner_id', user.id).single();
+        .from('workspaces').select('id').single();
 
       const bureauShort: Record<string, string> = { Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' };
       const shortCode = bureauShort[selectedBureau] ?? 'DL';
@@ -504,7 +504,7 @@ Date: ${today}`;
           .from('negative_items')
           .update({ dispute_status: 'generated' })
           .in('id', negativeItemIds)
-          .eq('owner_id', user.id);
+          ;
         if (statusError) throw new Error('The letter was saved, but the selected items could not be marked as generated.');
       }
 

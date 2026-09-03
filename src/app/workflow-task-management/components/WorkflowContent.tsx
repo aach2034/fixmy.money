@@ -20,7 +20,7 @@ export default function WorkflowContent() {
       const { data, error: queryError } = await supabase
         .from('workflow_tasks')
         .select('id, title, description, status, priority, due_date, task_type')
-        .eq('owner_id', auth.user.id)
+
         .order('due_date', { ascending: true });
       if (!active) return;
       if (queryError) setError('Workflow data could not be loaded.');

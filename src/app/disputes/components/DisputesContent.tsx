@@ -221,7 +221,7 @@ export default function DisputesContent() {
       const { data: clients } = await supabase
         .from('staff_clients')
         .select('id, name')
-        .eq('owner_id', user.id);
+        ;
 
       const clientMap: Record<string, string> = {};
       (clients ?? []).forEach((c: any) => { clientMap[c.id] = c.name; });
@@ -229,7 +229,7 @@ export default function DisputesContent() {
       const { data, error: fetchError } = await supabase
         .from('negative_items')
         .select('*')
-        .eq('owner_id', user.id)
+
         .or('tag_status.eq.dispute,is_selected.eq.true')
         .order('created_at', { ascending: false });
 
@@ -257,8 +257,7 @@ export default function DisputesContent() {
       const { error: updError } = await supabase
         .from('negative_items')
         .update({ dispute_status: workflowStatus[status] })
-        .eq('id', id)
-        .eq('owner_id', (await supabase.auth.getUser()).data.user?.id);
+        .eq('id', id);
       if (updError) throw updError;
       setDisputes(prev => prev.map(d => d.id === id ? { ...d, disputeStatus: status } : d));
       // Update detail modal if open

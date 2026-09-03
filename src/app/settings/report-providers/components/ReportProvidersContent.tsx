@@ -36,7 +36,7 @@ export default function ReportProvidersContent() {
       const { data: ws } = await supabase
         .from('workspaces')
         .select('id, affiliate_disclosure')
-        .eq('owner_id', user.id)
+
         .single();
 
       if (!ws) return;

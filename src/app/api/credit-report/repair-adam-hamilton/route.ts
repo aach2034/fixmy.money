@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { parseWithAdapter } from '@/lib/creditReport/adapters';
 import { safeNormalizeText } from '@/lib/creditReport/parser';
+import { authorizeStaffClient, type AuthorizedStaffClient } from '@/lib/workspaces/authorization';
 
 /**
  * Adam Hamilton Report Repair
@@ -31,25 +32,33 @@ export async function POST(request: NextRequest) {
     const { data: clients } = await supabase
       .from('staff_clients')
       .select('id, name')
-      .eq('owner_id', user.id)
       .ilike('name', '%adam%hamilton%')
       .limit(5);
 
-    if (!clients || clients.length === 0) {
+    let adamClient: { id: string; name: string } | null = null;
+    let authorization: AuthorizedStaffClient | null = null;
+    for (const candidate of clients ?? []) {
+      const candidateAuthorization = await authorizeStaffClient(supabase, user.id, candidate.id, 'read');
+      if (candidateAuthorization) {
+        adamClient = candidate;
+        authorization = candidateAuthorization;
+        break;
+      }
+    }
+
+    if (!adamClient || !authorization) {
       return NextResponse.json({
         error: 'Adam Hamilton client record not found. Please ensure the client exists in your account.',
         errorCode: 'CLIENT_NOT_FOUND',
       }, { status: 404 });
     }
 
-    const adamClient = clients[0];
-
     // ── Find most recent parsed report ────────────────────────────────────────
     const { data: reports } = await supabase
       .from('parsed_credit_reports')
       .select('*')
       .eq('client_id', adamClient.id)
-      .eq('owner_id', user.id)
+      .eq('owner_id', authorization.workspaceOwnerId)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -69,7 +78,7 @@ export async function POST(request: NextRequest) {
       .from('negative_items')
       .select('id, creditor_name, account_number_masked, bureau, dispute_status, tag_status')
       .eq('client_id', adamClient.id)
-      .eq('owner_id', user.id);
+      .eq('owner_id', authorization.workspaceOwnerId);
 
     // ── Re-run with Unicode normalization ─────────────────────────────────────
     const rawText = report.raw_text ?? '';

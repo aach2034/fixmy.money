@@ -17,7 +17,6 @@ export async function POST(
       .from('certified_mailings')
       .select('id, owner_id, tracking_number, status')
       .eq('id', mailingId)
-      .eq('owner_id', user.id)
       .single();
     if (error || !mailing) return NextResponse.json({ error: 'Certified mailing not found or access denied.' }, { status: 404 });
 
@@ -41,7 +40,6 @@ export async function POST(
         last_tracked_at: new Date().toISOString(),
       })
       .eq('id', mailingId)
-      .eq('owner_id', user.id)
       .select('*')
       .single();
     if (updateError) throw updateError;

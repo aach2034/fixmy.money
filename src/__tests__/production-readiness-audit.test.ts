@@ -14,31 +14,28 @@ describe('production readiness security checks', () => {
     expect(getSafeRedirectPath('\\evil.example\\steal')).toBe('');
   });
 
-  it('keeps credit-report parse writes bound to the authenticated user client', () => {
+  it('keeps credit-report parse writes bound to the selected workspace client', () => {
     const source = route('src/app/api/credit-report/parse-report/route.ts');
 
-    expect(source).toContain('importRecord.client_id !== clientId');
-    expect(source).toContain(".from('staff_clients')");
-    expect(source).toContain(".eq('id', clientId)");
-    expect(source).toContain(".eq('owner_id', user.id)");
+    expect(source).toContain('authorizeStaffClient(supabase, user.id, clientId');
+    expect(source).toContain('sameAuthorizedClient(importRecord, authorization)');
+    expect(source).toContain(".eq('owner_id', authorization.workspaceOwnerId)");
   });
 
-  it('keeps tag-and-save writes bound to the authenticated user client', () => {
+  it('keeps tag-and-save writes bound to the selected workspace client', () => {
     const source = route('src/app/api/credit-report/tag-and-save/route.ts');
 
-    expect(source).toContain('reportRow.client_id && reportRow.client_id !== clientId');
-    expect(source).toContain(".from('staff_clients')");
-    expect(source).toContain(".eq('id', clientId)");
-    expect(source).toContain(".eq('owner_id', user.id)");
+    expect(source).toContain('authorizeStaffClient(supabase, user.id, clientId');
+    expect(source).toContain('sameAuthorizedClient(reportRow, authorization)');
+    expect(source).toContain(".eq('owner_id', authorization.workspaceOwnerId)");
   });
 
-  it('keeps evidence-engine writes bound to the authenticated user client', () => {
+  it('keeps evidence-engine writes bound to the selected workspace client', () => {
     const source = route('src/app/api/credit-report/evidence-engine/route.ts');
 
-    expect(source).toContain('report.client_id && report.client_id !== clientId');
-    expect(source).toContain(".from('staff_clients')");
-    expect(source).toContain(".eq('id', clientId)");
-    expect(source).toContain(".eq('owner_id', user.id)");
+    expect(source).toContain('authorizeStaffClient(supabase, user.id, clientId');
+    expect(source).toContain('sameAuthorizedClient(report, authorization)');
+    expect(source).toContain(".eq('owner_id', ownerId)");
   });
 
   it('credit audit queries only production negative_items columns', () => {

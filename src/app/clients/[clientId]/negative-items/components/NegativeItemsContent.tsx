@@ -96,14 +96,14 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
+      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).single();
       setClientName(clientData?.name ?? 'Client');
 
       const { data: latestReport, error: reportError } = await supabase
         .from('parsed_credit_reports')
         .select('id')
         .eq('client_id', clientId)
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -114,7 +114,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
         .from('negative_items')
         .select('*')
         .eq('client_id', clientId)
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: false });
 
       if (latestReport?.id) {
@@ -172,7 +172,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
         dispute_instruction: editValues.disputeInstruction,
         notes: editValues.notes,
         updated_at: new Date().toISOString(),
-      }).eq('id', id).eq('owner_id', user.id);
+      }).eq('id', id);
       setItems(prev => prev.map(i => i.id === id ? { ...i, ...editValues } : i));
       setEditingItem(null);
       toast.success('Item updated');
@@ -185,7 +185,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      await supabase.from('negative_items').delete().eq('id', id).eq('owner_id', user.id);
+      await supabase.from('negative_items').delete().eq('id', id);
       setItems(prev => prev.filter(i => i.id !== id));
       setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
       toast.success('Item removed');
@@ -231,7 +231,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       const selectedItems = items.filter(i => selected.has(i.id));
 
       // Get next round number
-      const { data: existingRounds } = await supabase.from('dispute_rounds').select('round_number').eq('client_id', clientId).eq('owner_id', user.id).order('round_number', { ascending: false }).limit(1);
+      const { data: existingRounds } = await supabase.from('dispute_rounds').select('round_number').eq('client_id', clientId).order('round_number', { ascending: false }).limit(1);
       const nextRound = (existingRounds?.[0]?.round_number ?? 0) + 1;
 
       // Group by bureau
@@ -282,7 +282,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       }
 
       // Update negative items status
-      await supabase.from('negative_items').update({ dispute_status: 'ready' }).in('id', [...selected]).eq('owner_id', user.id);
+      await supabase.from('negative_items').update({ dispute_status: 'ready' }).in('id', [...selected]);
 
       trackEvent('dispute_created', {
         bureau_count: bureaus.length,

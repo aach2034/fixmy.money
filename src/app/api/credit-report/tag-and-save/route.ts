@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { NormalizedReport } from '@/lib/creditReport/adapters';
+import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 
@@ -86,31 +87,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'parsedReportId, clientId, and taggedItems are required' }, { status: 400 });
     }
 
-    // ── Validate ownership ────────────────────────────────────────────────────
+    const authorization = await authorizeStaffClient(supabase, user.id, clientId, 'write');
+    if (!authorization) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+
+    // ── Validate the report belongs to the authorized workspace/client ────────
     const { data: reportRow } = await supabase
       .from('parsed_credit_reports')
-      .select('id, client_id')
+      .select('id, owner_id, client_id')
       .eq('id', parsedReportId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', authorization.workspaceOwnerId)
       .single();
 
     if (!reportRow) {
       return NextResponse.json({ error: 'Report not found or access denied' }, { status: 403 });
     }
 
-    if (reportRow.client_id && reportRow.client_id !== clientId) {
+    if (!sameAuthorizedClient(reportRow, authorization)) {
       return NextResponse.json({ error: 'Report/client mismatch' }, { status: 403 });
-    }
-
-    const { data: clientRow } = await supabase
-      .from('staff_clients')
-      .select('id')
-      .eq('id', clientId)
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!clientRow) {
-      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
     // ── Fetch existing negative_items for this report (dedup check) ───────────
@@ -118,7 +113,8 @@ export async function POST(request: NextRequest) {
       .from('negative_items')
       .select('id, creditor_name, account_number_masked, bureau')
       .eq('report_id', parsedReportId)
-      .eq('owner_id', user.id);
+      .eq('owner_id', authorization.workspaceOwnerId)
+      .eq('client_id', authorization.clientId);
 
     const existingKeys = new Set(
       (existingItems ?? []).map((i: any) =>
@@ -144,7 +140,7 @@ export async function POST(request: NextRequest) {
       const negCategory = item.isCollection ? 'collection' : item.isChargeOff ?'charge_off' : item.isLate ?'late_payment' : item.isNegative ?'other' :'other';
 
       itemsToInsert.push({
-        owner_id: user.id,
+        owner_id: authorization.workspaceOwnerId,
         client_id: clientId,
         report_id: parsedReportId,
         source_import_id: parsedReportId,
@@ -199,7 +195,7 @@ export async function POST(request: NextRequest) {
     const { data: snapshot } = await supabase
       .from('credit_report_snapshots')
       .insert({
-        owner_id: user.id,
+        owner_id: authorization.workspaceOwnerId,
         client_id: clientId,
         import_id: importId || null,
         parsed_report_id: parsedReportId,
@@ -225,7 +221,8 @@ export async function POST(request: NextRequest) {
         snapshot_saved: true,
       })
       .eq('id', parsedReportId)
-      .eq('owner_id', user.id);
+      .eq('owner_id', authorization.workspaceOwnerId)
+      .eq('client_id', authorization.clientId);
 
     // ── Update import record ──────────────────────────────────────────────────
     if (importId) {
@@ -238,7 +235,8 @@ export async function POST(request: NextRequest) {
           save_result: `Saved ${savedCount} accounts, ${taggedItems.length} tagged for dispute`,
         })
         .eq('id', importId)
-        .eq('owner_id', user.id);
+        .eq('owner_id', authorization.workspaceOwnerId)
+        .eq('client_id', authorization.clientId);
     }
 
     // ── Diagnostic log ────────────────────────────────────────────────────────

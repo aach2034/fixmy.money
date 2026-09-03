@@ -63,22 +63,22 @@ export default function DashboardContent() {
       await purgeLegacyProductionSeeds(supabase, user.id);
       const [profile, clients, reports, items] = await Promise.all([
         supabase.from('user_profiles').select('full_name, company_name').eq('id', user.id).single(),
-        supabase.from('staff_clients').select('id, name, case_stage, updated_at').eq('owner_id', user.id).order('updated_at', { ascending: false }),
-        supabase.from('parsed_credit_reports').select('id', { count: 'exact', head: true }).eq('owner_id', user.id),
-        supabase.from('negative_items').select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, is_negative, parser_confidence, account_number_masked, date_reported, tag_status, is_selected').eq('owner_id', user.id),
+        supabase.from('staff_clients').select('id, name, case_stage, updated_at').order('updated_at', { ascending: false }),
+        supabase.from('parsed_credit_reports').select('id', { count: 'exact', head: true }),
+        supabase.from('negative_items').select('creditor_name, negative_category, bureau, balance, dispute_reason, negative_reason, dispute_status, is_negative, parser_confidence, account_number_masked, date_reported, tag_status, is_selected'),
       ]);
       if (profile.error) throw profile.error;
       if (clients.error) throw clients.error;
       const realClients = (clients.data ?? []).filter(client => !isLegacySeedClient(client as any));
       const reliable = selectReliableAuditItems((items.data ?? []) as SavedAuditItem[]);
       const [issues, strongIssues, evidenceNeededIssues, cases, dueRecipients, comparisons, strongestCases] = await Promise.allSettled([
-        supabase.from('detected_issues').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('status', 'potential_issue'),
-        supabase.from('detected_issues').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('evidence_strength', 'strong'),
-        supabase.from('detected_issues').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('evidence_strength', 'insufficient'),
-        supabase.from('credit_cases').select('id, case_status', { count: 'exact' }).eq('owner_id', user.id),
-        supabase.from('dispute_recipients').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).not('response_deadline_estimate', 'is', null).lte('response_deadline_estimate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
-        supabase.from('report_comparisons').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('potential_reinsertion_detected', true),
-        supabase.from('credit_cases').select('id, case_number, issue_summary, evidence_strength, case_status, recommended_next_action, created_at').eq('owner_id', user.id).limit(12),
+        supabase.from('detected_issues').select('id', { count: 'exact', head: true }).eq('status', 'potential_issue'),
+        supabase.from('detected_issues').select('id', { count: 'exact', head: true }).eq('evidence_strength', 'strong'),
+        supabase.from('detected_issues').select('id', { count: 'exact', head: true }).eq('evidence_strength', 'insufficient'),
+        supabase.from('credit_cases').select('id, case_status', { count: 'exact' }),
+        supabase.from('dispute_recipients').select('id', { count: 'exact', head: true }).not('response_deadline_estimate', 'is', null).lte('response_deadline_estimate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
+        supabase.from('report_comparisons').select('id', { count: 'exact', head: true }).eq('potential_reinsertion_detected', true),
+        supabase.from('credit_cases').select('id, case_number, issue_summary, evidence_strength, case_status, recommended_next_action, created_at').limit(12),
       ]);
       const allCases = cases.status === 'fulfilled' && !cases.value.error ? (cases.value.data ?? []) : [];
       const strengthRank: Record<string, number> = { strong: 0, moderate: 1, insufficient: 2 };

@@ -25,18 +25,19 @@ interface SendEmailOptions {
   clientEmail?: string;
   assignedStaff?: string;
   clientPlan?: string;
+  portalInviteToken?: string;
 }
 
 export async function sendTransactionalEmail(
   options: SendEmailOptions,
   accessToken?: string
-): Promise<void> {
+): Promise<boolean> {
   const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/send-email`;
   const authorizationToken = accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!authorizationToken) {
     console.error(`[EmailService] Cannot send ${options.type}: no authenticated token is available.`);
-    return;
+    return false;
   }
 
   const response = await fetch(edgeFunctionUrl, {
@@ -52,12 +53,12 @@ export async function sendTransactionalEmail(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     console.error(`[EmailService] Failed to send ${options.type} email:`, error);
-    // Non-blocking: log but don't throw so processing continues
-    return;
+    return false;
   }
 
   const result = await response.json();
   console.log(`[EmailService] Sent ${options.type} email, id: ${result.id}`);
+  return true;
 }
 
 export function formatDate(timestamp: number): string {

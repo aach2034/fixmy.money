@@ -60,7 +60,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .from('parsed_credit_reports')
         .select('*')
         .eq('id', reportId)
-        .eq('owner_id', user.id)
+
         .single();
 
       if (!reportData) { toast.error('Report not found'); router.back(); return; }
@@ -69,7 +69,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .from('staff_clients')
         .select('name')
         .eq('id', clientId)
-        .eq('owner_id', user.id)
+
         .single();
 
       setClientName(clientData?.name ?? 'Client');
@@ -79,7 +79,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .from('negative_items')
         .select('*')
         .eq('report_id', reportId)
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: true });
 
       // Map DB rows to EditableAccount
@@ -192,13 +192,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           .from('report_snapshots')
           .select('id')
           .eq('parsed_report_id', reportId)
-          .eq('owner_id', user.id);
+          ;
         const snapshotIds = (snapshots ?? []).map((snapshot: any) => snapshot.id);
         if (snapshotIds.length > 0) {
           const { data: issues } = await supabase
             .from('detected_issues')
             .select('id, issue_type, issue_label, affected_bureaus, affected_furnisher, why_flagged, confidence_level, evidence_strength, evidence_still_needed')
-            .eq('owner_id', user.id)
+
             .in('report_snapshot_id', snapshotIds)
             .order('confidence_level', { ascending: false })
             .limit(8);
@@ -255,19 +255,19 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           is_negative: acc._markedNegative,
           is_collection: acc._markedCollection,
           updated_at: new Date().toISOString(),
-        }).eq('id', acc._dbId).eq('owner_id', user.id);
+        }).eq('id', acc._dbId);
         if (updateError) throw new Error(`Could not save ${acc.creditorName || 'account'}: ${updateError.message}`);
       }
 
       for (const acc of toDelete) {
-        const { error: deleteError } = await supabase.from('negative_items').delete().eq('id', acc._dbId).eq('owner_id', user.id);
+        const { error: deleteError } = await supabase.from('negative_items').delete().eq('id', acc._dbId);
         if (deleteError) throw new Error(`Could not remove ${acc.creditorName || 'account'}: ${deleteError.message}`);
       }
 
       const { error: reportUpdateError } = await supabase.from('parsed_credit_reports').update({
         status: 'reviewed',
         reviewed_at: new Date().toISOString(),
-      }).eq('id', reportId).eq('owner_id', user.id);
+      }).eq('id', reportId);
       if (reportUpdateError) throw new Error(`Could not finalize report review: ${reportUpdateError.message}`);
 
       const negCount = toSave.filter(a => a._markedNegative).length;

@@ -32,6 +32,7 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
   const [state, setState] = useState(client.state);
   const [zip, setZip] = useState(client.zip);
   const [savingAddress, setSavingAddress] = useState(false);
+  const [sendingPortalInvitation, setSendingPortalInvitation] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const supabase = createClient();
   const initials = client.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -62,14 +63,14 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
         .from('staff_clients')
         .update(update)
         .eq('id', client.id)
-        .eq('owner_id', user.id);
+        ;
       if (updateError) throw updateError;
 
       const { data: saved, error: reloadError } = await supabase
         .from('staff_clients')
         .select('address, city, state, zip')
         .eq('id', client.id)
-        .eq('owner_id', user.id)
+
         .single();
       if (reloadError || !saved) throw new Error('Address saved but could not be reloaded.');
       const normalized = normalizeClientMailingAddress(saved);
@@ -84,6 +85,36 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
       setAddressError(error?.message ?? 'Could not save the mailing address.');
     } finally {
       setSavingAddress(false);
+    }
+  };
+
+  const sendPortalInvitation = async () => {
+    setSendingPortalInvitation(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('Not authenticated');
+      const response = await fetch('/api/workspaces/client-invitations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          clientId: client.id,
+          email: client.email,
+          clientName: client.name,
+          assignedStaff: client.assignedStaff,
+          clientPlan: client.plan,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.emailSent) throw new Error('Invitation email could not be sent');
+      toast.success('Client portal invitation sent');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Could not send the client portal invitation.');
+    } finally {
+      setSendingPortalInvitation(false);
     }
   };
 
@@ -191,6 +222,15 @@ export default function ClientDetailDrawer({ client, onClose, onClientUpdated }:
                   <Calendar size={14} className="text-slate-400 shrink-0" />
                   <span>Enrolled: {client.enrolledDate}</span>
                 </div>
+                <button
+                  type="button"
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                  disabled={sendingPortalInvitation}
+                  onClick={sendPortalInvitation}
+                >
+                  <Mail size={13} />
+                  {sendingPortalInvitation ? 'Sending invitation…' : 'Send portal invitation'}
+                </button>
                 <div className="border-t border-slate-200 pt-3 mt-3 space-y-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mailing Address</p>
                   <textarea className="input-field min-h-16" aria-label="Street address" placeholder="Street address (apartment/unit optional)" value={address} onChange={event => setAddress(event.target.value)} />

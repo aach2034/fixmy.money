@@ -73,7 +73,7 @@ export default function CreditAuditContent() {
         const { data } = await supabase
           .from('staff_clients')
           .select('id, name, email, address, city, state, zip')
-          .eq('owner_id', user.id)
+
           .order('name');
         setClients(data ?? []);
         trackEvent('credit_audit_viewed', { authenticated: true, client_count: data?.length ?? 0 });
@@ -94,7 +94,7 @@ export default function CreditAuditContent() {
       let savedItemsQuery = supabase
         .from('negative_items')
         .select('id, creditor_name, furnisher_name, negative_category, bureau, bureaus_reporting, balance, past_due, dispute_reason, negative_reason, dispute_status, is_negative, is_collection, parser_confidence, account_number_masked, account_type, status, remarks, date_opened, date_reported, date_last_activity')
-        .eq('owner_id', user.id)
+
         .eq('client_id', client.id)
         // The import table also stores positive tradelines for review. Audits
         // must only include genuinely negative rows and hard inquiries.
@@ -106,7 +106,7 @@ export default function CreditAuditContent() {
       let reportSnapshotsQuery = supabase
         .from('parsed_credit_reports')
         .select('all_accounts')
-        .eq('owner_id', user.id)
+
         .eq('client_id', client.id)
         .order('created_at', { ascending: false });
       if (requestedReportId) reportSnapshotsQuery = reportSnapshotsQuery.eq('id', requestedReportId);
