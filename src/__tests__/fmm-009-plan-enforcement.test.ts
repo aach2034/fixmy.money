@@ -15,6 +15,10 @@ describe('FMM-009 plan entitlement enforcement', () => {
     path.resolve(process.cwd(), 'supabase/migrations/20260904001500_fmm_009_signup_entitlement_order.sql'),
     'utf8',
   );
+  const allocationRowSafetyMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/20260904020000_fmm_009_allocation_trigger_row_safety.sql'),
+    'utf8',
+  );
   const signupMigration = fs.readFileSync(
     path.resolve(process.cwd(), 'supabase/migrations/20260903024321_fmm_007_tenant_constraints_and_policies.sql'),
     'utf8',
@@ -141,9 +145,9 @@ describe('FMM-009 plan entitlement enforcement', () => {
   });
 
   it('permits only the authoritative workspace owner before paid entitlement verification', () => {
-    expect(signupCompatibilityMigration).toContain("TG_TABLE_NAME = 'workspace_memberships' AND NEW.role = 'owner'");
-    expect(signupCompatibilityMigration).toContain('workspace.owner_id = NEW.user_id');
-    expect(signupCompatibilityMigration).toContain("MESSAGE = 'WORKSPACE_OWNER_REQUIRED'");
+    expect(allocationRowSafetyMigration).toContain("IF TG_TABLE_NAME = 'workspace_memberships' THEN\n    IF NEW.role = 'owner' THEN");
+    expect(allocationRowSafetyMigration).toContain('workspace.owner_id = NEW.user_id');
+    expect(allocationRowSafetyMigration).toContain("MESSAGE = 'WORKSPACE_OWNER_REQUIRED'");
   });
 
   it('keeps the initial entitlement expired and unable to grant application access', () => {
