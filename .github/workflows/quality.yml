@@ -1,0 +1,68 @@
+name: Required quality gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm type-check
+      - run: pnpm lint --max-warnings=50
+      - run: pnpm test
+      - run: pnpm test:revenue-path
+      - run: pnpm audit --audit-level high
+      - run: pnpm build
+      - run: pnpm build:budget
+
+  migration-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local
+      - run: supabase test db
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm build
+      - name: Run browser gates
+        run: |
+          pnpm start &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:4028/api/health && break
+            sleep 1
+          done
+          curl --fail http://127.0.0.1:4028/api/health
+          pnpm exec playwright test --project=chromium --project=webkit --project=mobile-webkit-390

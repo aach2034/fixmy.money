@@ -33,7 +33,7 @@ export default function MaintenancePage() {
           </span>
         </header>
 
-        <main className="flex flex-1 items-center justify-center py-12 sm:py-20">
+        <section className="flex flex-1 items-center justify-center py-12 sm:py-20">
           <section className="w-full max-w-2xl rounded-[2rem] border border-[#dfe8e3] bg-white/90 p-7 text-center shadow-[0_28px_80px_rgba(11,23,66,0.10)] backdrop-blur sm:p-12">
             <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-[#eaf8ef] text-[#338a3b]">
               <Wrench className="size-7" aria-hidden="true" />
@@ -67,7 +67,7 @@ export default function MaintenancePage() {
               </div>
             </div>
           </section>
-        </main>
+        </section>
 
         <footer className="py-2 text-center text-xs text-[#748078]">
           © 2026 FixMy.Money

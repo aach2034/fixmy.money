@@ -148,15 +148,15 @@ describe('credit audit item quality gate', () => {
       },
     ]));
 
-    expect(scored.disputeStrength.strongestAnomaly).toBe('A tradeline that appears paid, settled, or closed is also reporting a positive balance.');
+    expect(scored.disputeStrength.strongestAnomaly).toBe('A tradeline that explicitly appears paid, settled, or satisfied is also reporting a positive balance.');
     expect(scored.disputeStrength.reportedDataSummary).toContain('Equifax');
     expect(scored.disputeStrength.reportedDataSummary).toContain('Status: Paid/Closed');
     expect(scored.disputeStrength.reportedDataSummary).toContain('Current Balance: $1,284');
-    expect(scored.disputeStrength.disputeBasis).toContain('paid, settled, or closed status');
+    expect(scored.disputeStrength.disputeBasis).toContain('balance-ending status');
     expect(scored.disputeStrength.disputeBasis).toContain('positive outstanding balance');
   });
 
-  it('shows both bureau values for cross-bureau status conflicts', () => {
+  it('does not invent a conflict between semantically equivalent closed statuses', () => {
     const scored = scoreDisputeStrength(selectReliableAuditItems([
       {
         id: 'ex-status',
@@ -186,10 +186,8 @@ describe('credit audit item quality gate', () => {
       },
     ]));
 
-    const summaries = scored.map(item => item.disputeStrength.reportedDataSummary).join('\n');
-    expect(summaries).toContain('Experian');
-    expect(summaries).toContain('TransUnion');
-    expect(summaries).toMatch(/Paid\/Closed|Closed/);
+    expect(scored.every(item => item.disputeStrength.issueType !== 'status_discrepancy')).toBe(true);
+    expect(scored.every(item => item.disputeStrength.reportedDataSummary === '')).toBe(true);
   });
 
   it('does not score a missing bureau status as a strong cross-bureau dispute', () => {

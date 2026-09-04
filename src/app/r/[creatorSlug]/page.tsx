@@ -33,7 +33,7 @@ export default async function CreatorReferralPage({ params }: Props) {
   const href = `/signup?plan=${plan}&ref=${page.ref}&utm_source=${page.ref}&utm_medium=creator&utm_campaign=creator_referral`;
 
   return (
-    <main className="min-h-screen bg-[#f7fbfa] px-4 py-10 text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <section className="min-h-screen bg-[#f7fbfa] px-4 py-10 text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <div className="mx-auto max-w-5xl">
         <a href="/" className="text-lg font-black">FixMy<span className="text-emerald-700">.Money</span></a>
         <section className="mt-10 grid items-center gap-8 rounded-lg border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-[1fr_.8fr] md:p-10">
@@ -61,6 +61,6 @@ export default async function CreatorReferralPage({ params }: Props) {
           </div>
         </section>
       </div>
-    </main>
+    </section>
   );
 }

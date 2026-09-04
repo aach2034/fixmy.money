@@ -49,7 +49,7 @@ export default async function CreditReportHelpPage({ params }: Props) {
   };
 
   return (
-    <main className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <section className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }} />
       <nav className="border-b border-slate-200 px-4 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
@@ -100,6 +100,6 @@ export default async function CreditReportHelpPage({ params }: Props) {
           </aside>
         </div>
       </article>
-    </main>
+    </section>
   );
 }

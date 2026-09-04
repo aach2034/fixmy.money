@@ -22,7 +22,7 @@ export default function AffiliatesPage() {
           </TrackedLink>
         </div>
       </nav>
-      <main>
+      <section>
         <section className="bg-slate-950 px-4 py-20 text-white">
           <div className="mx-auto max-w-5xl">
             <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">Affiliate and referral program</p>
@@ -70,7 +70,7 @@ export default function AffiliatesPage() {
             </TrackedLink>
           </div>
         </section>
-      </main>
+      </section>
     </div>
   );
 }

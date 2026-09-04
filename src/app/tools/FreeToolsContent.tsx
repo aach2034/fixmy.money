@@ -15,7 +15,7 @@ export default function FreeToolsContent() {
   deadline.setDate(deadline.getDate() + 30);
 
   return (
-    <main className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <section className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <section className="bg-slate-950 px-4 py-16 text-white">
         <div className="mx-auto max-w-6xl">
           <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">Free credit report tools</p>
@@ -80,6 +80,6 @@ export default function FreeToolsContent() {
           </div>
         </div>
       </section>
-    </main>
+    </section>
   );
 }

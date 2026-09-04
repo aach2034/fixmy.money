@@ -120,7 +120,7 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
   ] as const;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
+    <section className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -180,6 +180,6 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
           ) : null}
         </div>
       </div>
-    </main>
+    </section>
   );
 }

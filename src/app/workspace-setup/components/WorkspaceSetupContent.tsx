@@ -9,7 +9,7 @@ export default function WorkspaceSetupContent() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <main className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 shadow-sm">
+      <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 shadow-sm">
         <div className="flex items-center gap-3 mb-8">
           <AppLogo size={36} />
           <div>
@@ -36,7 +36,7 @@ export default function WorkspaceSetupContent() {
           Return to Dashboard
           <ArrowRight size={16} />
         </button>
-      </main>
+      </section>
     </div>
   );
 }

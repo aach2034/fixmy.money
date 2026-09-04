@@ -17,7 +17,7 @@ export default async function AdminAcquisitionPage() {
   const analytics = await getAcquisitionAnalytics();
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
+    <section className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto max-w-7xl">
         <Link href="/admin" className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 hover:text-blue-800">
           <ArrowLeft size={16} /> Customer management
@@ -91,6 +91,6 @@ export default async function AdminAcquisitionPage() {
           </table>
         </section>
       </div>
-    </main>
+    </section>
   );
 }

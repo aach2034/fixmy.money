@@ -25,7 +25,7 @@ export default function SecurityPage() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-3xl px-4 py-16">
+      <section className="mx-auto max-w-3xl px-4 py-16">
         <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-blue-600">
           <ArrowLeft size={16} /> Back to FixMy.Money
         </Link>
@@ -68,7 +68,7 @@ export default function SecurityPage() {
             Supabase provides database and authentication infrastructure. Stripe processes FixMy.Money subscription checkout and billing. Google Analytics may process product-usage analytics when enabled. External AI processing of credit-report files is disabled during containment.
           </p>
         </section>
-      </main>
+      </section>
     </div>
   );
 }

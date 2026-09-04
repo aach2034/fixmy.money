@@ -38,6 +38,10 @@ export default defineConfig({
       use: { ...devices?.['Desktop Firefox'] },
     },
     {
+      name: 'webkit',
+      use: { ...devices?.['Desktop Safari'] },
+    },
+    {
       name: 'mobile-chrome-375',
       use: {
         ...devices?.['Pixel 5'],
@@ -46,6 +50,13 @@ export default defineConfig({
     },
     {
       name: 'mobile-chrome-390',
+      use: {
+        ...devices?.['iPhone 12'],
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
+      name: 'mobile-webkit-390',
       use: {
         ...devices?.['iPhone 12'],
         viewport: { width: 390, height: 844 },

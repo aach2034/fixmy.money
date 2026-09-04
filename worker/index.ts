@@ -4,10 +4,12 @@ import {
   DEFAULT_IMAGE_SIZES,
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { immutableAssetCacheControl, leadRateDecision } from './security-controls';
 
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
   run(): Promise<unknown>;
+  first<T>(): Promise<T | null>;
 }
 
 interface D1Binding {
@@ -17,6 +19,8 @@ interface D1Binding {
 interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> };
   DB?: D1Binding;
+  LEAD_RATE_LIMIT_SALT?: string;
+  TURNSTILE_SECRET_KEY?: string;
   IMAGES?: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -50,7 +54,7 @@ const CONTENT_SECURITY_POLICY = [
   "upgrade-insecure-requests",
 ].join("; ");
 
-function withSecurityHeaders(response: Response): Response {
+function withSecurityHeaders(response: Response, request?: Request): Response {
   const secured = new Response(response.body, response);
   secured.headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   secured.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
@@ -61,17 +65,67 @@ function withSecurityHeaders(response: Response): Response {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=(self \"https://js.stripe.com\")",
   );
+  const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
+  if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
   return secured;
 }
 
-function leadResponse(body: Record<string, unknown>, status = 200): Response {
+function leadResponse(body: Record<string, unknown>, status = 200, headers: Record<string, string> = {}): Response {
   return Response.json(body, {
     status,
     headers: {
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
+      ...headers,
     },
   });
+}
+
+async function privacySafeRateKey(request: Request, salt: string): Promise<string> {
+  const address = request.headers.get('cf-connecting-ip') || 'unknown';
+  const bytes = new TextEncoder().encode(`${salt}:${address}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function verifyChallenge(token: unknown, request: Request, env: Env): Promise<boolean> {
+  if (typeof token !== 'string' || !token || !env.TURNSTILE_SECRET_KEY) return false;
+  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET_KEY, response: token });
+  const address = request.headers.get('cf-connecting-ip');
+  if (address) body.set('remoteip', address);
+  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body });
+  if (!response.ok) return false;
+  const result = await response.json() as { success?: boolean };
+  return result.success === true;
+}
+
+async function enforceLeadRateLimit(request: Request, env: Env, challenge: unknown): Promise<Response | null> {
+  if (!env.DB || !env.LEAD_RATE_LIMIT_SALT) {
+    console.error(JSON.stringify({ event: 'lead_rate_limit_unavailable' }));
+    return leadResponse({ error: 'Email signup is temporarily unavailable.' }, 503);
+  }
+  const key = await privacySafeRateKey(request, env.LEAD_RATE_LIMIT_SALT);
+  const windowStart = Math.floor(Date.now() / 600_000) * 600_000;
+  const row = await env.DB.prepare(
+    `INSERT INTO lead_rate_limits (rate_key, window_start, request_count, updated_at)
+     VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+     ON CONFLICT(rate_key, window_start) DO UPDATE SET
+       request_count = lead_rate_limits.request_count + 1,
+       updated_at = CURRENT_TIMESTAMP
+     RETURNING request_count`
+  ).bind(key, windowStart).first<{ request_count: number }>();
+  const count = Number(row?.request_count || 1);
+  const challengePassed = count > 5 ? await verifyChallenge(challenge, request, env) : false;
+  const decision = leadRateDecision(count, challengePassed);
+  if (decision === 'deny') {
+    console.warn(JSON.stringify({ event: 'lead_rate_limited', window: windowStart, threshold: 'hard' }));
+    return leadResponse({ error: 'Too many requests. Try again later.' }, 429, { 'Retry-After': '600' });
+  }
+  if (decision === 'challenge') {
+    console.warn(JSON.stringify({ event: 'lead_challenge_required', window: windowStart }));
+    return leadResponse({ error: 'Additional verification required.', code: 'CHALLENGE_REQUIRED' }, 429, { 'Retry-After': '60' });
+  }
+  return null;
 }
 
 async function captureMarketingLead(request: Request, env: Env): Promise<Response> {
@@ -89,7 +143,7 @@ async function captureMarketingLead(request: Request, env: Env): Promise<Respons
     return leadResponse({ error: "Request is too large." }, 413);
   }
 
-  let payload: { email?: unknown; source?: unknown; website?: unknown };
+  let payload: { email?: unknown; source?: unknown; website?: unknown; challengeToken?: unknown };
   try {
     payload = (await request.json()) as typeof payload;
   } catch {
@@ -100,6 +154,9 @@ async function captureMarketingLead(request: Request, env: Env): Promise<Respons
   if (typeof payload.website === "string" && payload.website.trim()) {
     return leadResponse({ ok: true });
   }
+
+  const limited = await enforceLeadRateLimit(request, env, payload.challengeToken);
+  if (limited) return limited;
 
   const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
   const source =
@@ -137,11 +194,13 @@ async function captureMarketingLead(request: Request, env: Env): Promise<Respons
   });
 }
 
+export { captureMarketingLead, enforceLeadRateLimit, withSecurityHeaders };
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api/marketing/lead") {
-      return withSecurityHeaders(await captureMarketingLead(request, env));
+      return withSecurityHeaders(await captureMarketingLead(request, env), request);
     }
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -162,8 +221,8 @@ export default {
           },
         },
         allowedWidths,
-      ));
+      ), request);
     }
-    return withSecurityHeaders(await handler.fetch(request, env, ctx));
+    return withSecurityHeaders(await handler.fetch(request, env, ctx), request);
   },
 };

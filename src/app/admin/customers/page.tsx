@@ -30,7 +30,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
   const filtered = filterCustomers(customers, params);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
+    <section className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto max-w-7xl">
         <Link href="/admin" className="text-sm font-bold text-blue-600">← Admin dashboard</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
@@ -100,6 +100,6 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
           </table>
         </div>
       </div>
-    </main>
+    </section>
   );
 }
