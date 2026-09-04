@@ -78,9 +78,10 @@ describe('fresh report persistence and handoff contract', () => {
     const audit = read('src/app/credit-audit/components/CreditAuditContent.tsx');
 
     expect(importer).toContain('getActionableUnmatchedBlocks(parsedReport)');
-    expect(importer).toContain(".eq('report_id', reportRecord.id)");
+    expect(importer).toContain("fetch('/api/credit-report/save-atomic'");
+    expect(importer).toContain('const reportRecord = { id: saveResult.reportId as string }');
     expect(importer).toContain('if (seen.has(key)) return false');
-    expect(importer.indexOf('if (!persistenceMatches)')).toBeLessThan(importer.indexOf('router.push(`/clients/'));
+    expect(importer.indexOf('if (!response.ok || !saveResult?.reportId)')).toBeLessThan(importer.indexOf('router.push(`/clients/'));
     expect(review).toContain("item.negative_category !== 'hard_inquiry'");
     expect(audit).toContain("savedItemsQuery = savedItemsQuery.eq('report_id', requestedReportId)");
     expect(audit).toContain("reportSnapshotsQuery = reportSnapshotsQuery.eq('id', requestedReportId)");

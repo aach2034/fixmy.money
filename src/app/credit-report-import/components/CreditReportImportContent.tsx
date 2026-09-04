@@ -13,7 +13,7 @@ import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
 import { isReliableInquiry } from '@/lib/creditReport/auditItems';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
-import { getActionableUnmatchedBlocks, summarizePersistedReportItems } from '@/lib/creditReport/persistenceContract';
+import { getActionableUnmatchedBlocks } from '@/lib/creditReport/persistenceContract';
 import { determineAnalyzerOutcome } from '@/lib/creditReport/analyzerOutcome';
 import {
   SUPPORTED_CREDIT_REPORT_FORMATS_LABEL,
@@ -932,12 +932,9 @@ export default function CreditReportImportContent() {
     });
     setSaving(true);
     setSaveStage('Saving report…');
-    let createdReportId = '';
-    let authenticatedOwnerId = '';
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-      authenticatedOwnerId = user.id;
 
       // Review-only parses may be preserved as drafts, but failed parses never
       // persist and only threshold-clearing parses may be marked analyzed.
@@ -952,9 +949,7 @@ export default function CreditReportImportContent() {
       });
 
       const accountItemsForPersistence = accountsForPersistence(parsedReport);
-      const { data: reportRecord, error: reportErr } = await supabase.from('parsed_credit_reports').insert({
-        owner_id: user.id,
-        client_id: selectedClientId,
+      const reportPayload = {
         provider: parsedReport.provider,
         provider_confidence: parsedReport.providerConfidence,
         parser_version: parsedReport.parserVersion,
@@ -970,27 +965,18 @@ export default function CreditReportImportContent() {
         collections_count: accountItemsForPersistence.filter(item => item.isCollection).length,
         inquiries_count: parsedReport.inquiries.length,
         public_records_count: parsedReport.publicRecords.length,
-        raw_text: '',
         file_name: fileName,
-        status: 'pending_review',
-        // Store ALL accounts (not just negative) as JSON for review screen
         all_accounts: stripRawReportArtifacts(parsedReport.accounts),
         all_inquiries: parsedReport.inquiries,
         public_records: parsedReport.publicRecords,
         section_confidence: parsedReport.sectionConfidence,
-      }).select().single();
-
-      if (reportErr) throw reportErr;
-      createdReportId = reportRecord.id;
+      };
 
       // Save ALL accounts as negative_items (with is_negative flag).
       // `positive` is not a valid negative_item_category enum value in the
       // production schema; non-negative rows use `other` plus is_negative=false.
       const accountRows = accountItemsForPersistence.map(item => {
         return {
-          owner_id: user.id,
-          client_id: selectedClientId,
-          report_id: reportRecord.id,
           bureau: item.bureau,
           creditor_name: item.creditorName,
           furnisher_name: item.furnisherName,
@@ -1013,21 +999,11 @@ export default function CreditReportImportContent() {
           is_collection: item.isCollection,
         };
       });
-      if (accountRows.length > 0) {
-        const { error: accountInsertError } = await supabase.from('negative_items').insert(accountRows);
-        if (accountInsertError) throw new Error(`Report saved, but account items failed to save: ${accountInsertError.message}`);
-      }
-
-      // Persist only inquiries backed by a creditor, date, and recognized bureau.
-      {
-        const inquiryRows = parsedReport.inquiries.filter(inq => inq.type === 'hard' && isReliableInquiry({
+      const inquiryRows = parsedReport.inquiries.filter(inq => inq.type === 'hard' && isReliableInquiry({
           creditor_name: inq.creditor,
           bureau: inq.bureau,
           date_reported: inq.date,
         })).map(inq => ({
-            owner_id: user.id,
-            client_id: selectedClientId,
-            report_id: reportRecord.id,
             bureau: inq.bureau,
             creditor_name: inq.creditor,
             account_type: 'Hard Inquiry',
@@ -1039,11 +1015,6 @@ export default function CreditReportImportContent() {
             is_negative: false,
             is_collection: false,
           }));
-        if (inquiryRows.length > 0) {
-          const { error: inquiryInsertError } = await supabase.from('negative_items').insert(inquiryRows);
-          if (inquiryInsertError) throw new Error(`Accounts saved, but inquiries failed to save: ${inquiryInsertError.message}`);
-        }
-      }
 
       const personalAddress = parsedReport.personalInfo.currentAddress;
       const primaryScore = parsedReport.scores
@@ -1059,49 +1030,26 @@ export default function CreditReportImportContent() {
       if (personalAddress?.state) clientUpdates.state = personalAddress.state;
       if (personalAddress?.zip) clientUpdates.zip = personalAddress.zip;
       if (primaryScore) clientUpdates.credit_score = primaryScore;
-      const { error: clientUpdateError } = await supabase
-        .from('staff_clients')
-        .update(clientUpdates)
-        .eq('id', selectedClientId)
-        ;
-      if (clientUpdateError) throw new Error(`Report items saved, but client information failed to save: ${clientUpdateError.message}`);
-
-      setSaveStage('Verifying saved classifications...');
-      const { data: persistedReport, error: persistedReportError } = await supabase
-        .from('parsed_credit_reports')
-        .select('id, owner_id, client_id, accounts_count, negative_count, collections_count, inquiries_count, overall_confidence, section_confidence')
-        .eq('id', reportRecord.id)
-
-        .single();
-      if (persistedReportError || !persistedReport) throw new Error('The saved report could not be verified.');
-
-      const { data: persistedItems, error: persistedItemsError } = await supabase
-        .from('negative_items')
-        .select('id, bureau, creditor_name, account_number_masked, account_type, negative_category, is_negative, is_collection')
-        .eq('report_id', reportRecord.id)
-        ;
-      if (persistedItemsError) throw new Error('The saved classifications could not be verified.');
-
-      const persistedSummary = summarizePersistedReportItems(persistedItems ?? []);
-      const expectedSummary = {
-        accounts: accountRows.length,
-        negatives: accountRows.filter(item => item.is_negative).length,
-        collections: accountRows.filter(item => item.is_collection).length,
-        chargeOffs: accountRows.filter(item => item.negative_category === 'charge_off').length,
-        inquiries: parsedReport.inquiries.filter(inquiry => inquiry.type === 'hard' && isReliableInquiry({
-          creditor_name: inquiry.creditor,
-          bureau: inquiry.bureau,
-          date_reported: inquiry.date,
-        })).length,
-      };
-      const persistenceMatches = persistedReport.client_id === selectedClientId
-        && persistedSummary.accounts === expectedSummary.accounts
-        && persistedSummary.negatives === expectedSummary.negatives
-        && persistedSummary.collections === expectedSummary.collections
-        && persistedSummary.chargeOffs === expectedSummary.chargeOffs
-        && persistedSummary.inquiries === expectedSummary.inquiries
-        && persistedSummary.duplicates === 0;
-      if (!persistenceMatches) throw new Error('Saved report verification did not match the parsed classifications.');
+      setSaveStage('Saving report transaction…');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch('/api/credit-report/save-atomic', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          clientId: selectedClientId,
+          report: reportPayload,
+          items: [...accountRows, ...inquiryRows],
+          clientUpdates,
+        }),
+      });
+      const saveResult = await response.json().catch(() => null);
+      if (!response.ok || !saveResult?.reportId) {
+        throw new Error(saveResult?.error ?? 'Report save failed; no partial data was committed');
+      }
+      const reportRecord = { id: saveResult.reportId as string };
 
       if (analysisOutcome.canMarkAnalyzed) {
         try {
@@ -1161,10 +1109,6 @@ export default function CreditReportImportContent() {
 
       router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
     } catch (err: any) {
-      if (createdReportId && authenticatedOwnerId) {
-        await supabase.from('negative_items').delete().eq('report_id', createdReportId);
-        await supabase.from('parsed_credit_reports').delete().eq('id', createdReportId);
-      }
       toast.error(err?.message ?? 'Failed to save report');
     } finally {
       setSaving(false);

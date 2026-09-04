@@ -174,71 +174,44 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    let savedCount = 0;
-    if (itemsToInsert.length > 0) {
-      const { data: inserted, error: insertError } = await supabase
-        .from('negative_items')
-        .insert(itemsToInsert)
-        .select('id, tag_status');
-
-      if (insertError) {
-        console.error('[TagAndSave] Insert error:', insertError.message);
-        return NextResponse.json({ error: 'Failed to save dispute items' }, { status: 500 });
-      }
-
-      savedCount = inserted?.length ?? 0;
-      for (const row of (inserted ?? [])) {
-        if (row.tag_status === 'dispute') disputeItemIds.push(row.id);
-      }
+    // One RPC call is one Postgres transaction: items, snapshot, report status,
+    // and import status either all commit or all roll back.
+    const { data: transactionRows, error: transactionError } = await supabase.rpc(
+      'finalize_credit_report_import_server',
+      {
+        p_actor_id: user.id,
+        p_workspace_id: authorization.workspaceId,
+        p_client_id: authorization.clientId,
+        p_report_id: parsedReportId,
+        p_import_id: importId || null,
+        p_items: itemsToInsert,
+        p_snapshot: {
+          provider: parsed?.detectedProvider || 'unknown',
+          report_date: parsed?.reportDate || '',
+          snapshot_data: stripRawReportArtifacts(parsed || {}),
+          scores: parsed?.scores || [],
+          personal_info: parsed?.clientInfo || {},
+          accounts_count: allItemsForPersistence.length,
+          negative_count: allItemsForPersistence.filter(a => a.isNegative).length,
+          tagged_count: taggedItemsForPersistence.length,
+        },
+      },
+    );
+    if (transactionError) {
+      console.error('[TagAndSave] Transaction failed:', transactionError.code);
+      return NextResponse.json({ error: 'Save failed; no partial import data was committed' }, { status: 500 });
     }
-
-    // ── Save snapshot ─────────────────────────────────────────────────────────
-    const { data: snapshot } = await supabase
-      .from('credit_report_snapshots')
-      .insert({
-        owner_id: authorization.workspaceOwnerId,
-        client_id: clientId,
-        import_id: importId || null,
-        parsed_report_id: parsedReportId,
-        provider: parsed?.detectedProvider || 'unknown',
-        report_date: parsed?.reportDate || '',
-        snapshot_data: stripRawReportArtifacts(parsed || {}),
-        scores: parsed?.scores || [],
-        personal_info: parsed?.clientInfo || {},
-        accounts_count: allItemsForPersistence.length,
-        negative_count: allItemsForPersistence.filter(a => a.isNegative).length,
-        tagged_count: taggedItemsForPersistence.length,
-      })
-      .select()
-      .single();
-
-    // ── Update parsed_credit_reports ──────────────────────────────────────────
-    await supabase
-      .from('parsed_credit_reports')
-      .update({
-        status: 'saved',
-        saved_at: new Date().toISOString(),
-        tagged_count: taggedItems.length,
-        snapshot_saved: true,
-      })
-      .eq('id', parsedReportId)
+    const transaction = Array.isArray(transactionRows) ? transactionRows[0] : transactionRows;
+    const savedCount = transaction?.saved_count ?? 0;
+    const snapshot = { id: transaction?.snapshot_id };
+    const { data: savedDisputes } = await supabase
+      .from('negative_items')
+      .select('id')
+      .eq('report_id', parsedReportId)
       .eq('owner_id', authorization.workspaceOwnerId)
-      .eq('client_id', authorization.clientId);
-
-    // ── Update import record ──────────────────────────────────────────────────
-    if (importId) {
-      await supabase
-        .from('credit_report_imports')
-        .update({
-          import_status: 'saved',
-          tagged_count: taggedItems.length,
-          wizard_items_count: disputeItemIds.length,
-          save_result: `Saved ${savedCount} accounts, ${taggedItems.length} tagged for dispute`,
-        })
-        .eq('id', importId)
-        .eq('owner_id', authorization.workspaceOwnerId)
-        .eq('client_id', authorization.clientId);
-    }
+      .eq('client_id', authorization.clientId)
+      .eq('tag_status', 'dispute');
+    disputeItemIds.push(...(savedDisputes ?? []).map(row => row.id));
 
     // ── Diagnostic log ────────────────────────────────────────────────────────
     console.log('[TagAndSave] Save complete', {
