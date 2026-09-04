@@ -11,6 +11,19 @@ const denied = { canAccess: false, state: 'expired', reason: 'subscription_cance
 const usage = { clients: 0, seats: 0, storageBytes: 0 };
 
 describe('FMM-009 plan entitlement enforcement', () => {
+  const signupCompatibilityMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/20260904001500_fmm_009_signup_entitlement_order.sql'),
+    'utf8',
+  );
+  const signupMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/20260903024321_fmm_007_tenant_constraints_and_policies.sql'),
+    'utf8',
+  );
+  const authTriggerMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/20260603162244_workspaces.sql'),
+    'utf8',
+  );
+
   it('uses one immutable catalog version and exact resource limits', () => {
     expect(PLAN_CATALOG_VERSION).toBe('2026-09-03.v1');
     expect(PLANS.starter).toMatchObject({ maxClients: 3, maxTeamMembers: 1, storageGb: 5 });
@@ -100,5 +113,54 @@ describe('FMM-009 plan entitlement enforcement', () => {
     const uploadRoute = fs.readFileSync(path.resolve(process.cwd(), 'src/app/api/client-portal/documents/route.ts'), 'utf8');
     const aiServer = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/ai/server.ts'), 'utf8');
     for (const source of [clientRoute, uploadRoute, aiServer]) expect(source).toContain('authorizeWorkspacePlanOperation');
+  });
+
+  it('creates the initial fail-closed entitlement before the owner membership', () => {
+    const entitlementInsert = signupCompatibilityMigration.indexOf('INSERT INTO public.workspace_entitlements (workspace_id)');
+    const membershipInsert = signupCompatibilityMigration.indexOf('INSERT INTO public.workspace_memberships');
+    expect(entitlementInsert).toBeGreaterThan(-1);
+    expect(membershipInsert).toBeGreaterThan(entitlementInsert);
+    expect(signupCompatibilityMigration).toContain('VALUES (NEW.id)');
+  });
+
+  it('keeps profile, workspace, entitlement, and membership creation in the auth signup transaction', () => {
+    expect(signupMigration).toContain('CREATE OR REPLACE FUNCTION public.handle_new_user()');
+    expect(signupMigration).toContain('INSERT INTO public.user_profiles');
+    expect(signupMigration).toContain('INSERT INTO public.workspaces');
+    expect(authTriggerMigration).toContain('AFTER INSERT ON auth.users');
+    expect(signupCompatibilityMigration).toContain('RETURNS trigger');
+    expect(signupCompatibilityMigration).not.toMatch(/\bCOMMIT\b/);
+  });
+
+  it('makes signup retry idempotent without overwriting verified entitlement state', () => {
+    const entitlementStatement = signupCompatibilityMigration.match(
+      /INSERT INTO public\.workspace_entitlements \(workspace_id\)[\s\S]*?ON CONFLICT \(workspace_id\) DO NOTHING;/,
+    )?.[0];
+    expect(entitlementStatement).toBeDefined();
+    expect(entitlementStatement).not.toContain('DO UPDATE');
+  });
+
+  it('permits only the authoritative workspace owner before paid entitlement verification', () => {
+    expect(signupCompatibilityMigration).toContain("TG_TABLE_NAME = 'workspace_memberships' AND NEW.role = 'owner'");
+    expect(signupCompatibilityMigration).toContain('workspace.owner_id = NEW.user_id');
+    expect(signupCompatibilityMigration).toContain("MESSAGE = 'WORKSPACE_OWNER_REQUIRED'");
+  });
+
+  it('keeps the initial entitlement expired and unable to grant application access', () => {
+    expect(signupCompatibilityMigration).toMatch(
+      /INSERT INTO public\.workspace_entitlements \(workspace_id\)\s+VALUES \(NEW\.id\)\s+ON CONFLICT \(workspace_id\) DO NOTHING;/,
+    );
+    expect(signupCompatibilityMigration).toContain("MESSAGE = 'PLAN_ENTITLEMENT_REQUIRED'");
+  });
+
+  it('preserves unsupported-plan and concurrency enforcement for non-owner allocations', () => {
+    expect(signupCompatibilityMigration).toContain("MESSAGE = 'PLAN_NOT_CONFIGURED'");
+    expect(signupCompatibilityMigration).toContain('pg_advisory_xact_lock');
+    expect(signupCompatibilityMigration).toContain("MESSAGE = 'SEATS_LIMIT_REACHED'");
+  });
+
+  it('is non-destructive for existing users and entitlements', () => {
+    expect(signupCompatibilityMigration).not.toMatch(/\b(DELETE|TRUNCATE)\b/i);
+    expect(signupCompatibilityMigration).not.toMatch(/UPDATE public\.(user_profiles|workspace_entitlements|workspaces)\b/i);
   });
 });
