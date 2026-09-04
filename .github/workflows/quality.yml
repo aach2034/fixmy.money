@@ -41,8 +41,12 @@ jobs:
         with:
           version: 2.116.0
       - run: supabase start
-      - run: supabase db reset --local
+      - name: Clean migration replay
+        run: supabase db reset --local --no-seed
+      - name: Repeat migration replay
+        run: supabase db reset --local --no-seed
       - run: supabase test db
+      - run: supabase db lint --local --level error --fail-on error
 
   browser:
     runs-on: ubuntu-latest
@@ -71,9 +75,12 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
             echo "TEST_SUPABASE_URL=$API_URL"
+            echo "TEST_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "TEST_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
             echo "TEST_USER_EMAIL=fmm-e2e-owner@test.invalid"
             echo "TEST_USER_PASSWORD=FmmE2E_2026_LocalOnly!"
+            echo "TEST_MEMBER_EMAIL=fmm-e2e-member@test.invalid"
+            echo "TEST_MEMBER_PASSWORD=FmmE2E_Member_2026_LocalOnly!"
           } >> "$GITHUB_ENV"
       - run: pnpm seed:e2e-local
       - run: pnpm exec playwright install --with-deps chromium webkit

@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Authenticated Browser Tests — FixMy.Money
@@ -20,6 +20,11 @@ import type { Page } from '@playwright/test';
 
 const TEST_EMAIL = process.env.TEST_USER_EMAIL || '';
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || '';
+const TEST_MEMBER_EMAIL = process.env.TEST_MEMBER_EMAIL || '';
+const TEST_MEMBER_PASSWORD = process.env.TEST_MEMBER_PASSWORD || '';
+const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL || '';
+const TEST_SUPABASE_ANON_KEY = process.env.TEST_SUPABASE_ANON_KEY || '';
+const TEST_SUPABASE_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Skip all authenticated tests if credentials are not configured
 const skipIfNoCredentials = () => {
@@ -226,24 +231,119 @@ test.describe('Team Invitation', () => {
 // ─── Removed Workspace Member ─────────────────────────────────────────────────
 
 test.describe('Removed workspace member', () => {
-  test('removed member loses workspace access', async () => {
-    /**
-     * VERIFIED: RLS policies in migration 20260604150000_rls_tenant_isolation.sql
-     * enforce workspace membership at the database level.
-     *
-     * When a team member is removed from a workspace:
-     * 1. Their workspace_members row is deleted
-     * 2. RLS policies immediately deny access to workspace data
-     * 3. No application-level cache can bypass this
-     *
-     * Full end-to-end test requires:
-     * - Two test accounts
-     * - One workspace with both members
-     * - Remove one member via admin API
-     * - Verify removed member's queries return empty
-     *
-     * This is covered in cross-tenant-security.test.ts (Vitest).
-     */
-    test.skip(true, 'Requires two seeded users and a dedicated non-production Supabase project');
+  test('removed member loses workspace access', async ({ page }) => {
+    test.skip(
+      !TEST_EMAIL
+        || !TEST_PASSWORD
+        || !TEST_MEMBER_EMAIL
+        || !TEST_MEMBER_PASSWORD
+        || !TEST_SUPABASE_URL
+        || !TEST_SUPABASE_ANON_KEY
+        || !TEST_SUPABASE_SERVICE_ROLE_KEY,
+      'Requires two seeded users in the isolated local Supabase stack',
+    );
+
+    const localUrl = new URL(TEST_SUPABASE_URL);
+    expect(['127.0.0.1', 'localhost']).toContain(localUrl.hostname);
+    expect(TEST_EMAIL).toMatch(/@test\.invalid$/);
+    expect(TEST_MEMBER_EMAIL).toMatch(/@test\.invalid$/);
+
+    const admin = createClient(TEST_SUPABASE_URL, TEST_SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const member = createClient(TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: users, error: usersError } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 100,
+    });
+    expect(usersError).toBeNull();
+    const ownerUser = users.users.find((user) => user.email === TEST_EMAIL);
+    const memberUser = users.users.find((user) => user.email === TEST_MEMBER_EMAIL);
+    expect(ownerUser).toBeTruthy();
+    expect(memberUser).toBeTruthy();
+
+    const { data: workspace, error: workspaceError } = await admin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', ownerUser!.id)
+      .single();
+    expect(workspaceError).toBeNull();
+    expect(workspace).toBeTruthy();
+
+    const clientId = crypto.randomUUID();
+    try {
+      const { error: clearSelectionError } = await admin
+        .from('workspace_memberships')
+        .update({ is_selected: false })
+        .eq('user_id', memberUser!.id);
+      expect(clearSelectionError).toBeNull();
+
+      const { error: membershipError } = await admin
+        .from('workspace_memberships')
+        .upsert({
+          workspace_id: workspace!.id,
+          user_id: memberUser!.id,
+          role: 'specialist',
+          status: 'active',
+          is_selected: true,
+          invited_by: ownerUser!.id,
+        }, { onConflict: 'workspace_id,user_id' });
+      expect(membershipError).toBeNull();
+
+      const { error: clientError } = await admin.from('staff_clients').insert({
+        id: clientId,
+        workspace_id: workspace!.id,
+        owner_id: ownerUser!.id,
+        name: 'FMM Removed Member Boundary Client',
+        email: `removed-member-${clientId}@test.invalid`,
+        case_stage: 'active',
+      });
+      expect(clientError).toBeNull();
+
+      await page.goto('/login');
+      await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_MEMBER_EMAIL);
+      await page.locator('input[type="password"]').first().fill(TEST_MEMBER_PASSWORD);
+      await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
+      await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
+
+      const { error: memberLoginError } = await member.auth.signInWithPassword({
+        email: TEST_MEMBER_EMAIL,
+        password: TEST_MEMBER_PASSWORD,
+      });
+      expect(memberLoginError).toBeNull();
+
+      const { data: visibleBefore, error: beforeError } = await member
+        .from('staff_clients')
+        .select('id')
+        .eq('id', clientId)
+        .single();
+      expect(beforeError).toBeNull();
+      expect(visibleBefore?.id).toBe(clientId);
+
+      const { error: removeError } = await admin
+        .from('workspace_memberships')
+        .delete()
+        .eq('workspace_id', workspace!.id)
+        .eq('user_id', memberUser!.id);
+      expect(removeError).toBeNull();
+
+      const { data: visibleAfter, error: afterError } = await member
+        .from('staff_clients')
+        .select('id')
+        .eq('id', clientId)
+        .maybeSingle();
+      expect(afterError).toBeNull();
+      expect(visibleAfter).toBeNull();
+    } finally {
+      await admin.from('workspace_memberships').delete()
+        .eq('workspace_id', workspace!.id)
+        .eq('user_id', memberUser!.id);
+      await admin.from('workspace_client_memberships').delete()
+        .eq('staff_client_id', clientId);
+      await admin.from('staff_clients').delete().eq('id', clientId);
+      await member.auth.signOut();
+    }
   });
 });

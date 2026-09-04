@@ -14,8 +14,9 @@ describe('FMM-014 enforced release gates', () => {
   });
 
   it('requires clean migration replay and database tests', () => {
-    expect(workflow).toContain('supabase db reset --local');
+    expect(workflow.match(/supabase db reset --local --no-seed/g)).toHaveLength(3);
     expect(workflow).toContain('supabase test db');
+    expect(workflow).toContain('supabase db lint --local --level error --fail-on error');
     expect(fs.existsSync('supabase/config.toml')).toBe(true);
   });
 
@@ -25,12 +26,14 @@ describe('FMM-014 enforced release gates', () => {
     expect(workflow).toContain('supabase start');
     expect(workflow).toContain('pnpm seed:e2e-local');
     expect(workflow).toContain('TEST_USER_EMAIL=fmm-e2e-owner@test.invalid');
+    expect(workflow).toContain('TEST_MEMBER_EMAIL=fmm-e2e-member@test.invalid');
   });
 
   it('seeds authenticated browser identity only into localhost', () => {
     const seed = fs.readFileSync('scripts/seed-local-e2e-user.ts', 'utf8');
     expect(seed).toContain("['127.0.0.1', 'localhost']");
     expect(seed).toContain("email.endsWith('@test.invalid')");
+    expect(seed).toContain("memberEmail.endsWith('@test.invalid')");
     expect(seed).toContain('Refusing to seed E2E identity outside an isolated local Supabase stack.');
   });
 });
