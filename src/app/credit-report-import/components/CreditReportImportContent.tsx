@@ -489,9 +489,25 @@ export default function CreditReportImportContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
-      const { data: ws } = await supabase.from('workspaces').select('id').single();
-      const wsId = ws?.id ?? null;
+      const response = await fetch('/api/clients', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null) as {
+        workspaceId?: string;
+        clients?: { id: string; name: string }[];
+      } | null;
+      if (!response.ok || !payload?.workspaceId || !Array.isArray(payload.clients)) {
+        throw new Error('Selected workspace clients could not be loaded');
+      }
+      const wsId = payload.workspaceId;
+      const workspaceClients = payload.clients;
       setWorkspaceId(wsId);
+      setClients(workspaceClients);
+      setClientsLoaded(true);
+      const storageKey = `credit-report-import:selected-client:${user.id}:${wsId}`;
+      const restoredClientId = window.sessionStorage.getItem(storageKey) ?? '';
+      setSelectedClientId(current => {
+        const candidate = current || restoredClientId;
+        return workspaceClients.some(client => client.id === candidate) ? candidate : '';
+      });
       const loaded = await getProviders(wsId);
       setProviders(loaded);
     } catch {
@@ -501,11 +517,15 @@ export default function CreditReportImportContent() {
 
   const loadClients = async () => {
     if (clientsLoaded) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('staff_clients').select('id, name').order('name');
-    setClients(data ?? []);
-    setClientsLoaded(true);
+    await loadProviders();
+  };
+
+  const selectClient = (clientId: string) => {
+    setSelectedClientId(clientId);
+    if (!userId || !workspaceId) return;
+    const storageKey = `credit-report-import:selected-client:${userId}:${workspaceId}`;
+    if (clientId) window.sessionStorage.setItem(storageKey, clientId);
+    else window.sessionStorage.removeItem(storageKey);
   };
 
   const selectProviderForUpload = (provider: SupportedProvider, source: string) => {
@@ -1518,7 +1538,7 @@ export default function CreditReportImportContent() {
               <label className="text-xs font-medium text-muted-foreground block mb-1">Select Client</label>
               <select
                 value={selectedClientId}
-                onChange={e => setSelectedClientId(e.target.value)}
+                onChange={e => selectClient(e.target.value)}
                 className="w-full text-sm border border-border rounded-xl px-3 py-2 bg-card text-foreground"
               >
                 <option value="">Select a client…</option>

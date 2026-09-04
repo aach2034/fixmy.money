@@ -5,6 +5,27 @@ import { getSelectedWorkspaceContext } from '@/lib/subscription/server';
 import { authorizeWorkspacePlanOperation } from '@/lib/subscription/planServer';
 import { PlanAuthorizationError } from '@/lib/subscription/planEnforcement';
 
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const workspace = await getSelectedWorkspaceContext(supabase);
+  if (!workspace) return NextResponse.json({ error: 'Workspace required' }, { status: 403 });
+
+  const { data, error: clientsError } = await getAdminClient()
+    .from('staff_clients')
+    .select('id, name')
+    .eq('workspace_id', workspace.workspace_id)
+    .eq('owner_id', workspace.workspace_owner_id)
+    .order('name');
+  if (clientsError) return NextResponse.json({ error: 'Clients could not be loaded' }, { status: 500 });
+
+  return NextResponse.json({
+    workspaceId: workspace.workspace_id,
+    clients: data ?? [],
+  });
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
