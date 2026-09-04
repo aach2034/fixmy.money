@@ -13,19 +13,21 @@ const findings = [
 export default function Home() {
   return (
     <section className="approved-homepage min-h-screen overflow-hidden bg-[#fbfcfe] text-[#0b1742]">
-      <nav className="fixed inset-x-0 top-0 z-50 border-b border-[#dfe4ec] bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 lg:px-8">
-          <a href="#" className="flex items-center gap-2.5" aria-label="FixMy.Money home">
-            <span className="grid size-9 place-items-center rounded-xl bg-[#063e35] text-sm font-bold text-white">F</span>
-            <span className="text-[17px] font-semibold tracking-[-.03em]">FixMy<span className="text-[#3fa447]">.Money</span></span>
-          </a>
-          <div className="hidden items-center gap-8 text-sm font-medium text-[#52636d] md:flex">
-            <a className="hover:text-[#0b1742]" href="#platform">Platform</a><a className="hover:text-[#0b1742]" href="#solutions">Solutions</a><a className="hover:text-[#0b1742]" href="#security">Security</a><a className="hover:text-[#0b1742]" href="#pricing">Pricing</a>
+      <header>
+        <nav className="fixed inset-x-0 top-0 z-50 border-b border-[#dfe4ec] bg-white/90 backdrop-blur-xl">
+          <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 lg:px-8">
+            <a href="#" className="flex items-center gap-2.5" aria-label="FixMy.Money home">
+              <span className="grid size-9 place-items-center rounded-xl bg-[#063e35] text-sm font-bold text-white">F</span>
+              <span className="text-[17px] font-semibold tracking-[-.03em]">FixMy<span className="text-[#3fa447]">.Money</span></span>
+            </a>
+            <div className="hidden items-center gap-8 text-sm font-medium text-[#52636d] md:flex">
+              <a className="hover:text-[#0b1742]" href="#platform">Platform</a><a className="hover:text-[#0b1742]" href="#solutions">Solutions</a><a className="hover:text-[#0b1742]" href="#security">Security</a><a className="hover:text-[#0b1742]" href="#pricing">Pricing</a>
+            </div>
+            <div className="hidden items-center gap-3 md:flex"><Link href="/login" className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#30434e] hover:bg-[#f1f5f3]">Sign in</Link><Link href="/signup?plan=starter" className="rounded-xl bg-[#3fa447] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(11,147,111,.22)] transition hover:-translate-y-0.5 hover:bg-[#338a3b]">Start free audit</Link></div>
+            <Link href="/login" className="rounded-lg border border-[#dfe4ec] p-2 md:hidden" aria-label="Sign in"><Menu className="size-5" /></Link>
           </div>
-          <div className="hidden items-center gap-3 md:flex"><Link href="/login" className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#30434e] hover:bg-[#f1f5f3]">Sign in</Link><Link href="/signup?plan=starter" className="rounded-xl bg-[#3fa447] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(11,147,111,.22)] transition hover:-translate-y-0.5 hover:bg-[#338a3b]">Start free audit</Link></div>
-          <Link href="/login" className="rounded-lg border border-[#dfe4ec] p-2 md:hidden" aria-label="Sign in"><Menu className="size-5" /></Link>
-        </div>
-      </nav>
+        </nav>
+      </header>
 
       <section className="relative px-5 pb-20 pt-28 lg:px-8 lg:pb-24 lg:pt-32">
         <div className="hero-glow absolute inset-x-0 top-0 -z-0 h-[760px]" />

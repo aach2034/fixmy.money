@@ -296,7 +296,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   }
 
   return (
-    <div className="min-h-screen flex bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="auth-form min-h-screen flex bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* ── LEFT BRAND PANEL ── */}
       <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-[#071f1b] via-[#083a32] to-[#0b1742] flex-col justify-between p-10 relative overflow-hidden">
         {/* Background elements */}

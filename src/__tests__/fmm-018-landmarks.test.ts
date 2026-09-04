@@ -16,4 +16,10 @@ describe('FMM-018 landmark structure', () => {
     expect(nested).toEqual([]);
     expect(fs.readFileSync('src/app/layout.tsx', 'utf8')).toContain('<main id="main-content"');
   });
+
+  it('gives the public homepage an explicit header landmark', () => {
+    const homepage = fs.readFileSync('src/app/homepage/components/HomepageContent.tsx', 'utf8');
+    expect(homepage).toContain('<header>');
+    expect(homepage).toContain('<nav ');
+  });
 });

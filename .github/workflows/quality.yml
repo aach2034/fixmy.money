@@ -26,7 +26,9 @@ jobs:
       - run: pnpm lint --max-warnings=50
       - run: pnpm test
       - run: pnpm test:revenue-path
-      - run: pnpm audit --audit-level high
+      # image-size 2.0.3 is not published and the affected parsers are an
+      # unused vinext build-only path; see the reviewed exception record.
+      - run: pnpm audit --audit-level high --ignore GHSA-w3rx-r6r6-pgpr --ignore GHSA-5p2g-fcmc-qvqq
       - run: pnpm build
       - run: pnpm build:budget
 
@@ -55,6 +57,25 @@ jobs:
           node-version: 24.14.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local --no-seed
+      - name: Configure isolated browser environment
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          source "$RUNNER_TEMP/supabase.env"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_SUPABASE_URL=$API_URL"
+            echo "TEST_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_USER_EMAIL=fmm-e2e-owner@test.invalid"
+            echo "TEST_USER_PASSWORD=FmmE2E_2026_LocalOnly!"
+          } >> "$GITHUB_ENV"
+      - run: pnpm seed:e2e-local
       - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm build
       - name: Run browser gates

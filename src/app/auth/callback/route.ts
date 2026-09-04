@@ -64,10 +64,16 @@ export async function GET(request: NextRequest) {
 
   const pendingCookies: PendingCookie[] = [];
   let pendingHeaders: Record<string, string> = {};
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[Auth Callback] Supabase authentication is not configured.');
+      return createFailedAuthRedirect(request);
+    }
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {
@@ -79,10 +85,8 @@ export async function GET(request: NextRequest) {
           pendingHeaders = { ...pendingHeaders, ...headers };
         },
       },
-    }
-  );
+    });
 
-  try {
     const { data: exchangeData, error: exchangeError } = tokenHash
       ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' })
       : await supabase.auth.exchangeCodeForSession(code!);

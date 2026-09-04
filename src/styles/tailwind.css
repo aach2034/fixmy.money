@@ -414,6 +414,51 @@
   border-radius: 12px;
 }
 
+/* Preserve the approved palette while meeting WCAG AA on public light surfaces. */
+.approved-homepage [class~="bg-[#3fa447]"] {
+  background-color: #267a31;
+}
+
+.approved-homepage [class~="text-[#3fa447]"] {
+  color: #267a31;
+}
+
+.approved-homepage [class~="text-[#338a3b]"] {
+  color: #236b2e;
+}
+
+.approved-homepage [class~="text-[#72817a]"],
+.approved-homepage [class~="text-[#718079]"] {
+  color: #627069;
+}
+
+.approved-homepage [class~="text-[#6d7890]"] {
+  color: #5b667d;
+}
+
+.approved-homepage [class~="text-[#69758a]"] {
+  color: #5d697e;
+}
+
+.approved-homepage [class~="text-[#6c7c75]"],
+.approved-homepage [class~="text-[#6f7f78]"] {
+  color: #5f6e67;
+}
+
+.approved-homepage [class~="text-[#74837c]"] {
+  color: #63726b;
+}
+
+.auth-form .bg-primary,
+.auth-form .btn-primary {
+  background-color: #15803d;
+}
+
+.auth-form .bg-primary:hover,
+.auth-form .btn-primary:hover {
+  background-color: #166534;
+}
+
 .a11y-dark .bg-violet-500 {
   background-color: #6d28d9;
 }
