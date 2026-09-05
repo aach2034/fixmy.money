@@ -193,7 +193,8 @@ describe('FMM-002 persistence controls', () => {
     const parseRoute = fs.readFileSync(path.join(root, 'src/app/api/credit-report/parse-report/route.ts'), 'utf8');
     const tagRoute = fs.readFileSync(path.join(root, 'src/app/api/credit-report/tag-and-save/route.ts'), 'utf8');
     expect(importPage).not.toContain("storage.from(OCR_STORAGE_BUCKET)");
-    expect(importPage).toContain("raw_text: ''");
+    expect(importPage).not.toMatch(/\braw_text\s*:/);
+    expect(importPage).not.toMatch(/\brawText\s*:/);
     expect(importPage).toContain("raw_text_source: ''");
     expect(parseRoute).toContain("raw_text: ''");
     expect(tagRoute).toContain("raw_text_source: ''");
