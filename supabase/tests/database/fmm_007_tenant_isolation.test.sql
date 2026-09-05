@@ -54,6 +54,21 @@ VALUES
   ('71100000-0000-0000-0000-000000000010', '71000000-0000-0000-0000-000000000001', 'FMM007 Workspace A', 'fmm007-a', true),
   ('72200000-0000-0000-0000-000000000020', '72000000-0000-0000-0000-000000000002', 'FMM007 Workspace B', 'fmm007-b', true);
 
+-- Current-state allocation enforcement requires a recent server-verified
+-- entitlement before synthetic staff seats or clients can be allocated. Keep
+-- the test transaction realistic without weakening the FMM-009 trigger.
+UPDATE public.workspace_entitlements
+SET
+  plan_id = 'professional',
+  stripe_status = 'trialing',
+  access_state = 'trial',
+  trial_ends_at = CURRENT_TIMESTAMP + interval '1 day',
+  last_verified_at = CURRENT_TIMESTAMP
+WHERE workspace_id IN (
+  '71100000-0000-0000-0000-000000000010',
+  '72200000-0000-0000-0000-000000000020'
+);
+
 INSERT INTO public.workspace_memberships (
   workspace_id, user_id, role, status, is_selected, invited_by
 )
