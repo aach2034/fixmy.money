@@ -4,17 +4,13 @@ import {
   DEFAULT_IMAGE_SIZES,
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { contentSecurityPolicyFor, immutableAssetCacheControl, leadRateDecision } from './security-controls';
-
-interface D1PreparedStatement {
-  bind(...values: unknown[]): D1PreparedStatement;
-  run(): Promise<unknown>;
-  first<T>(): Promise<T | null>;
-}
-
-interface D1Binding {
-  prepare(query: string): D1PreparedStatement;
-}
+import { contentSecurityPolicyFor, immutableAssetCacheControl } from './security-controls';
+import {
+  cleanupExpiredRateLimits,
+  enforceLeadRateLimit,
+  leadResponse,
+  type D1Binding,
+} from './lead-abuse';
 
 interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> };
@@ -56,64 +52,6 @@ function withSecurityHeaders(response: Response, request?: Request): Response {
   const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
   if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
   return secured;
-}
-
-function leadResponse(body: Record<string, unknown>, status = 200, headers: Record<string, string> = {}): Response {
-  return Response.json(body, {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-      ...headers,
-    },
-  });
-}
-
-async function privacySafeRateKey(request: Request, salt: string): Promise<string> {
-  const address = request.headers.get('cf-connecting-ip') || 'unknown';
-  const bytes = new TextEncoder().encode(`${salt}:${address}`);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function verifyChallenge(token: unknown, request: Request, env: Env): Promise<boolean> {
-  if (typeof token !== 'string' || !token || !env.TURNSTILE_SECRET_KEY) return false;
-  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET_KEY, response: token });
-  const address = request.headers.get('cf-connecting-ip');
-  if (address) body.set('remoteip', address);
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body });
-  if (!response.ok) return false;
-  const result = await response.json() as { success?: boolean };
-  return result.success === true;
-}
-
-async function enforceLeadRateLimit(request: Request, env: Env, challenge: unknown): Promise<Response | null> {
-  if (!env.DB || !env.LEAD_RATE_LIMIT_SALT) {
-    console.error(JSON.stringify({ event: 'lead_rate_limit_unavailable' }));
-    return leadResponse({ error: 'Email signup is temporarily unavailable.' }, 503);
-  }
-  const key = await privacySafeRateKey(request, env.LEAD_RATE_LIMIT_SALT);
-  const windowStart = Math.floor(Date.now() / 600_000) * 600_000;
-  const row = await env.DB.prepare(
-    `INSERT INTO lead_rate_limits (rate_key, window_start, request_count, updated_at)
-     VALUES (?, ?, 1, CURRENT_TIMESTAMP)
-     ON CONFLICT(rate_key, window_start) DO UPDATE SET
-       request_count = lead_rate_limits.request_count + 1,
-       updated_at = CURRENT_TIMESTAMP
-     RETURNING request_count`
-  ).bind(key, windowStart).first<{ request_count: number }>();
-  const count = Number(row?.request_count || 1);
-  const challengePassed = count > 5 ? await verifyChallenge(challenge, request, env) : false;
-  const decision = leadRateDecision(count, challengePassed);
-  if (decision === 'deny') {
-    console.warn(JSON.stringify({ event: 'lead_rate_limited', window: windowStart, threshold: 'hard' }));
-    return leadResponse({ error: 'Too many requests. Try again later.' }, 429, { 'Retry-After': '600' });
-  }
-  if (decision === 'challenge') {
-    console.warn(JSON.stringify({ event: 'lead_challenge_required', window: windowStart }));
-    return leadResponse({ error: 'Additional verification required.', code: 'CHALLENGE_REQUIRED' }, 429, { 'Retry-After': '60' });
-  }
-  return null;
 }
 
 async function captureMarketingLead(request: Request, env: Env): Promise<Response> {
@@ -212,5 +150,20 @@ export default {
       ), request);
     }
     return withSecurityHeaders(await handler.fetch(request, env, ctx), request);
+  },
+  async scheduled(_controller: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!env.DB) {
+      console.error(JSON.stringify({ event: 'lead_rate_limit_cleanup_unavailable' }));
+      return;
+    }
+    ctx.waitUntil(
+      cleanupExpiredRateLimits(env.DB)
+        .then((deleted) => {
+          console.info(JSON.stringify({ event: 'lead_rate_limit_cleanup', deleted }));
+        })
+        .catch(() => {
+          console.error(JSON.stringify({ event: 'lead_rate_limit_cleanup_failed' }));
+        }),
+    );
   },
 };

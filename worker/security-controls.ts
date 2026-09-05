@@ -16,12 +16,12 @@ export function contentSecurityPolicyFor(requestUrl: string): string {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self' https://checkout.stripe.com",
-    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://js.stripe.com",
+    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://js.stripe.com https://challenges.cloudflare.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com${localSupabaseSources}`,
-    "frame-src 'self' https://www.googletagmanager.com https://js.stripe.com https://hooks.stripe.com",
+    "frame-src 'self' https://www.googletagmanager.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
   ];
   if (!isLocal) directives.push('upgrade-insecure-requests');
   return directives.join('; ');

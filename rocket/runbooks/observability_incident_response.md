@@ -12,6 +12,13 @@
 - Treat Stripe readiness failure, webhook dead-letter growth, or entitlement reconciliation failure as revenue-path severity. Stop deployments; do not alter customer subscriptions while diagnosing.
 - Treat database readiness loss as a write freeze. Preserve evidence and use the latest verified recovery checkpoint.
 
+## Production routing decision
+
+- No monitoring provider is currently selected. Production requires an external HTTPS health checker that can send `X-Healthcheck-Secret`, alert after two consecutive readiness failures, and resolve the alert after recovery.
+- The provider-agnostic alert adapter uses `MONITORING_ALERT_WEBHOOK_URL` and optional secret `MONITORING_ALERT_WEBHOOK_TOKEN`. The destination may be a platform-native webhook, an incident-routing webhook, or an operator-controlled alert receiver; the production owner must select the destination and recipients before deployment.
+- Verify trigger and recovery delivery with authenticated `POST /api/internal/monitoring/test-alert` requests whose JSON state is `triggered` and then `resolved`. Never include customer content in either request.
+- The least-infrastructure option is an existing hosting/platform monitor capable of authenticated health polling and HTTPS webhook delivery. If that capability is unavailable, select an external uptime/incident provider before production authorization.
+
 ## Triage and recovery
 
 1. Record request IDs, deployment/version, start time, and affected dependency without copying customer content.

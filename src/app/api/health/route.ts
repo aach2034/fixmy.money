@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { getStripeServerClient } from '@/lib/stripe/server';
 import { operationalLog, requestId, within } from '@/lib/observability/server';
+import { deliverOperationalAlert } from '@/lib/observability/alerts';
 
 export async function GET(request: Request) {
   const id = requestId(request);
@@ -26,7 +27,19 @@ export async function GET(request: Request) {
   } catch { checks.stripe = false; }
 
   const ready = checks.database && checks.stripe;
-  operationalLog(ready ? 'info' : 'error', 'readiness_check', id, checks);
+  const alertDelivery = ready
+    ? 'not_required'
+    : await deliverOperationalAlert({
+      event: 'readiness_degraded',
+      severity: 'critical',
+      state: 'triggered',
+      requestId: id,
+      metadata: checks,
+    });
+  operationalLog(ready ? 'info' : 'error', 'readiness_check', id, {
+    ...checks,
+    alert_delivery: alertDelivery,
+  });
   return NextResponse.json(
     { status: ready ? 'ready' : 'degraded', dependencies: checks, request_id: id },
     { status: ready ? 200 : 503, headers },
