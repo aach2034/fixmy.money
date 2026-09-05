@@ -51,6 +51,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const [verifyEmailSent, setVerifyEmailSent] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const router = useRouter();
@@ -67,6 +68,14 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const tabFromUrl = searchParams.get('tab') || defaultTab || 'login';
   const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
   const checkoutHref = () => appendAttributionToHref(`/checkout?plan=${planFromUrl}`, getStoredAttribution());
+
+  const navigateAfterAuthentication = (href: string) => {
+    window.location.assign(href);
+  };
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (tabFromUrl === 'register') setTab('register');
@@ -144,15 +153,15 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
         if (profile && entitlement?.canAccess) {
           if (!profile.onboarding_completed) {
-            router.push('/onboarding');
+            navigateAfterAuthentication('/onboarding');
           } else {
-            router.push(redirectTo || '/dashboard');
+            navigateAfterAuthentication(redirectTo || '/dashboard');
           }
         } else {
-          router.push(checkoutHref());
+          navigateAfterAuthentication(checkoutHref());
         }
       } else {
-        router.push(redirectTo || '/dashboard');
+        navigateAfterAuthentication(redirectTo || '/dashboard');
       }
     } catch (error: any) {
       console.error('[AuthForm] Login error:', error);
@@ -455,7 +464,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                 </div>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !hydrated}
                   className="w-full btn-primary py-3 flex items-center justify-center gap-2 rounded-xl"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : null}
