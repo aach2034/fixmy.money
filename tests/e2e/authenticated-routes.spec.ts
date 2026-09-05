@@ -53,6 +53,16 @@ test.describe('Email Login', () => {
   test.beforeEach(skipIfNoCredentials);
 
   test('user can sign in with email and password', async ({ page }) => {
+    page.on('response', (response) => {
+      if (/\/auth\/v1\/token|\/rest\/v1\/user_profiles|\/api\/stripe\/entitlement/.test(response.url())) {
+        console.log(`[FMM014_DIAG] response ${response.status()} ${new URL(response.url()).pathname}`);
+      }
+    });
+    page.on('console', (message) => {
+      if (message.type() === 'error' || message.type() === 'warning') {
+        console.log(`[FMM014_DIAG] browser ${message.type()} ${message.text()}`);
+      }
+    });
     await page.goto('/login');
     await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
     await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
@@ -61,7 +71,7 @@ test.describe('Email Login', () => {
     // Should redirect away from login page
     await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 }).catch(async (error) => {
       const body = await page.locator('body').innerText().catch(() => '');
-      console.log(`[FMM014_DIAG] direct login stopped at ${page.url()} :: ${body.slice(0, 500).replace(/\s+/g, ' ')}`);
+      console.log(`[FMM014_DIAG] direct login stopped at ${page.url()} :: ${body.slice(-1200).replace(/\s+/g, ' ')}`);
       throw error;
     });
     const currentUrl = page.url();

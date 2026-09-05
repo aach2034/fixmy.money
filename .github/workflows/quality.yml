@@ -96,6 +96,4 @@ jobs:
           # Temporary diagnostic branch only: capture the exact authenticated
           # redirect destination without rerunning the browser matrix.
           pnpm exec playwright test --project=chromium --retries=0 \
-            tests/e2e/authenticated-routes.spec.ts:55 \
-            tests/e2e/authenticated-routes.spec.ts:123 \
-            tests/e2e/authenticated-routes.spec.ts:173
+            tests/e2e/authenticated-routes.spec.ts:55
