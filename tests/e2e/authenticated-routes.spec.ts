@@ -41,7 +41,10 @@ async function signIn(page: Page): Promise<void> {
   await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
   await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
   // Wait for redirect to dashboard or authenticated area
-  await page.waitForURL(/dashboard|workspace|onboarding/i, { timeout: 10000 }).catch(() => {});
+  await page.waitForURL(/dashboard|workspace|onboarding/i, { timeout: 10000 }).catch(async () => {
+    const body = await page.locator('body').innerText().catch(() => '');
+    console.log(`[FMM014_DIAG] signIn helper stopped at ${page.url()} :: ${body.slice(0, 500).replace(/\s+/g, ' ')}`);
+  });
 }
 
 // ─── Email Login ──────────────────────────────────────────────────────────────
@@ -56,7 +59,11 @@ test.describe('Email Login', () => {
     await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
 
     // Should redirect away from login page
-    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
+    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 }).catch(async (error) => {
+      const body = await page.locator('body').innerText().catch(() => '');
+      console.log(`[FMM014_DIAG] direct login stopped at ${page.url()} :: ${body.slice(0, 500).replace(/\s+/g, ' ')}`);
+      throw error;
+    });
     const currentUrl = page.url();
     expect(new URL(currentUrl).pathname).not.toBe('/login');
   });
