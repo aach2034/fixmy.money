@@ -65,7 +65,8 @@ describe('FMM-014 enforced release gates', () => {
     expect(seed).toContain("email.endsWith('@test.invalid')");
     expect(seed).toContain("memberEmail.endsWith('@test.invalid')");
     expect(seed).toContain('Refusing to seed E2E identity outside an isolated local Supabase stack.');
-    expect(seed).not.toContain("stripe_status: 'trialing'");
+    expect(seed).toContain('With no Stripe customer');
+    expect(seed).not.toContain('stripe_customer_id');
   });
 
   it('allows only the isolated local Supabase runtime without weakening production CSP', () => {
