@@ -93,5 +93,5 @@ jobs:
             sleep 1
           done
           curl --fail http://127.0.0.1:4028/api/health
-          # Temporary diagnostic branch only: inspect remaining WebKit auth state.
-          pnpm exec playwright test tests/e2e/authenticated-routes.spec.ts --project=webkit --project=mobile-webkit-390 --retries=0 --grep "user can sign in with email and password|user can sign out"
+          # Temporary diagnostic branch only: Stage C WebKit and mobile WebKit.
+          pnpm exec playwright test --project=webkit --project=mobile-webkit-390 --retries=0
