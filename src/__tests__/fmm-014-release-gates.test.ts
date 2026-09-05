@@ -28,6 +28,9 @@ describe('FMM-014 enforced release gates', () => {
     expect(repair).toContain(
       "ADD COLUMN IF NOT EXISTS account_type text DEFAULT 'business'",
     );
+    for (const clientColumn of ['address', 'city', 'state', 'zip']) {
+      expect(repair).toContain(`ADD COLUMN IF NOT EXISTS ${clientColumn} text`);
+    }
 
     const currentDatabaseTests = fs.readdirSync('supabase/tests/database');
     expect(currentDatabaseTests).not.toContain('fmm_003_rls_reconciliation.test.sql');
