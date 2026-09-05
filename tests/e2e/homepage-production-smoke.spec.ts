@@ -40,8 +40,12 @@ async function expectCleanHomepage(page: Page) {
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
+      console.log(`[FMM014_DIAG] homepage console ${message.text()} ${message.location().url}`);
       consoleErrors.push(message.text());
     }
+  });
+  page.on('requestfailed', (request) => {
+    console.log(`[FMM014_DIAG] homepage request failed ${request.failure()?.errorText} ${request.url()}`);
   });
 
   const response = await page.goto('/');
