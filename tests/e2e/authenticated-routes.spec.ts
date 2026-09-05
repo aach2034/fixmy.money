@@ -49,29 +49,13 @@ test.describe('Email Login', () => {
   test.beforeEach(skipIfNoCredentials);
 
   test('user can sign in with email and password', async ({ page }) => {
-    page.on('response', (response) => {
-      if (/\/auth\/v1\/token|\/rest\/v1\/user_profiles|\/api\/stripe\/entitlement/.test(response.url())) {
-        console.log(`[FMM014_DIAG] ${response.status()} ${response.url()}`);
-      }
-    });
-    page.on('requestfailed', (request) => {
-      console.log(`[FMM014_DIAG] request failed ${request.failure()?.errorText} ${request.url()}`);
-    });
-    page.on('console', (message) => {
-      if (message.type() === 'error' || message.type() === 'warning') {
-        console.log(`[FMM014_DIAG] console ${message.type()} ${message.text()} ${message.location().url}`);
-      }
-    });
     await page.goto('/login');
     await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
     await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
     await page.locator('form button[type="submit"]').click();
 
     // Should redirect away from login page
-    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 }).catch(async (error) => {
-      console.log(`[FMM014_DIAG] login remained at ${page.url()} :: ${(await page.locator('body').innerText()).slice(-1000).replace(/\s+/g, ' ')}`);
-      throw error;
-    });
+    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
     const currentUrl = page.url();
     expect(new URL(currentUrl).pathname).not.toBe('/login');
   });
