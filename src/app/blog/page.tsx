@@ -76,8 +76,8 @@ export default function BlogPage() {
                   <Link href={`/blog/${article.slug}`}>{article.title}</Link>
                 </h2>
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">{article.excerpt}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
                       <User size={12} />
                       {article.author}
@@ -93,7 +93,7 @@ export default function BlogPage() {
                   </div>
                   <Link
                     href={`/blog/${article.slug}`}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    className="flex shrink-0 items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
                   >
                     Read <ArrowRight size={12} />
                   </Link>
