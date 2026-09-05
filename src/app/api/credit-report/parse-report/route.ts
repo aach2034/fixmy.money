@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { parseWithAdapter, compareReports, type NormalizedAccount, type NormalizedReport } from '@/lib/creditReport/adapters';
 import { safeNormalizeText, type SupportedProvider } from '@/lib/creditReport/parser';
+import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
+import { determineAnalyzerOutcome } from '@/lib/creditReport/analyzerOutcome';
+import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 
@@ -52,31 +55,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'importId, clientId, and textContent are required' }, { status: 400 });
     }
 
-    // ── Validate import record belongs to this user ───────────────────────────
+    const authorization = await authorizeStaffClient(supabase, user.id, clientId, 'write');
+    if (!authorization) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+
+    // Bind the import to the same authorized workspace/client pair.
     const { data: importRecord } = await supabase
       .from('credit_report_imports')
-      .select('*, client_id')
+      .select('*')
       .eq('id', importId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', authorization.workspaceOwnerId)
       .single();
 
     if (!importRecord) {
       return NextResponse.json({ error: 'Import record not found' }, { status: 404 });
     }
 
-    if (importRecord.client_id !== clientId) {
+    if (!sameAuthorizedClient(importRecord, authorization)) {
       return NextResponse.json({ error: 'Import/client mismatch' }, { status: 403 });
-    }
-
-    const { data: clientRow } = await supabase
-      .from('staff_clients')
-      .select('id')
-      .eq('id', clientId)
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!clientRow) {
-      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
     // ── Unicode normalization ─────────────────────────────────────────────────
@@ -87,8 +84,40 @@ export async function POST(request: NextRequest) {
     const providerKey = provider as SupportedProvider;
     const parsed: NormalizedReport = parseWithAdapter(normalizedText, providerKey);
 
+    const analysisOutcome = determineAnalyzerOutcome(parsed);
+    parsed.analysisOutcome = analysisOutcome;
+    if (analysisOutcome.state === 'failed') {
+      await supabase
+        .from('credit_report_imports')
+        .update({
+          import_status: 'failed',
+          detected_provider: parsed.detectedProvider,
+          provider_confidence: parsed.providerConfidence,
+          parser_adapter: parsed.adapterUsed,
+          parser_version: parsed.parserVersion,
+          accounts_parsed: 0,
+          accounts_rejected: parsed.accountsRejected,
+          diagnostic_log: {
+            importId,
+            clientId,
+            finalStatus: analysisOutcome.state,
+            reasonCodes: analysisOutcome.reasons,
+          },
+        })
+        .eq('id', importId)
+        .eq('owner_id', authorization.workspaceOwnerId)
+        .eq('client_id', authorization.clientId);
+
+      return NextResponse.json({
+        success: false,
+        outcome: analysisOutcome,
+        error: 'The report could not be parsed safely. Select the correct provider or use manual review.',
+        code: 'REPORT_PARSE_FAILED',
+      }, { status: 422 });
+    }
+
     // ── Determine import status ───────────────────────────────────────────────
-    const isLowConfidence = parsed.sectionConfidence.overall < 40;
+    const isLowConfidence = analysisOutcome.state === 'needs_review';
     const importStatus = isLowConfidence ? 'needs_review' : 'parsed';
     const persistedAccountCount = expandedAccountCount(parsed.accounts);
     const persistedNegativeCount = expandedAccountCount(parsed.accounts.filter(account => account.isNegative));
@@ -98,7 +127,7 @@ export async function POST(request: NextRequest) {
       .from('credit_report_snapshots')
       .select('*')
       .eq('client_id', clientId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', authorization.workspaceOwnerId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -117,7 +146,7 @@ export async function POST(request: NextRequest) {
     const { data: parsedReport, error: saveError } = await supabase
       .from('parsed_credit_reports')
       .insert({
-        owner_id: user.id,
+        owner_id: authorization.workspaceOwnerId,
         client_id: clientId,
         provider: parsed.detectedProvider,
         provider_confidence: parsed.providerConfidence,
@@ -135,7 +164,7 @@ export async function POST(request: NextRequest) {
         collections_count: parsed.collections.length,
         inquiries_count: parsed.inquiries.length,
         public_records_count: parsed.publicRecords.length,
-        raw_text: normalizedText.slice(0, 50000), // cap stored raw text
+        raw_text: '',
         file_name: importRecord.file_name,
         file_type: importRecord.file_type,
         status: importStatus,
@@ -143,7 +172,7 @@ export async function POST(request: NextRequest) {
         all_inquiries: parsed.inquiries,
         public_records: parsed.publicRecords,
         section_confidence: parsed.sectionConfidence,
-        all_accounts: parsed.accounts,
+        all_accounts: stripRawReportArtifacts(parsed.accounts),
         report_date: parsed.reportDate,
         importing_user_id: user.id,
       })
@@ -184,10 +213,13 @@ export async function POST(request: NextRequest) {
           unmatchedRecords: parsed.accountsRejected,
           unicodeNormalizationWarnings: unicodeWarnings,
           warnings: parsed.warnings.map(w => ({ section: w.section, severity: w.severity })),
+          finalStatus: analysisOutcome.state,
+          reasonCodes: analysisOutcome.reasons,
         },
       })
       .eq('id', importId)
-      .eq('owner_id', user.id);
+      .eq('owner_id', authorization.workspaceOwnerId)
+      .eq('client_id', authorization.clientId);
 
     // ── Diagnostic log ────────────────────────────────────────────────────────
     console.log('[ParseReport] Parse complete', {
@@ -205,7 +237,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      success: true,
+      success: analysisOutcome.state === 'success',
+      outcome: analysisOutcome,
       parsedReportId: parsedReport.id,
       parsed,
       comparison,

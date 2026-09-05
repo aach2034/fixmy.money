@@ -22,7 +22,7 @@ export function SkeletonTableRow({ cols = 8 }: { cols?: number }) {
 
 export function DashboardSkeleton() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="app-page page-stack" aria-busy="true" aria-label="Loading dashboard">
       <div className="flex items-center justify-between">
         <SkeletonBlock className="h-8 w-48" />
         <SkeletonBlock className="h-9 w-32" />

@@ -1,5 +1,6 @@
 import { extractCreditReportDate } from './dateValidation';
 import { isReliableInquiry } from './auditItems';
+import { determineAnalyzerOutcome, type AnalyzerOutcome } from './analyzerOutcome';
 
 export type SupportedProvider =
   | 'smartcredit' | 'myscoreiq' | 'identityiq' | 'myfreescorenow' | 'privacyguard' |'experian' | 'transunion' | 'equifax' | 'annualcreditreport' | 'creditkarma' | 'unknown';
@@ -14,11 +15,29 @@ export interface ParserDiagnostics {
   totalTextBlocks: number;
   excludedBlocks: number;
   exclusionReasons: { block: string; reason: string }[];
+  blockDispositions: ParseBlockDisposition[];
+  classifiedBlocks: number;
+  duplicateBlocks: number;
+  boilerplateBlocks: number;
+  preservedUnclassifiedBlocks: number;
+  fallbackConsumedBlocks: number;
+  rejectedAccountCandidates: { block: string; reason: string }[];
+  accountFragmentsMerged: number;
+  canonicalHtml?: CreditReportHtmlNormalizationSummary;
+  reconciliation: {
+    readableBlocks: number;
+    classifiedBlocks: number;
+    duplicateBlocks: number;
+    boilerplateBlocks: number;
+    preservedUnclassifiedBlocks: number;
+    accountedFor: number;
+  };
   accountsDetected: number;
   inquiriesDetected: number;
   scoresDetected: number;
   finalConfidence: number;
   sectionConfidence: Record<string, number>;
+  sectionStatuses: ReportSectionStatuses;
   fallbackUsed: boolean;
   rawTextLength: number;
   normalizedTextLength: number;
@@ -34,6 +53,79 @@ export interface ParserDiagnostics {
   readableTextBlocksRejected: number;
   isImageBasedPdf: boolean;
   ocrWasUsed: boolean;
+}
+
+export type SemanticBlockType =
+  | 'provider/header'
+  | 'personal information'
+  | 'account creditor name'
+  | 'account field label'
+  | 'account field value'
+  | 'payment history'
+  | 'balance'
+  | 'credit limit'
+  | 'payment amount'
+  | 'account status'
+  | 'account type'
+  | 'account number'
+  | 'opened date'
+  | 'closed date'
+  | 'last reported date'
+  | 'delinquency'
+  | 'charge-off'
+  | 'collection'
+  | 'inquiry'
+  | 'public record'
+  | 'credit score'
+  | 'summary/statistics'
+  | 'footer/navigation/legal boilerplate'
+  | 'duplicate'
+  | 'continuation of adjacent block'
+  | 'unknown/unclassified';
+
+export type FinalBlockDisposition =
+  | 'classified'
+  | 'duplicate'
+  | 'boilerplate'
+  | 'account'
+  | 'fallback-account'
+  | 'preserved-unclassified';
+
+export interface ParseBlockDisposition {
+  blockId: string;
+  page: number;
+  blockIndex: number;
+  rawText: string;
+  normalizedText: string;
+  primaryParserDisposition: string;
+  fallbackParserDisposition: string;
+  semanticType: SemanticBlockType;
+  associatedAccountId?: string;
+  confidence: number;
+  finalDisposition: FinalBlockDisposition;
+  reason: string;
+  provider?: SupportedProvider | 'unknown';
+}
+
+export interface CreditReportHtmlNormalizationSummary {
+  sourceBlocksReceived: number;
+  blocksClassified: number;
+  blocksPaired: number;
+  accountSectionsProduced: number;
+  collectionSectionsProduced: number;
+  inquirySectionsProduced: number;
+  publicRecordSectionsProduced: number;
+  unclassifiedBlocksPreserved: number;
+  blocksRejected: number;
+  rejectedAccountCandidates: { block: string; reason: string }[];
+  accountFragmentsMerged: number;
+  validationErrors: string[];
+}
+
+export interface CreditReportHtmlNormalizationResult {
+  html: string;
+  diagnostics: CreditReportHtmlNormalizationSummary;
+  blockDispositions: ParseBlockDisposition[];
 }
 
 export interface ParseStageError {
@@ -60,12 +152,20 @@ function logDiagnostics(d: ParserDiagnostics): void {
       console.debug(`  Text blocks accepted: ${d.readableTextBlocksAccepted}`);
       console.debug(`  Text blocks rejected: ${d.readableTextBlocksRejected}`);
       console.debug(`  Total text blocks:    ${d.totalTextBlocks}`);
+      console.debug(`  Classified blocks:    ${d.classifiedBlocks}`);
+      console.debug(`  Fallback blocks:      ${d.fallbackConsumedBlocks}`);
+      console.debug(`  Boilerplate blocks:   ${d.boilerplateBlocks}`);
+      console.debug(`  Duplicate blocks:     ${d.duplicateBlocks}`);
+      console.debug(`  Unresolved blocks:    ${d.preservedUnclassifiedBlocks}`);
       console.debug(`  Accounts detected:    ${d.accountsDetected}`);
+      console.debug(`  Rejected candidates:  ${d.rejectedAccountCandidates.length}`);
+      console.debug(`  Fragments merged:     ${d.accountFragmentsMerged}`);
       console.debug(`  Inquiries detected:   ${d.inquiriesDetected}`);
       console.debug(`  Scores detected:      ${d.scoresDetected}`);
       console.debug(`  Final confidence:     ${d.finalConfidence}%`);
       console.debug(`  Fallback parser used: ${d.fallbackUsed}`);
       console.debug('  Section confidence:', d.sectionConfidence);
+      console.debug('  Section statuses:', d.sectionStatuses);
       if (d.stageFailures.length > 0) {
         console.debug('  Stage failures:');
         d.stageFailures.forEach(f => {
@@ -77,6 +177,13 @@ function logDiagnostics(d: ParserDiagnostics): void {
         d.exclusionReasons.forEach((e, i) => {
           console.debug(`    [${i + 1}] Reason: ${e.reason}`);
           console.debug(`         Block: ${e.block.slice(0, 80).replace(/\n/g, ' ')}…`);
+        });
+      }
+      if (d.rejectedAccountCandidates.length > 0) {
+        console.debug('  Rejected account candidates:');
+        d.rejectedAccountCandidates.forEach((candidate, i) => {
+          console.debug(`    [${i + 1}] ${candidate.reason}`);
+          console.debug(`         Candidate: ${candidate.block.slice(0, 80).replace(/\n/g, ' ')}…`);
         });
       }
       console.debug('[CreditReportParser] ────────────────────────────────────');
@@ -103,8 +210,10 @@ export function safeNormalizeText(raw: string): string {
         .replace(/<(?:script|style|noscript|template)\b[^>]*>[\s\S]*?<\/(?:script|style|noscript|template)>/gi, ' ')
         .replace(/[\r\n]+/g, ' ')
         .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/dt\s*>/gi, '\t')
+        .replace(/<\/dd\s*>/gi, '\n')
         .replace(/<\/(?:td|th)\s*>/gi, '\t')
-        .replace(/<\/(?:p|div|li|tr|section|article|header|footer|h[1-6])\s*>/gi, '\n')
+        .replace(/<\/(?:p|div|li|tr|section|article|header|footer|h[1-6]|dl)\s*>/gi, '\n')
         .replace(/<[^>]+>/g, ' ')
         .replace(/&#(\d+);/g, (_, value: string) => String.fromCodePoint(Number(value)))
         .replace(/&#x([0-9a-f]+);/gi, (_, value: string) => String.fromCodePoint(parseInt(value, 16)))
@@ -204,13 +313,20 @@ export interface ParsedAccount {
   responsibility: string;
   status: string;
   balance: number | null;
+  originalBalance: number | null;
+  collectionAmount: number | null;
+  chargeOffAmount: number | null;
   highBalance: number | null;
   creditLimit: number | null;
   pastDue: number | null;
   dateOpened: string;
+  dateOpenedField?: 'date_opened';
   dateClosed: string;
   dateReported: string;
   dateLastActivity: string;
+  lastActivityField?: 'date_of_last_activity';
+  collectionActivityDate?: string;
+  collectionActivityField?: 'collection_account_activity';
   bureaus: string[];
   bureau: string;
   paymentHistory: string;
@@ -269,6 +385,18 @@ export interface SectionConfidence {
   overall: number;
 }
 
+export type ReportSectionStatus =
+  | 'parsed_with_results'
+  | 'parsed_none_reported'
+  | 'section_not_found'
+  | 'section_unreadable'
+  | 'parser_failed';
+
+export type ReportSectionStatuses = Record<
+  'creditScores' | 'inquiries' | 'collections' | 'publicRecords' | 'chargeOffs' | 'accounts',
+  ReportSectionStatus
+>;
+
 export interface ParsedCreditReport {
   provider: SupportedProvider;
   providerConfidence: number;
@@ -296,11 +424,14 @@ export interface ParsedCreditReport {
   sectionsNotFound: string[];
   overallConfidence: number;
   sectionConfidence: SectionConfidence;
+  sectionStatuses: ReportSectionStatuses;
   negativeClassificationRan: boolean;
   unparsedBlocks: string[];
   diagnostics?: ParserDiagnostics;
   bureauTradelines?: ParsedAccount[];
   canonicalAccounts?: ParsedAccount[];
+  blockDispositions?: ParseBlockDisposition[];
+  analysisOutcome?: AnalyzerOutcome;
 }
 
 // ─── Comprehensive negative detection keywords ────────────────────────────────
@@ -479,6 +610,32 @@ export function isCollectionAccount(account: Partial<ParsedAccount>): boolean {
   } catch {
     return false;
   }
+}
+
+function hasConfirmedCollectionEvidence(account: Partial<ParsedAccount>): boolean {
+  const explicitFields = [
+    account.accountType ?? '',
+    account.status ?? '',
+    ...(account.remarks ?? []),
+  ].join(' ').toLowerCase();
+  return /\b(?:collection account|placed for collection|assigned to collection|transferred to collection|medical collection|debt buyer)\b/.test(explicitFields)
+    || /^(?:collection|collections)$/i.test(String(account.accountType ?? '').trim())
+    || /^(?:collection|collections)$/i.test(String(account.status ?? '').trim());
+}
+
+function hasAccountSpecificNegativeEvidence(account: Partial<ParsedAccount>): boolean {
+  const explicitFields = [
+    account.accountType ?? '',
+    account.status ?? '',
+    ...(account.remarks ?? []),
+    account.paymentHistory ?? '',
+  ].join(' ')
+    .replace(/\bnever\s+late\b/gi, ' ')
+    .replace(/\bexceptional\s+payment\s+history\b/gi, ' ');
+  return hasConfirmedCollectionEvidence(account)
+    || /charge.?off|charged off|late|delinquent|past due|derogatory|repossession|foreclosure|bankruptcy|settled for less|written off/i.test(explicitFields)
+    || (account.pastDue ?? 0) > 0
+    || (account.latePayments ?? []).some(item => item.count > 0);
 }
 
 // ─── Provider auto-detection ─────────────────────────────────────────────────
@@ -660,6 +817,11 @@ function extractDate(str: string): string {
     if (isoMatch) return isoMatch[0];
     const usMatch = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (usMatch) return `${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`;
+    const monthDayYearMatch = str.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})/i);
+    if (monthDayYearMatch) {
+      const months: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+      return `${monthDayYearMatch[3]}-${months[monthDayYearMatch[1].toLowerCase().slice(0, 3)] ?? '01'}-${monthDayYearMatch[2].padStart(2, '0')}`;
+    }
     const monthMatch = str.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4})/i);
     if (monthMatch) {
       const months: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
@@ -991,10 +1153,229 @@ export function isValidAccount(account: Partial<ParsedAccount>): boolean {
 // fail validation. This function reassembles those lines into proper account blocks
 // by grouping consecutive field-label + value pairs under a creditor name header.
 
-const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name)|balance|current\s*balance|amount\s*owed|high\s*(?:balance|credit)|credit\s*limit|past\s*due|date\s*(?:opened|closed|reported|updated|of\s*last)|last\s*(?:reported|activity|payment)|payment\s*(?:status|history|pattern)|responsibility|account\s*owner|ecoa|kob|industry|creditor\s*(?:name|type)|furnisher|original\s*creditor|collection\s*agency|remarks?|comments?|dispute\s*status|terms?|months?\s*reviewed|subscriber|bureau|open\s*date|close\s*date|charge\s*off|derogatory|status|type\s*of\s*account|pay\s*status|30[- ]days?|60[- ]days?|90[- ]days?|120[- ]days?)/i;
+const ACCOUNT_FIELD_LABEL_RE = /^(?:account\s*(?:number|#|no\.?|type|status|name)|balance|current\s*balance|amount\s*owed|original\s*(?:balance|loan\s*amount|amount)|loan\s*amount|collection\s*amount|amount\s*placed\s*for\s*collection|charge[- ]?off\s*amount|charged\s*off\s*amount|high\s*(?:balance|credit)|credit\s*limit|past\s*due|date\s*(?:opened|closed|reported|updated|of\s*last)|collection(?:\s+account)?\s+activity\s+date|last\s*(?:reported|activity|payment)|(?:current|worst)\s+payment\s+status|payment\s*(?:status|history|pattern)|responsibility|account\s*owner|ecoa|kob|industry|creditor\s*(?:name|type)|furnisher|original\s*creditor|collection\s*agency|remarks?|comments?|dispute\s*status|terms?|months?\s*reviewed|subscriber|bureau|opened|type|open\s*date|close\s*date|charge\s*off|derogatory|status|type\s*of\s*account|pay\s*status|30[- ]days?|60[- ]days?|90[- ]days?|120[- ]days?)/i;
 
 // Labels that indicate a new section (not an account)
-const SECTION_HEADER_RE = /^(?:personal\s+information|inquiries|public\s+records?|credit\s+score|summary|table\s+of\s+contents|hard\s+inquiries|soft\s+inquiries|account\s+information|credit\s+accounts?|tradelines?|open\s+accounts?|closed\s+accounts?|negative\s+accounts?|potentially\s+negative|equifax\s+accounts?|experian\s+accounts?|transunion\s+accounts?)/i;
+const SECTION_HEADER_RE = /^(?:personal\s+information|inquiries|public\s+records?|credit\s+score|summary|table\s+of\s+contents|hard\s+inquiries|soft\s+inquiries|account\s+(?:history|information)|credit\s+history|credit\s+accounts?|tradelines?|open\s+accounts?|closed\s+accounts?|negative\s+accounts?|potentially\s+negative|equifax\s+accounts?|experian\s+accounts?|transunion\s+accounts?)/i;
+
+const FIELD_LABEL_ALIASES: Array<[keyof SemanticFieldMap, RegExp, SemanticBlockType]> = [
+  ['accountNumber', /^(?:account\s*(?:number|#|no\.?)|acct\s*(?:number|#|no\.?))$/i, 'account number'],
+  ['accountType', /^(?:account\s+type|type|type\s+of\s+account|kob|industry)$/i, 'account type'],
+  ['status', /^(?:account\s+status|current\s+payment\s+status|worst\s+payment\s+status|pay\s+status|payment\s+status|status)$/i, 'account status'],
+  ['balance', /^(?:balance|current\s+balance|amount\s+owed)$/i, 'balance'],
+  ['originalBalance', /^(?:original\s+balance|original\s+loan\s+amount|loan\s+amount|original\s+amount)$/i, 'balance'],
+  ['collectionAmount', /^(?:collection\s+amount|amount\s+placed\s+for\s+collection)$/i, 'balance'],
+  ['chargeOffAmount', /^(?:charge[- ]?off\s+amount|charged\s+off\s+amount)$/i, 'balance'],
+  ['highBalance', /^(?:high\s+balance|highest\s+balance|high\s+credit)$/i, 'balance'],
+  ['creditLimit', /^(?:credit\s+limit|limit|credit\s+line)$/i, 'credit limit'],
+  ['pastDue', /^(?:past\s+due|past\s+due\s+amount|amount\s+past\s+due|past-due)$/i, 'delinquency'],
+  ['dateOpened', /^(?:date\s+opened|opened|open\s+date)$/i, 'opened date'],
+  ['dateClosed', /^(?:date\s+closed|closed|closed\s+date|date\s+of\s+closure)$/i, 'closed date'],
+  ['dateReported', /^(?:date\s+reported|reported|last\s+reported|date\s+updated)$/i, 'last reported date'],
+  ['dateLastActivity', /^(?:date\s+of\s+last\s+activity|last\s+activity|last\s+payment|date\s+of\s+last\s+payment)$/i, 'last reported date'],
+  ['collectionActivityDate', /^(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)$/i, 'last reported date'],
+  ['responsibility', /^(?:responsibility|account\s+owner|ecoa|bureau\s+code)$/i, 'account field label'],
+  ['remarks', /^(?:remarks?|comments?|consumer\s+statement)$/i, 'account field label'],
+  ['paymentHistory', /^(?:payment\s+history|pay\s+history|payment\s+pattern|extended\s+payment\s+history)$/i, 'payment history'],
+  ['bureau', /^bureau$/i, 'account field label'],
+];
+
+type SemanticFieldMap = {
+  accountNumber?: string;
+  accountType?: string;
+  status?: string;
+  balance?: string;
+  originalBalance?: string;
+  collectionAmount?: string;
+  chargeOffAmount?: string;
+  highBalance?: string;
+  creditLimit?: string;
+  pastDue?: string;
+  dateOpened?: string;
+  dateClosed?: string;
+  dateReported?: string;
+  dateLastActivity?: string;
+  collectionActivityDate?: string;
+  responsibility?: string;
+  remarks?: string;
+  paymentHistory?: string;
+  bureau?: string;
+};
+
+type SemanticTextBlock = {
+  blockId: string;
+  page: number;
+  blockIndex: number;
+  rawText: string;
+  normalizedText: string;
+};
+
+function normalizeSemanticLabel(value: string): string {
+  return safeNormalizeText(value)
+    .replace(/[:：]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function semanticLabelFor(line: string): [keyof SemanticFieldMap, SemanticBlockType] | null {
+  const normalized = normalizeSemanticLabel(line);
+  for (const [field, pattern, type] of FIELD_LABEL_ALIASES) {
+    if (pattern.test(normalized)) return [field, type];
+  }
+  return null;
+}
+
+function splitInlineLabelValue(line: string): { field: keyof SemanticFieldMap; value: string; type: SemanticBlockType } | null {
+  const match = line.match(/^([^:：\t]{2,40})(?:[:：]|\t+)\s*(.+)$/);
+  if (match) {
+    const label = semanticLabelFor(match[1]);
+    if (label) return { field: label[0], value: match[2].trim(), type: label[1] };
+  }
+
+  // Experian's downloadable report commonly renders field/value pairs with a
+  // single space instead of a colon (for example "Status Account charged off"
+  // and "Past due amount $830"). Match only known labels, longest first, so
+  // ordinary prose and "Status updated Aug 2026" are not mistaken for account
+  // facts.
+  const spaced = line.match(/^(account\s+number|account\s+type|original\s+balance|highest\s+balance|credit\s+limit|past\s+due\s+amount|date\s+opened|date\s+closed|responsibility|remarks?|comments?|status|balance)\s+(.+)$/i);
+  if (!spaced || /^status\s+updated\b/i.test(line) || /^balance\s+updated\b/i.test(line)) return null;
+  const label = semanticLabelFor(spaced[1]);
+  if (!label) return null;
+  return { field: label[0], value: spaced[2].trim(), type: label[1] };
+}
+
+function isLikelyFieldValue(line: string): boolean {
+  const value = line.trim();
+  if (!value) return false;
+  if (semanticLabelFor(value)) return false;
+  if (/^\$?\(?[\d,]+(?:\.\d{2})?\)?$/i.test(value)) return true;
+  if (extractDate(value) && /(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i.test(value)) return true;
+  if (/^(?:current|open|closed|paid|unpaid|collection|charge-?off|charged off|secured|secured credit card|revolving|installment|individual|joint|authorized user)$/i.test(value)) return true;
+  if (/^[A-Z0-9*X-]{4,}$/i.test(value)) return true;
+  return false;
+}
+
+function parseSemanticFieldPairs(block: string): SemanticFieldMap {
+  const fields: SemanticFieldMap = {};
+  const lines = block.split('\n').map(line => line.trim()).filter(Boolean);
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const inline = splitInlineLabelValue(line);
+    if (inline && inline.value && !fields[inline.field]) {
+      fields[inline.field] = inline.value;
+      continue;
+    }
+
+    const label = semanticLabelFor(line);
+    if (!label) continue;
+
+    for (let j = i + 1; j < Math.min(lines.length, i + 5); j += 1) {
+      const candidate = lines[j].trim();
+      if (!candidate) continue;
+      if (semanticLabelFor(candidate)) break;
+      if (isLikelyFieldValue(candidate) || isReadableText(candidate)) {
+        if (!fields[label[0]]) fields[label[0]] = candidate;
+        break;
+      }
+    }
+
+    if (!fields[label[0]]) {
+      for (let j = i - 1; j >= Math.max(0, i - 3); j -= 1) {
+        const candidate = lines[j].trim();
+        if (!candidate) continue;
+        if (semanticLabelFor(candidate)) break;
+        if (isLikelyFieldValue(candidate)) {
+          fields[label[0]] = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  return fields;
+}
+
+function findLinePairedValue(lines: string[], field: keyof SemanticFieldMap): string | undefined {
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const inline = splitInlineLabelValue(line);
+    if (inline?.field === field && inline.value) return inline.value;
+    const label = semanticLabelFor(line);
+    if (!label || label[0] !== field) continue;
+    for (let j = i + 1; j < Math.min(lines.length, i + 5); j += 1) {
+      const candidate = lines[j].trim();
+      if (!candidate) continue;
+      if (semanticLabelFor(candidate)) break;
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function createSemanticTextBlocks(text: string): SemanticTextBlock[] {
+  const blocks: SemanticTextBlock[] = [];
+  const pageParts = text.split(/^--- Page (\d+) ---\s*$/gim);
+  const pages: Array<{ page: number; text: string }> = [];
+
+  if (pageParts.length > 1) {
+    for (let i = 1; i < pageParts.length; i += 2) {
+      pages.push({ page: Number(pageParts[i]) || pages.length + 1, text: pageParts[i + 1] ?? '' });
+    }
+  } else {
+    pages.push({ page: 1, text });
+  }
+
+  for (const page of pages) {
+    const chunks = page.text
+      .split('\n')
+      .map(chunk => chunk.trim())
+      .filter(chunk => isReadableText(chunk));
+
+    chunks.forEach((rawText, index) => {
+      blocks.push({
+        blockId: `p${page.page}-b${index + 1}`,
+        page: page.page,
+        blockIndex: index + 1,
+        rawText,
+        normalizedText: safeNormalizeText(rawText).trim(),
+      });
+    });
+  }
+
+  return blocks;
+}
+
+function classifySemanticBlock(text: string): { type: SemanticBlockType; confidence: number; reason: string } {
+  const trimmed = safeNormalizeText(text).trim();
+  const singleLine = trimmed.replace(/\s+/g, ' ');
+  if (!trimmed) return { type: 'unknown/unclassified', confidence: 0, reason: 'empty block' };
+  if (/^(?:page\s+\d+|today\b.*\b(?:credit cards|loans|money)\b|credit cards\s+loans\s+money|table\s+of\s+contents)$/i.test(singleLine)) {
+    return { type: 'footer/navigation/legal boilerplate', confidence: 90, reason: 'navigation, page, or boilerplate text' };
+  }
+  if (/^(?:transunion|experian|equifax|annualcreditreport|smartcredit|identityiq|myscoreiq|myfreescorenow|privacyguard)\b/i.test(singleLine)) {
+    return { type: 'provider/header', confidence: 80, reason: 'provider or bureau header' };
+  }
+  const label = semanticLabelFor(singleLine);
+  if (label) return { type: label[1], confidence: 90, reason: 'recognized credit-report field label' };
+  const inline = splitInlineLabelValue(singleLine);
+  if (inline) return { type: inline.type, confidence: 85, reason: 'recognized inline field/value pair' };
+  if (/^(?:current|open|closed|paid|unpaid|secured|secured credit card|revolving|installment|individual|joint|authorized user)$/i.test(singleLine)) {
+    return { type: 'account field value', confidence: 75, reason: 'recognized standalone account field value' };
+  }
+  if (/^\$?\(?[\d,]+(?:\.\d{2})?\)?$/i.test(singleLine)) return { type: 'balance', confidence: 80, reason: 'monetary value' };
+  if (extractDate(singleLine) && /(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i.test(singleLine)) {
+    return { type: 'account field value', confidence: 75, reason: 'date-like field value' };
+  }
+  if (/\bcollection(?:s| account)?\b/i.test(singleLine)) return { type: 'collection', confidence: 70, reason: 'collection-related text' };
+  if (/\bcharge(?:d)?[ -]?off\b/i.test(singleLine)) return { type: 'charge-off', confidence: 70, reason: 'charge-off related text' };
+  if (/inquir(?:y|ies)|hard pull|requested your credit/i.test(singleLine)) return { type: 'inquiry', confidence: 70, reason: 'inquiry-related text' };
+  if (singleLine.split(/\s+/).length > 8) {
+    return { type: 'unknown/unclassified', confidence: 45, reason: 'readable prose without enough tradeline structure' };
+  }
+  if (isPlausibleCreditorName(singleLine)) return { type: 'account creditor name', confidence: 55, reason: 'creditor-like text awaiting tradeline evidence' };
+  return { type: 'unknown/unclassified', confidence: 35, reason: 'readable text did not match known semantic credit-report concepts' };
+}
 
 function isPlausibleCreditorName(value: string): boolean {
   const trimmed = safeNormalizeText(value).trim();
@@ -1003,17 +1384,42 @@ function isPlausibleCreditorName(value: string): boolean {
   if (!trimmed || trimmed.length < 2) return false;
   if (/[\r\n]/.test(trimmed)) return false;
   if (!/[A-Za-z]{2,}/.test(trimmed)) return false;
+  if (/\b(?:ssn|social security|current address|previous address|date of birth|dob|credit scores?)\b/i.test(trimmed)) return false;
+  if (/\bscore\s*:?\s*\d{3}\b/i.test(trimmed)) return false;
+  if (/\b(?:equifax|experian|transunion)\s+score\s*:?\s*\d{3}\b/i.test(trimmed)) return false;
+  if (semanticLabelFor(trimmed)) return false;
+  if (splitInlineLabelValue(trimmed)) return false;
   if (/^-{2,}\s*page\s+\d+\s*-{2,}$/i.test(trimmed) || /^page\s+\d+$/i.test(trimmed)) return false;
+  if (/\b(?:transunion|experian|equifax)\b.*\b(?:credit report|account history|account information)\b/i.test(trimmed)) return false;
+  if (/^today\b.*\b(?:credit cards|loans|money)\b/i.test(trimmed)) return false;
+  if (/^(?:credit cards|loans|money)(?:\s+(?:credit cards|loans|money))*$/i.test(trimmed)) return false;
+  if (/^(?:account details?|account history|account information|credit history|payment history|negative indicators|unclassified readable text|bureau specific values|tradelines|consumer information)$/i.test(trimmed)) return false;
+  if (/^(?:public\s+records?|public\s+information|inquir(?:y|ies)|hard\s+inquiries|soft\s+inquiries)\b/i.test(trimmed)) return false;
+  if (/^(?:type|opened|current\s+payment\s+status|worst\s+payment\s+status|account\s+status|payment\s+status|balance|credit\s+limit|past\s+due)\b/i.test(trimmed)) return false;
   if (/^date\s+last\s+active\b/i.test(trimmed)) return false;
+  if (/^(?:opened|open date|date opened)\b.*(?:\d{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(trimmed)) return false;
+  if (/^(?:current|worst)\s+payment\s+status\b/i.test(trimmed)) return false;
   if (/^\(?\s*to\s+account\s+closed\s+by\s+credit\b/i.test(trimmed)) return false;
   if (/\binformation\s+on\s+accounts\s+you\s+have\s+opened\b/i.test(trimmed)) return false;
   if (/\bFCR[AA]?\b|\bFCBA\b|\bdisputes?\b.*\bgrantor\b/i.test(trimmed)) return false;
+  if (/\bto\s+be\s+used\s+for\s+grantor\b/i.test(trimmed)) return false;
+  if (/^assigned\s+to\s+attorney\b/i.test(trimmed)) return false;
+  if (/^(?:fair\s+credit\s+)?reporting\s+act$/i.test(trimmed)) return false;
+  if (/\bfair\s+credit\s+reporting\s+act\b/i.test(trimmed)) return false;
   if (/^(?:transunion|experian|equifax)(?:\s+(?:transunion|experian|equifax))*$/i.test(trimmed)) return false;
+  // Bureau portals frequently repeat their brand plus a navigation label in
+  // OCR output (for example "experian/now"). Normalizing punctuation makes
+  // whitespace, slash, dash, and breadcrumb variants equivalent without
+  // weakening ordinary creditor names that happen to contain a bureau word.
+  if (/^(?:experian|equifax|transunion)\s+(?:now|home|menu|navigation|report|reports|accounts?|overview|summary|dashboard)$/i.test(displayNormalized)) return false;
+  if (/^(?:home|menu|navigation|report|reports|accounts?|overview|summary|dashboard)\s+(?:experian|equifax|transunion)$/i.test(displayNormalized)) return false;
   if (/^(?:department|account|balance|status|type|comments?|remarks?)$/i.test(trimmed)) return false;
   if (/^(?:current|open|closed|paid|unpaid|unknown|individual|joint|authorized user)$/i.test(trimmed)) return false;
   if (/^(?:revolving|revolving account|installment|installment account|individual account|mortgage|open account|collection|collection account)$/i.test(trimmed)) return false;
   if (/^(?:collection|collection account|revolving|revolving account|installment|installment account|open account)(?:\s+(?:multiple|experian|equifax|transunion))?$/i.test(displayNormalized)) return false;
   if (/^(?:charge-?off|charged off|past due balance|seriously past due|placed for collection)/i.test(trimmed)) return false;
+  if (/^(?:(?:30|60|90|120|150|180)\s+days?\s+late|late payment|past due)$/i.test(displayNormalized)) return false;
+  if (/^(?:collection|charge-?off|charged off|assigned to attorney|public records?|inquir(?:y|ies))\b.*(?:collection|charge-?off|inquir(?:y|ies)|public records?)\b/i.test(trimmed)) return false;
   if (/^paid or paying as agreed$/i.test(trimmed)) return false;
   if (/^(?:no\.?\s+of\s+months|months?\s+reviewed|terms?)\b/i.test(trimmed)) return false;
   if (/^(?:pay(?:ment)?|pavment)\s+s(?:ta|at|a)t?s?\b/i.test(trimmed)) return false;
@@ -1021,6 +1427,10 @@ function isPlausibleCreditorName(value: string): boolean {
   if ((trimmed.match(/\b\d{2}\b/g) ?? []).length >= 4) return false;
   if (ACCOUNT_FIELD_LABEL_RE.test(trimmed) && (trimmed.includes(':') || !/\bagency\b/i.test(trimmed))) return false;
   return normalized.length > 1;
+}
+
+export function isLikelyCreditorName(value: string): boolean {
+  return isPlausibleCreditorName(value);
 }
 
 function reassembleAccountBlocks(text: string): string[] {
@@ -1275,13 +1685,26 @@ function extractTriBureauBaseAccount(block: string, bureau: string): ParsedAccou
     responsibility: 'Individual',
     status: '',
     balance: null,
+    originalBalance: null,
+    collectionAmount: null,
+    chargeOffAmount: null,
     highBalance: null,
     creditLimit: null,
     pastDue: null,
     dateOpened: '',
+    dateOpenedField: /^\s*(?:date\s+opened|opened|open\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'date_opened'
+      : undefined,
     dateClosed: '',
     dateReported: '',
     dateLastActivity: '',
+    lastActivityField: /^\s*(?:date\s+of\s+last\s+activity|last\s+activity)\s*(?::|\t|$)/im.test(block)
+      ? 'date_of_last_activity'
+      : undefined,
+    collectionActivityDate: '',
+    collectionActivityField: /^\s*(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'collection_account_activity'
+      : undefined,
     bureaus: bureaus.length > 0 ? bureaus : [bureau || 'Unknown'],
     bureau: bureaus[0] ?? bureau ?? 'Unknown',
     paymentHistory: '',
@@ -1312,6 +1735,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
   const opened = triBureauValues(block, /^date\s+opened\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const reported = triBureauValues(block, /^(?:last\s+reported|date\s+reported)\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const lastActive = triBureauValues(block, /^date\s+last\s+active\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
+  const collectionActivity = triBureauValues(block, /^(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*:\s*/i, /-|\d{1,2}\/\d{1,2}\/\d{4}/g);
   const accountTypes = triBureauValues(block, /^account\s+type\s*:\s*/i);
   const accountStatuses = triBureauValues(block, /^account\s+status\s*:\s*/i);
   const paymentStatuses = triBureauValues(block, /^(?:payment|pay)\s+status\s*:\s*/i);
@@ -1349,6 +1773,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
     const dateOpened = dateAt(opened, index, base.dateOpened);
     const dateReported = dateAt(reported, index, base.dateReported);
     const dateLastActivity = dateAt(lastActive, index, base.dateLastActivity);
+    const collectionActivityDate = dateAt(collectionActivity, index, base.collectionActivityDate ?? '');
     const bureauRawText = [
       base.creditorName,
       base.originalCreditor ? `(Original Creditor: ${base.originalCreditor})` : '',
@@ -1362,6 +1787,7 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       dateOpened ? `Date Opened: ${dateOpened}` : '',
       dateReported ? `Last Reported: ${dateReported}` : '',
       dateLastActivity ? `Date Last Active: ${dateLastActivity}` : '',
+      collectionActivityDate ? `Collection Activity Date: ${collectionActivityDate}` : '',
       comment ? `Comments: ${comment}` : '',
     ].filter(Boolean).join('\n');
     const partial: Partial<ParsedAccount> = {
@@ -1406,8 +1832,12 @@ function expandTriBureauAccount(block: string, base: ParsedAccount): ParsedAccou
       highBalance: amountAt(highCredit, index, base.highBalance),
       creditLimit: amountAt(creditLimit, index, base.creditLimit),
       dateOpened,
+      dateOpenedField: base.dateOpenedField,
       dateReported,
       dateLastActivity,
+      lastActivityField: base.lastActivityField,
+      collectionActivityDate,
+      collectionActivityField: base.collectionActivityField,
       isNegative: negative,
       negativeReason,
       isCollection: collection,
@@ -1437,14 +1867,42 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
 
     const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) return null;
+    const semanticFields = parseSemanticFieldPairs(block);
+    const fieldValue = (field: keyof SemanticFieldMap): string | undefined =>
+      semanticFields[field] ?? findLinePairedValue(lines, field);
 
     // Find creditor name — look for first line that looks like a name
     // (not a label like "Account Type:", "Balance:", etc.)
     let creditorName = '';
     const hasTriBureauHeader = lines.slice(1, 4).some(line => line.replace(/\s+/g, ' ').toLowerCase() === 'transunion experian equifax');
 
+    if (
+      !hasTriBureauHeader
+      && lines.length > 2
+      && isPlausibleCreditorName(lines[0])
+      && isPlausibleCreditorName(`${lines[0]} ${lines[1]}`)
+      && !semanticLabelFor(lines[1])
+      && semanticLabelFor(lines[2])
+    ) {
+      lines[0] = `${lines[0]} ${lines[1]}`;
+      lines.splice(1, 1);
+    }
+
     if (hasTriBureauHeader && isReadableText(lines[0]) && isPlausibleCreditorName(lines[0])) {
       creditorName = lines[0];
+    }
+
+    if (
+      !creditorName
+      && lines.length > 1
+      && isReadableText(lines[0])
+      && isPlausibleCreditorName(lines[0])
+      && !semanticLabelFor(lines[0])
+      && (!isLikelyFieldValue(lines[0]) || /\/.+[A-Za-z]{2,}/.test(lines[0]))
+      && lines.slice(1, 8).some(line => semanticLabelFor(line) || ACCOUNT_FIELD_LABEL_RE.test(line))
+    ) {
+      creditorName = stripInlineAccountSectionPrefix(lines[0]);
+      console.debug('[ExtractAccountBlock] Creditor from semantic account header:', creditorName);
     }
 
     // First try explicit label extraction
@@ -1462,14 +1920,17 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       for (const line of lines.slice(0, 6)) {
         // Skip lines that are pure labels or field headers
         if (ACCOUNT_FIELD_LABEL_RE.test(line)) continue;
+        if (semanticLabelFor(line) || isLikelyFieldValue(line)) continue;
+        if (/^(?:transunion|experian|equifax|account history|credit report)$/i.test(line)) continue;
         // Skip very short lines
         if (line.length < 2) continue;
         // Skip lines that are just numbers or dates
         if (/^\d+$/.test(line) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(line)) continue;
         // Skip lines that look like dollar amounts
         if (/^\$[\d,]+$/.test(line)) continue;
-        if (isReadableText(line) && isPlausibleCreditorName(line)) {
-          creditorName = line;
+        const candidateName = stripInlineAccountSectionPrefix(line);
+        if (isReadableText(candidateName) && isPlausibleCreditorName(candidateName)) {
+          creditorName = candidateName;
           console.debug('[ExtractAccountBlock] Creditor from line scan:', creditorName);
           break;
         }
@@ -1494,41 +1955,72 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       return null;
     }
 
-    const accountNumMatch = block.match(/(?:account\s*(?:number|#|no\.?)|account\s*:|acct\s*:)\s*:?[\t ]*\n?[\t ]*([A-Z0-9*X\-]{4,})/i);
-    const accountNumber = accountNumMatch?.[1] ?? '';
+    const accountNumMatch = block.match(/(?:account\s*(?:number|#|no\.?)|account\s*:|acct\s*:)[\t ]*:?[ \t]*([A-Z0-9*X\-]{4,})/i);
+    const accountNumber = fieldValue('accountNumber') ?? accountNumMatch?.[1] ?? '';
 
-    const typeMatch = block.match(/(?:account type|type of account|type|kob|industry)[:\s]+([^\n]+)/i);
-    const accountType = typeMatch?.[1]?.trim() ?? 'Unknown';
+    const typeMatch = block.match(/(?:account type|type of account|type|kob|industry)[ \t]*:[ \t]*([^\n]+)/i);
+    const accountType = fieldValue('accountType') ?? typeMatch?.[1]?.trim() ?? 'Unknown';
 
-    const statusMatch = block.match(/(?:account status|pay status|payment status|status)[:\s]+([^\n]+)/i);
-    const status = statusMatch?.[1]?.trim() ?? '';
+    const statusMatch = block.match(/(?:account status|pay status|payment status|status)[ \t]*:[ \t]*([^\n]+)/i);
+    const status = fieldValue('status') ?? statusMatch?.[1]?.trim() ?? '';
 
-    const balanceMatch = block.match(/(?:balance|current balance|amount owed)[:\s]+\$?([\d,]+)/i);
-    const balance = balanceMatch ? parseAmount(balanceMatch[1]) : null;
+    const balanceMatch = block.match(/(?:balance|current balance|amount owed)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const balanceValue = fieldValue('balance');
+    const balance = balanceValue ? parseAmount(balanceValue) : balanceMatch ? parseAmount(balanceMatch[1]) : null;
 
-    const highBalMatch = block.match(/(?:high balance|highest balance|high credit)[:\s]+\$?([\d,]+)/i);
-    const highBalance = highBalMatch ? parseAmount(highBalMatch[1]) : null;
+    const amountField = (key: keyof SemanticFieldMap, pattern: RegExp) => {
+      const semanticValue = fieldValue(key);
+      const match = block.match(pattern);
+      return semanticValue ? parseAmount(semanticValue) : match ? parseAmount(match[1]) : null;
+    };
+    const originalBalance = amountField('originalBalance', /(?:original balance|original loan amount|loan amount|original amount)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const collectionAmount = amountField('collectionAmount', /(?:collection amount|amount placed for collection)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const chargeOffAmount = amountField('chargeOffAmount', /(?:charge[- ]?off amount|charged off amount)[ \t]*:[ \t]*\$?([\d,]+)/i);
 
-    const limitMatch = block.match(/(?:credit limit|limit|credit line)[:\s]+\$?([\d,]+)/i);
-    const creditLimit = limitMatch ? parseAmount(limitMatch[1]) : null;
+    const highBalMatch = block.match(/(?:high balance|highest balance|high credit)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const highBalanceValue = fieldValue('highBalance');
+    const highBalance = highBalanceValue ? parseAmount(highBalanceValue) : highBalMatch ? parseAmount(highBalMatch[1]) : null;
 
-    const pastDueMatch = block.match(/(?:past due|amount past due|past-due)[:\s]+\$?([\d,]+)/i);
-    const pastDue = pastDueMatch ? parseAmount(pastDueMatch[1]) : null;
+    const limitMatch = block.match(/(?:credit limit|limit|credit line)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const creditLimitValue = fieldValue('creditLimit');
+    const creditLimit = creditLimitValue ? parseAmount(creditLimitValue) : limitMatch ? parseAmount(limitMatch[1]) : null;
 
-    const openedMatch = block.match(/(?:date opened|opened|open date|date of first delinquency)[:\s]+([^\n]+)/i);
-    const dateOpened = openedMatch ? extractDate(openedMatch[1]) : '';
+    const pastDueMatch = block.match(/(?:past due|amount past due|past-due)[ \t]*:[ \t]*\$?([\d,]+)/i);
+    const pastDueValue = fieldValue('pastDue');
+    const pastDue = pastDueValue ? parseAmount(pastDueValue) : pastDueMatch ? parseAmount(pastDueMatch[1]) : null;
 
-    const closedMatch = block.match(/(?:date closed|closed date|date of closure)[:\s]+([^\n]+)/i);
-    const dateClosed = closedMatch ? extractDate(closedMatch[1]) : '';
+    const openedMatch = block.match(/(?:date opened|opened|open date|date of first delinquency)[ \t]*:[ \t]*([^\n]+)/i);
+    const openedValue = fieldValue('dateOpened');
+    const dateOpened = openedValue ? extractDate(openedValue) : openedMatch ? extractDate(openedMatch[1]) : '';
+    const dateOpenedField = /^\s*(?:date\s+opened|opened|open\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'date_opened' as const
+      : undefined;
 
-    const reportedMatch = block.match(/(?:date reported|reported|last reported|date updated)[:\s]+([^\n]+)/i);
-    const dateReported = reportedMatch ? extractDate(reportedMatch[1]) : '';
+    const closedMatch = block.match(/(?:date closed|closed date|date of closure)[ \t]*:[ \t]*([^\n]+)/i);
+    const closedValue = fieldValue('dateClosed');
+    const dateClosed = closedValue ? extractDate(closedValue) : closedMatch ? extractDate(closedMatch[1]) : '';
 
-    const activityMatch = block.match(/(?:date of last activity|last activity|last payment|date of last payment)[:\s]+([^\n]+)/i);
-    const dateLastActivity = activityMatch ? extractDate(activityMatch[1]) : '';
+    const reportedMatch = block.match(/(?:date reported|reported|last reported|date updated)[ \t]*:[ \t]*([^\n]+)/i);
+    const reportedValue = fieldValue('dateReported');
+    const dateReported = reportedValue ? extractDate(reportedValue) : reportedMatch ? extractDate(reportedMatch[1]) : '';
 
-    const responsibilityMatch = block.match(/(?:responsibility|account owner|individual|joint|authorized|ecoa)[:\s]+([^\n]+)/i);
-    const responsibility = responsibilityMatch?.[1]?.trim() ?? 'Individual';
+    const activityMatch = block.match(/(?:date of last activity|last activity|last payment|date of last payment)[ \t]*:[ \t]*([^\n]+)/i);
+    const activityValue = fieldValue('dateLastActivity');
+    const dateLastActivity = activityValue ? extractDate(activityValue) : activityMatch ? extractDate(activityMatch[1]) : '';
+    const lastActivityField = /^\s*(?:date\s+of\s+last\s+activity|last\s+activity)\s*(?::|\t|$)/im.test(block)
+      ? 'date_of_last_activity' as const
+      : undefined;
+    const collectionActivityValue = fieldValue('collectionActivityDate');
+    const collectionActivityMatch = block.match(/(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)[ \t]*:[ \t]*([^\n]+)/i);
+    const collectionActivityDate = collectionActivityValue
+      ? extractDate(collectionActivityValue)
+      : collectionActivityMatch ? extractDate(collectionActivityMatch[1]) : '';
+    const collectionActivityField = /^\s*(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*(?::|\t|$)/im.test(block)
+      ? 'collection_account_activity' as const
+      : undefined;
+
+    const responsibilityMatch = block.match(/(?:responsibility|account owner|individual|joint|authorized|ecoa)[ \t]*:[ \t]*([^\n]+)/i);
+    const responsibility = fieldValue('responsibility') ?? responsibilityMatch?.[1]?.trim() ?? 'Individual';
 
     const remarksMatch = block.match(/(?:remarks?|comments?|consumer statement)[:\s]+([^\n]+(?:\n[^\n]+)?)/i);
     const remarks: string[] = [];
@@ -1536,6 +2028,8 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       const remarkLines = remarksMatch[1].split('\n').map(l => l.trim()).filter(Boolean);
       remarks.push(...remarkLines);
     }
+    const remarksValue = fieldValue('remarks');
+    if (remarksValue && remarks.length === 0) remarks.push(remarksValue);
 
     const latePayments: { days: number; count: number }[] = [];
     const late30 = block.match(/30[- ]days?[- ]late[:\s]+(\d+)/i);
@@ -1548,7 +2042,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     if (late120 && parseInt(late120[1]) > 0) latePayments.push({ days: 120, count: parseInt(late120[1]) });
 
     const historyMatch = block.match(/(?:payment history|pay history|payment pattern)[:\s]+([OK1-9*X\s\/\-]+)/i);
-    const paymentHistory = historyMatch?.[1]?.trim() ?? '';
+    const paymentHistory = fieldValue('paymentHistory') ?? historyMatch?.[1]?.trim() ?? '';
 
     const disputeMatch = block.match(/(?:dispute status|in dispute|consumer dispute)[:\s]+([^\n]+)/i);
     const disputeStatus = disputeMatch?.[1]?.trim() ?? '';
@@ -1565,6 +2059,9 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       originalCreditor,
       status,
       balance,
+      originalBalance,
+      collectionAmount,
+      chargeOffAmount,
       pastDue,
       remarks,
       latePayments,
@@ -1598,13 +2095,20 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       responsibility,
       status,
       balance,
+      originalBalance,
+      collectionAmount,
+      chargeOffAmount,
       highBalance,
       creditLimit,
       pastDue,
       dateOpened,
+      dateOpenedField,
       dateClosed,
       dateReported,
       dateLastActivity,
+      lastActivityField,
+      collectionActivityDate,
+      collectionActivityField,
       bureaus,
       bureau: bureaus[0] ?? bureau,
       paymentHistory,
@@ -1667,7 +2171,8 @@ function splitIntoBlocks(text: string): string[] {
             !/[:\d$]/.test(trimmed) &&
             trimmed.length > 3 &&
             trimmed.length < 60 &&
-            !ACCOUNT_FIELD_LABEL_RE.test(trimmed)
+            !ACCOUNT_FIELD_LABEL_RE.test(trimmed) &&
+            !semanticLabelFor(current[current.length - 1] ?? '')
           ) {
             blocks.push(current.join('\n'));
             current = [line];
@@ -1723,6 +2228,568 @@ function splitIntoBlocks(text: string): string[] {
   }
 
   return bestBlocks;
+}
+
+type GenericSemanticParseResult = {
+  accounts: ParsedAccount[];
+  consumedBlocks: string[];
+  rejectedCandidates: { block: string; reason: string }[];
+  fragmentsMerged: number;
+};
+
+function countTradelineEvidence(fields: SemanticFieldMap): number {
+  return [
+    fields.accountNumber,
+    fields.balance,
+    fields.dateOpened,
+    fields.accountType,
+    fields.status,
+    fields.creditLimit,
+    fields.highBalance,
+    fields.pastDue,
+    fields.dateReported,
+    fields.paymentHistory,
+    fields.remarks,
+  ].filter(value => value && value.trim().length > 0).length;
+}
+
+function isSemanticAccountBoundary(line: string, nextLines: string[]): boolean {
+  const candidate = line.trim();
+  if (!isPlausibleCreditorName(candidate)) return false;
+  const evidenceWindow = nextLines.join('\n');
+  const fields = parseSemanticFieldPairs(evidenceWindow);
+  return countTradelineEvidence(fields) >= 1
+    || /account\s*(?:#|number|type|status)|balance|current\s+payment\s+status|date\s+opened|opened/i.test(evidenceWindow);
+}
+
+function isSemanticCreditorIdentityLine(line: string): boolean {
+  const candidate = line.trim();
+  if (!isPlausibleCreditorName(candidate)) return false;
+  if (semanticLabelFor(candidate)) return false;
+  if (/^\$?\(?[\d,]+(?:\.\d{2})?\)?$/i.test(candidate)) return false;
+  if (extractDate(candidate) && /(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i.test(candidate)) return false;
+  if (/^(?:current|open|closed|paid|unpaid|collection|charge-?off|charged off|secured|secured credit card|revolving|installment|individual|joint|authorized user)$/i.test(candidate)) return false;
+  if (/^[A-Z0-9*X-]{4,}$/i.test(candidate)) return false;
+  return true;
+}
+
+function stripInlineAccountSectionPrefix(value: string): string {
+  return value.trim().replace(/^accounts\s+(?=[A-Z0-9])/i, '');
+}
+
+function runGenericSemanticParser(text: string, bureau = 'Unknown'): GenericSemanticParseResult {
+  const accounts: ParsedAccount[] = [];
+  const consumedBlocks: string[] = [];
+  const rejectedCandidates: { block: string; reason: string }[] = [];
+  let fragmentsMerged = 0;
+
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  let current: string[] = [];
+
+  const flush = () => {
+    if (current.length === 0) return;
+    const block = current.join('\n').trim();
+    const fields = parseSemanticFieldPairs(block);
+    const evidenceCount = countTradelineEvidence(fields);
+    const creditor = current.find(line => isSemanticCreditorIdentityLine(line))
+      ?? current.find(line =>
+        isReadableText(line)
+        && isPlausibleCreditorName(line)
+        && !semanticLabelFor(line)
+        && !/^(?:current|open|closed|paid|unpaid|secured|secured credit card|revolving|installment|individual|joint|authorized user|\$?\(?[\d,]+(?:\.\d{2})?\)?)$/i.test(line.trim())
+      )
+      ?? '';
+
+    if (!creditor) {
+      rejectedCandidates.push({ block: block.slice(0, 120), reason: 'no creditor-like identity found' });
+    } else if (evidenceCount < 1) {
+      rejectedCandidates.push({ block: block.slice(0, 120), reason: 'insufficient tradeline evidence after semantic field pairing' });
+    } else {
+      const account = extractAccountBlock(block, bureau);
+      if (account) {
+        accounts.push(account);
+        consumedBlocks.push(block);
+      } else {
+        rejectedCandidates.push({ block: block.slice(0, 120), reason: 'semantic cluster failed account validation' });
+      }
+    }
+    current = [];
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const nextLines = lines.slice(i + 1, i + 10);
+    const startsAccount = isSemanticAccountBoundary(line, nextLines);
+    const previousLineWasLabel = current.length > 0 && Boolean(semanticLabelFor(current[current.length - 1]));
+
+    if (startsAccount && previousLineWasLabel) {
+      current.push(line);
+      continue;
+    }
+
+    if (startsAccount) {
+      if (current.length > 0) flush();
+
+      const mergedHeader = [line];
+      for (let j = i + 1; j < Math.min(lines.length, i + 3); j += 1) {
+        const fragment = lines[j];
+        if (semanticLabelFor(fragment) || ACCOUNT_FIELD_LABEL_RE.test(fragment)) break;
+        const lookahead = lines.slice(j + 1, j + 8).join('\n');
+        if (isPlausibleCreditorName(`${mergedHeader.join(' ')} ${fragment}`) && /account\s*(?:#|number|type|status)|balance|opened/i.test(lookahead)) {
+          mergedHeader.push(fragment);
+          fragmentsMerged += 1;
+          i = j;
+        }
+      }
+      current = [mergedHeader.join(' ')];
+      continue;
+    }
+
+    if (current.length > 0) {
+      if (SECTION_HEADER_RE.test(line) && current.length > 2) {
+        flush();
+      } else {
+        current.push(line);
+      }
+    } else if (semanticLabelFor(line) || isLikelyFieldValue(line)) {
+      current.push(line);
+    }
+  }
+
+  flush();
+
+  const seen = new Set<string>();
+  return {
+    accounts: accounts.filter(account => {
+      if (seen.has(account.id)) return false;
+      seen.add(account.id);
+      return true;
+    }),
+    consumedBlocks,
+    rejectedCandidates,
+    fragmentsMerged,
+  };
+}
+
+function enrichExperianAccountsFromAdjacentMetadata(text: string, accounts: ParsedAccount[]): ParsedAccount[] {
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  return accounts.map(account => {
+    const identifier = normalizeAccountNumberForKey(account.accountNumber || account.accountNumberMasked || '');
+    if (!identifier) return account;
+    const anchor = lines.findIndex(line => normalizeAccountNumberForKey(line).includes(identifier));
+    if (anchor < 0) return account;
+
+    // Experian places payment history, contact information, and comments well
+    // below the account-number anchor. Sixteen lines captured only the account
+    // shell and dropped the decisive status/history fields. Use the next
+    // account-number boundary as the hard stop while retaining a conservative
+    // maximum span for malformed extracts.
+    let start = Math.max(0, anchor - 24);
+    let end = Math.min(lines.length, anchor + 180);
+    for (let i = anchor - 1; i >= start; i -= 1) {
+      const otherIdentifier = normalizeAccountNumberForKey(lines[i]);
+      if (otherIdentifier && otherIdentifier !== identifier && /account|acct/i.test(lines[i])) { start = i + 1; break; }
+    }
+    for (let i = anchor + 1; i < end; i += 1) {
+      const otherIdentifier = normalizeAccountNumberForKey(lines[i]);
+      if (otherIdentifier && otherIdentifier !== identifier && /account|acct/i.test(lines[i])) { end = i; break; }
+    }
+
+    const nearbyText = lines.slice(start, end).join('\n');
+    // Keep the original extracted account block authoritative. Canonical HTML
+    // normalization can shorten Experian's table-shaped payment-history rows.
+    const accountSourceText = `${account.rawText}\n${nearbyText}`;
+    const fields = parseSemanticFieldPairs(accountSourceText);
+    const accountType = account.accountType === 'Unknown' && fields.accountType ? fields.accountType : account.accountType;
+    const existingStatusIsMetadata = /^(?:updated|as of)\b/i.test(account.status ?? '');
+    const status = (((!account.status || existingStatusIsMetadata) && fields.status) ? fields.status : account.status) ?? '';
+    const balance = account.balance ?? (fields.balance ? parseAmount(fields.balance) : null);
+    const originalBalance = account.originalBalance ?? (fields.originalBalance ? parseAmount(fields.originalBalance) : null);
+    const collectionAmount = account.collectionAmount ?? (fields.collectionAmount ? parseAmount(fields.collectionAmount) : null);
+    const chargeOffAmount = account.chargeOffAmount ?? (fields.chargeOffAmount ? parseAmount(fields.chargeOffAmount) : null);
+    const highBalance = account.highBalance ?? (fields.highBalance ? parseAmount(fields.highBalance) : null);
+    const creditLimit = account.creditLimit ?? (fields.creditLimit ? parseAmount(fields.creditLimit) : null);
+    const pastDue = account.pastDue ?? (fields.pastDue ? parseAmount(fields.pastDue) : null);
+    const dateOpened = account.dateOpened || (fields.dateOpened ? extractDate(fields.dateOpened) : '');
+    const responsibility = account.responsibility || fields.responsibility || '';
+    const meaningfulRemarks = account.remarks.filter(remark => !/^(?:-|--|---|n\/?a|not reported)$/i.test(remark.trim()));
+    const remarks = meaningfulRemarks.length > 0 ? meaningfulRemarks : fields.remarks ? [fields.remarks] : [];
+
+    const accountSourceLines = accountSourceText.split('\n').map(line => line.trim()).filter(Boolean);
+    const paymentHistoryStart = accountSourceLines.findIndex(line => /payment\s+history/i.test(line));
+    const paymentHistoryLines = paymentHistoryStart >= 0
+      ? accountSourceLines.slice(paymentHistoryStart + 1, paymentHistoryStart + 121)
+      : [];
+    const historyCodes: number[] = [];
+    for (const line of paymentHistoryLines) {
+      if (/contact\s+info|comments?/i.test(line) || /current\s*\/\s*terms met/i.test(line)) break;
+      const code = line.trim().match(/^(30|60|90|120|150|180)$/)?.[1];
+      if (code) historyCodes.push(Number(code));
+    }
+    const latePayments = [...(account.latePayments ?? [])];
+    for (const days of [30, 60, 90, 120, 150, 180]) {
+      const count = historyCodes.filter(code => code === days).length;
+      if (count > 0 && !latePayments.some(item => item.days === days)) latePayments.push({ days, count });
+    }
+    const paymentHistory = account.paymentHistory
+      || fields.paymentHistory
+      || (historyCodes.length > 0 ? historyCodes.join(' ') : '');
+    return {
+      ...account,
+      accountType,
+      status,
+      balance,
+      originalBalance,
+      collectionAmount,
+      chargeOffAmount,
+      highBalance,
+      creditLimit,
+      pastDue,
+      dateOpened,
+      responsibility,
+      remarks,
+      paymentHistory,
+      latePayments,
+      rawText: accountSourceText,
+    };
+  });
+}
+
+function classifyExperianAccount(account: ParsedAccount): ParsedAccount {
+  const explicitEvidence = `${account.accountType} ${account.status} ${account.remarks.join(' ')}`
+    .replace(/\bnever\s+late\b/gi, ' ')
+    .replace(/\bexceptional\s+payment\s+history\b/gi, ' ');
+  const isCollection = hasConfirmedCollectionEvidence(account);
+  const isChargeOff = /charge.?off|charged off|written off/i.test(explicitEvidence);
+  const isLate = (account.latePayments ?? []).some(item => item.count > 0)
+    || /\b(?:30|60|90|120|150|180)\s+days?\s+late\b|\blate payment\b|\bdelinquent\b/i.test(explicitEvidence);
+  const isNegative = hasAccountSpecificNegativeEvidence(account);
+  return {
+    ...account,
+    isCollection,
+    isChargeOff,
+    isLate,
+    isNegative,
+    negativeReason: isNegative ? (isCollection ? 'Collection account' : detectNegativeReason(account)) : '',
+  };
+}
+
+function buildBlockDispositions(
+  text: string,
+  provider: SupportedProvider,
+  accounts: ParsedAccount[],
+  fallbackConsumedBlocks: string[],
+  rejectedAccountCandidates: { block: string; reason: string }[],
+): ParseBlockDisposition[] {
+  const blocks = createSemanticTextBlocks(text);
+  const seen = new Map<string, string>();
+  const accountTexts = accounts.map(account => ({ id: account.id, text: account.rawText.toLowerCase() }));
+  const fallbackConsumed = fallbackConsumedBlocks.map(block => block.toLowerCase());
+
+  return blocks.map(block => {
+    const classification = classifySemanticBlock(block.normalizedText);
+    const normalizedKey = block.normalizedText.toLowerCase().replace(/\s+/g, ' ').trim();
+    const duplicateOf = seen.get(normalizedKey);
+    if (duplicateOf) {
+      return {
+        ...block,
+        primaryParserDisposition: 'duplicate of earlier readable block',
+        fallbackParserDisposition: 'not needed',
+        semanticType: 'duplicate',
+        confidence: 95,
+        finalDisposition: 'duplicate',
+        reason: `duplicate of ${duplicateOf}`,
+        provider,
+      };
+    }
+    seen.set(normalizedKey, block.blockId);
+
+    const associatedAccount = accountTexts.find(account => account.text.includes(block.normalizedText.toLowerCase()));
+    if (associatedAccount) {
+      const fallbackMatched = fallbackConsumed.some(accountBlock => accountBlock.includes(block.normalizedText.toLowerCase()));
+      return {
+        ...block,
+        primaryParserDisposition: fallbackMatched ? 'not consumed by provider parser' : 'consumed by account parser',
+        fallbackParserDisposition: fallbackMatched ? 'consumed by generic semantic fallback' : 'not needed',
+        semanticType: classification.type,
+        associatedAccountId: associatedAccount.id,
+        confidence: Math.max(classification.confidence, 80),
+        finalDisposition: fallbackMatched ? 'fallback-account' : 'account',
+        reason: fallbackMatched ? 'associated with validated fallback account' : 'associated with validated account',
+        provider,
+      };
+    }
+
+    const rejected = rejectedAccountCandidates.find(candidate => candidate.block.toLowerCase().includes(block.normalizedText.toLowerCase().slice(0, 40)));
+    const isExperianReportNarrative = provider === 'experian' && (
+      /^(?:year of birth|public records|credit scores)$/i.test(block.normalizedText.trim())
+      || /\b(?:fico(?:®)?(?:\s+(?:scores?|high achievers|auto scores?|bankcard scores?))|credit scoring|credit risk|risky borrower|your score|lenders?|available revolving credit|paid as agreed|missed payments?|derogatory indicators?|ratio of (?:your )?revolving balances|number of your accounts)\b/i.test(block.normalizedText)
+    );
+    const isBoilerplate = classification.type === 'footer/navigation/legal boilerplate'
+      || classification.type === 'provider/header'
+      || classification.type === 'summary/statistics'
+      || isExperianReportNarrative;
+
+    return {
+      ...block,
+      primaryParserDisposition: rejected ? 'rejected account candidate' : 'not consumed by provider parser',
+      fallbackParserDisposition: rejected ? 'evaluated and rejected by generic semantic fallback' : 'preserved for review',
+      semanticType: classification.type,
+      confidence: classification.confidence,
+      finalDisposition: isBoilerplate ? 'boilerplate' : classification.type === 'unknown/unclassified' ? 'preserved-unclassified' : 'classified',
+      reason: rejected?.reason ?? classification.reason,
+      provider,
+    };
+  });
+}
+
+function summarizeBlockDispositions(blockDispositions: ParseBlockDisposition[]) {
+  const duplicateBlocks = blockDispositions.filter(block => block.finalDisposition === 'duplicate').length;
+  const boilerplateBlocks = blockDispositions.filter(block => block.finalDisposition === 'boilerplate').length;
+  const preservedUnclassifiedBlocks = blockDispositions.filter(block => block.finalDisposition === 'preserved-unclassified').length;
+  const classifiedBlocks = blockDispositions.length - duplicateBlocks - boilerplateBlocks - preservedUnclassifiedBlocks;
+  return {
+    readableBlocks: blockDispositions.length,
+    classifiedBlocks,
+    duplicateBlocks,
+    boilerplateBlocks,
+    preservedUnclassifiedBlocks,
+    accountedFor: classifiedBlocks + duplicateBlocks + boilerplateBlocks + preservedUnclassifiedBlocks,
+  };
+}
+
+function escapeHtml(value: string): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function hasHtmlStructure(rawText: string): boolean {
+  return /<(?:!doctype|html|head|body|table|thead|tbody|tr|td|th|dl|dt|dd|section|div|span|p|br|script|style)\b/i.test(rawText ?? '');
+}
+
+function canonicalFieldLabel(field: keyof SemanticFieldMap): string {
+  switch (field) {
+    case 'accountNumber': return 'Account Number';
+    case 'accountType': return 'Account Type';
+    case 'status': return 'Account Status';
+    case 'balance': return 'Balance';
+    case 'originalBalance': return 'Original Balance';
+    case 'collectionAmount': return 'Collection Amount';
+    case 'chargeOffAmount': return 'Charge-off Amount';
+    case 'highBalance': return 'High Balance';
+    case 'creditLimit': return 'Credit Limit';
+    case 'pastDue': return 'Past Due';
+    case 'dateOpened': return 'Date Opened';
+    case 'dateClosed': return 'Date Closed';
+    case 'dateReported': return 'Date Reported';
+    case 'dateLastActivity': return 'Date Last Activity';
+    case 'collectionActivityDate': return 'Collection Activity Date';
+    case 'responsibility': return 'Responsibility';
+    case 'remarks': return 'Remarks';
+    case 'paymentHistory': return 'Payment History';
+    case 'bureau': return 'Bureau';
+  }
+}
+
+function normalizeCanonicalFieldValue(field: keyof SemanticFieldMap, value: string): string {
+  if (field === 'dateOpened' || field === 'dateClosed' || field === 'dateReported' || field === 'dateLastActivity' || field === 'collectionActivityDate') {
+    return extractDate(value) || value.trim();
+  }
+  return value.trim();
+}
+
+function sourceMetaForAccount(account: ParsedAccount, dispositions: ParseBlockDisposition[]): string {
+  const source = dispositions.find(block => block.associatedAccountId === account.id);
+  const attrs: string[] = [];
+  if (source) {
+    attrs.push(`data-page="${source.page}"`);
+    attrs.push(`data-source-block="${escapeHtml(source.blockId)}"`);
+    attrs.push(`data-confidence="${Math.min(1, Math.max(0, source.confidence / 100)).toFixed(2)}"`);
+  }
+  const bureau = account.bureau || account.bureaus?.[0];
+  if (bureau) attrs.push(`data-bureau="${escapeHtml(bureau)}"`);
+  return attrs.length > 0 ? ` ${attrs.join(' ')}` : '';
+}
+
+function renderCanonicalAccountSection(account: ParsedAccount, dispositions: ParseBlockDisposition[], className = 'credit-account'): string {
+  const semanticFields = parseSemanticFieldPairs(account.rawText);
+  const candidateRows: Array<[keyof SemanticFieldMap | 'furnisher', string | undefined]> = [
+    ['furnisher', account.furnisherName || account.creditorName],
+    ['accountNumber', account.accountNumber || semanticFields.accountNumber || account.accountNumberMasked],
+    ['accountType', account.accountType || semanticFields.accountType],
+    ['dateOpened', account.dateOpenedField === 'date_opened' ? account.dateOpened : semanticFields.dateOpened],
+    ['dateClosed', account.dateClosed || semanticFields.dateClosed],
+    ['dateReported', account.dateReported || semanticFields.dateReported],
+    ['collectionActivityDate', account.collectionActivityDate || semanticFields.collectionActivityDate],
+    ['status', account.status || semanticFields.status],
+    ['balance', account.balance !== null && account.balance !== undefined ? `$${account.balance.toLocaleString('en-US')}` : semanticFields.balance],
+    ['originalBalance', account.originalBalance !== null && account.originalBalance !== undefined ? `$${account.originalBalance.toLocaleString('en-US')}` : semanticFields.originalBalance],
+    ['collectionAmount', account.collectionAmount !== null && account.collectionAmount !== undefined ? `$${account.collectionAmount.toLocaleString('en-US')}` : semanticFields.collectionAmount],
+    ['chargeOffAmount', account.chargeOffAmount !== null && account.chargeOffAmount !== undefined ? `$${account.chargeOffAmount.toLocaleString('en-US')}` : semanticFields.chargeOffAmount],
+    ['highBalance', account.highBalance !== null && account.highBalance !== undefined ? `$${account.highBalance.toLocaleString('en-US')}` : semanticFields.highBalance],
+    ['creditLimit', account.creditLimit !== null && account.creditLimit !== undefined ? `$${account.creditLimit.toLocaleString('en-US')}` : semanticFields.creditLimit],
+    ['pastDue', account.pastDue !== null && account.pastDue !== undefined ? `$${account.pastDue.toLocaleString('en-US')}` : semanticFields.pastDue],
+    ['responsibility', account.responsibility || semanticFields.responsibility],
+    ['paymentHistory', account.paymentHistory || semanticFields.paymentHistory],
+    ['remarks', account.remarks?.join('; ') || semanticFields.remarks],
+    ['bureau', account.bureau || semanticFields.bureau],
+  ];
+  const rows = candidateRows.filter((row): row is [keyof SemanticFieldMap | 'furnisher', string] =>
+    typeof row[1] === 'string' && row[1].trim().length > 0
+  );
+
+  const fieldHtml = rows.map(([field, value]) => {
+    const label = field === 'furnisher' ? 'Furnisher' : canonicalFieldLabel(field);
+    const normalized = field === 'furnisher' ? value.trim() : normalizeCanonicalFieldValue(field, value);
+    return [
+      `    <dt>${escapeHtml(label)}</dt>`,
+      `    <dd${sourceMetaForAccount(account, dispositions)}>${escapeHtml(normalized)}</dd>`,
+    ].join('\n');
+  }).join('\n');
+
+  const flags = [
+    account.isNegative ? 'data-negative="true"' : '',
+    account.isCollection ? 'data-collection="true"' : '',
+    account.isChargeOff ? 'data-charge-off="true"' : '',
+  ].filter(Boolean).join(' ');
+  const flagAttrs = flags ? ` ${flags}` : '';
+
+  return [
+    `<section class="${className}"${sourceMetaForAccount(account, dispositions)}${flagAttrs}>`,
+    `  <h2>${escapeHtml(account.creditorName)}</h2>`,
+    '  <dl>',
+    fieldHtml,
+    '  </dl>',
+    '</section>',
+  ].join('\n');
+}
+
+function renderUnclassifiedSections(dispositions: ParseBlockDisposition[]): string {
+  const blocks = dispositions.filter(block => block.finalDisposition === 'preserved-unclassified');
+  if (blocks.length === 0) return '';
+  return [
+    '<section class="unclassified">',
+    '  <h2>Unclassified Readable Text</h2>',
+    ...blocks.map(block => `  <p data-page="${block.page}" data-source-block="${escapeHtml(block.blockId)}" data-confidence="${Math.min(1, Math.max(0, block.confidence / 100)).toFixed(2)}">${escapeHtml(block.rawText)}</p>`),
+    '</section>',
+  ].join('\n');
+}
+
+function renderBureauValuesSection(accounts: ParsedAccount[]): string {
+  const bureauAccounts = accounts.filter(account => account.bureau || account.bureaus?.length);
+  if (bureauAccounts.length === 0) return '';
+  return [
+    '<section class="bureau-values">',
+    '  <h2>Bureau Specific Values</h2>',
+    ...bureauAccounts.map(account => `  <p data-bureau="${escapeHtml(account.bureau || 'Unknown')}" data-account="${escapeHtml(account.id)}">${escapeHtml(account.creditorName)}</p>`),
+    '</section>',
+  ].join('\n');
+}
+
+function renderInquirySections(text: string): string {
+  const inquiries = extractInquiries(text).inquiries;
+  if (inquiries.length === 0) return '';
+  return [
+    '<section class="hard-inquiries">',
+    '  <h2>Hard Inquiries</h2>',
+    ...inquiries.map(inquiry => [
+      '  <dl>',
+      `    <dt>Creditor Name</dt><dd>${escapeHtml(inquiry.creditor)}</dd>`,
+      `    <dt>Bureau</dt><dd>${escapeHtml(inquiry.bureau)}</dd>`,
+      `    <dt>Date of Inquiry</dt><dd>${escapeHtml(inquiry.date)}</dd>`,
+      '  </dl>',
+    ].join('\n')),
+    '</section>',
+  ].join('\n');
+}
+
+function renderPublicRecordsSection(text: string): string {
+  const { detected, records } = extractPublicRecords(text);
+  if (!detected) return '';
+  if (records.length === 0) {
+    return '<section class="public-records"><h2>Public Records</h2><p>None Reported</p></section>';
+  }
+  return [
+    '<section class="public-records">',
+    '  <h2>Public Records</h2>',
+    ...records.map(record => [
+      '  <dl>',
+      `    <dt>Record Type</dt><dd>${escapeHtml(record.type)}</dd>`,
+      `    <dt>Bureau</dt><dd>${escapeHtml(record.bureau)}</dd>`,
+      `    <dt>Filing Date</dt><dd>${escapeHtml(record.dateFiled)}</dd>`,
+      `    <dt>Status</dt><dd>${escapeHtml(record.status)}</dd>`,
+      '  </dl>',
+    ].join('\n')),
+    '</section>',
+  ].join('\n');
+}
+
+export function normalizeCreditReportToHtml(
+  rawText: string,
+  provider: SupportedProvider = 'unknown',
+): CreditReportHtmlNormalizationResult {
+  const sourceText = safeNormalizeText(rawText ?? '');
+  const semanticFallback = runGenericSemanticParser(sourceText, provider);
+  const accounts = semanticFallback.accounts
+    .filter(account => isPlausibleCreditorName(account.creditorName ?? ''));
+  const blockDispositions = buildBlockDispositions(
+    sourceText,
+    provider,
+    accounts,
+    semanticFallback.consumedBlocks,
+    semanticFallback.rejectedCandidates,
+  );
+  const reconciliation = summarizeBlockDispositions(blockDispositions);
+  const collections = accounts.filter(account => account.isCollection);
+
+  const html = [
+    '<article class="credit-report" data-normalized="canonical-html">',
+    '  <section class="consumer-information">',
+    '    <h2>Consumer Information</h2>',
+    '  </section>',
+    '  <section class="tradelines">',
+    '    <h2>Tradelines</h2>',
+    ...accounts.map(account => renderCanonicalAccountSection(account, blockDispositions, 'credit-account')),
+    '  </section>',
+    collections.length > 0 ? [
+      '  <section class="collections">',
+      '    <h2>Collections</h2>',
+      ...collections.map(account => `    <p data-account="${escapeHtml(account.id)}" data-bureau="${escapeHtml(account.bureau || 'Unknown')}">${escapeHtml(account.creditorName)}</p>`),
+      '  </section>',
+    ].join('\n') : '',
+    renderInquirySections(sourceText),
+    renderPublicRecordsSection(sourceText),
+    renderBureauValuesSection(accounts),
+    accounts.some(account => account.paymentHistory) ? '<section class="payment-history"><h2>Payment History</h2></section>' : '',
+    accounts.some(account => account.isNegative) ? '<section class="negative-indicators"><h2>Negative Indicators</h2></section>' : '',
+    renderUnclassifiedSections(blockDispositions),
+    '</article>',
+  ].filter(Boolean).join('\n');
+
+  return {
+    html,
+    diagnostics: {
+      sourceBlocksReceived: blockDispositions.length,
+      blocksClassified: reconciliation.classifiedBlocks,
+      blocksPaired: accounts.reduce((sum, account) => sum + countTradelineEvidence(parseSemanticFieldPairs(account.rawText)), 0),
+      accountSectionsProduced: accounts.length,
+      collectionSectionsProduced: collections.length,
+      inquirySectionsProduced: extractInquiries(sourceText).inquiries.length,
+      publicRecordSectionsProduced: extractPublicRecords(sourceText).records.length,
+      unclassifiedBlocksPreserved: reconciliation.preservedUnclassifiedBlocks,
+      blocksRejected: semanticFallback.rejectedCandidates.length,
+      rejectedAccountCandidates: semanticFallback.rejectedCandidates,
+      accountFragmentsMerged: semanticFallback.fragmentsMerged,
+      validationErrors: accounts
+        .filter(account => !isValidAccount(account))
+        .map(account => `Invalid normalized account: ${account.creditorName}`),
+    },
+    blockDispositions,
+  };
 }
 
 // ─── Normalized fallback parser ───────────────────────────────────────────────
@@ -1837,13 +2904,28 @@ function runFallbackParser(text: string): { accounts: ParsedAccount[]; unparsedB
 function extractAccounts(
   text: string,
   exclusionLog: { block: string; reason: string }[]
-): { accounts: ParsedAccount[]; confidence: number; unparsedBlocks: string[]; totalBlocks: number; fallbackUsed: boolean; binaryBlocksSkipped: number; readableBlocksAccepted: number; readableBlocksRejected: number } {
+): {
+  accounts: ParsedAccount[];
+  confidence: number;
+  unparsedBlocks: string[];
+  totalBlocks: number;
+  fallbackUsed: boolean;
+  binaryBlocksSkipped: number;
+  readableBlocksAccepted: number;
+  readableBlocksRejected: number;
+  fallbackConsumedBlocks: string[];
+  rejectedAccountCandidates: { block: string; reason: string }[];
+  accountFragmentsMerged: number;
+} {
   let accounts: ParsedAccount[] = [];
   let unparsedBlocks: string[] = [];
   let fallbackUsed = false;
   let binaryBlocksSkipped = 0;
   let readableBlocksAccepted = 0;
   let readableBlocksRejected = 0;
+  let fallbackConsumedBlocks: string[] = [];
+  let rejectedAccountCandidates: { block: string; reason: string }[] = [];
+  let accountFragmentsMerged = 0;
 
   try {
     // Try to isolate account section — expanded patterns for MyScoreIQ and others
@@ -1938,6 +3020,14 @@ function extractAccounts(
         const account = extractAccountBlock(block, currentBureau)
           ?? (isTriBureauBlock(block) ? extractTriBureauBaseAccount(block, currentBureau) : null);
         if (account && account.parserConfidence >= 20) {
+          const accountLines = block.split('\n').map(line => line.trim()).filter(Boolean);
+          if (
+            accountLines.length > 2
+            && account.creditorName === `${accountLines[0]} ${accountLines[1]}`
+            && semanticLabelFor(accountLines[2])
+          ) {
+            accountFragmentsMerged += 1;
+          }
           const expandedAccounts = expandTriBureauAccount(block, account);
           for (const expanded of expandedAccounts) {
             if (!accounts.find(a => a.id === expanded.id)) accounts.push(expanded);
@@ -1956,14 +3046,34 @@ function extractAccounts(
       }
     }
 
-    // ── Fallback parser ──────────────────────────────────────────────────────
-    // If primary extraction found 0 accounts, run the normalized fallback
+    // ── Generic semantic fallback ────────────────────────────────────────────
+    // Primary section parsing can recover some accounts while still leaving
+    // readable OCR regions unconsumed. Run a conservative semantic pass over
+    // the full account text so unsupported regions are understood or preserved.
+    const semanticFallbackInput = accounts.length > 0 ? unparsedBlocks.join('\n\n') : accountText;
+    const semanticFallback = semanticFallbackInput.trim().length > 0
+      ? runGenericSemanticParser(semanticFallbackInput, currentBureau)
+      : { accounts: [], consumedBlocks: [], rejectedCandidates: [], fragmentsMerged: 0 };
+    rejectedAccountCandidates = [...rejectedAccountCandidates, ...semanticFallback.rejectedCandidates];
+    accountFragmentsMerged += semanticFallback.fragmentsMerged;
+    if (semanticFallback.accounts.length > 0) {
+      fallbackUsed = true;
+      fallbackConsumedBlocks = semanticFallback.consumedBlocks;
+      for (const fallbackAccount of semanticFallback.accounts) {
+        if (!accounts.find(account => account.id === fallbackAccount.id)) {
+          accounts.push(fallbackAccount);
+          readableBlocksAccepted += 1;
+        }
+      }
+    }
+
+    // If primary and semantic parsing found 0 accounts, keep the legacy
+    // normalized fallback as a last resort for older provider fixtures.
     if (accounts.length === 0) {
       fallbackUsed = true;
       const fallback = runFallbackParser(text);
       accounts = fallback.accounts;
       unparsedBlocks = [...unparsedBlocks, ...fallback.unparsedBlocks];
-
       if (accounts.length > 0) {
         readableBlocksAccepted += accounts.length;
         exclusionLog.push({
@@ -1973,9 +3083,9 @@ function extractAccounts(
       }
     }
 
-    return { accounts, confidence: accounts.length > 0 ? Math.min(95, 50 + accounts.length * 2) : 0, unparsedBlocks, totalBlocks, fallbackUsed, binaryBlocksSkipped, readableBlocksAccepted, readableBlocksRejected };
+    return { accounts, confidence: accounts.length > 0 ? Math.min(95, 50 + accounts.length * 2) : 0, unparsedBlocks, totalBlocks, fallbackUsed, binaryBlocksSkipped, readableBlocksAccepted, readableBlocksRejected, fallbackConsumedBlocks, rejectedAccountCandidates, accountFragmentsMerged };
   } catch {
-    return { accounts, confidence: 0, unparsedBlocks, totalBlocks: 0, fallbackUsed, binaryBlocksSkipped, readableBlocksAccepted, readableBlocksRejected };
+    return { accounts, confidence: 0, unparsedBlocks, totalBlocks: 0, fallbackUsed, binaryBlocksSkipped, readableBlocksAccepted, readableBlocksRejected, fallbackConsumedBlocks, rejectedAccountCandidates, accountFragmentsMerged };
   }
 }
 
@@ -2255,6 +3365,33 @@ export interface OcrMetadata {
   processingDurationMs?: number;
   openAiGenerationCount?: number;
   cacheHit?: boolean;
+  pageResults?: Array<{
+    pageNumber: number;
+    finalStatus: 'native_text' | 'ocr_primary' | 'ocr_retry' | 'ocr_fallback' | 'unreadable';
+    failureReason: string | null;
+  }>;
+  primaryOcrSuccesses?: number;
+  primaryOcrFailures?: number;
+  retryRecoveries?: number;
+  fallbackRecoveries?: number;
+}
+
+function hasIncompleteExtraction(ocrMeta?: OcrMetadata): boolean {
+  return Boolean(ocrMeta && ocrMeta.totalPdfPages > 0 && ocrMeta.ocrPagesFailed > 0);
+}
+
+function sectionStatus(params: {
+  resultCount: number;
+  sectionDetected: boolean;
+  parserFailed: boolean;
+  extractionIncomplete: boolean;
+  noneReportedDetected?: boolean;
+}): ReportSectionStatus {
+  if (params.parserFailed) return 'parser_failed';
+  if (params.resultCount > 0) return 'parsed_with_results';
+  if (params.noneReportedDetected) return 'parsed_none_reported';
+  if (params.extractionIncomplete && !params.sectionDetected) return 'section_unreadable';
+  return params.sectionDetected ? 'parsed_none_reported' : 'section_not_found';
 }
 
 export function parseCreditReport(
@@ -2276,12 +3413,15 @@ export function parseCreditReport(
   }
   const normalizedTextLength = safeText.length;
   const reportDate = extractCreditReportDate(safeText);
+  const sourceTextForDiagnostics = safeText;
+  const inputWasHtml = hasHtmlStructure(rawText ?? '');
 
   const warnings: ParserWarning[] = [];
   const sectionsParsed: string[] = [];
   const sectionsMissed: string[] = [];
   // sectionsNotFound = sections that were not detected at all (vs detected but empty)
   const sectionsNotFound: string[] = [];
+  const extractionIncomplete = hasIncompleteExtraction(ocrMeta);
 
   // Exclusion log for developer diagnostics
   const exclusionLog: { block: string; reason: string }[] = [];
@@ -2313,7 +3453,7 @@ export function parseCreditReport(
     stageFailures.push({ stage: 'text_extraction', message: 'Image-based PDF — no readable text extracted. OCR unavailable.', fatal: false });
   }
 
-  if (normalizedTextLength < rawTextLength * 0.5 && rawTextLength > 100 && !isImageBasedPdf) {
+  if (normalizedTextLength < rawTextLength * 0.5 && rawTextLength > 100 && !isImageBasedPdf && !inputWasHtml) {
     warnings.push({
       section: 'Text Extraction',
       message: 'The uploaded file contained a large number of unreadable characters. The report was partially extracted. For best results, use a text-based PDF export or paste the report text manually.',
@@ -2337,6 +3477,28 @@ export function parseCreditReport(
       }
     } catch (pdErr: any) {
       stageFailures.push({ stage: 'provider_detection', message: pdErr?.message ?? 'provider detection threw', fatal: false });
+    }
+
+    let canonicalHtml: CreditReportHtmlNormalizationResult | undefined;
+    if (!inputWasHtml && safeText.trim().length > 0) {
+      try {
+        canonicalHtml = normalizeCreditReportToHtml(safeText, provider);
+        const canonicalText = safeNormalizeText(canonicalHtml.html);
+        if (canonicalHtml.diagnostics.accountSectionsProduced > 0) {
+          safeText = `${safeText.trim()}\n\n${canonicalText}`.trim();
+          stageFailures.push({
+            stage: 'normalization',
+            message: `Canonical HTML normalization produced ${canonicalHtml.diagnostics.accountSectionsProduced} account section(s).`,
+            fatal: false,
+          });
+        }
+      } catch (normalizationErr: any) {
+        stageFailures.push({
+          stage: 'normalization',
+          message: `Canonical HTML normalization failed: ${normalizationErr?.message ?? 'unknown error'}`,
+          fatal: false,
+        });
+      }
     }
 
     // Personal info
@@ -2369,19 +3531,21 @@ export function parseCreditReport(
     // Scores
     let scores: ParsedScore[] = [];
     let scoreConfidence = 0;
+    let scoreParserFailed = false;
     try {
       const result = extractScores(safeText);
       scores = result.scores;
       scoreConfidence = result.confidence;
     } catch (e: any) {
+      scoreParserFailed = true;
       stageFailures.push({ stage: 'scores', message: e?.message ?? 'score extraction threw', fatal: false });
       warnings.push({ section: 'Credit Scores', message: `Score extraction failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
+    const hasScoreSection = /(?:credit score|fico score|fico®|vantagescore)/i.test(safeText);
 
     if (scores.length > 0) {
       sectionsParsed.push('Credit Scores');
     } else {
-      const hasScoreSection = /(?:credit score|fico score|fico®|vantagescore)/i.test(safeText);
       if (hasScoreSection) {
         // Score section header found but no scores extracted
         sectionsMissed.push('Credit Scores');
@@ -2401,6 +3565,10 @@ export function parseCreditReport(
     let binaryBlocksSkippedInAccounts = 0;
     let readableBlocksAccepted = 0;
     let readableBlocksRejected = 0;
+    let fallbackConsumedBlocks: string[] = [];
+    let rejectedAccountCandidates: { block: string; reason: string }[] = [];
+    let accountFragmentsMerged = 0;
+    let accountParserFailed = false;
     try {
       const result = extractAccounts(safeText, exclusionLog);
       rawAccounts = result.accounts;
@@ -2411,25 +3579,13 @@ export function parseCreditReport(
       binaryBlocksSkippedInAccounts = result.binaryBlocksSkipped;
       readableBlocksAccepted = result.readableBlocksAccepted;
       readableBlocksRejected = result.readableBlocksRejected;
+      fallbackConsumedBlocks = result.fallbackConsumedBlocks;
+      rejectedAccountCandidates = result.rejectedAccountCandidates;
+      accountFragmentsMerged = result.accountFragmentsMerged;
     } catch (e: any) {
+      accountParserFailed = true;
       stageFailures.push({ stage: 'account_parsing', message: e?.message ?? 'account extraction threw', fatal: false });
       warnings.push({ section: 'Accounts', message: `Account extraction failed: ${e?.message ?? 'unknown error'}`, severity: 'error' });
-    }
-
-    // Only show unparsed block warning for readable blocks, not binary skips
-    if (readableBlocksRejected > 0) {
-      warnings.push({
-        section: 'Parser',
-        message: `${readableBlocksRejected} readable text block(s) could not be matched to accounts. ${binaryBlocksSkippedInAccounts > 0 ? `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were skipped (not counted as rejections). ` : ''}${fallbackUsed ? 'Fallback parser was used to recover accounts.' : ''} See developer console for details.`,
-        severity: 'info',
-      });
-    } else if (binaryBlocksSkippedInAccounts > 0) {
-      // Binary blocks were skipped — inform user without alarming them
-      warnings.push({
-        section: 'Parser',
-        message: `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were detected and skipped. This is normal for image-based PDFs.`,
-        severity: 'info',
-      });
     }
 
     if (fallbackUsed && rawAccounts.length > 0) {
@@ -2444,19 +3600,71 @@ export function parseCreditReport(
     let bureauTradelines: ParsedAccount[] = rawAccounts;
     let accounts: ParsedAccount[] = rawAccounts;
     try {
-      bureauTradelines = runSecondPassNegativeClassification(rawAccounts);
+      bureauTradelines = provider === 'experian'
+        ? enrichExperianAccountsFromAdjacentMetadata(sourceTextForDiagnostics, rawAccounts).map(classifyExperianAccount)
+        : runSecondPassNegativeClassification(rawAccounts);
       accounts = mergeCanonicalAccounts(bureauTradelines);
     } catch (e: any) {
       stageFailures.push({ stage: 'negative_classification', message: e?.message ?? 'negative classification threw', fatal: false });
       warnings.push({ section: 'Negative Classification', message: `Second-pass classification failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
+    if (provider === 'experian') {
+      accounts = accounts.map(classifyExperianAccount);
+    }
+    const reconciledAccountCount = accounts.length;
     accounts = accounts.filter(account => isPlausibleCreditorName(account.creditorName ?? ''));
+    // Confidence must describe the reconciled identities, not the number of
+    // weak fragments encountered before semantic validation.
+    if (reconciledAccountCount > 0) {
+      const legitimateIdentityRatio = accounts.length / reconciledAccountCount;
+      accountConfidence = Math.round(accountConfidence * legitimateIdentityRatio);
+    }
+    if (provider === 'experian' && accounts.length > 0) {
+      const metadataCompleteness = accounts.reduce((sum, account) => sum + [
+        account.accountType && account.accountType !== 'Unknown',
+        Boolean(account.status),
+        account.balance !== null,
+        Boolean(account.dateOpened),
+        Boolean(account.responsibility),
+      ].filter(Boolean).length / 5, 0) / accounts.length;
+      accountConfidence = Math.round(accountConfidence * (0.45 + metadataCompleteness * 0.55));
+    }
+    // Reconcile against the final enriched accounts. Canonical HTML block
+    // dispositions are produced before Experian's adjacent metadata is
+    // attached, so reusing them falsely reports already-consumed field rows as
+    // unresolved.
+    const blockDispositions = buildBlockDispositions(
+      sourceTextForDiagnostics,
+      provider,
+      accounts,
+      fallbackConsumedBlocks,
+      rejectedAccountCandidates,
+    );
+    const reconciliation = summarizeBlockDispositions(blockDispositions);
+    // The primary block splitter can reject standalone Experian field rows
+    // before the adjacent-metadata pass attaches them to an account. Report
+    // only blocks that remain unresolved after final reconciliation; otherwise
+    // valid status/history rows are misleadingly counted as unmatched.
+    readableBlocksRejected = reconciliation.preservedUnclassifiedBlocks;
+    if (readableBlocksRejected > 0) {
+      warnings.push({
+        section: 'Parser',
+        message: `${readableBlocksRejected} readable text block(s) remain unclassified after account-field reconciliation. ${binaryBlocksSkippedInAccounts > 0 ? `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were skipped (not counted as rejections). ` : ''}${fallbackUsed ? 'Fallback parser was used to recover accounts.' : ''} Review the preserved source blocks before saving.`,
+        severity: 'info',
+      });
+    } else if (binaryBlocksSkippedInAccounts > 0) {
+      warnings.push({
+        section: 'Parser',
+        message: `${binaryBlocksSkippedInAccounts} binary/image stream block(s) were detected and skipped. This is normal for image-based PDFs.`,
+        severity: 'info',
+      });
+    }
+    const hasAccountSection = /(?:accounts?|tradelines?|credit accounts?|account information)/i.test(safeText);
 
     if (accounts.length > 0) {
       sectionsParsed.push('Accounts');
     } else {
       // Check if an account section header exists
-      const hasAccountSection = /(?:accounts?|tradelines?|credit accounts?|account information)/i.test(safeText);
       if (hasAccountSection) {
         // Section found but no accounts extracted
         sectionsMissed.push('Accounts');
@@ -2484,19 +3692,21 @@ export function parseCreditReport(
     // Inquiries
     let inquiries: ParsedInquiry[] = [];
     let inquiryConfidence = 0;
+    let inquiryParserFailed = false;
     try {
       const result = extractInquiries(safeText);
       inquiries = result.inquiries;
       inquiryConfidence = result.confidence;
     } catch (e: any) {
+      inquiryParserFailed = true;
       stageFailures.push({ stage: 'inquiries', message: e?.message ?? 'inquiry extraction threw', fatal: false });
       warnings.push({ section: 'Inquiries', message: `Inquiry extraction failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
+    const hasInquirySection = /(?:hard inquiries|credit inquiries|inquiries|requests viewed by others)/i.test(safeText);
 
     if (inquiries.length > 0) {
       sectionsParsed.push('Inquiries');
     } else {
-      const hasInquirySection = /(?:hard inquiries|credit inquiries|inquiries|requests viewed by others)/i.test(safeText);
       if (hasInquirySection) {
         // Inquiry section found but no inquiries extracted
         sectionsMissed.push('Inquiries');
@@ -2510,12 +3720,14 @@ export function parseCreditReport(
     let publicRecords: ParsedPublicRecord[] = [];
     let prDetected = false;
     let prConfidence = 0;
+    let publicRecordsParserFailed = false;
     try {
       const result = extractPublicRecords(safeText);
       publicRecords = result.records;
       prDetected = result.detected;
       prConfidence = result.confidence;
     } catch (e: any) {
+      publicRecordsParserFailed = true;
       stageFailures.push({ stage: 'public_records', message: e?.message ?? 'public records extraction threw', fatal: false });
       warnings.push({ section: 'Public Records', message: `Public records extraction failed: ${e?.message ?? 'unknown error'}`, severity: 'warning' });
     }
@@ -2525,7 +3737,7 @@ export function parseCreditReport(
     if (prDetected) {
       sectionsParsed.push('Public Records');
       if (publicRecords.length === 0) {
-        warnings.push({ section: 'Public Records', message: 'Detected — none reported.', severity: 'info' });
+        warnings.push({ section: 'Public Records', message: 'Public records section detected; no public records were reported.', severity: 'info' });
       }
     } else {
       // Public records section not found in this report
@@ -2542,6 +3754,46 @@ export function parseCreditReport(
 
     if (collections.length > 0) sectionsParsed.push('Collections');
     if (chargeOffs.length > 0) sectionsParsed.push('Charge-offs');
+    const publicRecordsNoneReported = prDetected && publicRecords.length === 0;
+    const sectionStatuses: ReportSectionStatuses = {
+      creditScores: sectionStatus({
+        resultCount: scores.length,
+        sectionDetected: hasScoreSection,
+        parserFailed: scoreParserFailed,
+        extractionIncomplete,
+      }),
+      inquiries: sectionStatus({
+        resultCount: inquiries.length,
+        sectionDetected: hasInquirySection,
+        parserFailed: inquiryParserFailed,
+        extractionIncomplete,
+      }),
+      collections: sectionStatus({
+        resultCount: collections.length,
+        sectionDetected: hasAccountSection || accounts.length > 0,
+        parserFailed: accountParserFailed,
+        extractionIncomplete,
+      }),
+      publicRecords: sectionStatus({
+        resultCount: publicRecords.length,
+        sectionDetected: prDetected,
+        parserFailed: publicRecordsParserFailed,
+        extractionIncomplete,
+        noneReportedDetected: publicRecordsNoneReported,
+      }),
+      chargeOffs: sectionStatus({
+        resultCount: chargeOffs.length,
+        sectionDetected: hasAccountSection || accounts.length > 0,
+        parserFailed: accountParserFailed,
+        extractionIncomplete,
+      }),
+      accounts: sectionStatus({
+        resultCount: accounts.length,
+        sectionDetected: hasAccountSection,
+        parserFailed: accountParserFailed,
+        extractionIncomplete,
+      }),
+    };
 
     // Bureau differences
     const bureauDifferences: BureauDifference[] = [];
@@ -2599,6 +3851,11 @@ export function parseCreditReport(
       sectionConfidence.publicRecords * weights.publicRecords
     );
 
+    if (provider === 'experian' && reconciliation.readableBlocks > 0) {
+      const unresolvedRatio = reconciliation.preservedUnclassifiedBlocks / reconciliation.readableBlocks;
+      sectionConfidence.overall = Math.round(sectionConfidence.overall * (1 - Math.min(0.35, unresolvedRatio * 0.5)));
+    }
+
     // Boost: if accounts were found, overall confidence is at least 50
     if (accounts.length > 0 && sectionConfidence.overall < 50) {
       sectionConfidence.overall = 50;
@@ -2629,6 +3886,16 @@ export function parseCreditReport(
       totalTextBlocks: totalBlocks,
       excludedBlocks: exclusionLog.length,
       exclusionReasons: exclusionLog,
+      blockDispositions,
+      classifiedBlocks: reconciliation.classifiedBlocks,
+      duplicateBlocks: reconciliation.duplicateBlocks,
+      boilerplateBlocks: reconciliation.boilerplateBlocks,
+      preservedUnclassifiedBlocks: reconciliation.preservedUnclassifiedBlocks,
+      fallbackConsumedBlocks: blockDispositions.filter(block => block.finalDisposition === 'fallback-account').length,
+      rejectedAccountCandidates,
+      accountFragmentsMerged,
+      canonicalHtml: canonicalHtml?.diagnostics,
+      reconciliation,
       accountsDetected: accounts.length,
       inquiriesDetected: inquiries.length,
       scoresDetected: scores.length,
@@ -2641,6 +3908,7 @@ export function parseCreditReport(
         inquiries: sectionConfidence.inquiries,
         publicRecords: sectionConfidence.publicRecords,
       },
+      sectionStatuses,
       fallbackUsed,
       rawTextLength,
       normalizedTextLength,
@@ -2660,6 +3928,18 @@ export function parseCreditReport(
 
     // Log diagnostics to developer console (never exposes raw consumer report data)
     logDiagnostics(diagnostics);
+
+    const analysisOutcome = determineAnalyzerOutcome({
+      provider,
+      providerConfidence,
+      overallConfidence,
+      sectionConfidence,
+      accounts,
+      warnings,
+      negativeClassificationRan,
+      sectionStatuses,
+      diagnostics,
+    });
 
     return {
       provider,
@@ -2688,11 +3968,14 @@ export function parseCreditReport(
       sectionsNotFound,
       overallConfidence,
       sectionConfidence,
+      sectionStatuses,
       negativeClassificationRan,
       unparsedBlocks,
       diagnostics,
       bureauTradelines,
       canonicalAccounts: accounts,
+      blockDispositions,
+      analysisOutcome,
     };
   } catch (fatalErr: any) {
     stageFailures.push({ stage: 'account_parsing', message: fatalErr?.message ?? 'fatal parser error', fatal: true });
@@ -2719,6 +4002,14 @@ export function parseCreditReport(
       inquiries: 0,
       publicRecords: 0,
       overall: 0,
+    };
+    const failedSectionStatuses: ReportSectionStatuses = {
+      creditScores: 'parser_failed',
+      inquiries: 'parser_failed',
+      collections: 'parser_failed',
+      publicRecords: 'parser_failed',
+      chargeOffs: 'parser_failed',
+      accounts: 'parser_failed',
     };
 
     return {
@@ -2748,19 +4039,44 @@ export function parseCreditReport(
       sectionsNotFound: ['Personal Information', 'Credit Scores', 'Accounts', 'Inquiries', 'Public Records'],
       overallConfidence: 0,
       sectionConfidence: emptySectionConfidence,
+      sectionStatuses: failedSectionStatuses,
       negativeClassificationRan: false,
       unparsedBlocks: [],
+      analysisOutcome: {
+        state: 'failed',
+        reasons: ['PARSER_FATAL'],
+        requiresHumanReview: true,
+        canPersistDraft: false,
+        canMarkAnalyzed: false,
+      },
       diagnostics: {
         providerSelected: forceProvider ?? 'unknown',
         providerConfidence: 0,
         totalTextBlocks: 0,
         excludedBlocks: 0,
         exclusionReasons: [],
+        blockDispositions: [],
+        classifiedBlocks: 0,
+        duplicateBlocks: 0,
+        boilerplateBlocks: 0,
+        preservedUnclassifiedBlocks: 0,
+        fallbackConsumedBlocks: 0,
+        rejectedAccountCandidates: [],
+        accountFragmentsMerged: 0,
+        reconciliation: {
+          readableBlocks: 0,
+          classifiedBlocks: 0,
+          duplicateBlocks: 0,
+          boilerplateBlocks: 0,
+          preservedUnclassifiedBlocks: 0,
+          accountedFor: 0,
+        },
         accountsDetected: 0,
         inquiriesDetected: 0,
         scoresDetected: 0,
         finalConfidence: 0,
         sectionConfidence: {},
+        sectionStatuses: failedSectionStatuses,
         fallbackUsed: false,
         rawTextLength,
         normalizedTextLength,

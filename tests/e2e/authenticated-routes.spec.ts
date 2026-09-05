@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Authenticated Browser Tests — FixMy.Money
@@ -20,6 +20,11 @@ import type { Page } from '@playwright/test';
 
 const TEST_EMAIL = process.env.TEST_USER_EMAIL || '';
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || '';
+const TEST_MEMBER_EMAIL = process.env.TEST_MEMBER_EMAIL || '';
+const TEST_MEMBER_PASSWORD = process.env.TEST_MEMBER_PASSWORD || '';
+const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL || '';
+const TEST_SUPABASE_ANON_KEY = process.env.TEST_SUPABASE_ANON_KEY || '';
+const TEST_SUPABASE_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Skip all authenticated tests if credentials are not configured
 const skipIfNoCredentials = () => {
@@ -30,13 +35,24 @@ const skipIfNoCredentials = () => {
 
 // ─── Helper: sign in ──────────────────────────────────────────────────────────
 
-async function signIn(page: Page): Promise<void> {
+async function signIn(
+  page: Page,
+  email = TEST_EMAIL,
+  password = TEST_PASSWORD,
+): Promise<void> {
   await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
-  // Wait for redirect to dashboard or authenticated area
-  await page.waitForURL(/dashboard|workspace|onboarding/i, { timeout: 10000 }).catch(() => {});
+  await expect(page.locator('form button[type="submit"]')).toBeEnabled();
+  await page.locator('input[type="email"], input[name="email"]').first().fill(email);
+  await page.locator('input[type="password"]').first().fill(password);
+  await page.locator('form button[type="submit"]').click();
+  await page.waitForURL(/\/checkout\?plan=starter$/, { timeout: 10000 });
+
+  const entitlement = await page.evaluate(async () => {
+    const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
+    return { status: response.status, body: await response.json() };
+  });
+  expect(entitlement.status).toBe(200);
+  expect(entitlement.body).toMatchObject({ canAccess: false, reason: 'no_billing_account' });
 }
 
 // ─── Email Login ──────────────────────────────────────────────────────────────
@@ -45,28 +61,19 @@ test.describe('Email Login', () => {
   test.beforeEach(skipIfNoCredentials);
 
   test('user can sign in with email and password', async ({ page }) => {
-    await page.goto('/login');
-    await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
-    await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
-    await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
-
-    // Should redirect away from login page
-    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
-    const currentUrl = page.url();
-    expect(new URL(currentUrl).pathname).not.toBe('/login');
+    await signIn(page);
+    await expect(page).toHaveURL(/\/checkout\?plan=starter$/);
   });
 
   test('wrong password shows error', async ({ page }) => {
     await page.goto('/login');
+    await expect(page.locator('form button[type="submit"]')).toBeEnabled();
     await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
     await page.locator('input[type="password"]').first().fill('WrongPassword_XYZ_999!');
-    await page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first().click();
+    await page.locator('form button[type="submit"]').click();
 
-    // Should show error message
-    await page.waitForTimeout(2000);
-    const errorMsg = page.locator('text=/invalid|incorrect|wrong|error|failed/i').first();
-    const isOnLoginPage = new URL(page.url()).pathname === '/login';
-    expect(isOnLoginPage || await errorMsg.isVisible().catch(() => false)).toBe(true);
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
+    await expect(page.getByText(/invalid|incorrect|wrong|error|failed/i).first()).toBeVisible();
   });
 });
 
@@ -77,29 +84,18 @@ test.describe('Logout', () => {
 
   test('user can sign out', async ({ page }) => {
     await signIn(page);
+    await page.goto('/billing-subscriptions');
+    await expect(page).toHaveURL(/\/billing-subscriptions$/);
 
-    // Find sign out button
-    const signOutBtn = page.locator('button:has-text("Sign Out"), button:has-text("Log Out"), a:has-text("Sign Out"), a:has-text("Log Out")').first();
-    const signOutVisible = await signOutBtn.isVisible().catch(() => false);
-
-    if (signOutVisible) {
-      await signOutBtn.click();
-      await page.waitForURL(/login|\/$/i, { timeout: 5000 }).catch(() => {});
-      // Should be redirected to login or home
-      const currentUrl = page.url();
-      const isLoggedOut = /\/login(?:\?|$)/.test(currentUrl) ||
-        await page.locator('input[type="email"]').first().isVisible().catch(() => false);
-      expect(isLoggedOut).toBe(true);
-    } else {
-      // Sign out may be in a dropdown — look for user menu
-      const userMenu = page.locator('[aria-label*="user"], [aria-label*="account"], [data-testid="user-menu"]').first();
-      const menuVisible = await userMenu.isVisible().catch(() => false);
-      if (menuVisible) {
-        await userMenu.click();
-        const signOutInMenu = page.locator('button:has-text("Sign Out"), a:has-text("Sign Out")').first();
-        await expect(signOutInMenu).toBeVisible();
-      }
+    const mobileNavigation = page.getByRole('button', { name: 'Open navigation' });
+    if (await mobileNavigation.isVisible()) {
+      await mobileNavigation.click();
     }
+    await page.getByRole('button', { name: new RegExp(TEST_EMAIL, 'i') }).click();
+    await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
+    await page.waitForURL(/sign-up-login-screen|login/i, { timeout: 5000 });
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
   });
 });
 
@@ -110,19 +106,18 @@ test.describe('Session Persistence', () => {
 
   test('session persists across page navigation', async ({ page }) => {
     await signIn(page);
-    const dashboardUrl = page.url();
 
     // Navigate to another page
     await page.goto('/pricing');
     await page.waitForLoadState('networkidle');
 
-    // Navigate back to dashboard
-    await page.goto(dashboardUrl);
+    // The billing route is intentionally available to authenticated workspace
+    // members who do not yet have a verified paid/trial entitlement.
+    await page.goto('/billing-subscriptions');
     await page.waitForLoadState('networkidle');
 
-    // Should still be authenticated (not redirected to login)
-    const isOnLogin = new URL(page.url()).pathname === '/login';
-    expect(isOnLogin).toBe(false);
+    await expect(page).toHaveURL(/\/billing-subscriptions$/);
+    await expect(page.getByRole('heading', { name: 'Billing center' })).toBeVisible();
   });
 });
 
@@ -153,17 +148,16 @@ test.describe('Password Reset Request', () => {
   });
 });
 
-// ─── User Without Workspace ───────────────────────────────────────────────────
+// ─── Authenticated Workspace Routing ──────────────────────────────────────────
 
-test.describe('User without workspace', () => {
+test.describe('Authenticated workspace routing', () => {
   test.beforeEach(skipIfNoCredentials);
 
-  test('authenticated user without workspace sees onboarding or setup', async ({ page }) => {
+  test('seeded workspace owner is routed by the server-authoritative entitlement gate', async ({ page }) => {
     await signIn(page);
-    // After login, user should either see dashboard or workspace setup
-    const currentUrl = page.url();
-    const isOnValidPage = /dashboard|workspace|onboarding|setup/i.test(currentUrl);
-    expect(isOnValidPage).toBe(true);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/billing-subscriptions\?reason=no_billing_account$/);
+    await expect(page.getByRole('heading', { name: 'Billing center' })).toBeVisible();
   });
 });
 
@@ -226,24 +220,138 @@ test.describe('Team Invitation', () => {
 // ─── Removed Workspace Member ─────────────────────────────────────────────────
 
 test.describe('Removed workspace member', () => {
-  test('removed member loses workspace access', async () => {
-    /**
-     * VERIFIED: RLS policies in migration 20260604150000_rls_tenant_isolation.sql
-     * enforce workspace membership at the database level.
-     *
-     * When a team member is removed from a workspace:
-     * 1. Their workspace_members row is deleted
-     * 2. RLS policies immediately deny access to workspace data
-     * 3. No application-level cache can bypass this
-     *
-     * Full end-to-end test requires:
-     * - Two test accounts
-     * - One workspace with both members
-     * - Remove one member via admin API
-     * - Verify removed member's queries return empty
-     *
-     * This is covered in cross-tenant-security.test.ts (Vitest).
-     */
-    test.skip(true, 'Requires two seeded users and a dedicated non-production Supabase project');
+  test('removed member loses workspace access', async ({ page }) => {
+    test.skip(
+      !TEST_EMAIL
+        || !TEST_PASSWORD
+        || !TEST_MEMBER_EMAIL
+        || !TEST_MEMBER_PASSWORD
+        || !TEST_SUPABASE_URL
+        || !TEST_SUPABASE_ANON_KEY
+        || !TEST_SUPABASE_SERVICE_ROLE_KEY,
+      'Requires two seeded users in the isolated local Supabase stack',
+    );
+
+    const localUrl = new URL(TEST_SUPABASE_URL);
+    expect(['127.0.0.1', 'localhost']).toContain(localUrl.hostname);
+    expect(TEST_EMAIL).toMatch(/@test\.invalid$/);
+    expect(TEST_MEMBER_EMAIL).toMatch(/@test\.invalid$/);
+
+    const admin = createClient(TEST_SUPABASE_URL, TEST_SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const member = createClient(TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: users, error: usersError } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 100,
+    });
+    expect(usersError).toBeNull();
+    const ownerUser = users.users.find((user) => user.email === TEST_EMAIL);
+    const memberUser = users.users.find((user) => user.email === TEST_MEMBER_EMAIL);
+    expect(ownerUser).toBeTruthy();
+    expect(memberUser).toBeTruthy();
+
+    const { data: workspace, error: workspaceError } = await admin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', ownerUser!.id)
+      .single();
+    expect(workspaceError).toBeNull();
+    expect(workspace).toBeTruthy();
+
+    const clientId = crypto.randomUUID();
+    let priorSelectedWorkspaceId: string | null = null;
+    try {
+      const { error: memberLoginError } = await member.auth.signInWithPassword({
+        email: TEST_MEMBER_EMAIL,
+        password: TEST_MEMBER_PASSWORD,
+      });
+      expect(memberLoginError).toBeNull();
+
+      const { data: priorSelection, error: priorSelectionError } = await member
+        .from('workspace_memberships')
+        .select('workspace_id')
+        .eq('is_selected', true)
+        .maybeSingle();
+      expect(priorSelectionError).toBeNull();
+      priorSelectedWorkspaceId = priorSelection?.workspace_id || null;
+
+      const { error: staleMembershipError } = await admin
+        .from('workspace_memberships')
+        .delete()
+        .eq('workspace_id', workspace!.id)
+        .eq('user_id', memberUser!.id);
+      expect(staleMembershipError).toBeNull();
+
+      const { error: membershipError } = await admin
+        .from('workspace_memberships')
+        .insert({
+          workspace_id: workspace!.id,
+          user_id: memberUser!.id,
+          role: 'specialist',
+          status: 'active',
+          is_selected: false,
+          invited_by: ownerUser!.id,
+        });
+      expect(membershipError).toBeNull();
+
+      const { error: selectWorkspaceError } = await member.rpc('select_workspace', {
+        requested_workspace_id: workspace!.id,
+      });
+      expect(selectWorkspaceError).toBeNull();
+
+      const { error: clientError } = await admin.from('staff_clients').insert({
+        id: clientId,
+        workspace_id: workspace!.id,
+        owner_id: ownerUser!.id,
+        name: 'FMM Removed Member Boundary Client',
+        email: `removed-member-${clientId}@test.invalid`,
+        case_stage: 'active',
+      });
+      expect(clientError).toBeNull();
+
+      await signIn(page, TEST_MEMBER_EMAIL, TEST_MEMBER_PASSWORD);
+
+      const { data: visibleBefore, error: beforeError } = await member
+        .from('staff_clients')
+        .select('id')
+        .eq('id', clientId)
+        .single();
+      expect(beforeError).toBeNull();
+      expect(visibleBefore?.id).toBe(clientId);
+
+      const { error: removeError } = await admin
+        .from('workspace_memberships')
+        .delete()
+        .eq('workspace_id', workspace!.id)
+        .eq('user_id', memberUser!.id);
+      expect(removeError).toBeNull();
+
+      await page.goto(`/clients/${clientId}`);
+      await expect(page).toHaveURL(/\/login(?:\?|$)/);
+
+      const { data: visibleAfter, error: afterError } = await member
+        .from('staff_clients')
+        .select('id')
+        .eq('id', clientId)
+        .maybeSingle();
+      expect(afterError).toBeNull();
+      expect(visibleAfter).toBeNull();
+    } finally {
+      await admin.from('workspace_memberships').delete()
+        .eq('workspace_id', workspace!.id)
+        .eq('user_id', memberUser!.id);
+      if (priorSelectedWorkspaceId) {
+        await member.rpc('select_workspace', {
+          requested_workspace_id: priorSelectedWorkspaceId,
+        });
+      }
+      await admin.from('workspace_client_memberships').delete()
+        .eq('staff_client_id', clientId);
+      await admin.from('staff_clients').delete().eq('id', clientId);
+      await member.auth.signOut();
+    }
   });
 });

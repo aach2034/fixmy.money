@@ -146,9 +146,9 @@ export default function BusinessHealthWidget() {
             );
           })}
         </div>
-        <Link href="/ai-financial-coach" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-ai/10 text-ai text-xs font-bold hover:bg-ai/20 transition-colors">
-          <Sparkles size={13} /> Open Full AI Coach
-        </Link>
+        <div className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-bold">
+          <Sparkles size={13} /> AI coach temporarily unavailable
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ interface AffiliateProviderCardProps {
   provider: ReportProvider;
   sourcePage: string;
   clientId?: string | null;
+  workspaceClientId?: string | null;
   agencyId?: string | null;
   userId?: string | null;
   onUploadClick?: (providerKey: string) => void;
@@ -20,6 +21,7 @@ export default function AffiliateProviderCard({
   provider,
   sourcePage,
   clientId,
+  workspaceClientId,
   agencyId,
   userId,
   onUploadClick,
@@ -34,6 +36,7 @@ export default function AffiliateProviderCard({
       provider: provider.key,
       sourcePage,
       clientId,
+      workspaceClientId,
       agencyId,
       userId,
     });

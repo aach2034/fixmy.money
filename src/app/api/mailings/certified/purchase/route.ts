@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
     const { data: existing } = await supabase
       .from('certified_mailings')
       .select('id, status, tracking_number')
-      .eq('owner_id', user.id)
       .eq(column, letterId)
       .maybeSingle();
     assertNoDuplicateCertifiedMailing(existing as { tracking_number?: string | null; status?: string | null } | null);
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
     });
 
     const insertPayload = {
-      owner_id: user.id,
+      owner_id: context.letter.owner_id,
       client_id: context.letter.client_id,
       dispute_letter_id: letterSource === 'dispute_letters' ? letterId : null,
       generated_dispute_letter_id: letterSource === 'generated_dispute_letters' ? letterId : null,
@@ -84,11 +83,11 @@ export async function POST(request: NextRequest) {
 
     const mailedAt = insertPayload.mailed_at;
     if (letterSource === 'generated_dispute_letters') {
-      await supabase.from('generated_dispute_letters').update({ status: 'sent', mailed_at: mailedAt }).eq('id', letterId).eq('owner_id', user.id);
+      await supabase.from('generated_dispute_letters').update({ status: 'sent', mailed_at: mailedAt }).eq('id', letterId);
       if (context.letter.round_id) {
         const followUp = new Date();
         followUp.setDate(followUp.getDate() + 30);
-        await supabase.from('dispute_rounds').update({ status: 'sent', mailed_at: mailedAt, follow_up_date: followUp.toISOString() }).eq('id', context.letter.round_id).eq('owner_id', user.id);
+        await supabase.from('dispute_rounds').update({ status: 'sent', mailed_at: mailedAt, follow_up_date: followUp.toISOString() }).eq('id', context.letter.round_id);
       }
     } else {
       const responseDue = new Date();
@@ -98,7 +97,7 @@ export async function POST(request: NextRequest) {
         sent_date: mailedAt.split('T')[0],
         response_due_date: responseDue.toISOString().split('T')[0],
         days_remaining: 30,
-      }).eq('id', letterId).eq('owner_id', user.id);
+      }).eq('id', letterId);
     }
 
     return NextResponse.json({ mailing });

@@ -138,4 +138,11 @@ describe('Onboarding gate — redirect behavior', () => {
     expect(onboarding).toContain("handleFinishOnboarding('/dashboard')");
     expect(onboarding).not.toContain('href={item.href}');
   });
+
+  it('saves company setup through the server-authoritative onboarding route', () => {
+    const onboarding = read('src/app/onboarding/components/OnboardingContent.tsx');
+    expect(onboarding).toContain("fetch('/api/onboarding', {");
+    expect(onboarding).toContain("method: 'PUT'");
+    expect(onboarding).not.toContain(".from('workspaces')");
+  });
 });

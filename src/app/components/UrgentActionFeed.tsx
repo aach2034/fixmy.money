@@ -32,7 +32,7 @@ export default function UrgentActionFeed() {
         const { data: letters } = await supabase
           .from('dispute_letters')
           .select('id, letter_id, client_name, bureau, items_count, days_remaining, letter_status')
-          .eq('owner_id', user.id)
+
           .in('letter_status', ['awaiting', 'sent', 'received'])
           .order('days_remaining', { ascending: true })
           .limit(5);
@@ -41,7 +41,7 @@ export default function UrgentActionFeed() {
         const { data: overdueClients } = await supabase
           .from('staff_clients')
           .select('id, name, next_task_label, assigned_staff')
-          .eq('owner_id', user.id)
+
           .eq('next_task_due', 'Overdue')
           .limit(3);
 

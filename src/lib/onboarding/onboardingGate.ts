@@ -27,7 +27,7 @@ export async function checkOnboardingStatus(
   try {
     const { data: profile, error } = await supabase
       .from('user_profiles')
-      .select('onboarding_completed, subscription_status, subscription_plan')
+      .select('onboarding_completed')
       .eq('id', userId)
       .single();
 

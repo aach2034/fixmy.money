@@ -20,6 +20,19 @@
 export const PLAN_IDS = ['starter', 'professional', 'agency', 'enterprise'] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
 
+/** Immutable identifier persisted with entitlement decisions and usage records. */
+export const PLAN_CATALOG_VERSION = '2026-09-03.v1' as const;
+
+export const PLAN_FEATURE_IDS = [
+  'core_crm',
+  'client_portal',
+  'credit_report_import',
+  'ai_assistant',
+  'team_access',
+  'data_export',
+] as const;
+export type PlanFeatureId = (typeof PLAN_FEATURE_IDS)[number];
+
 export interface PlanConfig {
   id: PlanId;
   name: string;
@@ -29,6 +42,7 @@ export interface PlanConfig {
   maxClients: number | null;   // null = unlimited
   maxTeamMembers: number | null; // null = unlimited
   storageGb: number | null;    // null = custom
+  enabledFeatures: readonly PlanFeatureId[];
   description: string;
   features: string[];
   badge: string | null;
@@ -43,22 +57,20 @@ export interface PlanConfig {
 export const PLANS: Record<PlanId, PlanConfig> = {
   starter: {
     id: 'starter',
-    name: 'Personal',
+    name: 'Starter',
     monthlyPrice: 39,
     annualPrice: 31,
     annualTotal: 372,
     maxClients: 3,
     maxTeamMembers: 1,
     storageGb: 5,
-    description: 'For learning the workflow with your own profile and up to 3 friends or family members.',
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant'],
+    description: 'For learning the core credit-review workflow.',
     features: [
-      'Up to 3 friends and family profiles',
-      '1 user',
-      '5 GB storage',
       'Core CRM',
       'Client portal',
       'Dispute management',
-      'Credit report upload',
+      'Credit report import',
       'Basic dispute letters',
       'Audit log',
       'Email support',
@@ -71,23 +83,19 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   },
   professional: {
     id: 'professional',
-    name: 'Start',
+    name: 'Pro',
     monthlyPrice: 99,
     annualPrice: 79,
     annualTotal: 948,
     maxClients: 300,
     maxTeamMembers: 3,
     storageGb: 25,
-    description: 'For entrepreneurs starting a legitimate credit repair business.',
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access'],
+    description: 'For credit professionals using the structured review workflow.',
     features: [
-      'Up to 300 active clients',
-      'Up to 3 team members',
-      '25 GB storage',
-      'Everything in Personal',
-      'Client billing and payments',
+      'Everything in Starter',
       'Lead and affiliate tools',
       'Structured report review',
-      'Evidence-linked draft assistance',
       'Named verification and approval',
       'Workflow templates',
       'Response tracking',
@@ -102,21 +110,17 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   },
   agency: {
     id: 'agency',
-    name: 'Grow',
-    monthlyPrice: 199,
-    annualPrice: 159,
-    annualTotal: 1908,
+    name: 'Agency',
+    monthlyPrice: 249,
+    annualPrice: 199,
+    annualTotal: 2388,
     maxClients: 600,
     maxTeamMembers: 6,
     storageGb: 100,
-    description: 'For established teams ready to automate and grow.',
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
+    description: 'For established credit-repair organizations.',
     features: [
-      'Up to 600 active clients',
-      'Up to 6 team members',
-      '100 GB storage',
-      'Everything in Start',
-      'Role-based review controls',
-      'Agency analytics dashboard',
+      'Everything in Pro',
       'Data export',
       'Onboarding assistance',
       'Priority support',
@@ -125,7 +129,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     highlight: false,
     cta: 'Start $1 Trial',
     stripePriceIdEnvKey: 'STRIPE_AGENCY_PRICE_ID',
-    stripeAmountCents: 19900,
+    stripeAmountCents: 24900,
   },
   enterprise: {
     id: 'enterprise',
@@ -136,10 +140,9 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxClients: null,
     maxTeamMembers: null,
     storageGb: null,
+    enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
     description: 'Custom pricing for large agencies and multi-location operations.',
     features: [
-      'Unlimited clients',
-      'Unlimited team members',
       'Everything in Agency',
       'Custom integrations',
       'Dedicated success manager',

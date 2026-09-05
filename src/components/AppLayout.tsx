@@ -3,11 +3,11 @@ import Sidebar from './Sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="app-shell">
       <Sidebar />
-      <div className="flex-1 overflow-y-auto">
+      <main className="app-content">
         {children}
-      </div>
+      </main>
     </div>
   );
 }

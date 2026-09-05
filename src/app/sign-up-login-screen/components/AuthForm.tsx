@@ -1,14 +1,15 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, ArrowRight, Shield, Building2, LockKeyhole, Mail, Loader2, CheckCircle2, Sparkles, FileSearch, ClipboardCheck } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { clearLocalAuthState, createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { trackEvent } from '@/lib/analytics';
+import { getPlanAudience, trackEvent } from '@/lib/analytics';
+import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
 type ForgotPasswordFormData = { email: string };
@@ -50,16 +51,31 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const [verifyEmailSent, setVerifyEmailSent] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const authTransitionFailed = searchParams.get('auth_transition') === 'verification_failed';
+  const [supabase] = useState(() => {
+    if (authTransitionFailed) clearLocalAuthState();
+    return createClient();
+  });
+  const signupStartedTracked = useRef(false);
 
   const planFromUrl = searchParams.get('plan') || 'starter';
   const isPersonalPlan = planFromUrl === 'starter';
   const tabFromUrl = searchParams.get('tab') || defaultTab || 'login';
   const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
+  const checkoutHref = () => appendAttributionToHref(`/checkout?plan=${planFromUrl}`, getStoredAttribution());
+
+  const navigateAfterAuthentication = (href: string) => {
+    window.location.assign(href);
+  };
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (tabFromUrl === 'register') setTab('register');
@@ -67,8 +83,25 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   }, [tabFromUrl]);
 
   useEffect(() => {
+    if (tab !== 'register' || signupStartedTracked.current) return;
+    signupStartedTracked.current = true;
+    trackEvent('signup_started', {
+      event_category: 'conversion',
+      plan_name: planFromUrl,
+      audience: getPlanAudience(planFromUrl),
+      source_page: window.location.pathname,
+    });
+  }, [planFromUrl, tab]);
+
+  useEffect(() => {
+    captureCurrentAttribution();
     let cancelled = false;
     const checkSession = async () => {
+      if (authTransitionFailed) {
+        clearLocalAuthState();
+        window.history.replaceState({}, '', '/login');
+        return;
+      }
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
@@ -76,21 +109,22 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('subscription_status, subscription_plan, onboarding_completed')
+          .select('onboarding_completed')
           .eq('id', session.user.id)
           .single();
 
         if (cancelled) return;
 
-        const activeStatuses = ['trialing', 'active', 'trial_active'];
-        if (profile && activeStatuses.includes(profile.subscription_status || '')) {
+        const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
+        const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+        if (profile && entitlement?.canAccess) {
           if (!profile.onboarding_completed) {
             router.replace('/onboarding');
           } else {
             router.replace(redirectTo || '/dashboard');
           }
         } else {
-          router.replace(`/checkout?plan=${planFromUrl}`);
+          router.replace(checkoutHref());
         }
       } catch (err) {
         console.error('[AuthForm] checkSession error:', err);
@@ -112,21 +146,22 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       if (session) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('subscription_status, onboarding_completed')
+          .select('onboarding_completed')
           .eq('id', session.user.id)
           .single();
-        const activeStatuses = ['trialing', 'active', 'trial_active'];
-        if (profile && activeStatuses.includes(profile.subscription_status || '')) {
+        const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
+        const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+        if (profile && entitlement?.canAccess) {
           if (!profile.onboarding_completed) {
-            router.push('/onboarding');
+            navigateAfterAuthentication('/onboarding');
           } else {
-            router.push(redirectTo || '/dashboard');
+            navigateAfterAuthentication(redirectTo || '/dashboard');
           }
         } else {
-          router.push(`/checkout?plan=${planFromUrl}`);
+          navigateAfterAuthentication(checkoutHref());
         }
       } else {
-        router.push(redirectTo || '/dashboard');
+        navigateAfterAuthentication(redirectTo || '/dashboard');
       }
     } catch (error: any) {
       console.error('[AuthForm] Login error:', error);
@@ -143,10 +178,12 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
     }
     setLoading(true);
     try {
+      const attribution = captureCurrentAttribution();
       const result = await signUp(data.email, data.password, {
         fullName: data.adminName,
         companyName: data.companyName.trim() || `${data.adminName.trim()}'s Workspace`,
         plan: planFromUrl,
+        attribution: attributionEventParams(attribution),
       });
 
       if (result?.user && result.user.identities && result.user.identities.length === 0) {
@@ -162,14 +199,24 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         plan_name: planFromUrl,
         email_confirmation_required: Boolean(needsEmailConfirmation),
       });
+      trackEvent('signup_completed', {
+        method: 'email',
+        plan_name: planFromUrl,
+        email_confirmation_required: Boolean(needsEmailConfirmation),
+      });
 
       if (needsEmailConfirmation) {
+        trackEvent('email_verification_required', {
+          event_category: 'conversion',
+          plan_name: planFromUrl,
+          audience: getPlanAudience(planFromUrl),
+        });
         setRegisteredEmail(data.email);
         setVerifyEmailSent(true);
         toast.success('Account created! Please check your email to verify your address.');
       } else {
         toast.success('Account created! Now start your 14-day trial for $1.');
-        router.push(`/checkout?plan=${planFromUrl}`);
+        router.push(checkoutHref());
       }
     } catch (error: any) {
       console.error('[AuthForm] Register error:', error);
@@ -249,7 +296,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               </button>
             </p>
           </div>
-          <button type="button" onClick={() => router.push(`/checkout?plan=${planFromUrl}`)} className="text-sm text-blue-600 hover:underline">
+          <button type="button" onClick={() => router.push(checkoutHref())} className="text-sm text-blue-600 hover:underline">
             Already verified? Continue to plan selection →
           </button>
         </div>
@@ -258,28 +305,28 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   }
 
   return (
-    <div className="min-h-screen flex bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="auth-form min-h-screen flex bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* ── LEFT BRAND PANEL ── */}
-      <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex-col justify-between p-10 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-[#071f1b] via-[#083a32] to-[#0b1742] flex-col justify-between p-10 relative overflow-hidden">
         {/* Background elements */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-blue-600/10 blur-3xl" />
-          <div className="absolute bottom-32 right-8 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl" />
-          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-blue-500/5 blur-xl" />
+          <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl" />
+          <div className="absolute bottom-32 right-8 w-48 h-48 rounded-full bg-green-400/10 blur-2xl" />
+          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-emerald-300/5 blur-xl" />
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         </div>
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 mb-12">
             <AppLogo size={40} />
-            <span className="text-white font-bold text-xl tracking-tight">FixMy.Money</span>
+            <span className="text-white font-semibold text-xl tracking-[-.03em]">FixMy<span className="text-[#71dcb9]">.Money</span></span>
           </Link>
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-emerald-400/10 border border-emerald-300/20 text-[#71dcb9] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
             <Sparkles size={12} />
             Evidence-First Agency Platform
           </div>
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
             Run Your Credit Repair<br />
-            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+            <span className="text-[#71dcb9]">
               Business Securely.
             </span>
           </h2>
@@ -292,10 +339,10 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               const FeatIcon = feat.icon;
               return (
                 <div key={feat.label} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
-                    <FeatIcon size={15} className="text-blue-300" />
+                  <div className="w-8 h-8 rounded-lg bg-emerald-400/10 border border-emerald-300/20 flex items-center justify-center shrink-0">
+                    <FeatIcon size={15} className="text-[#71dcb9]" />
                   </div>
-                  <p className="text-blue-100 text-sm font-medium">{feat.label}</p>
+                  <p className="text-emerald-50 text-sm font-medium">{feat.label}</p>
                 </div>
               );
             })}
@@ -322,7 +369,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
             <AppLogo size={32} />
-            <span className="font-bold text-slate-900 text-lg">FixMy.Money</span>
+            <span className="font-semibold text-[#101d3d] text-lg tracking-[-.03em]">FixMy<span className="text-[#3fa447]">.Money</span></span>
           </div>
 
           {/* Signup flow progress (register tab only) */}
@@ -346,13 +393,13 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
           {tab !== 'forgot' && <div className="flex bg-white border border-slate-200 rounded-xl p-1 mb-8 shadow-sm">
             <button
               onClick={() => setTab('login')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'login' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'login' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               Sign In
             </button>
             <button
               onClick={() => setTab('register')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'register' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'register' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               Create Account
             </button>
@@ -365,6 +412,11 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                 <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
                 <p className="text-sm text-slate-500">Sign in to your FixMy.Money workspace</p>
               </div>
+              {authTransitionFailed && (
+                <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  For your protection, the previous browser session was cleared because this verification link could not safely establish its account. Sign in with the account from the verification email.
+                </div>
+              )}
               <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
                 <div>
                   <label htmlFor="login-email" className="label-text">Email address</label>
@@ -412,7 +464,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
                 </div>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !hydrated}
                   className="w-full btn-primary py-3 flex items-center justify-center gap-2 rounded-xl"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : null}

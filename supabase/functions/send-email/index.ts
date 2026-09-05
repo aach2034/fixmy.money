@@ -109,12 +109,31 @@ async function ownsClientEmail(
   authHeader: string,
   supabaseUrl: string,
   anonKey: string,
-  userId: string,
   recipient: string,
 ) {
+  const workspaceResponse = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/current_workspace_context`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    },
+  );
+  if (!workspaceResponse.ok) return false;
+
+  const workspaceRows = await workspaceResponse.json();
+  const workspaceId = Array.isArray(workspaceRows) && workspaceRows.length === 1
+    ? text(workspaceRows[0]?.workspace_id, 36)
+    : "";
+  if (!workspaceId) return false;
+
   const params = new URLSearchParams({
     select: "id",
-    owner_id: `eq.${userId}`,
+    workspace_id: `eq.${workspaceId}`,
     email: `ilike.${recipient}`,
     limit: "1",
   });
@@ -169,7 +188,7 @@ Deno.serve(async (req: Request) => {
     const requestedClientEmail = email(body.clientEmail);
     if (
       requestedClientEmail !== to ||
-      !(await ownsClientEmail(authHeader, supabaseUrl, anonKey, currentUser!.id, to))
+      !(await ownsClientEmail(authHeader, supabaseUrl, anonKey, to))
     ) {
       return json(req, 403, { error: "Recipient is not one of your clients" });
     }
@@ -268,6 +287,7 @@ Deno.serve(async (req: Request) => {
     }
     case "client_notification": {
       const clientName = text(body.clientName, 100) || "there";
+      const portalInviteToken = text(body.portalInviteToken, 200);
       subject = "Welcome to Fix My Money";
       html = template({
         heading: "Your client portal is ready",
@@ -278,7 +298,9 @@ Deno.serve(async (req: Request) => {
           ["Assigned specialist", text(body.assignedStaff, 100) || "Your credit specialist"],
         ],
         ctaLabel: "Open Client Portal",
-        ctaPath: "/client-portal/login",
+        ctaPath: portalInviteToken
+          ? `/client-portal/login?invite=${encodeURIComponent(portalInviteToken)}`
+          : "/client-portal/login",
       });
       break;
     }

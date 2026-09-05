@@ -8,8 +8,10 @@ import { useSearchParams } from 'next/navigation';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
-import { buildConsumerSenderBlock, getLetterSenderInfo } from '@/lib/disputes/letterSender';
-import { trackOrganicConversionStep } from '@/lib/analytics';
+import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
+import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { CORRECTION_FIRST_REQUESTED_ACTION, deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
+import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
 
 
 interface WizardClient {
@@ -42,6 +44,7 @@ interface WizardDisputeItem {
   recommendationReason: string;
   disputeBasis: string;
   isRecommended: boolean;
+  findings: AnomalyFindingView[];
   source: 'negative_items' | 'client_disputes';
 }
 
@@ -73,9 +76,24 @@ const WIZARD_REASON_VALUES = [
 ];
 const DISPUTE_REASONS = DISPUTE_REASON_OPTIONS.filter(option => WIZARD_REASON_VALUES.includes(option.value));
 
+const deriveDisputeReason = (item: WizardDisputeItem) => {
+  if (WIZARD_REASON_VALUES.includes(item.disputeReason)) return item.disputeReason;
+  const context = `${item.disputeReason} ${item.rankingReason} ${item.type} ${item.strongestAnomaly}`.toLowerCase();
+  if (/duplicate/.test(context)) return 'Duplicate account';
+  if (/identity|fraud/.test(context)) return 'Fraudulent account / identity theft';
+  if (/not mine|not my account|ownership/.test(context)) return 'Not my account';
+  if (/unauthorized.*inquiry|inquiry.*unauthorized/.test(context)) return 'Unauthorized inquiry';
+  if (/balance/.test(context)) return 'Incorrect balance';
+  if (/late|payment history|delinquen/.test(context)) return 'Incorrect payment history';
+  if (/last activity/.test(context)) return 'Incorrect date of last activity';
+  if (/date opened|opening date/.test(context)) return 'Incorrect date opened';
+  if (/status/.test(context)) return 'Incorrect account status';
+  return 'Other (specify in notes)';
+};
+
 const INSTRUCTIONS = [
+  CORRECTION_FIRST_REQUESTED_ACTION,
   'Delete this item from my credit report',
-  'Correct the inaccurate information',
   'Provide method of verification',
   'Validate this debt',
   'Remove unauthorized inquiry',
@@ -84,16 +102,16 @@ const INSTRUCTIONS = [
 ];
 
 export const hasCompleteMailingAddress = (street: string, city: string, state: string, zip: string) =>
-  Boolean(street.trim() && city.trim() && state.trim().length === 2 && zip.trim().length >= 5);
+  !formatMissingMailingAddressError({ address: street, city, state, zip });
 
 const STEPS = [
-  { id: 1, label: 'Select Client', icon: User },
-  { id: 2, label: 'Select Bureau', icon: Building2 },
-  { id: 3, label: 'Select Items', icon: FileText },
-  { id: 4, label: 'Dispute Reason', icon: AlertTriangle },
-  { id: 5, label: 'Instruction', icon: CheckCircle2 },
-  { id: 6, label: 'Attach Docs', icon: Paperclip },
-  { id: 7, label: 'Generate Letter', icon: Send },
+  { id: 1, label: 'Choose client', icon: User },
+  { id: 2, label: 'Choose bureau', icon: Building2 },
+  { id: 3, label: 'Choose findings', icon: FileText },
+  { id: 4, label: 'Review recommendation', icon: AlertTriangle },
+  { id: 5, label: 'Add details', icon: CheckCircle2 },
+  { id: 6, label: 'Supporting documents', icon: Paperclip },
+  { id: 7, label: 'Generate letters', icon: Send },
 ];
 
 export default function DisputeWizardContent() {
@@ -102,24 +120,32 @@ export default function DisputeWizardContent() {
   const preClientId = searchParams.get('clientId') ?? '';
   const preClientName = searchParams.get('clientName') ?? '';
   const preReportId = searchParams.get('reportId') ?? '';
+  const preFindingId = searchParams.get('findingId') ?? '';
+  const preFindingCreditor = searchParams.get('findingCreditor') ?? '';
+  const preFindingAccount = searchParams.get('findingAccount') ?? '';
+  const preBureau = searchParams.get('bureau') ?? '';
 
-  const [step, setStep] = useState(fromReport ? 2 : 1);
+  const [step, setStep] = useState(fromReport && preBureau ? 3 : fromReport ? 2 : 1);
   const [clients, setClients] = useState<WizardClient[]>([]);
   const [clientsLoading, setClientsLoading] = useState(true);
   const [disputeItems, setDisputeItems] = useState<WizardDisputeItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [generatedLetterId, setGeneratedLetterId] = useState<string | null>(null);
+  const [generatedLetter, setGeneratedLetter] = useState<{ id: string; reference: string } | null>(null);
+
+  useEffect(() => {
+    trackEvent('dispute_wizard_started', { authenticated: true });
+  }, []);
 
   // Wizard state
   const [selectedClient, setSelectedClient] = useState<WizardClient | null>(
     fromReport && preClientId ? { id: preClientId, name: preClientName } : null
   );
-  const [selectedBureau, setSelectedBureau] = useState('');
+  const [selectedBureau, setSelectedBureau] = useState(preBureau);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [disputeReason, setDisputeReason] = useState('');
   const [customReason, setCustomReason] = useState('');
-  const [instruction, setInstruction] = useState('');
+  const [instruction, setInstruction] = useState(CORRECTION_FIRST_REQUESTED_ACTION);
   const [attachedDocs, setAttachedDocs] = useState<string[]>([]);
   const [clientAddress, setClientAddress] = useState('');
   const [clientCity, setClientCity] = useState('');
@@ -129,6 +155,14 @@ export default function DisputeWizardContent() {
   const [notes, setNotes] = useState('');
   // Banner shown when arriving from report import
   const [fromReportBanner, setFromReportBanner] = useState(fromReport);
+  const nextLabels: Record<number, string> = {
+    1: 'Choose bureau',
+    2: 'Choose findings',
+    3: 'Review recommendation',
+    4: 'Add request details',
+    5: 'Choose supporting documents',
+    6: 'Review letter',
+  };
 
   const supabase = createClient();
 
@@ -138,10 +172,11 @@ export default function DisputeWizardContent() {
 
   useEffect(() => {
     if (!selectedClient) return;
-    setClientAddress(selectedClient.address ?? '');
-    setClientCity(selectedClient.city ?? '');
-    setClientState((selectedClient.state ?? '').toUpperCase());
-    setClientZip(selectedClient.zip ?? '');
+    const normalized = normalizeClientMailingAddress(selectedClient);
+    setClientAddress([normalized.street, normalized.line2].filter(Boolean).join('\n'));
+    setClientCity(normalized.city);
+    setClientState(normalized.state);
+    setClientZip(normalized.postalCode);
   }, [selectedClient]);
 
   useEffect(() => {
@@ -153,7 +188,7 @@ export default function DisputeWizardContent() {
         const { data } = await supabase
           .from('staff_clients')
           .select('id, name, email, phone, address, city, state, zip')
-          .eq('owner_id', user.id)
+
           .order('name');
         setClients(data ?? []);
 
@@ -188,7 +223,7 @@ export default function DisputeWizardContent() {
         let query = supabase
           .from('negative_items')
           .select('*')
-          .eq('owner_id', user.id);
+          ;
 
         if (fromReport && preReportId) {
           query = query.eq('report_id', preReportId);
@@ -200,6 +235,12 @@ export default function DisputeWizardContent() {
         if (negativeError) throw negativeError;
 
         const selectedBureauKey = selectedBureau.trim().toLowerCase();
+        const belongsToSelectedBureau = (item: any) => {
+          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
+            .filter(Boolean)
+            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
+          return bureaus.includes(selectedBureauKey);
+        };
         const filterRows = (rows: any[]) => rows.filter((item: any) => {
           const status = String(item.dispute_status ?? 'draft').toLowerCase();
           if (status === 'resolved') return false;
@@ -210,10 +251,7 @@ export default function DisputeWizardContent() {
             (category !== 'positive' && Boolean(item.negative_reason));
           if (!isNegative) return false;
 
-          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
-            .filter(Boolean)
-            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
-          return bureaus.includes(selectedBureauKey);
+          return true;
         });
 
         let negativeData = filterRows(reportRows ?? []);
@@ -221,19 +259,19 @@ export default function DisputeWizardContent() {
         // Some historical imports have valid negative_items rows but a missing
         // or stale report_id. Fall back to the client's confirmed queue rather
         // than presenting an empty Wizard.
-        if (negativeData.length === 0 && fromReport && preReportId) {
+        if (!negativeData.some(belongsToSelectedBureau) && fromReport && preReportId) {
           const { data: clientRows, error: clientRowsError } = await supabase
             .from('negative_items')
             .select('*')
-            .eq('owner_id', user.id)
+
             .eq('client_id', selectedClient.id);
           if (clientRowsError) throw clientRowsError;
           negativeData = filterRows(clientRows ?? []);
         }
 
         if (negativeData && negativeData.length > 0) {
-          const scoredItems = scoreDisputeStrength(deduplicateDisputeRows(negativeData));
-          setDisputeItems(scoredItems.map((d: any) => ({
+          const scoredItems = deduplicateDisputeRows(scoreDisputeStrength(negativeData).filter(belongsToSelectedBureau));
+          const mappedItems: WizardDisputeItem[] = scoredItems.map((d: any) => ({
             id: d.id,
             label: `${d.creditor_name ?? 'Unknown'} — ${d.negative_category ?? 'Item'}`,
             type: d.negative_category ?? 'other',
@@ -246,21 +284,40 @@ export default function DisputeWizardContent() {
             ...getDisputeItemDates(d),
             disputeStrengthScore: d.disputeStrength.dispute_strength_score,
             strengthLabel: d.disputeStrength.strengthLabel,
-            strongestAnomaly: d.disputeStrength.strongestAnomaly,
-            reportedDataSummary: d.disputeStrength.reportedDataSummary,
+            strongestAnomaly: d.disputeStrength.strongestAnomaly === 'No factual anomaly detected'
+              ? (d.negative_reason ?? d.dispute_reason ?? d.status ?? 'Reported negative item')
+              : d.disputeStrength.strongestAnomaly,
+            reportedDataSummary: d.disputeStrength.reportedDataSummary || [
+              d.status && `Account status: ${d.status}`,
+              d.balance != null && `Balance: $${Number(d.balance).toLocaleString()}`,
+            ].filter(Boolean).join('; '),
             recommendationReason: d.disputeStrength.recommendedReason,
             disputeBasis: d.disputeStrength.disputeBasis,
             isRecommended: d.disputeStrength.isRecommended,
+            findings: prepareAnomalyFindings(d.disputeStrength.findings),
             source: 'negative_items',
-          })));
-          setSelectedItems(new Set(scoredItems.filter((item: any) => item.disputeStrength.isRecommended).map((item: any) => item.id)));
+          }));
+          setDisputeItems(mappedItems);
+          const requestedFinding = preFindingId && mappedItems.find(item =>
+            item.id === preFindingId || (
+              preFindingCreditor && item.creditorName === preFindingCreditor &&
+              (!preFindingAccount || item.accountNumber === preFindingAccount)
+            )
+          );
+          const selected = requestedFinding ? [requestedFinding] : mappedItems.filter(item => item.isRecommended);
+          setSelectedItems(new Set(selected.map(item => item.id)));
+          if (requestedFinding) {
+            const derivedReason = deriveDisputeReason(requestedFinding);
+            setDisputeReason(derivedReason);
+            if (derivedReason === 'Other (specify in notes)') setCustomReason(requestedFinding.disputeBasis);
+          }
         } else {
           // Fallback: load from client_disputes table (legacy path)
           const { data: legacyData } = await supabase
             .from('client_disputes')
             .select('*')
-            .eq('owner_id', user.id)
-            .eq('client_id', selectedClient.id)
+
+            .eq('staff_client_id', selectedClient.id)
             .eq('bureau', selectedBureau)
             .not('dispute_status', 'eq', 'resolved');
           setDisputeItems(deduplicateDisputeRows(legacyData ?? []).map((d: any) => ({
@@ -281,6 +338,7 @@ export default function DisputeWizardContent() {
             recommendationReason: 'Legacy dispute item available for review; no imported report discrepancy was detected for ranking.',
             disputeBasis: d.dispute_reason ?? d.negative_reason ?? d.negative_item_type ?? 'Review the reported information for accuracy.',
             isRecommended: false,
+            findings: [],
             source: 'client_disputes',
           })));
         }
@@ -309,18 +367,40 @@ export default function DisputeWizardContent() {
       toast.error('Missing required information');
       return;
     }
-    const sender = getLetterSenderInfo(selectedClient);
-    if (!sender) {
-      toast.error('Complete the selected client profile mailing address before generating a letter.');
-      return;
-    }
     setGenerating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const addressInput = { name: selectedClient.name, address: clientAddress, city: clientCity, state: clientState, zip: clientZip };
+      const addressUpdate = toCanonicalMailingAddressUpdate(addressInput);
+      if (!addressUpdate) throw new Error(formatMissingMailingAddressError(addressInput) ?? 'Client name is missing.');
+      const { error: addressUpdateError } = await supabase
+        .from('staff_clients')
+        .update(addressUpdate)
+        .eq('id', selectedClient.id)
+        ;
+      if (addressUpdateError) throw new Error('Client mailing address could not be saved.');
+
+      const { data: persistedClient, error: clientError } = await supabase
+        .from('staff_clients')
+        .select('id, name, email, phone, address, city, state, zip')
+        .eq('id', selectedClient.id)
+
+        .single();
+      if (clientError || !persistedClient) throw new Error('Selected client profile could not be refreshed.');
+
+      const sender = getLetterSenderInfo(persistedClient);
+      if (!sender) throw new Error(formatMissingMailingAddressError(persistedClient) ?? 'Client name is missing.');
+      const normalizedAddress = normalizeClientMailingAddress(persistedClient);
+      setSelectedClient(persistedClient);
+      setClientAddress(normalizedAddress.street);
+      setClientCity(normalizedAddress.city);
+      setClientState(normalizedAddress.state);
+      setClientZip(normalizedAddress.postalCode);
+
       const { data: workspace } = await supabase
-        .from('workspaces').select('id').eq('owner_id', user.id).single();
+        .from('workspaces').select('id').single();
 
       const bureauShort: Record<string, string> = { Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' };
       const shortCode = bureauShort[selectedBureau] ?? 'DL';
@@ -341,18 +421,26 @@ export default function DisputeWizardContent() {
 
       const itemsSection = selectedDisputeItems.map((item, i) => {
         const dates = accountDateSummary(item);
+        const findings = formatAnomalyFindingsForLetter(item.findings);
         const hasDetectedEvidence = Boolean(item.reportedDataSummary && item.disputeBasis);
         const itemReason = hasDetectedEvidence ? item.disputeBasis : finalReason;
         const reportedData = item.reportedDataSummary ? `   Reported Data: ${item.reportedDataSummary}\n` : '';
         const factualBasis = hasDetectedEvidence ? item.disputeBasis : item.strongestAnomaly;
         return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
-   Type: ${item.type} | Amount: ${item.amount}
-   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Strength: ${item.strengthLabel}
+   Type: ${formatAccountType(item.type)} | Amount: ${item.amount}
+   ${dates ? `Report Dates: ${dates}\n` : ''}${findings || `   Dispute Strength: ${item.strengthLabel}
    Discrepancy: ${item.strongestAnomaly}
 ${reportedData}   Factual Basis: ${factualBasis}
-   Dispute Reason: ${itemReason}
+   Dispute Reason: ${itemReason}`}
+
    Requested Action: ${instruction}`;
       }).join('\n\n');
+
+      const supportingDocuments = deduplicateSupportingDocuments([
+        'Copy of government-issued photo ID',
+        'Copy of proof of current address',
+        ...attachedDocs,
+      ]);
 
       const letterContent = `${clientAddr}
 
@@ -365,7 +453,7 @@ Re: Formal Credit Dispute — Round ${round}
 
 To Whom It May Concern:
 
-I am writing to formally dispute the following item(s) on my credit report pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i. I request that you investigate each item listed below and correct or delete any information that cannot be verified within 30 days as required by law.
+I am writing to formally dispute the following item(s) on my credit report pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i. I request that you investigate each item listed below within the applicable period required by the FCRA and correct or delete information that is unverifiable or otherwise required to be corrected or removed.
 
 DISPUTED ITEM(S):
 
@@ -373,9 +461,7 @@ ${itemsSection}
 
 ${notes ? `ADDITIONAL INFORMATION:\n${notes}\n` : ''}
 SUPPORTING DOCUMENTS ENCLOSED:
-• Copy of government-issued photo ID
-• Copy of proof of current address
-${attachedDocs.length > 0 ? attachedDocs.map(d => `• ${d}`).join('\n') : ''}
+${supportingDocuments.map(document => `• ${document}`).join('\n')}
 
 Please send written confirmation of your investigation results to the address above. If you cannot verify the accuracy of the disputed information, you must promptly delete or correct it.
 
@@ -389,12 +475,12 @@ Date: ${today}`;
       const responseDueDate = new Date();
       responseDueDate.setDate(responseDueDate.getDate() + 30);
 
-      const { error: insertError } = await supabase.from('dispute_letters').insert({
+      const { data: savedLetter, error: insertError } = await supabase.from('dispute_letters').insert({
         owner_id: user.id,
         client_id: selectedClient.id,
         workspace_id: workspace?.id ?? null,
         letter_id: letterId,
-        client_name: selectedClient.name,
+        client_name: sender.name,
         bureau: selectedBureau,
         items_count: selectedItems.size,
         round,
@@ -406,9 +492,9 @@ Date: ${today}`;
         auto_generated: false,
         letter_content: letterContent,
         generated_at: new Date().toISOString(),
-      });
+      }).select('id, letter_id').single();
 
-      if (insertError) throw new Error('We could not save the generated letter. Please try again.');
+      if (insertError || !savedLetter?.id) throw new Error('We could not save the generated letter. Please try again.');
 
       const negativeItemIds = selectedDisputeItems
         .filter(item => item.source === 'negative_items')
@@ -418,7 +504,7 @@ Date: ${today}`;
           .from('negative_items')
           .update({ dispute_status: 'generated' })
           .in('id', negativeItemIds)
-          .eq('owner_id', user.id);
+          ;
         if (statusError) throw new Error('The letter was saved, but the selected items could not be marked as generated.');
       }
 
@@ -434,10 +520,15 @@ Date: ${today}`;
         task_type: 'dispute_followup',
       }); // non-fatal: task creation does not block the generated letter
 
-      setGeneratedLetterId(letterId);
+      setGeneratedLetter({ id: savedLetter.id, reference: savedLetter.letter_id ?? letterId });
       trackOrganicConversionStep('dispute_wizard_letter_generated', {
         bureau: selectedBureau,
         items_count: selectedItems.size,
+      });
+      trackEvent('letter_generated', {
+        bureau: selectedBureau,
+        items_count: selectedItems.size,
+        authenticated: true,
       });
       toast.success(`Letter ${letterId} generated and ready to use`);
     } catch (err: any) {
@@ -447,16 +538,16 @@ Date: ${today}`;
     }
   };
 
-  if (generatedLetterId) {
+  if (generatedLetter) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="app-page max-w-2xl">
         <div className="card p-8 text-center space-y-4">
           <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto">
             <CheckCircle2 size={32} className="text-success" />
           </div>
           <h2 className="text-xl font-semibold text-foreground">Letter Generated</h2>
           <p className="text-sm text-muted-foreground">
-            Dispute letter <strong>{generatedLetterId}</strong> has been created for{' '}
+            Dispute letter <strong>{generatedLetter.reference}</strong> has been saved to Drafts for{' '}
             <strong>{selectedClient?.name}</strong> targeting <strong>{selectedBureau}</strong>.
           </p>
           <div className="flex items-start gap-2 p-3 bg-success/5 border border-success/20 rounded-lg text-left">
@@ -472,8 +563,8 @@ Date: ${today}`;
             </p>
           </div>
           <div className="flex gap-3 justify-center pt-2">
-            <a href="/dispute-letter-management" className="btn-primary">View in Dispute Letters</a>
-            <button onClick={() => { setStep(1); setGeneratedLetterId(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(''); }} className="btn-secondary">Start New Dispute</button>
+            <a href={`/dispute-letter-management?draftId=${encodeURIComponent(generatedLetter.id)}`} className="btn-primary">View Draft Letter</a>
+            <button onClick={() => { setStep(1); setGeneratedLetter(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(CORRECTION_FIRST_REQUESTED_ACTION); }} className="btn-secondary">Start New Dispute</button>
           </div>
         </div>
       </div>
@@ -481,10 +572,11 @@ Date: ${today}`;
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="app-page page-stack max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dispute Wizard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Step-by-step guided dispute workflow</p>
+        <p className="text-sm font-semibold text-green-700">Guided dispute workflow</p>
+        <h1 className="page-title mt-2">Create your dispute letter</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Complete one clear step at a time. Your progress is saved as you go.</p>
       </div>
 
       {/* Banner shown when arriving from report import */}
@@ -548,7 +640,7 @@ Date: ${today}`;
             {selectedClient && (
               <div className="space-y-2 pt-2 border-t border-border">
                 <p className="text-xs font-medium text-muted-foreground">Client mailing address for the letter header</p>
-                <input className="input-field" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
+                <textarea rows={2} className="input-field resize-none" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
                 <div className="grid grid-cols-3 gap-2">
                   <input className="input-field" placeholder="City" value={clientCity} onChange={e => setClientCity(e.target.value)} />
                   <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value.toUpperCase())} />
@@ -575,7 +667,7 @@ Date: ${today}`;
             {fromReport && selectedClient && (
               <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Client mailing address required before generation</p>
-                <input className="input-field" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
+                <textarea rows={2} className="input-field resize-none" placeholder="Street address" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
                 <div className="grid grid-cols-3 gap-2">
                   <input className="input-field" placeholder="City" value={clientCity} onChange={e => setClientCity(e.target.value)} />
                   <input className="input-field" placeholder="ST" maxLength={2} value={clientState} onChange={e => setClientState(e.target.value.toUpperCase())} />
@@ -649,7 +741,17 @@ Date: ${today}`;
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">{item.type} · {item.amount}</p>
                         {accountDateSummary(item) && <p className="mt-1 text-xs text-muted-foreground">{accountDateSummary(item)}</p>}
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Strongest anomaly:</span> {item.strongestAnomaly}</p>
+                        <div className="mt-2 space-y-2">
+                          {item.findings.length > 0 ? item.findings.map((finding, index) => (
+                            <div key={`${finding.issueType}-${finding.reportedData}`} className="rounded-md border border-border/70 bg-background/60 p-2 text-xs leading-relaxed text-muted-foreground">
+                              <p className="font-medium text-foreground">{index === 0 ? 'Strongest finding' : `Additional finding ${index}`}: {finding.title}</p>
+                              <p><span className="font-medium text-foreground">Discrepancy:</span> {finding.discrepancy}</p>
+                              <p><span className="font-medium text-foreground">Reported Data:</span> {finding.reportedData}</p>
+                              <p><span className="font-medium text-foreground">Factual Basis:</span> {finding.factualBasis}</p>
+                              <p><span className="font-medium text-foreground">Dispute Reason:</span> {finding.disputeReason}</p>
+                            </div>
+                          )) : <p className="text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Strongest anomaly:</span> {item.strongestAnomaly}</p>}
+                        </div>
                         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground"><span className="font-medium text-foreground">Why ranked here:</span> {item.recommendationReason}</p>
                       </div>
                     </button>
@@ -808,7 +910,7 @@ Date: ${today}`;
             disabled={!canProceed()}
             className="btn-primary flex items-center gap-1.5 disabled:opacity-40"
           >
-            Next <ChevronRight size={15} />
+            {nextLabels[step]} <ChevronRight size={15} />
           </button>
         ) : (
           <button

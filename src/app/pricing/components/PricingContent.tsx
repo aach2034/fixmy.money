@@ -23,29 +23,19 @@ const COMPARISON_ROWS: {
   rows: { feature: string; starter: string | boolean; professional: string | boolean; agency: string | boolean; enterprise: string | boolean; tooltip?: string }[];
 }[] = [
   {
-    category: 'Clients & Team',
-    rows: [
-      { feature: 'People or active clients', starter: 'You + 3 friends/family', professional: '300', agency: '600', enterprise: 'Unlimited' },
-      { feature: 'Users', starter: '1', professional: '3', agency: '6', enterprise: 'Unlimited' },
-    ],
-  },
-  {
     category: 'Core Features',
     rows: [
       { feature: 'Client portal', starter: true, professional: true, agency: true, enterprise: true },
       { feature: 'Dispute management', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Document storage', starter: '5 GB', professional: '25 GB', agency: '100 GB', enterprise: 'Custom' },
-      { feature: 'Credit report upload', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Credit report import', starter: true, professional: true, agency: true, enterprise: true },
       { feature: 'Audit log', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Client billing and payments', starter: false, professional: true, agency: true, enterprise: true },
     ],
   },
   {
-    category: 'Evidence Review',
+    category: 'Review',
     rows: [
-      { feature: 'AI-assisted report analysis', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'AI-generated editable dispute drafts', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Evidence-linked human review', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Structured report review', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Human verification before use', starter: true, professional: true, agency: true, enterprise: true },
     ],
   },
   {
@@ -53,13 +43,11 @@ const COMPARISON_ROWS: {
     rows: [
       { feature: 'Workflow templates', starter: false, professional: true, agency: true, enterprise: true },
       { feature: 'Response tracking', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'Role-based review controls', starter: false, professional: false, agency: true, enterprise: true },
     ],
   },
   {
     category: 'Advanced',
     rows: [
-      { feature: 'Analytics dashboard', starter: false, professional: true, agency: true, enterprise: true },
       { feature: 'Data export', starter: false, professional: false, agency: true, enterprise: true },
       { feature: 'Onboarding assistance', starter: false, professional: false, agency: true, enterprise: true },
     ],
@@ -83,7 +71,6 @@ const BILLING_FAQS = [
   { q: 'What is the annual discount?', a: 'Annual billing saves approximately 20% compared to monthly billing. Annual plans are billed once per year.' },
   { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
   { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
-  { q: 'What happens to my data if I exceed plan limits?', a: 'If you exceed your active client limit, you will be prompted to upgrade your plan. Existing client records are not deleted. New clients cannot be added until you upgrade or reduce your active client count.' },
 ];
 
 function CellValue({ value }: { value: string | boolean }) {

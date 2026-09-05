@@ -8,6 +8,7 @@ import AddClientForm from './AddClientForm';
 import ClientDetailDrawer from './ClientDetailDrawer';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { getLegacyMailingAddressBackfill } from '@/lib/disputes/letterSender';
 
 type CaseStage = 'lead' | 'enrolled' | 'active' | 'onhold' | 'completed' | 'churned';
 
@@ -29,6 +30,10 @@ interface Client {
   bureaus: string[];
   score: number;
   reportAnalyzed: boolean;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 const stageOptions = ['All Stages', 'lead', 'enrolled', 'active', 'onhold', 'completed', 'churned'];
@@ -57,6 +62,10 @@ function mapRow(row: any): Client {
     bureaus: row.bureaus ?? [],
     score: row.credit_score ?? 0,
     reportAnalyzed: row.report_analyzed ?? false,
+    address: row.address ?? '',
+    city: row.city ?? '',
+    state: row.state ?? '',
+    zip: row.zip ?? '',
   };
 }
 
@@ -92,7 +101,7 @@ export default function ClientManagementContent() {
       const { data, error: fetchError } = await supabase
         .from('staff_clients')
         .select('*')
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -100,7 +109,19 @@ export default function ClientManagementContent() {
         setError(fetchError.message);
         return;
       }
-      setClients((data ?? []).map(mapRow));
+      const canonicalRows = await Promise.all((data ?? []).map(async row => {
+        const backfill = getLegacyMailingAddressBackfill(row);
+        if (!backfill) return row;
+        const { data: updated, error: updateError } = await supabase
+          .from('staff_clients')
+          .update(backfill)
+          .eq('id', row.id)
+
+          .select('*')
+          .single();
+        return updateError || !updated ? row : updated;
+      }));
+      setClients(canonicalRows.map(mapRow));
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load clients');
     } finally {
@@ -173,10 +194,10 @@ export default function ClientManagementContent() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+      <div className="page-container space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Clients</h1>
+            <h1 className="page-title">Clients</h1>
             <p className="text-sm text-muted-foreground mt-0.5">Loading clients…</p>
           </div>
         </div>
@@ -192,7 +213,7 @@ export default function ClientManagementContent() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-screen-2xl mx-auto">
+      <div className="page-container">
         <div className="card p-8 flex flex-col items-center gap-3 text-center">
           <AlertTriangle size={32} className="text-danger" />
           <p className="text-sm font-semibold text-foreground">Failed to load clients</p>
@@ -204,11 +225,11 @@ export default function ClientManagementContent() {
   }
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
+    <div className="page-container space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Clients</h1>
+          <h1 className="page-title">Clients</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} clients in your workspace</p>
         </div>
         <div className="flex items-center gap-2">
@@ -447,6 +468,7 @@ export default function ClientManagementContent() {
                           <Eye size={14} className="text-muted-foreground" />
                         </button>
                         <button
+                          onClick={() => setDrawerClient(client)}
                           className="p-1.5 hover:bg-muted rounded-lg transition-colors"
                           title="Edit client"
                         >
@@ -510,7 +532,7 @@ export default function ClientManagementContent() {
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         title="Add New Client"
-        subtitle="Enroll a new client and optionally upload their credit report for AI analysis"
+        subtitle="Enroll a new client and optionally import a credit report for review"
         size="lg"
       >
         <AddClientForm onClose={() => { setAddModalOpen(false); fetchClients(); }} />
@@ -529,7 +551,14 @@ export default function ClientManagementContent() {
 
       {/* Client Detail Drawer */}
       {drawerClient && (
-        <ClientDetailDrawer client={drawerClient} onClose={() => setDrawerClient(null)} />
+        <ClientDetailDrawer
+          client={drawerClient}
+          onClose={() => setDrawerClient(null)}
+          onClientUpdated={(updated) => {
+            setClients(current => current.map(client => client.id === updated.id ? { ...client, ...updated } : client));
+            setDrawerClient(current => current?.id === updated.id ? { ...current, ...updated } : current);
+          }}
+        />
       )}
     </div>
   );

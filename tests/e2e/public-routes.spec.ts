@@ -44,7 +44,7 @@ test.describe('Homepage (/)', () => {
   test('has CTA button', async ({ page }) => {
     await page.goto('/');
     // Look for common CTA patterns
-    const cta = page.locator('a[href*="signup"], a[href*="sign-up"], a[href*="register"], a[href*="trial"], button:has-text("Start"), a:has-text("Get Started"), a:has-text("Start Free")').first();
+    const cta = page.locator('a[href*="signup"], a[href*="sign-up"], a[href*="register"], a[href*="trial"], button:has-text("Start"), a:has-text("Get Started"), a:has-text("Start Free")').filter({ visible: true }).first();
     await expect(cta).toBeVisible();
   });
 });
@@ -157,28 +157,21 @@ test.describe('CROA Workflow (/croa-workflow)', () => {
 
 // ─── Demo Mode ────────────────────────────────────────────────────────────────
 
-test.describe('Demo Mode (/demo-mode)', () => {
+test.describe('Retired Demo Mode (/demo-mode)', () => {
   test('loads without error', async ({ page }) => {
     const response = await page.goto('/demo-mode');
     expect(response?.status()).toBeLessThan(400);
   });
 
-  test('shows Demo Data badge', async ({ page }) => {
+  test('redirects to the public product tour', async ({ page }) => {
     await page.goto('/demo-mode');
-    const badge = page.locator('text=/demo data|demo mode/i').first();
-    await expect(badge).toBeVisible();
+    await expect(page).toHaveURL(/\/product-tour$/);
+    await expect(page.getByRole('heading', { name: /Every feature, explained/i })).toBeVisible();
   });
 
-  test('has Start Free Trial CTA', async ({ page }) => {
+  test('preserves the product-tour signup CTA', async ({ page }) => {
     await page.goto('/demo-mode');
-    const cta = page.locator('text=/start free trial|get started|sign up/i').first();
-    await expect(cta).toBeVisible();
-  });
-
-  test('has Exit Demo button', async ({ page }) => {
-    await page.goto('/demo-mode');
-    const exit = page.locator('text=/exit demo/i').first();
-    await expect(exit).toBeVisible();
+    await expect(page.getByRole('link', { name: /Start \$1 Trial/i }).first()).toBeVisible();
   });
 });
 
@@ -361,10 +354,10 @@ test.describe('Mobile Navigation', () => {
     expect(response?.status()).toBeLessThan(400);
   });
 
-  test('mobile menu button is accessible on homepage', async ({ page }) => {
+  test('mobile sign-in navigation is accessible on homepage', async ({ page }) => {
     await page.goto('/');
-    const mobileMenu = page.locator('button[aria-label*="navigation" i]').first();
-    await expect(mobileMenu).toBeVisible();
+    const signIn = page.locator('header').getByRole('link', { name: 'Sign in' });
+    await expect(signIn).toBeVisible();
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     const viewportWidth = 375;
     expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 20); // Allow small tolerance

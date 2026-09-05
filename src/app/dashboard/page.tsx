@@ -10,9 +10,9 @@ import { CheckCircle2, X, Loader2 } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 
 const PLAN_LABELS: Record<string, string> = {
-  starter: 'Personal',
-  professional: 'Start',
-  agency: 'Grow',
+  starter: 'Starter',
+  professional: 'Pro',
+  agency: 'Agency',
 };
 
 function DashboardSuccessBanner() {
@@ -43,6 +43,12 @@ function DashboardSuccessBanner() {
             price: 1,
             quantity: 1,
           }],
+        });
+        trackEvent('subscription_started', {
+          currency: 'USD',
+          value: 1,
+          plan_name: planParam,
+          authenticated: true,
         });
         window.sessionStorage.setItem(storageKey, '1');
       }

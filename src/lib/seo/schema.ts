@@ -18,6 +18,18 @@ export function breadcrumbSchema(path: string) {
   return { '@type': 'BreadcrumbList', itemListElement: breadcrumbItems(path).map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, item: item.url })) };
 }
 
+export function faqSchema(faqs: Array<{ q: string; a: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(faq => ({
+      '@type': 'Question',
+      name: faq.q,
+      acceptedAnswer: { '@type': 'Answer', text: faq.a },
+    })),
+  };
+}
+
 export function pageSchema(path: string) {
   const page = SEO_PAGES[path];
   if (!page) return null;

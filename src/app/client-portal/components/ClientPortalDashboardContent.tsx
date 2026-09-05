@@ -1,9 +1,10 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Bell, FileText, Upload, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp, X, Paperclip, RefreshCw } from 'lucide-react';
+import { LogOut, Bell, FileText, Upload, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp, X, Paperclip, RefreshCw, ExternalLink } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { createClient } from '@/lib/supabase/client';
+import { CLIENT_DOCUMENT_FORMATS_LABEL, MAX_CLIENT_DOCUMENT_BYTES, validateClientDocumentMetadata } from '@/lib/clientPortal/documentStorage';
 
 import ClientChatWidget from './ClientChatWidget';
 import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
@@ -12,9 +13,18 @@ import { DEFAULT_PROVIDERS } from '@/lib/affiliates/reportProviders';
 
 interface ClientAccount {
   id: string;
+  auth_user_id: string;
   email: string;
   full_name: string;
   phone: string;
+}
+
+interface WorkspaceClientMembership {
+  id: string;
+  workspace_id: string;
+  staff_client_id: string;
+  client_account_id: string;
+  workspace_name: string;
 }
 
 interface Dispute {
@@ -49,7 +59,6 @@ interface ClientDocument {
   id: string;
   dispute_id: string | null;
   file_name: string;
-  file_url: string;
   doc_status: string;
   uploaded_at: string;
 }
@@ -90,8 +99,9 @@ export default function ClientPortalDashboardContent() {
   const router = useRouter();
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [account, setAccount] = useState<ClientAccount | null>(null);
+  const [relationships, setRelationships] = useState<WorkspaceClientMembership[]>([]);
+  const [activeRelationship, setActiveRelationship] = useState<WorkspaceClientMembership | null>(null);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [updates, setUpdates] = useState<ClientUpdate[]>([]);
@@ -100,15 +110,17 @@ export default function ClientPortalDashboardContent() {
   const [activeTab, setActiveTab] = useState<'disputes' | 'updates' | 'documents'>('disputes');
   const [expandedDispute, setExpandedDispute] = useState<string | null>(null);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
   const providers = DEFAULT_PROVIDERS.filter(p => p.isVisible);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  async function loadData() {
+  async function loadData(requestedRelationshipId?: string) {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -117,16 +129,28 @@ export default function ClientPortalDashboardContent() {
       const { data: acct } = await supabase
         .from('client_accounts')
         .select('*')
-        .eq('email', user.email)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (!acct) { router.push('/client-portal/login'); return; }
       setAccount(acct);
 
+      const { data: linkedRelationships } = await supabase
+        .rpc('available_portal_relationships');
+
+      const availableRelationships = (linkedRelationships || []) as unknown as WorkspaceClientMembership[];
+      const selectedRelationship = availableRelationships.find(
+        (relationship) => relationship.id === requestedRelationshipId
+      ) || availableRelationships[0];
+
+      if (!selectedRelationship) { router.push('/client-portal/login'); return; }
+      setRelationships(availableRelationships);
+      setActiveRelationship(selectedRelationship);
+
       const { data: disp } = await supabase
         .from('client_disputes')
         .select('*')
-        .eq('client_id', acct.id)
+        .eq('workspace_client_id', selectedRelationship.id)
         .order('opened_at', { ascending: false });
       setDisputes(disp || []);
 
@@ -143,14 +167,15 @@ export default function ClientPortalDashboardContent() {
       const { data: upd } = await supabase
         .from('client_updates')
         .select('*')
-        .eq('client_id', acct.id)
+        .eq('workspace_client_id', selectedRelationship.id)
         .order('created_at', { ascending: false });
       setUpdates(upd || []);
 
       const { data: docs } = await supabase
         .from('client_documents')
-        .select('*')
-        .eq('client_id', acct.id)
+        .select('id, dispute_id, file_name, doc_status, uploaded_at')
+        .eq('workspace_client_id', selectedRelationship.id)
+        .neq('doc_status', 'pending')
         .order('uploaded_at', { ascending: false });
       setDocuments(docs || []);
 
@@ -167,53 +192,77 @@ export default function ClientPortalDashboardContent() {
     setUpdates((prev) => prev.map((u) => u.id === updateId ? { ...u, is_read: true } : u));
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !account) return;
+  function chooseDocument(disputeId: string | null) {
+    setUploadingFor(disputeId);
     setUploadError('');
     setUploadSuccess('');
+    fileInputRef.current?.click();
+  }
 
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      setUploadError('Only PDF, JPG, PNG, and WEBP files are allowed.');
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    const relationship = activeRelationship;
+    if (!file || !relationship || uploading) return;
+
+    setUploadError('');
+    setUploadSuccess('');
+    const validation = validateClientDocumentMetadata({ fileName: file.name, mimeType: file.type, size: file.size });
+    if (!validation.valid) {
+      setUploadError(validation.message);
+      event.target.value = '';
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File size must be under 10 MB.');
-      return;
-    }
 
+    setUploading(true);
     try {
-      const filePath = `client-documents/${account.id}/${Date.now()}-${file.name}`;
-      const { error: uploadErr } = await supabase.storage
-        .from('client-documents')
-        .upload(filePath, file, { upsert: false });
+      const formData = new FormData();
+      formData.set('file', file);
+      formData.set('relationshipId', relationship.id);
+      formData.set('uploadId', crypto.randomUUID());
+      if (uploadingFor) formData.set('disputeId', uploadingFor);
 
-      let fileUrl = filePath;
-      if (!uploadErr) {
-        const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(filePath);
-        fileUrl = urlData?.publicUrl || filePath;
+      const response = await fetch('/api/client-portal/documents', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string; document?: { fileName?: string } };
+      if (!response.ok || !payload.document) {
+        throw new Error(payload.error || 'The document was not saved. Please retry.');
       }
 
-      const { error: dbErr } = await supabase.from('client_documents').insert({
-        client_id: account.id,
-        dispute_id: uploadingFor || null,
-        file_name: file.name,
-        file_url: fileUrl,
-        file_size: file.size,
-        mime_type: file.type,
-        doc_status: 'uploaded',
-      });
-
-      if (dbErr) throw dbErr;
-      setUploadSuccess(`"${file.name}" uploaded successfully.`);
+      setUploadSuccess(`“${payload.document.fileName || validation.safeFileName}” uploaded successfully.`);
       setUploadingFor(null);
-      loadData();
-    } catch (err: any) {
-      setUploadError(err?.message || 'Upload failed. Please try again.');
+      await loadData(relationship.id);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'The document was not saved. Please retry.');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
     }
+  }
 
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  async function openDocument(documentId: string) {
+    if (openingDocumentId) return;
+    setUploadError('');
+    setOpeningDocumentId(documentId);
+    const documentWindow = window.open('about:blank', '_blank');
+    if (documentWindow) documentWindow.opener = null;
+    try {
+      const response = await fetch(`/api/client-portal/documents/${encodeURIComponent(documentId)}/access`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string; url?: string };
+      if (!response.ok || !payload.url) throw new Error(payload.error || 'Document access is temporarily unavailable.');
+      if (documentWindow) documentWindow.location.replace(payload.url);
+      else window.location.assign(payload.url);
+    } catch (error) {
+      documentWindow?.close();
+      setUploadError(error instanceof Error ? error.message : 'Document access is temporarily unavailable.');
+    } finally {
+      setOpeningDocumentId(null);
+    }
   }
 
   async function handleSignOut() {
@@ -291,6 +340,23 @@ export default function ClientPortalDashboardContent() {
           </p>
         </div>
 
+        {relationships.length > 1 && activeRelationship && (
+          <label className="block max-w-sm text-sm text-muted-foreground">
+            Credit professional
+            <select
+              value={activeRelationship.id}
+              onChange={(event) => loadData(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+            >
+              {relationships.map((relationship) => (
+                <option key={relationship.id} value={relationship.id}>
+                  {relationship.workspace_name || 'Workspace'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {/* Credit Report CTA — shown when no report uploaded yet */}
         {!hasCreditReport && (
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
@@ -312,7 +378,9 @@ export default function ClientPortalDashboardContent() {
                   key={provider.key}
                   provider={provider}
                   sourcePage="client-portal"
-                  clientId={account?.id}
+                  clientId={activeRelationship?.staff_client_id}
+                  workspaceClientId={activeRelationship?.id}
+                  agencyId={activeRelationship?.workspace_id}
                   compact={true}
                 />
               ))}
@@ -320,24 +388,16 @@ export default function ClientPortalDashboardContent() {
 
             <AffiliateDisclosure />
 
-            <div className="flex items-center gap-3 pt-1">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
             <button
               onClick={() => {
                 setActiveTab('documents');
-                setUploadingFor(null);
-                setUploadError('');
-                setUploadSuccess('');
-                fileInputRef.current?.click();
+                chooseDocument(null);
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all"
+              disabled={uploading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all disabled:opacity-60"
             >
               <Upload size={16} />
-              Upload Existing Report
+              {uploading ? 'Uploading…' : 'Upload Existing Report'}
             </button>
           </div>
         )}
@@ -450,20 +510,15 @@ export default function ClientPortalDashboardContent() {
                           </div>
                         )}
 
-                        {/* Upload for this dispute */}
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Upload Documents</p>
                           <button
-                            onClick={() => {
-                              setUploadingFor(dispute.id);
-                              setUploadError('');
-                              setUploadSuccess('');
-                              fileInputRef.current?.click();
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm text-muted-foreground hover:text-primary transition-all"
+                            onClick={() => chooseDocument(dispute.id)}
+                            disabled={uploading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 text-sm text-muted-foreground hover:text-primary transition-all disabled:opacity-60"
                           >
                             <Paperclip size={14} />
-                            Attach a document for this case
+                            {uploading && uploadingFor === dispute.id ? 'Uploading…' : 'Attach a document for this case'}
                           </button>
                         </div>
                       </div>
@@ -524,18 +579,16 @@ export default function ClientPortalDashboardContent() {
             <div className="bg-card border-2 border-dashed border-border rounded-xl p-6 text-center">
               <Upload size={28} className="mx-auto text-muted-foreground mb-2" />
               <p className="text-sm font-medium text-foreground mb-1">Upload a document</p>
-              <p className="text-xs text-muted-foreground mb-3">PDF, JPG, PNG or WEBP · Max 10 MB</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                {CLIENT_DOCUMENT_FORMATS_LABEL} · Max {MAX_CLIENT_DOCUMENT_BYTES / 1024 / 1024} MB
+              </p>
               <button
-                onClick={() => {
-                  setUploadingFor(null);
-                  setUploadError('');
-                  setUploadSuccess('');
-                  fileInputRef.current?.click();
-                }}
-                className="btn-primary px-5 py-2 text-sm inline-flex items-center gap-2"
+                onClick={() => chooseDocument(null)}
+                disabled={uploading}
+                className="btn-primary px-5 py-2 text-sm inline-flex items-center gap-2 disabled:opacity-60"
               >
                 <Upload size={14} />
-                Choose File
+                {uploading ? 'Uploading…' : 'Choose File'}
               </button>
             </div>
 
@@ -574,6 +627,14 @@ export default function ClientPortalDashboardContent() {
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCfg.color}`}>
                         {statusCfg.label}
                       </span>
+                      <button
+                        onClick={() => openDocument(doc.id)}
+                        disabled={Boolean(openingDocumentId)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-60"
+                      >
+                        <ExternalLink size={13} />
+                        {openingDocumentId === doc.id ? 'Opening…' : 'Open'}
+                      </button>
                     </div>
                   );
                 })}
@@ -583,7 +644,6 @@ export default function ClientPortalDashboardContent() {
         )}
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -593,9 +653,9 @@ export default function ClientPortalDashboardContent() {
       />
 
       {/* Live Chat Widget */}
-      {account && (
+      {account && activeRelationship && (
         <ClientChatWidget
-          clientAccountId={account.id}
+          workspaceClientId={activeRelationship.id}
           clientName={account.full_name}
         />
       )}

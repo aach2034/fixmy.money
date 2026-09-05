@@ -59,12 +59,12 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2">
           <AppLogo size={36} />
-          <span className="text-xl font-bold text-slate-900">FixMy.Money</span>
+          <span className="text-xl font-semibold tracking-[-.03em] text-[#101d3d]">FixMy<span className="text-[#3fa447]">.Money</span></span>
         </Link>
 
         {checkingSession ? (
           <div className="flex justify-center py-12" aria-label="Checking reset link">
-            <Loader2 className="animate-spin text-blue-600" size={28} />
+            <Loader2 className="animate-spin text-primary" size={28} />
           </div>
         ) : complete ? (
           <div className="text-center">

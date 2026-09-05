@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { FileText, Download, Send, Loader2, Printer, ArrowLeft, RefreshCw, MailCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
 
 interface Letter {
   id: string;
@@ -42,9 +43,9 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
+      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).single();
       setClientName(clientData?.name ?? 'Client');
-      const { data } = await supabase.from('generated_dispute_letters').select('*').eq('client_id', clientId).eq('owner_id', user.id).order('created_at', { ascending: false });
+      const { data } = await supabase.from('generated_dispute_letters').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
       setLetters((data ?? []).map((row: any) => ({
         id: row.id,
         bureau: row.bureau,
@@ -80,8 +81,8 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
   const printLetter = (letter: Letter) => {
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(`<pre style="font-family:monospace;font-size:12px;padding:40px;max-width:700px;margin:0 auto;">${letter.letterContent}</pre>`);
-    win.document.close();
+    win.opener = null;
+    renderLetterForPrint(win.document, letter.letterContent, `Dispute Letter ${letter.bureau}`);
     win.print();
   };
 

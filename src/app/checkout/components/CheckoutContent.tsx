@@ -1,17 +1,15 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle2, Shield, Loader2, AlertCircle, RefreshCw, ArrowRight, Check } from 'lucide-react';
+import { CheckCircle2, Shield, Loader2, AlertCircle, ArrowRight, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { CHECKOUT_PLANS, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
-import { trackEvent } from '@/lib/analytics';
+import { getPlanAudience, trackEvent } from '@/lib/analytics';
+import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
 
 interface UserProfile {
-  subscription_status: string | null;
-  subscription_plan: string | null;
-  stripe_customer_id: string | null;
   full_name: string | null;
   email: string | null;
   onboarding_completed: boolean | null;
@@ -30,29 +28,52 @@ export default function CheckoutContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [restoreLoading, setRestoreLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const activeStatuses = ['trialing', 'active', 'trial_active'];
+  const checkoutCancelledTracked = useRef(false);
+  const emailVerifiedTracked = useRef(false);
 
   useEffect(() => {
+    if (searchParams.get('cancelled') === '1' && !checkoutCancelledTracked.current) {
+      checkoutCancelledTracked.current = true;
+      trackEvent('checkout_cancelled', {
+        event_category: 'conversion',
+        plan_name: validPlan,
+        currency: 'USD',
+      });
+    }
+
+    if (searchParams.get('verified') === '1' && !emailVerifiedTracked.current) {
+      emailVerifiedTracked.current = true;
+      trackEvent('email_verified', {
+        event_category: 'conversion',
+        plan_name: validPlan,
+        audience: getPlanAudience(validPlan),
+      });
+    }
+  }, [searchParams, validPlan]);
+
+  useEffect(() => {
+    captureCurrentAttribution();
     if (authLoading) return;
     if (!user) {
-      router.replace(`/sign-up-login-screen?plan=${selectedPlan}`);
+      router.replace(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
       return;
     }
 
     const fetchProfile = async () => {
       try {
-        const { data } = await supabase
-          .from('user_profiles')
-          .select('subscription_status, subscription_plan, stripe_customer_id, full_name, email, onboarding_completed')
-          .eq('id', user.id)
-          .single();
+        const [{ data }, entitlementResponse] = await Promise.all([
+          supabase
+            .from('user_profiles')
+            .select('full_name, email, onboarding_completed')
+            .eq('id', user.id)
+            .single(),
+          fetch('/api/stripe/entitlement', { method: 'POST' }),
+        ]);
 
         setProfile(data as UserProfile | null);
-
-        if (data && activeStatuses.includes(data.subscription_status || '')) {
+        const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+        if (data && entitlement?.canAccess) {
           router.replace(data.onboarding_completed ? '/dashboard' : '/onboarding');
           return;
         }
@@ -68,18 +89,7 @@ export default function CheckoutContent() {
 
   const handleStartCheckout = async () => {
     if (!user) {
-      router.push(`/sign-up-login-screen?plan=${selectedPlan}`);
-      return;
-    }
-
-    const { data: freshProfile } = await supabase
-      .from('user_profiles')
-      .select('subscription_status, onboarding_completed')
-      .eq('id', user.id)
-      .single();
-
-    if (freshProfile && activeStatuses.includes(freshProfile.subscription_status || '')) {
-      router.replace(freshProfile.onboarding_completed ? '/dashboard' : '/onboarding');
+      router.push(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
       return;
     }
 
@@ -95,6 +105,7 @@ export default function CheckoutContent() {
           email: user.email || profile?.email,
           name: profile?.full_name || '',
           userId: user.id,
+          attribution: attributionEventParams(captureCurrentAttribution()),
         }),
       });
 
@@ -111,7 +122,7 @@ export default function CheckoutContent() {
       }
 
       if (data.alreadyActive) {
-        router.replace('/onboarding');
+        router.replace(data.redirectTo || '/dashboard');
         return;
       }
 
@@ -121,12 +132,19 @@ export default function CheckoutContent() {
           currency: 'USD',
           value: TRIAL_CONFIG.chargeCents / 100,
           plan_name: selectedPlan,
+          checkout_started: true,
           items: [{
             item_id: selectedPlan,
             item_name: `FixMy.Money ${plan.name}`,
             price: TRIAL_CONFIG.chargeCents / 100,
             quantity: 1,
           }],
+        });
+        trackEvent('checkout_started', {
+          currency: 'USD',
+          value: TRIAL_CONFIG.chargeCents / 100,
+          plan_name: selectedPlan,
+          authenticated: true,
         });
         window.location.href = data.url;
       } else {
@@ -136,37 +154,6 @@ export default function CheckoutContent() {
       setError('Network error. Please check your connection and try again.');
     } finally {
       setCheckoutLoading(false);
-    }
-  };
-
-  const handleRestorePurchase = async () => {
-    if (!user) return;
-    setRestoreLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/stripe/restore-purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      });
-
-      const data = await res.json();
-
-      if (data.activated) {
-        router.replace('/dashboard');
-        return;
-      }
-
-      if (data.message) {
-        setError(data.message);
-      } else {
-        setError('No active payment found. Please complete checkout or contact support.');
-      }
-    } catch {
-      setError('Could not check payment status. Please try again.');
-    } finally {
-      setRestoreLoading(false);
     }
   };
 
@@ -301,20 +288,11 @@ export default function CheckoutContent() {
             <span>Secured by Stripe · {TRIAL_CONFIG.label}</span>
           </div>
 
-          {/* Restore Purchase */}
+          {/* Purchase restoration is intentionally unavailable during containment. */}
           <div className="border-t border-gray-200 pt-5 text-center">
-            <p className="text-xs text-gray-500 mb-2">Already paid but not activated?</p>
-            <button
-              onClick={handleRestorePurchase}
-              disabled={restoreLoading}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline disabled:opacity-60"
-            >
-              {restoreLoading ? (
-                <><Loader2 size={14} className="animate-spin" /> Checking payment status…</>
-              ) : (
-                <><RefreshCw size={14} /> Restore Purchase / Check Payment Status</>
-              )}
-            </button>
+            <p className="text-xs text-gray-500">
+              If checkout completed but access is missing, contact support. Automatic purchase restoration has been permanently removed.
+            </p>
           </div>
         </div>
       </div>

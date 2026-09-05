@@ -67,10 +67,9 @@ export function validateRequiredEnvVars(): { valid: boolean; missing: string[] }
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_WEBHOOK_WORKER_SECRET',
     'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
   ];
-
-  const optional = ['APP_URL', 'NEXT_PUBLIC_SITE_URL'];
 
   const missing = required.filter((key) => {
     const val = process.env[key];
@@ -91,6 +90,7 @@ export function getEnvHealth(): Record<string, 'configured' | 'missing'> {
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_WEBHOOK_WORKER_SECRET',
     'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
     'OPENAI_API_KEY',
     'APP_URL',

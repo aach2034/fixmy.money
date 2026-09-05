@@ -4,20 +4,20 @@ import {
   DEFAULT_IMAGE_SIZES,
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-
-interface D1PreparedStatement {
-  bind(...values: unknown[]): D1PreparedStatement;
-  run(): Promise<unknown>;
-}
-
-interface D1Binding {
-  prepare(query: string): D1PreparedStatement;
-}
+import { contentSecurityPolicyFor, immutableAssetCacheControl } from './security-controls';
+import {
+  cleanupExpiredRateLimits,
+  enforceLeadRateLimit,
+  leadResponse,
+  type D1Binding,
+} from './lead-abuse';
 
 interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> };
   DB?: D1Binding;
-  IMAGES: {
+  LEAD_RATE_LIMIT_SALT?: string;
+  TURNSTILE_SECRET_KEY?: string;
+  IMAGES?: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
         output(options: { format: string; quality: number }): Promise<{ response(): Response }>;
@@ -35,24 +35,12 @@ const LEAD_OFFER = "evidence-first-agency-starter-kit";
 const LEAD_CONSENT =
   "Send me the Evidence-First Agency Starter Kit and occasional FixMy.Money product and workflow emails. I can unsubscribe at any time.";
 
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self' https://checkout.stripe.com",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://js.stripe.com",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://*.google-analytics.com",
-  "frame-src 'self' https://www.googletagmanager.com https://js.stripe.com https://hooks.stripe.com",
-  "upgrade-insecure-requests",
-].join("; ");
-
-function withSecurityHeaders(response: Response): Response {
+function withSecurityHeaders(response: Response, request?: Request): Response {
   const secured = new Response(response.body, response);
-  secured.headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  secured.headers.set(
+    "Content-Security-Policy",
+    contentSecurityPolicyFor(request?.url || 'https://fixmy.money'),
+  );
   secured.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   secured.headers.set("X-Content-Type-Options", "nosniff");
   secured.headers.set("X-Frame-Options", "DENY");
@@ -61,17 +49,9 @@ function withSecurityHeaders(response: Response): Response {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=(self \"https://js.stripe.com\")",
   );
+  const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
+  if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
   return secured;
-}
-
-function leadResponse(body: Record<string, unknown>, status = 200): Response {
-  return Response.json(body, {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
 }
 
 async function captureMarketingLead(request: Request, env: Env): Promise<Response> {
@@ -89,7 +69,7 @@ async function captureMarketingLead(request: Request, env: Env): Promise<Respons
     return leadResponse({ error: "Request is too large." }, 413);
   }
 
-  let payload: { email?: unknown; source?: unknown; website?: unknown };
+  let payload: { email?: unknown; source?: unknown; website?: unknown; challengeToken?: unknown };
   try {
     payload = (await request.json()) as typeof payload;
   } catch {
@@ -100,6 +80,9 @@ async function captureMarketingLead(request: Request, env: Env): Promise<Respons
   if (typeof payload.website === "string" && payload.website.trim()) {
     return leadResponse({ ok: true });
   }
+
+  const limited = await enforceLeadRateLimit(request, env, payload.challengeToken);
+  if (limited) return limited;
 
   const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
   const source =
@@ -137,11 +120,13 @@ async function captureMarketingLead(request: Request, env: Env): Promise<Respons
   });
 }
 
+export { captureMarketingLead, enforceLeadRateLimit, withSecurityHeaders };
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api/marketing/lead") {
-      return withSecurityHeaders(await captureMarketingLead(request, env));
+      return withSecurityHeaders(await captureMarketingLead(request, env), request);
     }
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -152,6 +137,9 @@ export default {
             ? env.ASSETS.fetch(new Request(new URL(path, request.url)))
             : fetch(new Request(new URL(path, request.url))),
           transformImage: async (body, { width, format, quality }) => {
+            if (!env.IMAGES) {
+              return new Response(body);
+            }
             const result = await env.IMAGES.input(body)
               .transform(width > 0 ? { width } : {})
               .output({ format, quality });
@@ -159,8 +147,23 @@ export default {
           },
         },
         allowedWidths,
-      ));
+      ), request);
     }
-    return withSecurityHeaders(await handler.fetch(request, env, ctx));
+    return withSecurityHeaders(await handler.fetch(request, env, ctx), request);
+  },
+  async scheduled(_controller: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!env.DB) {
+      console.error(JSON.stringify({ event: 'lead_rate_limit_cleanup_unavailable' }));
+      return;
+    }
+    ctx.waitUntil(
+      cleanupExpiredRateLimits(env.DB)
+        .then((deleted) => {
+          console.info(JSON.stringify({ event: 'lead_rate_limit_cleanup', deleted }));
+        })
+        .catch(() => {
+          console.error(JSON.stringify({ event: 'lead_rate_limit_cleanup_failed' }));
+        }),
+    );
   },
 };

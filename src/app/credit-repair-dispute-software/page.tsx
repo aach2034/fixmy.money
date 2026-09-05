@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
-import { ArrowRight, Users, FileText, Shield, AlertTriangle, GitBranch, Zap, Brain } from 'lucide-react';
+import { ArrowRight, Users, FileText, Shield, AlertTriangle, GitBranch, Zap } from 'lucide-react';
 
 export const metadata: Metadata = createSeoMetadata("/credit-repair-dispute-software");
 
 const features = [
-  { icon: Brain, title: 'AI Dispute Letter Generation', description: 'AI generates bureau-ready dispute letters for each negative item identified in a credit report.' },
+  { icon: FileText, title: 'Guided Letter Drafts', description: 'Build editable bureau letter drafts from the specific report items and dispute reasons selected by an authorized user.' },
   { icon: GitBranch, title: 'Dispute Workflow Tracking', description: 'Track every dispute from submission to bureau response with organized status updates.' },
   { icon: Zap, title: 'Multi-Bureau Support', description: 'Manage disputes across Equifax, Experian, and TransUnion from one organized workspace.' },
   { icon: FileText, title: 'Response Logging', description: 'Log bureau responses, outcomes, and next steps for every dispute item.' },

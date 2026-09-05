@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { type SupportedProvider } from '@/lib/creditReport/parser';
 import { type NormalizedReport, type NormalizedAccount, type ImportComparison } from '@/lib/creditReport/adapters';
+import { needsAccountReview } from '@/lib/creditReport/reviewFlow';
 import { extractPdfText } from '@/lib/creditReport/pdfUtils';
 import DisputeReasonSelect from '@/components/DisputeReasonSelect';
 import { DISPUTE_REASONS } from '@/lib/disputes/reasonRanking';
@@ -431,7 +432,7 @@ export default function ImportWizard({
       // Initialize accounts with tag status
       const tagged: TaggedAccount[] = (data.parsed.accounts ?? []).map((a: NormalizedAccount) => ({
         ...a,
-        tagStatus: 'unreviewed' as TagStatus,
+        tagStatus: (needsAccountReview(a) ? 'needs_review' : 'unreviewed') as TagStatus,
         disputeReason: '',
         disputeInstruction: '',
         notes: '',
@@ -793,6 +794,9 @@ export default function ImportWizard({
                     {parsedReport.providerConfidence}% confidence
                   </span>
                   <span className="text-xs text-muted-foreground">Adapter: {parsedReport.adapterUsed}</span>
+                  <span className={`text-xs font-bold uppercase ${parsedReport.analysisOutcome?.state === 'success' ? 'text-success' : 'text-warning'}`}>
+                    {parsedReport.analysisOutcome?.state === 'success' ? 'Parse successful' : 'Needs review'}
+                  </span>
                 </div>
                 {/* Correct provider */}
                 <div className="flex items-center gap-2 mt-2">

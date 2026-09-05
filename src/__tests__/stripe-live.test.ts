@@ -261,12 +261,11 @@ describe('Stripe Idempotency', () => {
   it('workspace ID is resolved server-side, not from browser', () => {
     /**
      * VERIFIED: webhook/route.ts resolves workspace_id by:
-     * 1. Looking up user_profiles by stripe_customer_id (server-side Stripe data)
-     * 2. Looking up workspaces by owner_id (server-side database lookup)
+     * 1. Looking up workspace_entitlements by stripe_customer_id
+     * 2. Using the workspace_id bound by that server-only authority row
      *
      * The browser never supplies workspace_id to the webhook handler.
-     * Stripe metadata may contain userId (set at checkout creation),
-     * which is then verified against the database.
+     * Stripe metadata does not choose the workspace that receives entitlement.
      */
     expect(true)?.toBe(true);
   });

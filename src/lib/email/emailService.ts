@@ -1,7 +1,7 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-interface SendEmailOptions {
+export interface SendEmailOptions {
   type:
     | 'trial_confirmation' |'subscription_started' |'renewal_reminder' |'analysis_complete' |'dispute_recommendations_ready' |'client_notification';
   to: string;
@@ -25,18 +25,19 @@ interface SendEmailOptions {
   clientEmail?: string;
   assignedStaff?: string;
   clientPlan?: string;
+  portalInviteToken?: string;
 }
 
 export async function sendTransactionalEmail(
   options: SendEmailOptions,
   accessToken?: string
-): Promise<void> {
+): Promise<boolean> {
   const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/send-email`;
   const authorizationToken = accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!authorizationToken) {
     console.error(`[EmailService] Cannot send ${options.type}: no authenticated token is available.`);
-    return;
+    return false;
   }
 
   const response = await fetch(edgeFunctionUrl, {
@@ -52,12 +53,12 @@ export async function sendTransactionalEmail(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     console.error(`[EmailService] Failed to send ${options.type} email:`, error);
-    // Non-blocking: log but don't throw so processing continues
-    return;
+    return false;
   }
 
   const result = await response.json();
   console.log(`[EmailService] Sent ${options.type} email, id: ${result.id}`);
+  return true;
 }
 
 export function formatDate(timestamp: number): string {
@@ -72,9 +73,9 @@ export function getPlanAmount(plan: string): string {
   const amounts: Record<string, string> = {
     starter: '39',
     professional: '99',
-    agency: '199',
+    agency: '249',
     // Legacy alias — kept for backward compatibility with existing Stripe subscriptions
     growth: '129',
   };
-  return amounts[plan?.toLowerCase()] || '49';
+  return amounts[plan?.toLowerCase()] || '39';
 }

@@ -71,10 +71,11 @@ export default function ParserDebuggerContent() {
   ];
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Parser Debugger</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Admin tool — test credit report parsing, inspect extracted data, and debug parser output</p>
+    <div className="app-page page-stack max-w-screen-xl">
+      <div className="page-header"><div>
+        <h1 className="page-title">Parser Debugger</h1>
+        <p className="page-description">Admin tool — test credit report parsing, inspect extracted data, and debug parser output</p>
+      </div>
       </div>
 
       {/* Input */}
@@ -82,7 +83,7 @@ export default function ParserDebuggerContent() {
         <div className="flex items-center gap-3 flex-wrap">
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">Provider</label>
-            <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value as SupportedProvider)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card text-foreground">
+            <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value as SupportedProvider)} className="input-field min-w-40">
               {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>

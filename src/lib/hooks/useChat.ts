@@ -1,18 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useCallback } from 'react';
-import { getChatCompletion, getStreamingChatCompletion } from '@/lib/ai/chatCompletion';
+import { useState, useCallback } from "react";
+import {
+  getChatCompletion,
+  getStreamingChatCompletion,
+} from "@/lib/ai/chatCompletion";
+import type { AIOperationId } from "@/lib/ai/gateway";
 
-
-export function useChat(provider: string, model: string, streaming: boolean = true) {
-  const [response, setResponse] = useState('');
+export function useChat(
+  operation: AIOperationId = "agency_assistant",
+  streaming: boolean = true,
+) {
+  const [response, setResponse] = useState("");
   const [fullResponse, setFullResponse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const sendMessage = useCallback(
-    async (messages: object[], parameters: object = {}) => {
-      setResponse('');
+    async (prompt: string) => {
+      setResponse("");
       setFullResponse(streaming ? [] : null);
       setIsLoading(true);
       setError(null);
@@ -20,12 +26,11 @@ export function useChat(provider: string, model: string, streaming: boolean = tr
       try {
         if (streaming) {
           await getStreamingChatCompletion(
-            provider,
-            model,
-            messages,
+            operation,
+            prompt,
             (chunk) => {
               setFullResponse((prev: any[]) => [...prev, chunk]);
-              const content = chunk?.choices?.[0]?.delta?.content;
+              const content = chunk.content;
               if (content) setResponse((prev) => prev + content);
             },
             () => setIsLoading(false),
@@ -33,20 +38,19 @@ export function useChat(provider: string, model: string, streaming: boolean = tr
               setError(err);
               setIsLoading(false);
             },
-            parameters
           );
         } else {
-          const result = await getChatCompletion(provider, model, messages, parameters);
+          const result = await getChatCompletion(operation, prompt);
           setFullResponse(result);
-          setResponse(result?.choices?.[0]?.message?.content || '');
+          setResponse(result.content);
           setIsLoading(false);
         }
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'));
+        setError(err instanceof Error ? err : new Error("Unknown error"));
         setIsLoading(false);
       }
     },
-    [provider, model, streaming]
+    [operation, streaming],
   );
 
   return { response, fullResponse, isLoading, error, sendMessage };
