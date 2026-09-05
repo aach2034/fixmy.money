@@ -20,6 +20,32 @@ describe('FMM-014 enforced release gates', () => {
     expect(fs.existsSync('supabase/config.toml')).toBe(true);
   });
 
+  it('keeps clean auth schema and current-state pgTAP discovery self-consistent', () => {
+    const repair = fs.readFileSync(
+      'supabase/migrations/20260905023201_repair_user_profiles_account_type.sql',
+      'utf8',
+    );
+    expect(repair).toContain(
+      "ADD COLUMN IF NOT EXISTS account_type text DEFAULT 'business'",
+    );
+
+    const currentDatabaseTests = fs.readdirSync('supabase/tests/database');
+    expect(currentDatabaseTests).not.toContain('fmm_003_rls_reconciliation.test.sql');
+    expect(currentDatabaseTests).not.toContain(
+      'fmm_003_phase_1b_forward_upgrade.test.sql',
+    );
+    expect(
+      fs.existsSync(
+        'supabase/rehearsals/fmm-003/fmm_003_rls_reconciliation.test.sql',
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        'supabase/rehearsals/fmm-003/fmm_003_phase_1b_forward_upgrade.test.sql',
+      ),
+    ).toBe(true);
+  });
+
   it('requires Chromium and WebKit coverage', () => {
     expect(workflow).toContain('playwright install --with-deps chromium webkit');
     expect(workflow).toContain('--project=chromium --project=webkit --project=mobile-webkit-390');
