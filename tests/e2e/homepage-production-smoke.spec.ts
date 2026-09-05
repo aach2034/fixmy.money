@@ -46,12 +46,10 @@ async function expectCleanHomepage(page: Page) {
 
   const response = await page.goto('/');
   expect(response?.status()).toBeLessThan(400);
-  await expect(page.getByRole('heading', { name: /The Platform for Better Credit/i })).toBeVisible();
-  await expect(page.getByText('$1 for 14 Days')).toBeVisible();
-  await expect(page.getByText('Credit card required')).toBeVisible();
-  await expect(page.getByText('Secure Infrastructure')).toBeVisible();
-  await expect(page.getByAltText('Individual reviewing credit progress on a phone')).toBeVisible();
-  await expect(page.getByAltText('Credit repair professional using business software on a laptop')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Your credit report, organized/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Start \$1 trial/i }).first()).toBeVisible();
+  await expect(page.getByText('Secure workspace')).toBeVisible();
+  await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(failedAssets).toEqual([]);
   expect(consoleErrors.filter((message) => !/favicon|ResizeObserver/i.test(message))).toEqual([]);
@@ -72,52 +70,37 @@ test.describe('production homepage smoke', () => {
     await page.getByRole('link', { name: /FixMy\.Money home/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
-    await page.locator('header').getByRole('link', { name: 'Log In' }).click();
+    await page.locator('header').getByRole('link', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     await page.goto('/');
-    await page.getByRole('link', { name: /I'm Fixing My Own Credit/i }).click();
+    await page.getByRole('link', { name: /Start free audit/i }).click();
     await expect(page).toHaveURL(/\/signup\?plan=starter$/);
 
     await page.goto('/');
-    await page.getByRole('link', { name: /I Run a Credit Business/i }).click();
-    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
-
-    await page.goto('/');
-    await page.getByRole('link', { name: /Start Fixing My Credit/i }).click();
-    await expect(page).toHaveURL(/\/signup\?plan=starter$/);
-
-    await page.goto('/');
-    await page.getByRole('link', { name: /Explore Business Software/i }).click();
-    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
+    await page.getByRole('link', { name: /See business software/i }).click();
+    await expect(page).toHaveURL(/\/professionals$/);
 
     const planExpectations = [
-      ['Personal', 'starter'],
-      ['Start', 'professional'],
-      ['Grow', 'agency'],
+      ['Starter', 'starter'],
+      ['Pro', 'professional'],
+      ['Agency', 'agency'],
     ] as const;
 
     for (const [planName, planId] of planExpectations) {
       await page.goto('/');
-      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Start $1 Trial' }).click();
+      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Get started' }).click();
       await expect(page).toHaveURL(new RegExp(`/signup\\?plan=${planId}$`));
     }
-
-    await page.goto('/');
-    await page.locator('article').filter({ has: page.getByRole('heading', { name: 'Enterprise' }) }).getByRole('link', { name: 'Schedule Demo' }).click();
-    await expect(page).toHaveURL(/\/demo$/);
   });
 
   test('mobile navigation works', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
-    const header = page.locator('header');
-    const menuButton = header.getByRole('button', { name: /toggle navigation/i });
-    await menuButton.click();
-    await expect.poll(() => header.locator('#homepage-mobile-nav').evaluate((element) => element.matches(':popover-open'))).toBe(true);
-    await expect(header.getByRole('link', { name: 'Pricing', exact: true })).toBeVisible();
-    await header.getByRole('link', { name: 'Pricing', exact: true }).click();
-    await expect(page).toHaveURL(/\/#pricing$/);
+    const signIn = page.locator('header').getByRole('link', { name: 'Sign in' });
+    await expect(signIn).toBeVisible();
+    await signIn.click();
+    await expect(page).toHaveURL(/\/login$/);
     await expectNoHorizontalOverflow(page);
   });
 
