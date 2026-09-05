@@ -44,7 +44,7 @@ test.describe('Homepage (/)', () => {
   test('has CTA button', async ({ page }) => {
     await page.goto('/');
     // Look for common CTA patterns
-    const cta = page.locator('a[href*="signup"], a[href*="sign-up"], a[href*="register"], a[href*="trial"], button:has-text("Start"), a:has-text("Get Started"), a:has-text("Start Free")').first();
+    const cta = page.locator('a[href*="signup"], a[href*="sign-up"], a[href*="register"], a[href*="trial"], button:has-text("Start"), a:has-text("Get Started"), a:has-text("Start Free")').filter({ visible: true }).first();
     await expect(cta).toBeVisible();
   });
 });

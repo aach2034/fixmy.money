@@ -454,6 +454,10 @@
   background-color: #15803d;
 }
 
+.auth-form [class~="text-[#3fa447]"] {
+  color: #267a31;
+}
+
 .auth-form .bg-primary:hover,
 .auth-form .btn-primary:hover {
   background-color: #166534;

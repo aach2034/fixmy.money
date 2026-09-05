@@ -26,8 +26,11 @@ export function shouldRedirectForMaintenance(
 }
 
 function getProjectRef(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  return url.match(/https:\/\/([^.]+)\./)?.[1] ?? '';
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0] ?? '';
+  } catch {
+    return '';
+  }
 }
 
 function injectTokenFromHeader(request: NextRequest): void {

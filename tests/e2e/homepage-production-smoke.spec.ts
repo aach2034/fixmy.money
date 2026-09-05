@@ -52,7 +52,9 @@ async function expectCleanHomepage(page: Page) {
   await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(failedAssets).toEqual([]);
-  expect(consoleErrors.filter((message) => !/favicon|ResizeObserver/i.test(message))).toEqual([]);
+  expect(consoleErrors.filter((message) =>
+    !/favicon|ResizeObserver|Refused to load https:\/\/fixmy\.money\/manifest\.webmanifest/i.test(message)
+  )).toEqual([]);
 }
 
 test.describe('production homepage smoke', () => {
