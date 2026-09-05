@@ -93,5 +93,5 @@ jobs:
             sleep 1
           done
           curl --fail http://127.0.0.1:4028/api/health
-          # Temporary diagnostic branch only: Stage B complete Chromium suite.
-          pnpm exec playwright test --project=chromium --retries=0
+          # Temporary diagnostic branch only: Stage C WebKit and mobile WebKit.
+          pnpm exec playwright test --project=webkit --project=mobile-webkit-390 --retries=0
