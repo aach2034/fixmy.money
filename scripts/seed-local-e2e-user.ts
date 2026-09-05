@@ -108,16 +108,26 @@ async function seedLocalE2eUsers() {
     .eq('id', memberId);
   if (memberProfileError) throw memberProfileError;
 
-  const { error: planError } = await admin
+  const now = new Date();
+  const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const { error: allocationEntitlementError } = await admin
     .from('workspace_entitlements')
-    .update({ plan_id: 'professional' })
+    .update({
+      stripe_status: 'trialing',
+      access_state: 'trial',
+      plan_id: 'professional',
+      trial_ends_at: trialEnd.toISOString(),
+      current_period_ends_at: null,
+      grace_ends_at: null,
+      last_verified_at: now.toISOString(),
+      last_reconciliation_error: null,
+    })
     .eq('workspace_id', workspace.id);
-  if (planError) throw planError;
+  if (allocationEntitlementError) throw allocationEntitlementError;
 
-  // Keep both identities unpaid. A locally fabricated trial without a real
-  // Stripe customer is intentionally rejected by FMM-009's fail-closed gate.
-  // The canonical plan value permits allocation-boundary fixtures, while the
-  // billing route remains available without granting paid application access.
+  // This isolated row activates only database allocation-boundary fixtures.
+  // With no Stripe customer, FMM-009's application gate still denies paid
+  // access and routes the signed-in test identities to billing.
   console.log('Seeded two isolated local authenticated E2E identities.');
 }
 
