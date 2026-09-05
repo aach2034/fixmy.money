@@ -40,10 +40,28 @@ async function signIn(
   email = TEST_EMAIL,
   password = TEST_PASSWORD,
 ): Promise<void> {
+  page.on('response', (response) => {
+    if (/\/auth\/v1\/(token|logout)|\/api\/stripe\/entitlement/.test(response.url())) {
+      console.log(`[webkit-auth-diagnostic] response ${response.status()} ${new URL(response.url()).pathname}`);
+    }
+  });
+  page.on('requestfailed', (request) => {
+    if (/\/auth\/v1\//.test(request.url())) {
+      console.log(`[webkit-auth-diagnostic] request failed ${new URL(request.url()).pathname} ${request.failure()?.errorText}`);
+    }
+  });
   await page.goto('/login');
   await page.locator('input[type="email"], input[name="email"]').first().fill(email);
   await page.locator('input[type="password"]').first().fill(password);
   await page.locator('form button[type="submit"]').click();
+  await page.waitForTimeout(1_000);
+  console.log('[webkit-auth-diagnostic] client state', await page.evaluate(() => ({
+    url: window.location.href,
+    cookieNames: document.cookie.split(';').map((entry) => entry.trim().split('=')[0]).filter(Boolean),
+    authStorageKeys: Object.keys(localStorage).filter((key) => key.includes('auth-token')),
+    buttonText: document.querySelector('form button[type="submit"]')?.textContent?.trim() || null,
+    visibleError: document.querySelector('.error-text')?.textContent?.trim() || null,
+  })));
   await page.waitForURL(/\/checkout\?plan=starter$/, { timeout: 10000 });
 
   const entitlement = await page.evaluate(async () => {
