@@ -93,7 +93,17 @@ jobs:
             sleep 1
           done
           curl --fail http://127.0.0.1:4028/api/health
-          # Temporary diagnostic branch only: capture the exact authenticated
-          # redirect destination without rerunning the browser matrix.
+          # Temporary diagnostic branch only: Stage A focused Chromium gate.
           pnpm exec playwright test --project=chromium --retries=0 \
-            tests/e2e/authenticated-routes.spec.ts:55
+            tests/e2e/authenticated-routes.spec.ts:51 \
+            tests/e2e/authenticated-routes.spec.ts:63 \
+            tests/e2e/authenticated-routes.spec.ts:79 \
+            tests/e2e/authenticated-routes.spec.ts:96 \
+            tests/e2e/authenticated-routes.spec.ts:146 \
+            tests/e2e/authenticated-routes.spec.ts:211 \
+            tests/e2e/homepage-production-smoke.spec.ts:60 \
+            tests/e2e/homepage-production-smoke.spec.ts:66 \
+            tests/e2e/homepage-production-smoke.spec.ts:97 \
+            tests/e2e/public-routes.spec.ts:166 \
+            tests/e2e/public-routes.spec.ts:172 \
+            tests/e2e/public-routes.spec.ts:357
