@@ -16,10 +16,10 @@ export default function Home() {
       <header>
         <nav className="fixed inset-x-0 top-0 z-50 border-b border-[#dfe4ec] bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 lg:px-8">
-            <a href="#" className="flex items-center gap-2.5" aria-label="FixMy.Money home">
+            <Link href="/" className="flex items-center gap-2.5" aria-label="FixMy.Money home">
               <span className="grid size-9 place-items-center rounded-xl bg-[#063e35] text-sm font-bold text-white">F</span>
               <span className="text-[17px] font-semibold tracking-[-.03em]">FixMy<span className="text-[#3fa447]">.Money</span></span>
-            </a>
+            </Link>
             <div className="hidden items-center gap-8 text-sm font-medium text-[#52636d] md:flex">
               <a className="hover:text-[#0b1742]" href="#platform">Platform</a><a className="hover:text-[#0b1742]" href="#solutions">Solutions</a><a className="hover:text-[#0b1742]" href="#security">Security</a><a className="hover:text-[#0b1742]" href="#pricing">Pricing</a>
             </div>

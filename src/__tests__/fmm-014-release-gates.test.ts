@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
+import { contentSecurityPolicyFor } from '../../worker/security-controls';
 
 describe('FMM-014 enforced release gates', () => {
   const workflow = fs.readFileSync('.github/workflows/quality.yml', 'utf8');
@@ -64,5 +65,19 @@ describe('FMM-014 enforced release gates', () => {
     expect(seed).toContain("email.endsWith('@test.invalid')");
     expect(seed).toContain("memberEmail.endsWith('@test.invalid')");
     expect(seed).toContain('Refusing to seed E2E identity outside an isolated local Supabase stack.');
+    expect(seed).toContain('With no Stripe customer');
+    expect(seed).not.toContain('stripe_customer_id');
+  });
+
+  it('allows only the isolated local Supabase runtime without weakening production CSP', () => {
+    const local = contentSecurityPolicyFor('http://localhost:4028/login');
+    expect(local).toContain('http://127.0.0.1:54321');
+    expect(local).toContain('ws://127.0.0.1:54321');
+    expect(local).not.toContain('upgrade-insecure-requests');
+
+    const production = contentSecurityPolicyFor('https://fixmy.money/login');
+    expect(production).toContain('upgrade-insecure-requests');
+    expect(production).not.toContain('http://127.0.0.1:54321');
+    expect(production).not.toContain('ws://127.0.0.1:54321');
   });
 });

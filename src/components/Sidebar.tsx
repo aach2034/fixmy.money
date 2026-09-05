@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
@@ -99,7 +99,6 @@ interface WorkspaceEntitlement {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { signOut, user } = useAuth();
   const supabase = createClient();
 
@@ -168,7 +167,7 @@ export default function Sidebar() {
         localStorage.clear();
         sessionStorage.clear();
       }
-      router.push('/sign-up-login-screen');
+      window.location.assign('/sign-up-login-screen');
     }
   };
 

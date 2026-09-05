@@ -26,8 +26,11 @@ export function shouldRedirectForMaintenance(
 }
 
 function getProjectRef(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  return url.match(/https:\/\/([^.]+)\./)?.[1] ?? '';
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0] ?? '';
+  } catch {
+    return '';
+  }
 }
 
 function injectTokenFromHeader(request: NextRequest): void {
@@ -203,6 +206,15 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (['/login', '/checkout', '/billing-subscriptions'].some((path) => pathname.startsWith(path))) {
+    console.log('[webkit-proxy-diagnostic]', {
+      pathname,
+      hasTokenHeader: Boolean(request.headers.get('x-sb-token')),
+      authCookieNames: request.cookies.getAll().map(({ name }) => name).filter((name) => name.includes('auth-token')),
+      hasVerifiedUser: Boolean(user),
+    });
+  }
 
   const carryAuthState = (response: NextResponse): NextResponse => {
     supabaseResponse.cookies.getAll().forEach(cookie => response.cookies.set(cookie));

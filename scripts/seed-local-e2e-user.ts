@@ -110,7 +110,7 @@ async function seedLocalE2eUsers() {
 
   const now = new Date();
   const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const { error: entitlementError } = await admin
+  const { error: allocationEntitlementError } = await admin
     .from('workspace_entitlements')
     .update({
       stripe_status: 'trialing',
@@ -123,8 +123,11 @@ async function seedLocalE2eUsers() {
       last_reconciliation_error: null,
     })
     .eq('workspace_id', workspace.id);
-  if (entitlementError) throw entitlementError;
+  if (allocationEntitlementError) throw allocationEntitlementError;
 
+  // This isolated row activates only database allocation-boundary fixtures.
+  // With no Stripe customer, FMM-009's application gate still denies paid
+  // access and routes the signed-in test identities to billing.
   console.log('Seeded two isolated local authenticated E2E identities.');
 }
 
