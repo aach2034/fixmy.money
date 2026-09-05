@@ -108,23 +108,10 @@ async function seedLocalE2eUsers() {
     .eq('id', memberId);
   if (memberProfileError) throw memberProfileError;
 
-  const now = new Date();
-  const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const { error: entitlementError } = await admin
-    .from('workspace_entitlements')
-    .update({
-      stripe_status: 'trialing',
-      access_state: 'trial',
-      plan_id: 'professional',
-      trial_ends_at: trialEnd.toISOString(),
-      current_period_ends_at: null,
-      grace_ends_at: null,
-      last_verified_at: now.toISOString(),
-      last_reconciliation_error: null,
-    })
-    .eq('workspace_id', workspace.id);
-  if (entitlementError) throw entitlementError;
-
+  // Keep both identities unpaid. A locally fabricated trial without a real
+  // Stripe customer is intentionally rejected by FMM-009's fail-closed gate.
+  // Authenticated E2E coverage uses the billing route, which is available to
+  // signed-in workspace members without granting paid application access.
   console.log('Seeded two isolated local authenticated E2E identities.');
 }
 

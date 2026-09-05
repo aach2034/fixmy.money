@@ -35,12 +35,23 @@ const skipIfNoCredentials = () => {
 
 // ─── Helper: sign in ──────────────────────────────────────────────────────────
 
-async function signIn(page: Page): Promise<void> {
+async function signIn(
+  page: Page,
+  email = TEST_EMAIL,
+  password = TEST_PASSWORD,
+): Promise<void> {
   await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
+  await page.locator('input[type="email"], input[name="email"]').first().fill(email);
+  await page.locator('input[type="password"]').first().fill(password);
   await page.locator('form button[type="submit"]').click();
-  await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
+  await page.waitForURL(/\/checkout\?plan=starter$/, { timeout: 10000 });
+
+  const entitlement = await page.evaluate(async () => {
+    const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
+    return { status: response.status, body: await response.json() };
+  });
+  expect(entitlement.status).toBe(200);
+  expect(entitlement.body).toMatchObject({ canAccess: false, reason: 'no_billing_account' });
 }
 
 // ─── Email Login ──────────────────────────────────────────────────────────────
@@ -49,15 +60,8 @@ test.describe('Email Login', () => {
   test.beforeEach(skipIfNoCredentials);
 
   test('user can sign in with email and password', async ({ page }) => {
-    await page.goto('/login');
-    await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
-    await page.locator('input[type="password"]').first().fill(TEST_PASSWORD);
-    await page.locator('form button[type="submit"]').click();
-
-    // Should redirect away from login page
-    await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
-    const currentUrl = page.url();
-    expect(new URL(currentUrl).pathname).not.toBe('/login');
+    await signIn(page);
+    await expect(page).toHaveURL(/\/checkout\?plan=starter$/);
   });
 
   test('wrong password shows error', async ({ page }) => {
@@ -78,7 +82,8 @@ test.describe('Logout', () => {
 
   test('user can sign out', async ({ page }) => {
     await signIn(page);
-    await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
+    await page.goto('/billing-subscriptions');
+    await expect(page).toHaveURL(/\/billing-subscriptions$/);
 
     await page.getByRole('button', { name: new RegExp(TEST_EMAIL, 'i') }).click();
     await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
@@ -95,19 +100,18 @@ test.describe('Session Persistence', () => {
 
   test('session persists across page navigation', async ({ page }) => {
     await signIn(page);
-    const dashboardUrl = page.url();
 
     // Navigate to another page
     await page.goto('/pricing');
     await page.waitForLoadState('networkidle');
 
-    // Navigate back to dashboard
-    await page.goto(dashboardUrl);
+    // The billing route is intentionally available to authenticated workspace
+    // members who do not yet have a verified paid/trial entitlement.
+    await page.goto('/billing-subscriptions');
     await page.waitForLoadState('networkidle');
 
-    // Should still be authenticated (not redirected to login)
-    const isOnLogin = new URL(page.url()).pathname === '/login';
-    expect(isOnLogin).toBe(false);
+    await expect(page).toHaveURL(/\/billing-subscriptions$/);
+    await expect(page.getByRole('heading', { name: 'Billing center' })).toBeVisible();
   });
 });
 
@@ -143,9 +147,11 @@ test.describe('Password Reset Request', () => {
 test.describe('Authenticated workspace routing', () => {
   test.beforeEach(skipIfNoCredentials);
 
-  test('seeded workspace owner reaches the authorized dashboard', async ({ page }) => {
+  test('seeded workspace owner is routed by the server-authoritative entitlement gate', async ({ page }) => {
     await signIn(page);
-    await expect(page).toHaveURL(/\/dashboard(?:\?|$)/);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/billing-subscriptions\?reason=no_billing_account$/);
+    await expect(page.getByRole('heading', { name: 'Billing center' })).toBeVisible();
   });
 });
 
@@ -300,11 +306,7 @@ test.describe('Removed workspace member', () => {
       });
       expect(clientError).toBeNull();
 
-      await page.goto('/login');
-      await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_MEMBER_EMAIL);
-      await page.locator('input[type="password"]').first().fill(TEST_MEMBER_PASSWORD);
-      await page.locator('form button[type="submit"]').click();
-      await page.waitForURL(/dashboard|workspace|onboarding|billing-subscriptions/i, { timeout: 10000 });
+      await signIn(page, TEST_MEMBER_EMAIL, TEST_MEMBER_PASSWORD);
 
       const { data: visibleBefore, error: beforeError } = await member
         .from('staff_clients')
@@ -320,6 +322,9 @@ test.describe('Removed workspace member', () => {
         .eq('workspace_id', workspace!.id)
         .eq('user_id', memberUser!.id);
       expect(removeError).toBeNull();
+
+      await page.goto(`/clients/${clientId}`);
+      await expect(page).toHaveURL(/\/login(?:\?|$)/);
 
       const { data: visibleAfter, error: afterError } = await member
         .from('staff_clients')
