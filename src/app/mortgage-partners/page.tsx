@@ -29,12 +29,12 @@ export default function MortgagePartnersPage() {
         'Share a referral URL with borrowers who need a self-directed report workflow.',
         'Borrowers upload or paste report information and review potential issues.',
         'FixMy.Money helps them organize letters and track dispute activity.',
-        'Attribution records the partner code and campaign through signup and checkout.',
+        'Attribution records the partner code and campaign through the reopening list and later activation.',
       ]}
       faqs={[
         { q: 'Does FixMy.Money promise mortgage approval?', a: 'No. FixMy.Money does not promise credit score changes, item deletions, or mortgage approval.' },
         { q: 'Can borrowers use it themselves?', a: 'Yes. The borrower remains in control of report review, evidence, correspondence, and follow-up.' },
-        { q: 'Can partners track referrals?', a: 'Referral and UTM parameters are captured as first-touch attribution and carried through signup and checkout metadata.' },
+        { q: 'Can partners track referrals?', a: 'Referral and UTM parameters are captured as first-touch attribution when someone joins the reopening list.' },
       ]}
     />
   );

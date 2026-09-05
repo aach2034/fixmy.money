@@ -79,7 +79,7 @@ const CreditRepairSoftwareContent = () => {
               href="/demo"
               className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
             >
-              Start $1 Trial <ArrowRight className="ml-2 w-5 h-5" />
+              Reserve One Month Free <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <Link
               href="#features"
@@ -221,13 +221,13 @@ const CreditRepairSoftwareContent = () => {
             Ready to Scale Your Credit Repair Business?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Start your 14-day trial for $1 today. Payment method required.
+            Join the reopening list and reserve one month free when FixMy.Money reopens.
           </p>
           <Link
             href="/demo"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition"
           >
-            Start $1 Trial <ArrowRight className="ml-2 w-5 h-5" />
+            Reserve One Month Free <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
       </section>

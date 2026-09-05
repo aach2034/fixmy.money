@@ -11,14 +11,14 @@ export const metadata: Metadata = {
 };
 
 export default function AffiliatesPage() {
-  const example = 'https://fixmy.money/signup?ref=creator123&utm_source=youtube&utm_medium=creator&utm_campaign=credit-report-video';
+  const example = 'https://fixmy.money/?ref=creator123&utm_source=youtube&utm_medium=creator&utm_campaign=credit-report-video#reopening-list';
   return (
     <div className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <nav className="border-b border-slate-200 px-4 py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <Link href="/" className="text-lg font-black">FixMy.Money</Link>
-          <TrackedLink href="/signup?plan=professional&utm_source=affiliates&utm_medium=landing_page&utm_campaign=partner_signup" eventLabel="Start $1 Trial" eventLocation="affiliate_nav" className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-black text-white">
-            Start $1 Trial
+          <TrackedLink href="/#reopening-list" eventLabel="Reserve One Month Free" eventLocation="affiliate_nav" className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-black text-white">
+            Reserve One Month Free
           </TrackedLink>
         </div>
       </nav>
@@ -27,7 +27,7 @@ export default function AffiliatesPage() {
           <div className="mx-auto max-w-5xl">
             <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">Affiliate and referral program</p>
             <h1 className="mt-5 max-w-3xl text-4xl font-black leading-tight sm:text-5xl">Track creator, partner, and campaign referrals into FixMy.Money.</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Use referral codes and UTM parameters to route consumers or professionals to the right landing page while preserving first-touch attribution through signup and checkout.</p>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Use referral codes and UTM parameters to route consumers or professionals to the reopening list while preserving first-touch attribution.</p>
             <div className="mt-8 break-all rounded-lg border border-white/10 bg-white/5 p-4 font-mono text-xs leading-6 text-emerald-100">{example}</div>
           </div>
         </section>
@@ -36,7 +36,7 @@ export default function AffiliatesPage() {
             {[
               { icon: Link2, title: 'Referral code', copy: '`ref` identifies the partner, creator, or campaign owner.' },
               { icon: Megaphone, title: 'Campaign fields', copy: 'UTM source, medium, campaign, content, and term are captured.' },
-              { icon: BarChart3, title: 'Conversion metadata', copy: 'Signup and Stripe checkout carry attribution values forward.' },
+              { icon: BarChart3, title: 'Conversion metadata', copy: 'Reopening-list conversion events carry attribution values forward.' },
               { icon: ShieldCheck, title: 'First-touch safe', copy: 'First touch is preserved and later visits update last-touch fields.' },
             ].map(item => {
               const Icon = item.icon;
@@ -65,7 +65,7 @@ export default function AffiliatesPage() {
                 </article>
               ))}
             </div>
-            <TrackedLink href="/signup?plan=professional&utm_source=affiliates&utm_medium=landing_page&utm_campaign=partner_signup" eventLabel="Affiliate referral" eventLocation="affiliate_body" className="mt-8 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-6 py-4 text-sm font-black text-white">
+            <TrackedLink href="/#reopening-list" eventLabel="Affiliate referral" eventLocation="affiliate_body" className="mt-8 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-6 py-4 text-sm font-black text-white">
               Start Partner Tracking <ArrowRight size={16} />
             </TrackedLink>
           </div>

@@ -54,8 +54,8 @@ export default function SmallAgencySoftwarePage() {
               Affordable, scalable software for solo operators and small agencies. Start at {PLANS.starter.monthlyPrice === null ? 'custom pricing' : `$${PLANS.starter.monthlyPrice}/month`}. No long-term contracts.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
-                Start $1 Trial
+              <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
+                Reserve One Month Free
               </Link>
               <Link href="/pricing" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
                 View Pricing
@@ -84,8 +84,8 @@ export default function SmallAgencySoftwarePage() {
                       </li>
                   )}
                   </ul>
-                  <Link href={`/signup?plan=${plan.id}`} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">
-                    Start $1 Trial
+                  <Link href={`/#reopening-list`} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">
+                    Reserve One Month Free
                   </Link>
                 </div>
               )}
@@ -127,9 +127,9 @@ export default function SmallAgencySoftwarePage() {
         <section className="py-20 bg-blue-600">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">Start your agency today</h2>
-            <p className="text-lg text-blue-50 mb-8">14-day trial for $1. Payment method required. Cancel anytime.</p>
-            <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
-              Start $1 Trial <ArrowRight size={18} />
+            <p className="text-lg text-blue-50 mb-8">Join the reopening list and reserve one month free when we reopen October 25, 2026.</p>
+            <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
+              Reserve One Month Free <ArrowRight size={18} />
             </Link>
           </div>
         </section>

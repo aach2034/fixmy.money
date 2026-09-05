@@ -23,7 +23,7 @@ export default function WhatIsFixMyMoneyPage() {
       <nav className="border-b border-slate-100 px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link href="/" className="text-lg font-bold">FixMy.Money</Link>
-          <Link href="/sign-up-login-screen?tab=register" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white">Start $1 Trial</Link>
+          <Link href="/#reopening-list" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white">Reserve One Month Free</Link>
         </div>
       </nav>
 

@@ -15,7 +15,7 @@ export default function DisputeManagementSoftwarePage() {
       eyebrow="Commercial guide"
       title="Dispute-management software for organized credit-report workflows."
       description="FixMy.Money helps consumers and professionals organize potential reporting issues, supporting information, dispute correspondence, and response tracking without promising a specific investigation result."
-      primaryCta={{ label: 'Start $1 Trial', href: '/signup?plan=professional&utm_source=dispute_management&utm_medium=commercial_page&utm_campaign=software_trial' }}
+      primaryCta={{ label: 'Reserve One Month Free', href: '/#reopening-list' }}
       secondaryCta={{ label: 'Compare Plans', href: '/pricing' }}
       features={[
         'Structured dispute rounds and activity tracking',

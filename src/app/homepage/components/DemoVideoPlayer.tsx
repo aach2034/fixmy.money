@@ -185,7 +185,7 @@ export default function DemoVideoPlayer({
                   onMouseEnter={e => (e.currentTarget.style.background = '#1d4ed8')}
                   onMouseLeave={e => (e.currentTarget.style.background = '#2563EB')}
                 >
-                  {ctaLabel || 'Start $1 Trial'}
+                  {ctaLabel || 'Reserve One Month Free'}
                 </button>
               )}
               {showDemoCta && (

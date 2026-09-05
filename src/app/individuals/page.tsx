@@ -22,7 +22,7 @@ export default function IndividualsPage() {
       eyebrow="For individuals"
       title="Understand your credit report. Find potential issues. Take action yourself."
       description="FixMy.Money gives consumers a guided software workspace for reviewing credit reports, organizing possible reporting issues, generating dispute correspondence, and tracking dispute activity."
-      primaryCta={{ label: 'Analyze My Credit Report', href: '/signup?plan=starter&utm_source=individuals&utm_medium=landing_page&utm_campaign=consumer_acquisition' }}
+      primaryCta={{ label: 'Reserve One Month Free', href: '/#reopening-list' }}
       secondaryCta={{ label: 'See How It Works', href: '#how-it-works' }}
       features={[
         'Upload and analyze credit report data',

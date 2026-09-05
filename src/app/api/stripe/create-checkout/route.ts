@@ -9,6 +9,7 @@ import {
   getSelectedWorkspaceContext,
   getWorkspaceEntitlementDecision,
 } from '@/lib/subscription/server';
+import { isPreShutdownUser, signupClosedPayload } from '@/lib/signup/closure';
 const INTEGRATION_ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
 const ATTRIBUTION_FIELDS = [
   'anonymous_id',
@@ -65,6 +66,9 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Please sign in before starting checkout.' }, { status: 401 });
+    }
+    if (!isPreShutdownUser(user.created_at)) {
+      return NextResponse.json(signupClosedPayload(), { status: 403 });
     }
 
     const supabaseAdmin = getAdminClient();

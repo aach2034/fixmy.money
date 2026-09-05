@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { CHECKOUT_PLANS, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
 import { getPlanAudience, trackEvent } from '@/lib/analytics';
-import { appendAttributionToHref, attributionEventParams, captureCurrentAttribution, getStoredAttribution } from '@/lib/attribution';
+import { attributionEventParams, captureCurrentAttribution } from '@/lib/attribution';
 
 interface UserProfile {
   full_name: string | null;
@@ -56,7 +56,7 @@ export default function CheckoutContent() {
     captureCurrentAttribution();
     if (authLoading) return;
     if (!user) {
-      router.replace(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
+      router.replace('/#reopening-list');
       return;
     }
 
@@ -89,7 +89,7 @@ export default function CheckoutContent() {
 
   const handleStartCheckout = async () => {
     if (!user) {
-      router.push(appendAttributionToHref(`/sign-up-login-screen?plan=${selectedPlan}`, getStoredAttribution()));
+      router.push('/#reopening-list');
       return;
     }
 

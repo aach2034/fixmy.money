@@ -7,6 +7,7 @@ import {
   includeCookieInVary,
   isSupabaseAuthCookie,
 } from '@/lib/auth/session-isolation';
+import { isPreShutdownUser } from '@/lib/signup/closure';
 
 const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
 
@@ -113,6 +114,13 @@ export async function GET(request: NextRequest) {
         verificationError?.message || 'Identity mismatch'
       );
       return createFailedAuthRedirect(request);
+    }
+
+    // Supabase's hosted "Allow new users to sign up" setting is the primary
+    // authority. This callback is defense in depth for stale signup links and
+    // any newly-created OAuth identity that reaches the application anyway.
+    if (!isPreShutdownUser(verifiedUser.created_at)) {
+      return createAuthRedirect(request, '/signup?blocked=1');
     }
 
     const type = searchParams.get('type');

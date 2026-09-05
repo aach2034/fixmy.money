@@ -91,8 +91,8 @@ export default function PricingContent() {
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Start $1 Trial ${planName}`, '/signup', 'pricing_page');
-    router.push(`/signup?plan=${planId}`);
+    trackCtaClick(`Reserve One Month Free ${planName}`, '/#reopening-list', 'pricing_page');
+    router.push(`/#reopening-list`);
   };
 
   return (
@@ -104,8 +104,8 @@ export default function PricingContent() {
           <div className="flex items-center gap-3">
             <Link href="/product-tour" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Product Tour</Link>
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
-            <Link href="/signup" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start $1 Trial
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Reserve One Month Free
             </Link>
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
+          <p className="text-xl text-slate-300 mb-3">New accounts reopen October 25, 2026. Join now to reserve one full month free.</p>
           <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
 
           {/* Billing Toggle */}
@@ -197,7 +197,7 @@ export default function PricingContent() {
                         : plan.id === 'enterprise' ?'bg-slate-900 hover:bg-slate-800 text-white' :'bg-slate-100 hover:bg-slate-200 text-slate-900'
                     }`}
                   >
-                    {plan.cta}
+                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Reserve One Month Free'}
                   </button>
                 </div>
               );
@@ -223,7 +223,7 @@ export default function PricingContent() {
           <DemoVideoPlayer
             placement="pricing"
             showTrialCta
-            onTrialClick={() => router.push('/signup')}
+            onTrialClick={() => router.push('/#reopening-list')}
           />
         </div>
       </section>
@@ -358,13 +358,13 @@ export default function PricingContent() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
+          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after October 25, 2026.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href="/#reopening-list"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Start $1 Trial <ArrowRight size={16} />
+              Reserve One Month Free <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

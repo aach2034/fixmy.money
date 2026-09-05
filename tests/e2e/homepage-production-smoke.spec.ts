@@ -46,8 +46,8 @@ async function expectCleanHomepage(page: Page) {
 
   const response = await page.goto('/');
   expect(response?.status()).toBeLessThan(400);
-  await expect(page.getByRole('heading', { name: /Your credit report, organized/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Start \$1 trial/i }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /We.re Improving FixMy\.Money/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /GET MY FREE MONTH/i }).first()).toBeVisible();
   await expect(page.getByText('Secure workspace')).toBeVisible();
   await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -76,23 +76,19 @@ test.describe('production homepage smoke', () => {
     await expect(page).toHaveURL(/\/login$/);
 
     await page.goto('/');
-    await page.getByRole('link', { name: /Start free audit/i }).click();
-    await expect(page).toHaveURL(/\/signup\?plan=starter$/);
+    await page.getByRole('link', { name: /GET MY FREE MONTH/i }).first().click();
+    await expect(page).toHaveURL(/\/#reopening-list$/);
 
     await page.goto('/');
     await page.getByRole('link', { name: /See business software/i }).click();
     await expect(page).toHaveURL(/\/professionals$/);
 
-    const planExpectations = [
-      ['Starter', 'starter'],
-      ['Pro', 'professional'],
-      ['Agency', 'agency'],
-    ] as const;
+    const planExpectations = ['Starter', 'Pro', 'Agency'] as const;
 
-    for (const [planName, planId] of planExpectations) {
+    for (const planName of planExpectations) {
       await page.goto('/');
-      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Get started' }).click();
-      await expect(page).toHaveURL(new RegExp(`/signup\\?plan=${planId}$`));
+      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Reserve one month free' }).click();
+      await expect(page).toHaveURL(/\/#reopening-list$/);
     }
   });
 

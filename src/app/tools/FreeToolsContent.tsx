@@ -39,7 +39,7 @@ export default function FreeToolsContent() {
             </div>
             <p className="mt-5 text-3xl font-black">{Number.isFinite(utilization) ? utilization : 0}%</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">Compare reported balances against limits to understand how utilization appears on a report.</p>
-            <TrackedLink href="/signup?plan=starter&utm_source=tools&utm_medium=calculator&utm_campaign=credit_utilization" onClick={() => trackToolCompleted('credit_utilization_calculator')} eventLabel="Organize full report" eventLocation="utilization_tool" className="mt-6 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-5 py-3 text-sm font-black text-white">
+            <TrackedLink href="/#reopening-list" onClick={() => trackToolCompleted('credit_utilization_calculator')} eventLabel="Organize full report" eventLocation="utilization_tool" className="mt-6 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-5 py-3 text-sm font-black text-white">
               Organize My Full Report <ArrowRight size={16} />
             </TrackedLink>
           </article>
@@ -53,7 +53,7 @@ export default function FreeToolsContent() {
             <p className="mt-5 text-sm font-bold text-slate-500">Estimated 30-day follow-up date</p>
             <p className="mt-1 text-3xl font-black">{deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">This is an educational estimate, not legal advice. Actual timelines can depend on delivery, method, and facts.</p>
-            <TrackedLink href="/signup?plan=starter&utm_source=tools&utm_medium=calculator&utm_campaign=fcra_deadlines" onClick={() => trackToolCompleted('fcra_dispute_deadline_calculator')} eventLabel="Track dispute activity" eventLocation="deadline_tool" className="mt-6 inline-flex items-center gap-2 rounded-md bg-slate-950 px-5 py-3 text-sm font-black text-white">
+            <TrackedLink href="/#reopening-list" onClick={() => trackToolCompleted('fcra_dispute_deadline_calculator')} eventLabel="Track dispute activity" eventLocation="deadline_tool" className="mt-6 inline-flex items-center gap-2 rounded-md bg-slate-950 px-5 py-3 text-sm font-black text-white">
               Track Dispute Activity <ArrowRight size={16} />
             </TrackedLink>
           </article>

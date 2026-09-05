@@ -16,21 +16,21 @@ export const consumerTools = [
     name: 'Credit Utilization Calculator',
     description: 'Estimate card utilization and see how reported balances compare with available limits.',
     cta: 'Organize My Full Report',
-    href: '/signup?plan=starter&utm_source=free_tools&utm_medium=tool&utm_campaign=credit_utilization',
+    href: '/#reopening-list',
   },
   {
     slug: 'fcra-dispute-deadline-calculator',
     name: 'FCRA Dispute Deadline Calculator',
     description: 'Estimate follow-up dates from a dispute mailing or submission date. Use counsel for legal deadlines.',
     cta: 'Track Dispute Activity',
-    href: '/signup?plan=starter&utm_source=free_tools&utm_medium=tool&utm_campaign=fcra_deadlines',
+    href: '/#reopening-list',
   },
   {
     slug: 'debt-validation-letter-generator',
     name: 'Debt Validation Letter Generator',
     description: 'Draft a starter debt-validation letter from your own facts and review it before sending.',
     cta: 'Generate and Organize Letters',
-    href: '/signup?plan=starter&utm_source=free_tools&utm_medium=tool&utm_campaign=debt_validation',
+    href: '/#reopening-list',
   },
   {
     slug: 'credit-report-error-checklist',
@@ -44,7 +44,7 @@ export const consumerTools = [
     name: 'Dispute Letter Generator',
     description: 'Prepare dispute correspondence from verified report details and supporting information.',
     cta: 'Use the Guided Workflow',
-    href: '/signup?plan=starter&utm_source=free_tools&utm_medium=tool&utm_campaign=letter_generator',
+    href: '/#reopening-list',
   },
 ];
 

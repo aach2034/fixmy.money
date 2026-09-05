@@ -29,8 +29,7 @@ export default async function CreatorReferralPage({ params }: Props) {
   const { creatorSlug } = await params;
   const page = creatorPages[creatorSlug];
   if (!page) notFound();
-  const plan = page.audience === 'consumer' ? 'starter' : 'professional';
-  const href = `/signup?plan=${plan}&ref=${page.ref}&utm_source=${page.ref}&utm_medium=creator&utm_campaign=creator_referral`;
+  const href = `/#reopening-list`;
 
   return (
     <section className="min-h-screen bg-[#f7fbfa] px-4 py-10 text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
@@ -41,7 +40,7 @@ export default async function CreatorReferralPage({ params }: Props) {
             <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">{page.name}</p>
             <h1 className="mt-5 text-4xl font-black leading-tight">{page.headline}</h1>
             <p className="mt-5 text-lg leading-8 text-slate-600">{page.offer}</p>
-            <TrackedLink href={href} eventLabel="Creator referral signup" eventLocation={`creator_${creatorSlug}`} className="mt-8 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-6 py-4 text-sm font-black text-white">
+            <TrackedLink href={href} eventLabel="Creator referral reopening list" eventLocation={`creator_${creatorSlug}`} className="mt-8 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-6 py-4 text-sm font-black text-white">
               Continue to FixMy.Money <ArrowRight size={16} />
             </TrackedLink>
           </div>

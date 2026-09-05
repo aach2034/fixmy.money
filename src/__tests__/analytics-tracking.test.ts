@@ -35,16 +35,13 @@ describe('Google Analytics funnel tracking', () => {
     expect(dashboard).toContain('ga_purchase_');
   });
 
-  it('tracks each registration and checkout-return funnel milestone', () => {
-    const authForm = read('src/app/sign-up-login-screen/components/AuthForm.tsx');
-    const authCallback = read('src/app/auth/callback/route.ts');
+  it('tracks the reopening-list conversion and checkout-return milestones', () => {
+    const waitlist = read('src/components/ReopeningWaitlistForm.tsx');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
 
-    expect(authForm).toContain("trackEvent('signup_started'");
-    expect(authForm).toContain("trackEvent('sign_up'");
-    expect(authForm).toContain('email_confirmation_required: Boolean(needsEmailConfirmation)');
-    expect(authForm).toContain("trackEvent('email_verification_required'");
-    expect(authCallback).toContain('&verified=1');
+    expect(waitlist).toContain("trackEvent('reopening_waitlist_joined'");
+    expect(waitlist).toContain("offer: 'one_month_free'");
+    expect(waitlist).toContain("reopening_date: '2026-10-25'");
     expect(checkout).toContain("trackEvent('email_verified'");
     expect(checkout).toContain("searchParams.get('cancelled') === '1'");
     expect(checkout).toContain("trackEvent('checkout_cancelled'");
@@ -63,9 +60,9 @@ describe('Google Analytics funnel tracking', () => {
     expect(trialSignupBody).not.toContain("trackEvent('sign_up'");
   });
 
-  it('preserves acquisition attribution through signup and checkout', () => {
+  it('preserves acquisition attribution through the reopening list and checkout', () => {
     const attribution = read('src/lib/attribution.ts');
-    const authForm = read('src/app/sign-up-login-screen/components/AuthForm.tsx');
+    const waitlist = read('src/components/ReopeningWaitlistForm.tsx');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
     const checkoutRoute = read('src/app/api/stripe/create-checkout/route.ts');
     const migration = read('supabase/migrations/20260829213754_product_acquisition_analytics.sql');
@@ -73,7 +70,7 @@ describe('Google Analytics funnel tracking', () => {
     expect(attribution).toContain('ATTRIBUTION_STORAGE_KEY');
     expect(attribution).toContain('firstTouch');
     expect(attribution).toContain('lastTouch');
-    expect(authForm).toContain('attribution: attributionEventParams');
+    expect(waitlist).toContain('attribution: attributionEventParams');
     expect(checkout).toContain('attribution: attributionEventParams');
     expect(checkoutRoute).toContain('...attribution');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS referral_code');
@@ -114,7 +111,7 @@ describe('Google Analytics funnel tracking', () => {
       read('src/app/credit-report-import/components/CreditReportImportContent.tsx'),
       read('src/app/api/stripe/webhook/route.ts'),
       read('src/lib/stripe/webhookProcessor.ts'),
-      read('src/app/sign-up-login-screen/components/AuthForm.tsx'),
+      read('src/components/ReopeningWaitlistForm.tsx'),
       read('src/app/checkout/components/CheckoutContent.tsx'),
       read('src/app/onboarding/components/OnboardingContent.tsx'),
       read('src/app/credit-audit/components/CreditAuditContent.tsx'),
@@ -130,8 +127,7 @@ describe('Google Analytics funnel tracking', () => {
       'tool_completed',
       'report_upload_started',
       'report_upload_completed',
-      'signup_started',
-      'signup_completed',
+      'reopening_waitlist_joined',
       'trial_started',
       'checkout_started',
       'subscription_started',

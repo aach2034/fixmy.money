@@ -58,11 +58,8 @@ export default async function BlogArticlePage({ params }: Props) {
   }
 
   const relatedArticles = getRelatedArticles(article.relatedSlugs);
-  const auditCta = article.category === 'Credit Report Errors';
-  const primaryCtaHref = auditCta
-    ? '/sign-up-login-screen?tab=register&utm_source=organic&utm_medium=seo&utm_campaign=credit_audit_content'
-    : '/sign-up-login-screen?tab=register&utm_source=organic&utm_medium=seo&utm_campaign=blog_trial';
-  const primaryCtaLabel = auditCta ? 'Upload Your Credit Report' : 'Start $1 Trial';
+  const primaryCtaHref = '/#reopening-list';
+  const primaryCtaLabel = 'Reserve One Month Free';
 
   const articleStructuredData = {
     '@context': 'https://schema.org',
@@ -131,8 +128,8 @@ export default async function BlogArticlePage({ params }: Props) {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Blog</Link>
-            <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start $1 Trial
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Reserve One Month Free
             </Link>
           </div>
         </div>
@@ -201,9 +198,9 @@ export default async function BlogArticlePage({ params }: Props) {
               </div>
               <div className="mt-4 bg-blue-700 rounded-2xl p-5 text-white">
                 <p className="text-sm font-bold mb-2">Ready to get started?</p>
-                <p className="text-xs text-white mb-3">14-day trial for $1. Payment method required.</p>
-                <Link href="/sign-up-login-screen?tab=register" className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
-                  Start $1 Trial
+                <p className="text-xs text-white mb-3">One full month free when you activate after reopening.</p>
+                <Link href="/#reopening-list" className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
+                  Reserve One Month Free
                 </Link>
               </div>
             </div>

@@ -75,7 +75,7 @@ describe('organic traffic growth system', () => {
 
   it('tracks organic conversion steps beyond traffic', () => {
     expect(read('src/lib/analytics.ts')).toContain('organic_landing_page');
-    expect(read('src/app/sign-up-login-screen/components/AuthForm.tsx')).toContain("trackEvent('sign_up'");
+    expect(read('src/components/ReopeningWaitlistForm.tsx')).toContain("trackEvent('reopening_waitlist_joined'");
     expect(read('src/app/credit-report-import/components/CreditReportImportContent.tsx')).toContain("trackOrganicConversionStep('credit_report_upload_saved'");
     expect(read('src/app/credit-audit/components/CreditAuditContent.tsx')).toContain("trackOrganicConversionStep('credit_audit_completed'");
     expect(read('src/app/dispute-wizard/components/DisputeWizardContent.tsx')).toContain("trackOrganicConversionStep('dispute_wizard_letter_generated'");

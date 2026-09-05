@@ -43,8 +43,7 @@ test.describe('Homepage (/)', () => {
 
   test('has CTA button', async ({ page }) => {
     await page.goto('/');
-    // Look for common CTA patterns
-    const cta = page.locator('a[href*="signup"], a[href*="sign-up"], a[href*="register"], a[href*="trial"], button:has-text("Start"), a:has-text("Get Started"), a:has-text("Start Free")').filter({ visible: true }).first();
+    const cta = page.getByRole('link', { name: /GET MY FREE MONTH/i }).filter({ visible: true }).first();
     await expect(cta).toBeVisible();
   });
 });
@@ -169,9 +168,9 @@ test.describe('Retired Demo Mode (/demo-mode)', () => {
     await expect(page.getByRole('heading', { name: /Every feature, explained/i })).toBeVisible();
   });
 
-  test('preserves the product-tour signup CTA', async ({ page }) => {
+  test('routes the product-tour CTA to the reopening list', async ({ page }) => {
     await page.goto('/demo-mode');
-    await expect(page.getByRole('link', { name: /Start \$1 Trial/i }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Reserve one month free/i }).first()).toBeVisible();
   });
 });
 
@@ -281,11 +280,12 @@ test.describe('Login (/login)', () => {
 // ─── Signup ───────────────────────────────────────────────────────────────────
 
 test.describe('Signup', () => {
-  test('signup route loads', async ({ page }) => {
+  test('signup route shows the reopening list without account creation', async ({ page }) => {
     const response = await page.goto('/signup');
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole('heading', { name: /create.*account|start.*trial/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /We.re Improving FixMy\.Money/i })).toBeVisible();
     await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
   });
 });
 

@@ -33,16 +33,18 @@ function createMockClient({
   verifiedUserId = exchangeUserId,
   exchangeError = null,
   onboardingCompleted = false,
+  verifiedCreatedAt = '2026-09-04T12:00:00.000Z',
 }: {
   exchangeUserId?: string;
   verifiedUserId?: string;
   exchangeError?: Error | null;
   onboardingCompleted?: boolean;
+  verifiedCreatedAt?: string;
 }) {
   const exchangeCodeForSession = vi.fn();
   const verifyOtp = vi.fn();
   const getUser = vi.fn().mockResolvedValue({
-    data: { user: verifiedUserId ? { id: verifiedUserId } : null },
+    data: { user: verifiedUserId ? { id: verifiedUserId, created_at: verifiedCreatedAt } : null },
     error: null,
   });
   const single = vi.fn().mockResolvedValue({
@@ -196,16 +198,15 @@ describe('signup callback session isolation', () => {
     );
   });
 
-  it('routes client-portal signup confirmation through the identity-bound callback', () => {
+  it('removes client-portal account creation while preserving invited-user sign in', () => {
     const source = fs.readFileSync(
       path.resolve(process.cwd(), 'src/app/client-portal/components/ClientPortalLoginContent.tsx'),
       'utf8'
     );
 
-    expect(source).toContain('/auth/callback?type=client_signup&next=');
-    expect(source).not.toContain(
-      'emailRedirectTo: `${window.location.origin}/client-portal/login?invite='
-    );
+    expect(source).not.toContain('.auth.signUp(');
+    expect(source).toContain('.auth.signInWithPassword(');
+    expect(source).toContain('Existing portal users can still sign in');
   });
 
   it('keeps the production confirmation template on the cross-browser token-hash flow', () => {
@@ -224,8 +225,8 @@ describe('signup callback session isolation', () => {
 
     expect(template).toContain('{{ .RedirectTo }}&token_hash={{ .TokenHash }}');
     expect(template).not.toContain('{{ .ConfirmationURL }}');
-    expect(staffSignup).toContain('/auth/callback?type=signup&plan=');
-    expect(clientSignup).toContain('/auth/callback?type=client_signup&next=');
+    expect(staffSignup).not.toContain('.auth.signUp(');
+    expect(clientSignup).not.toContain('.auth.signUp(');
   });
 });
 

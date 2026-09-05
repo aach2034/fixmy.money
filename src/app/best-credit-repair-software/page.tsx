@@ -34,7 +34,7 @@ export default function BestCreditRepairSoftwarePage() {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl">Book Demo</Link>
-            <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">Start Trial</Link>
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">Reserve One Month Free</Link>
           </div>
         </div>
       </nav>
@@ -58,8 +58,8 @@ export default function BestCreditRepairSoftwarePage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all hover:-translate-y-0.5">
-              Start $1 Trial <ArrowRight size={16} />
+            <Link href="/#reopening-list" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all hover:-translate-y-0.5">
+              Reserve One Month Free <ArrowRight size={16} />
             </Link>
             <Link href="/demo" className="inline-flex items-center gap-2 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors">
               Book Demo
@@ -139,10 +139,10 @@ export default function BestCreditRepairSoftwarePage() {
       <section className="py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to upgrade your credit repair software?</h2>
-          <p className="text-slate-400 mb-8">Start your 14-day trial for $1. Full platform access. Cancel anytime.</p>
+          <p className="text-slate-400 mb-8">Join the reopening list and reserve one month free when we reopen.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all">
-              Start $1 Trial <ArrowRight size={16} />
+            <Link href="/#reopening-list" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all">
+              Reserve One Month Free <ArrowRight size={16} />
             </Link>
             <Link href="/pricing" className="inline-flex items-center gap-2 border border-white/20 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors">
               View Pricing
