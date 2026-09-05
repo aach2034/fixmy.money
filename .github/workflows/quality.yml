@@ -93,17 +93,5 @@ jobs:
             sleep 1
           done
           curl --fail http://127.0.0.1:4028/api/health
-          # Temporary diagnostic branch only: rerun the 15 confirmed Chromium failures.
-          pnpm exec playwright test --project=chromium --retries=0 \
-            tests/e2e/authenticated-routes.spec.ts:62 \
-            tests/e2e/authenticated-routes.spec.ts:67 \
-            tests/e2e/authenticated-routes.spec.ts:83 \
-            tests/e2e/authenticated-routes.spec.ts:101 \
-            tests/e2e/authenticated-routes.spec.ts:150 \
-            tests/e2e/authenticated-routes.spec.ts:217 \
-            tests/e2e/homepage-production-smoke.spec.ts:60 \
-            tests/e2e/homepage-production-smoke.spec.ts:66 \
-            tests/e2e/homepage-production-smoke.spec.ts:97 \
-            tests/e2e/public-routes.spec.ts:166 \
-            tests/e2e/public-routes.spec.ts:172 \
-            tests/e2e/public-routes.spec.ts:357
+          # Temporary diagnostic branch only: Stage B complete Chromium suite.
+          pnpm exec playwright test --project=chromium --retries=0
