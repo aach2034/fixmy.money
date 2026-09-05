@@ -93,4 +93,19 @@ jobs:
             sleep 1
           done
           curl --fail http://127.0.0.1:4028/api/health
-          pnpm exec playwright test --project=chromium --project=webkit --project=mobile-webkit-390
+          # Temporary diagnostic branch only: preserve detailed output for the
+          # six authenticated checks and the ten known failing Chromium UI checks.
+          pnpm exec playwright test --project=chromium --retries=0 \
+            tests/e2e/authenticated-routes.spec.ts:52 \
+            tests/e2e/authenticated-routes.spec.ts:64 \
+            tests/e2e/authenticated-routes.spec.ts:83 \
+            tests/e2e/authenticated-routes.spec.ts:116 \
+            tests/e2e/authenticated-routes.spec.ts:166 \
+            tests/e2e/authenticated-routes.spec.ts:234 \
+            tests/e2e/homepage-production-smoke.spec.ts:62 \
+            tests/e2e/homepage-production-smoke.spec.ts:68 \
+            tests/e2e/homepage-production-smoke.spec.ts:111 \
+            tests/e2e/public-routes.spec.ts:166 \
+            tests/e2e/public-routes.spec.ts:172 \
+            tests/e2e/public-routes.spec.ts:178 \
+            tests/e2e/public-routes.spec.ts:364
