@@ -41,6 +41,7 @@ async function signIn(
   password = TEST_PASSWORD,
 ): Promise<void> {
   await page.goto('/login');
+  await expect(page.locator('form button[type="submit"]')).toBeEnabled();
   await page.locator('input[type="email"], input[name="email"]').first().fill(email);
   await page.locator('input[type="password"]').first().fill(password);
   await page.locator('form button[type="submit"]').click();
@@ -66,6 +67,7 @@ test.describe('Email Login', () => {
 
   test('wrong password shows error', async ({ page }) => {
     await page.goto('/login');
+    await expect(page.locator('form button[type="submit"]')).toBeEnabled();
     await page.locator('input[type="email"], input[name="email"]').first().fill(TEST_EMAIL);
     await page.locator('input[type="password"]').first().fill('WrongPassword_XYZ_999!');
     await page.locator('form button[type="submit"]').click();
@@ -85,6 +87,10 @@ test.describe('Logout', () => {
     await page.goto('/billing-subscriptions');
     await expect(page).toHaveURL(/\/billing-subscriptions$/);
 
+    const mobileNavigation = page.getByRole('button', { name: 'Open navigation' });
+    if (await mobileNavigation.isVisible()) {
+      await mobileNavigation.click();
+    }
     await page.getByRole('button', { name: new RegExp(TEST_EMAIL, 'i') }).click();
     await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
     await page.waitForURL(/sign-up-login-screen|login/i, { timeout: 5000 });
