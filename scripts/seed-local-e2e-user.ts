@@ -108,10 +108,16 @@ async function seedLocalE2eUsers() {
     .eq('id', memberId);
   if (memberProfileError) throw memberProfileError;
 
+  const { error: planError } = await admin
+    .from('workspace_entitlements')
+    .update({ plan_id: 'professional' })
+    .eq('workspace_id', workspace.id);
+  if (planError) throw planError;
+
   // Keep both identities unpaid. A locally fabricated trial without a real
   // Stripe customer is intentionally rejected by FMM-009's fail-closed gate.
-  // Authenticated E2E coverage uses the billing route, which is available to
-  // signed-in workspace members without granting paid application access.
+  // The canonical plan value permits allocation-boundary fixtures, while the
+  // billing route remains available without granting paid application access.
   console.log('Seeded two isolated local authenticated E2E identities.');
 }
 
