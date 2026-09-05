@@ -207,6 +207,15 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (['/login', '/checkout', '/billing-subscriptions'].some((path) => pathname.startsWith(path))) {
+    console.log('[webkit-proxy-diagnostic]', {
+      pathname,
+      hasTokenHeader: Boolean(request.headers.get('x-sb-token')),
+      authCookieNames: request.cookies.getAll().map(({ name }) => name).filter((name) => name.includes('auth-token')),
+      hasVerifiedUser: Boolean(user),
+    });
+  }
+
   const carryAuthState = (response: NextResponse): NextResponse => {
     supabaseResponse.cookies.getAll().forEach(cookie => response.cookies.set(cookie));
     Object.entries(authResponseHeaders).forEach(([name, value]) => response.headers.set(name, value));
