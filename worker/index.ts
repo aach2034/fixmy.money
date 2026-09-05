@@ -4,7 +4,7 @@ import {
   DEFAULT_IMAGE_SIZES,
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { immutableAssetCacheControl, leadRateDecision } from './security-controls';
+import { contentSecurityPolicyFor, immutableAssetCacheControl, leadRateDecision } from './security-controls';
 
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
@@ -39,24 +39,12 @@ const LEAD_OFFER = "evidence-first-agency-starter-kit";
 const LEAD_CONSENT =
   "Send me the Evidence-First Agency Starter Kit and occasional FixMy.Money product and workflow emails. I can unsubscribe at any time.";
 
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self' https://checkout.stripe.com",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://js.stripe.com",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com",
-  "frame-src 'self' https://www.googletagmanager.com https://js.stripe.com https://hooks.stripe.com",
-  "upgrade-insecure-requests",
-].join("; ");
-
 function withSecurityHeaders(response: Response, request?: Request): Response {
   const secured = new Response(response.body, response);
-  secured.headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  secured.headers.set(
+    "Content-Security-Policy",
+    contentSecurityPolicyFor(request?.url || 'https://fixmy.money'),
+  );
   secured.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   secured.headers.set("X-Content-Type-Options", "nosniff");
   secured.headers.set("X-Frame-Options", "DENY");
