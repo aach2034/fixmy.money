@@ -24,6 +24,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { appendFileSync } from 'node:fs';
 
 const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL;
 const TEST_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY;
@@ -208,6 +209,22 @@ async function seed() {
   console.log(`TEST_WORKSPACE_A_ID=${workspaceAId}`);
   console.log(`TEST_WORKSPACE_B_ID=${workspaceBId}`);
   console.log('\n─────────────────────────────────────────────────────────────');
+
+  if (process.env.GITHUB_ENV) {
+    appendFileSync(process.env.GITHUB_ENV, [
+      `TEST_OWNER_A_EMAIL=${FIXTURES.ownerA.email}`,
+      `TEST_OWNER_A_PASSWORD=${TEST_PASSWORD}`,
+      `TEST_OWNER_B_EMAIL=${FIXTURES.ownerB.email}`,
+      `TEST_OWNER_B_PASSWORD=${TEST_PASSWORD}`,
+      `TEST_STAFF_A_EMAIL=${FIXTURES.staffA.email}`,
+      `TEST_STAFF_A_PASSWORD=${TEST_PASSWORD}`,
+      `TEST_WORKSPACE_A_ID=${workspaceAId}`,
+      `TEST_WORKSPACE_B_ID=${workspaceBId}`,
+      '',
+    ].join('\n'));
+    console.log('Published isolated fixture variables to the GitHub Actions environment.');
+  }
+
   console.log('\nSeeding complete. Run tests with:');
   console.log('  npx vitest run src/__tests__/cross-tenant-security.test.ts\n');
 }

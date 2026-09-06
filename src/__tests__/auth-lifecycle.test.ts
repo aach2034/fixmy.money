@@ -252,7 +252,7 @@ describe('Authentication Lifecycle Tests', () => {
   // ── OAuth Configuration Verification ──────────────────────────────────────
 
   describe('OAuth configuration (manual verification required)', () => {
-    it('Documents required OAuth configuration for Google', () => {
+    it('keeps the integration runtime isolated from production', () => {
       /**
        * MANUAL VERIFICATION REQUIRED:
        *
@@ -275,10 +275,13 @@ describe('Authentication Lifecycle Tests', () => {
        *   - Error reports
        *   - Browser history (use POST-based flows)
        */
-      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBeDefined();
-      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).not.toContain('qpgkbbtamfnodbbcqykd');
-      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toContain('agxzfdyvewptjwdfuvwq');
-      expect(process.env.NEXT_PUBLIC_SITE_URL).toBe('https://fixmy.money');
+      const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '');
+      const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL || '');
+      expect(['127.0.0.1', 'localhost']).toContain(supabaseUrl.hostname);
+      expect(supabaseUrl.protocol).toBe('http:');
+      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBe(TEST_SUPABASE_URL);
+      expect(['127.0.0.1', 'localhost']).toContain(siteUrl.hostname);
+      expect(siteUrl.protocol).toBe('http:');
     });
 
     it('Auth callback route exists at /auth/callback', async () => {

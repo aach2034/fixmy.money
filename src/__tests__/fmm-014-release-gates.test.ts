@@ -20,7 +20,7 @@ describe('FMM-014 enforced release gates', () => {
   });
 
   it('requires clean migration replay and database tests', () => {
-    expect(workflow.match(/supabase db reset --local --no-seed/g)).toHaveLength(3);
+    expect(workflow.match(/supabase db reset --local --no-seed/g)).toHaveLength(4);
     expect(workflow).toContain('supabase test db');
     expect(workflow).toContain('supabase db lint --local --level error --fail-on error');
     expect(fs.existsSync('supabase/config.toml')).toBe(true);
@@ -101,6 +101,10 @@ describe('FMM-014 enforced release gates', () => {
     expect(integrationConfig).toContain("'src/__tests__/auth-lifecycle.test.ts'");
     expect(integrationConfig).toContain("'src/__tests__/cross-tenant-security.test.ts'");
     expect(integrationConfig).toContain("'src/__tests__/stripe-live.test.ts'");
+    expect(workflow).toContain('pnpm test:integration');
+    expect(workflow).toContain('secrets.STRIPE_TEST_SECRET_KEY');
+    expect(workflow).toContain('if [[ "$STRIPE_SECRET_KEY" != sk_test_* ]]');
+    expect(workflow).toContain('NEXT_PUBLIC_SITE_URL=http://127.0.0.1:4028');
   });
 
   it('fails closed in CI when isolated authenticated E2E configuration is absent', () => {
@@ -141,7 +145,7 @@ describe('FMM-014 enforced release gates', () => {
   });
 
   it('exposes a single fail-closed release gate', () => {
-    expect(workflow).toContain('needs: [quality, migration-replay, browser]');
+    expect(workflow).toContain('needs: [quality, migration-replay, integration, browser]');
     expect(workflow).toContain('if: always()');
     expect(workflow).toContain('node scripts/verify-release-gate.mjs');
 
@@ -149,6 +153,7 @@ describe('FMM-014 enforced release gates', () => {
       'scripts/verify-release-gate.mjs',
       'quality=success',
       'migration-replay=success',
+      'integration=success',
       'browser=success',
     ]);
     expect(passing.status).toBe(0);
@@ -156,11 +161,12 @@ describe('FMM-014 enforced release gates', () => {
     const failing = spawnSync(process.execPath, [
       'scripts/verify-release-gate.mjs',
       'quality=success',
-      'migration-replay=failure',
+      'migration-replay=success',
+      'integration=failure',
       'browser=success',
     ]);
     expect(failing.status).not.toBe(0);
-    expect(failing.stderr.toString()).toContain('migration-replay did not succeed');
+    expect(failing.stderr.toString()).toContain('integration did not succeed');
   });
 
   it('allows only the isolated local Supabase runtime without weakening production CSP', () => {

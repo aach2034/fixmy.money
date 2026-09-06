@@ -49,6 +49,48 @@ jobs:
       - run: supabase test db
       - run: supabase db lint --local --level error --fail-on error
 
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FMM_RELEASE_GATE: "1"
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: whsec_ci_local_${{ github.run_id }}_${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local --no-seed
+      - name: Configure isolated integration environment
+        run: |
+          if [[ "$STRIPE_SECRET_KEY" != sk_test_* ]]; then
+            echo "STRIPE_TEST_SECRET_KEY must be configured as a Stripe sk_test_ GitHub Actions secret." >&2
+            exit 1
+          fi
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          source "$RUNNER_TEMP/supabase.env"
+          {
+            echo "NEXT_PUBLIC_SITE_URL=http://127.0.0.1:4028"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_SUPABASE_URL=$API_URL"
+            echo "TEST_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "TEST_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+      - run: pnpm seed-test
+      - run: pnpm test:integration
+
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -103,7 +145,7 @@ jobs:
 
   release-gate:
     if: always()
-    needs: [quality, migration-replay, browser]
+    needs: [quality, migration-replay, integration, browser]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,4 +154,5 @@ jobs:
           node scripts/verify-release-gate.mjs
           quality=${{ needs.quality.result }}
           migration-replay=${{ needs.migration-replay.result }}
+          integration=${{ needs.integration.result }}
           browser=${{ needs.browser.result }}
