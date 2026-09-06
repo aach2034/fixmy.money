@@ -94,6 +94,18 @@ jobs:
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            engine: chromium
+          - project: firefox
+            engine: firefox
+          - project: webkit
+            engine: webkit
+          - project: mobile-webkit-390
+            engine: webkit
     env:
       FMM_RELEASE_GATE: "1"
     steps:
@@ -131,7 +143,7 @@ jobs:
             echo "NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA"
           } >> "$GITHUB_ENV"
       - run: pnpm seed:e2e-local
-      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm exec playwright install --with-deps ${{ matrix.engine }}
       - run: pnpm build
       - name: Run browser gates
         run: |
@@ -141,7 +153,7 @@ jobs:
             sleep 1
           done
           curl --fail http://127.0.0.1:4028/api/health
-          pnpm exec playwright test --project=chromium --project=firefox --project=webkit --project=mobile-webkit-390
+          pnpm exec playwright test --project=${{ matrix.project }}
 
   release-gate:
     if: always()

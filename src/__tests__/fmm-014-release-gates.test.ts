@@ -61,8 +61,12 @@ describe('FMM-014 enforced release gates', () => {
   });
 
   it('requires Chromium, Firefox, and WebKit coverage', () => {
-    expect(workflow).toContain('playwright install --with-deps chromium firefox webkit');
-    expect(workflow).toContain('--project=chromium --project=firefox --project=webkit --project=mobile-webkit-390');
+    expect(workflow).toContain('project: chromium');
+    expect(workflow).toContain('project: firefox');
+    expect(workflow).toContain('project: webkit');
+    expect(workflow).toContain('project: mobile-webkit-390');
+    expect(workflow).toContain('playwright install --with-deps ${{ matrix.engine }}');
+    expect(workflow).toContain('playwright test --project=${{ matrix.project }}');
     expect(workflow).toContain('supabase start');
     expect(workflow).toContain('pnpm seed:e2e-local');
     expect(workflow).toContain('FMM_RELEASE_GATE: "1"');
