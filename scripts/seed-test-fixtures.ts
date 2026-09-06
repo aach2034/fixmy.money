@@ -18,7 +18,7 @@
  * Copy these into your .env.test file before running the security tests.
  *
  * ─── SAFETY ──────────────────────────────────────────────────────────────────
- * This script refuses to run if TEST_SUPABASE_URL matches NEXT_PUBLIC_SUPABASE_URL.
+ * This script runs only against a localhost Supabase stack.
  * It only creates users with @test.invalid email addresses.
  * All seeded data is tagged with the prefix 'test_fixture_' for easy cleanup.
  */
@@ -27,7 +27,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL;
 const TEST_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY;
-const PRODUCTION_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 // ─── Safety checks ────────────────────────────────────────────────────────────
 
@@ -37,9 +36,10 @@ if (!TEST_SUPABASE_URL || !TEST_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-if (TEST_SUPABASE_URL === PRODUCTION_URL) {
-  console.error('ERROR: TEST_SUPABASE_URL matches NEXT_PUBLIC_SUPABASE_URL (production).');
-  console.error('Refusing to seed test fixtures into the production database.');
+const testUrl = new URL(TEST_SUPABASE_URL);
+if (testUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(testUrl.hostname)) {
+  console.error('ERROR: TEST_SUPABASE_URL must use the isolated local Supabase stack.');
+  console.error('Refusing to seed test fixtures into any remote database.');
   process.exit(1);
 }
 

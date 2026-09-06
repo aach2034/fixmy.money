@@ -1,5 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import {
+  isRequiredReleaseGate,
+  validateAuthenticatedE2EEnvironment,
+} from './test-environment';
 
 /**
  * Authenticated Browser Tests — FixMy.Money
@@ -26,11 +30,13 @@ const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL || '';
 const TEST_SUPABASE_ANON_KEY = process.env.TEST_SUPABASE_ANON_KEY || '';
 const TEST_SUPABASE_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Skip all authenticated tests if credentials are not configured
-const skipIfNoCredentials = () => {
-  if (!TEST_EMAIL || !TEST_PASSWORD) {
-    test.skip(true, 'TEST_USER_EMAIL and TEST_USER_PASSWORD must be configured to run authenticated tests');
-  }
+const requireAuthenticatedEnvironment = (includeMember = false) => {
+  const missing = validateAuthenticatedE2EEnvironment(process.env, includeMember);
+  if (missing.length === 0) return;
+
+  const reason = `Missing isolated authenticated E2E configuration: ${missing.join(', ')}`;
+  if (isRequiredReleaseGate(process.env)) throw new Error(reason);
+  test.skip(true, `${reason}. This test is unavailable during local development.`);
 };
 
 // ─── Helper: sign in ──────────────────────────────────────────────────────────
@@ -58,7 +64,7 @@ async function signIn(
 // ─── Email Login ──────────────────────────────────────────────────────────────
 
 test.describe('Email Login', () => {
-  test.beforeEach(skipIfNoCredentials);
+  test.beforeEach(() => requireAuthenticatedEnvironment());
 
   test('user can sign in with email and password', async ({ page }) => {
     await signIn(page);
@@ -80,7 +86,7 @@ test.describe('Email Login', () => {
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
 test.describe('Logout', () => {
-  test.beforeEach(skipIfNoCredentials);
+  test.beforeEach(() => requireAuthenticatedEnvironment());
 
   test('user can sign out', async ({ page }) => {
     await signIn(page);
@@ -102,7 +108,7 @@ test.describe('Logout', () => {
 // ─── Session Persistence ──────────────────────────────────────────────────────
 
 test.describe('Session Persistence', () => {
-  test.beforeEach(skipIfNoCredentials);
+  test.beforeEach(() => requireAuthenticatedEnvironment());
 
   test('session persists across page navigation', async ({ page }) => {
     await signIn(page);
@@ -151,7 +157,7 @@ test.describe('Password Reset Request', () => {
 // ─── Authenticated Workspace Routing ──────────────────────────────────────────
 
 test.describe('Authenticated workspace routing', () => {
-  test.beforeEach(skipIfNoCredentials);
+  test.beforeEach(() => requireAuthenticatedEnvironment());
 
   test('seeded workspace owner is routed by the server-authoritative entitlement gate', async ({ page }) => {
     await signIn(page);
@@ -221,21 +227,7 @@ test.describe('Team Invitation', () => {
 
 test.describe('Removed workspace member', () => {
   test('removed member loses workspace access', async ({ page }) => {
-    test.skip(
-      !TEST_EMAIL
-        || !TEST_PASSWORD
-        || !TEST_MEMBER_EMAIL
-        || !TEST_MEMBER_PASSWORD
-        || !TEST_SUPABASE_URL
-        || !TEST_SUPABASE_ANON_KEY
-        || !TEST_SUPABASE_SERVICE_ROLE_KEY,
-      'Requires two seeded users in the isolated local Supabase stack',
-    );
-
-    const localUrl = new URL(TEST_SUPABASE_URL);
-    expect(['127.0.0.1', 'localhost']).toContain(localUrl.hostname);
-    expect(TEST_EMAIL).toMatch(/@test\.invalid$/);
-    expect(TEST_MEMBER_EMAIL).toMatch(/@test\.invalid$/);
+    requireAuthenticatedEnvironment(true);
 
     const admin = createClient(TEST_SUPABASE_URL, TEST_SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },

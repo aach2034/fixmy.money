@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { contentSecurityPolicyFor } from '../../worker/security-controls';
+import {
+  isRequiredReleaseGate,
+  validateAuthenticatedE2EEnvironment,
+} from '../../tests/e2e/test-environment';
 
 describe('FMM-014 enforced release gates', () => {
   const workflow = fs.readFileSync('.github/workflows/quality.yml', 'utf8');
@@ -19,6 +24,11 @@ describe('FMM-014 enforced release gates', () => {
     expect(workflow).toContain('supabase test db');
     expect(workflow).toContain('supabase db lint --local --level error --fail-on error');
     expect(fs.existsSync('supabase/config.toml')).toBe(true);
+    expect(workflow).toContain('pnpm test:d1-replay');
+    const d1Replay = fs.readFileSync('scripts/validate-d1-migrations.mjs', 'utf8');
+    expect(d1Replay).toContain("readdirSync('drizzle')");
+    expect(d1Replay).toContain("['clean', 'repeat']");
+    expect(d1Replay).toContain("'--local'");
   });
 
   it('keeps clean auth schema and current-state pgTAP discovery self-consistent', () => {
@@ -50,13 +60,15 @@ describe('FMM-014 enforced release gates', () => {
     ).toBe(true);
   });
 
-  it('requires Chromium and WebKit coverage', () => {
-    expect(workflow).toContain('playwright install --with-deps chromium webkit');
-    expect(workflow).toContain('--project=chromium --project=webkit --project=mobile-webkit-390');
+  it('requires Chromium, Firefox, and WebKit coverage', () => {
+    expect(workflow).toContain('playwright install --with-deps chromium firefox webkit');
+    expect(workflow).toContain('--project=chromium --project=firefox --project=webkit --project=mobile-webkit-390');
     expect(workflow).toContain('supabase start');
     expect(workflow).toContain('pnpm seed:e2e-local');
+    expect(workflow).toContain('FMM_RELEASE_GATE: "1"');
     expect(workflow).toContain('TEST_USER_EMAIL=fmm-e2e-owner@test.invalid');
     expect(workflow).toContain('TEST_MEMBER_EMAIL=fmm-e2e-member@test.invalid');
+    expect(workflow).toContain('NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA');
   });
 
   it('seeds authenticated browser identity only into localhost', () => {
@@ -67,6 +79,88 @@ describe('FMM-014 enforced release gates', () => {
     expect(seed).toContain('Refusing to seed E2E identity outside an isolated local Supabase stack.');
     expect(seed).toContain('With no Stripe customer');
     expect(seed).not.toContain('stripe_customer_id');
+    expect(seed).not.toContain('process.env.NEXT_PUBLIC_SUPABASE_URL');
+    expect(seed).not.toContain('process.env.SUPABASE_SERVICE_ROLE_KEY');
+  });
+
+  it('restricts every mutable Supabase integration fixture to localhost', () => {
+    for (const file of [
+      'src/__tests__/auth-lifecycle.test.ts',
+      'src/__tests__/cross-tenant-security.test.ts',
+      'scripts/seed-test-fixtures.ts',
+    ]) {
+      const source = fs.readFileSync(file, 'utf8');
+      expect(source).toContain("['127.0.0.1', 'localhost']");
+      expect(source).toContain("testUrl.protocol !== 'http:'");
+    }
+  });
+
+  it('keeps the dedicated integration suite executable instead of inheriting unit exclusions', () => {
+    const integrationConfig = fs.readFileSync('vitest.integration.config.ts', 'utf8');
+    expect(integrationConfig).not.toContain('mergeConfig');
+    expect(integrationConfig).toContain("'src/__tests__/auth-lifecycle.test.ts'");
+    expect(integrationConfig).toContain("'src/__tests__/cross-tenant-security.test.ts'");
+    expect(integrationConfig).toContain("'src/__tests__/stripe-live.test.ts'");
+  });
+
+  it('fails closed in CI when isolated authenticated E2E configuration is absent', () => {
+    expect(isRequiredReleaseGate({ CI: 'true' })).toBe(true);
+    expect(isRequiredReleaseGate({ FMM_RELEASE_GATE: '1' })).toBe(true);
+    expect(validateAuthenticatedE2EEnvironment({}, false)).toEqual([
+      'TEST_USER_EMAIL',
+      'TEST_USER_PASSWORD',
+      'TEST_SUPABASE_URL',
+      'TEST_SUPABASE_ANON_KEY',
+    ]);
+  });
+
+  it('refuses authenticated E2E against non-local services or real email domains', () => {
+    const safe = {
+      PLAYWRIGHT_BASE_URL: 'http://127.0.0.1:4028',
+      TEST_SUPABASE_URL: 'http://127.0.0.1:54321',
+      TEST_SUPABASE_ANON_KEY: 'local-anon-key',
+      TEST_USER_EMAIL: 'owner@test.invalid',
+      TEST_USER_PASSWORD: 'local-only-password',
+    };
+    expect(validateAuthenticatedE2EEnvironment(safe)).toEqual([]);
+    expect(() => validateAuthenticatedE2EEnvironment({
+      ...safe,
+      TEST_SUPABASE_URL: 'https://example.supabase.co',
+    })).toThrow(/restricted to local/);
+    expect(() => validateAuthenticatedE2EEnvironment({
+      ...safe,
+      TEST_USER_EMAIL: 'customer@example.com',
+    })).toThrow(/@test\.invalid/);
+  });
+
+  it('refuses every release-gate browser test against a non-local application', () => {
+    const playwrightConfig = fs.readFileSync('playwright.config.ts', 'utf8');
+    expect(playwrightConfig).toContain("process.env.CI === 'true'");
+    expect(playwrightConfig).toContain("process.env.FMM_RELEASE_GATE === '1'");
+    expect(playwrightConfig).toContain('Release-gate browser tests are restricted to the local application server.');
+  });
+
+  it('exposes a single fail-closed release gate', () => {
+    expect(workflow).toContain('needs: [quality, migration-replay, browser]');
+    expect(workflow).toContain('if: always()');
+    expect(workflow).toContain('node scripts/verify-release-gate.mjs');
+
+    const passing = spawnSync(process.execPath, [
+      'scripts/verify-release-gate.mjs',
+      'quality=success',
+      'migration-replay=success',
+      'browser=success',
+    ]);
+    expect(passing.status).toBe(0);
+
+    const failing = spawnSync(process.execPath, [
+      'scripts/verify-release-gate.mjs',
+      'quality=success',
+      'migration-replay=failure',
+      'browser=success',
+    ]);
+    expect(failing.status).not.toBe(0);
+    expect(failing.stderr.toString()).toContain('migration-replay did not succeed');
   });
 
   it('allows only the isolated local Supabase runtime without weakening production CSP', () => {

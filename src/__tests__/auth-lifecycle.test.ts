@@ -40,10 +40,11 @@ function assertAuthTestConfig() {
     );
   }
 
-  if (TEST_SUPABASE_URL === process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  const testUrl = new URL(TEST_SUPABASE_URL);
+  if (testUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(testUrl.hostname)) {
     throw new Error(
-      '[Auth Tests] TEST_SUPABASE_URL must not match production NEXT_PUBLIC_SUPABASE_URL. ' +
-      'Never run auth tests against production.'
+      '[Auth Tests] TEST_SUPABASE_URL must use the isolated local Supabase stack. ' +
+      'Remote projects, including production, are forbidden.'
     );
   }
 }

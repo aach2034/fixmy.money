@@ -2,9 +2,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.TEST_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY
-  || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.TEST_SUPABASE_URL;
+const serviceRoleKey = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY;
 const email = process.env.TEST_USER_EMAIL || 'fmm-e2e-owner@test.invalid';
 const password = process.env.TEST_USER_PASSWORD || 'FmmE2E_2026_LocalOnly!';
 const memberEmail = process.env.TEST_MEMBER_EMAIL || 'fmm-e2e-member@test.invalid';

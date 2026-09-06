@@ -81,15 +81,18 @@ function assertTestConfig() {
     );
   }
 
-  // Prevent accidental use of production credentials
-  if (
-    TEST_SUPABASE_URL === process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    TEST_SUPABASE_ANON_KEY === process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
+  const testUrl = new URL(TEST_SUPABASE_URL);
+  if (testUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(testUrl.hostname)) {
     throw new Error(
-      '[Security Tests] TEST_SUPABASE_URL and TEST_SUPABASE_ANON_KEY must be different from ' +
-      'production NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. '+ 'Never run security tests against production data.'
+      '[Security Tests] TEST_SUPABASE_URL must use the isolated local Supabase stack. ' +
+      'Remote projects, including production, are forbidden.'
     );
+  }
+
+  for (const email of [FIXTURES.ownerA.email, FIXTURES.ownerB.email, FIXTURES.staffA.email]) {
+    if (!email.endsWith('@test.invalid')) {
+      throw new Error('[Security Tests] All fixture identities must use @test.invalid.');
+    }
   }
 }
 

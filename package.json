@@ -67,7 +67,7 @@
     "seed-admin": "tsx scripts/seed-platform-admin.ts",
     "seed-test": "tsx scripts/seed-test-fixtures.ts",
     "seed:e2e-local": "tsx scripts/seed-local-e2e-user.ts",
-    "test:d1-replay": "wrangler d1 execute DB --config worker/wrangler.local.jsonc --local --file drizzle/0000_marketing_leads.sql --yes",
+    "test:d1-replay": "node scripts/validate-d1-migrations.mjs",
     "test:supabase-replay": "supabase db reset --local --no-seed && supabase test db",
     "teardown-test": "tsx scripts/seed-test-fixtures.ts --teardown",
     "reconcile:fmm004": "tsx scripts/reconcile-fmm-004-entitlements.ts",
