@@ -175,7 +175,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
       <button type="submit" disabled={state === 'submitting' || challenge.phase !== 'idle'} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fa447] px-6 py-3.5 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(63,164,71,.2)] transition hover:bg-[#338a3b] disabled:cursor-wait disabled:opacity-70">
         {state === 'submitting' ? <><Loader2 className="size-4 animate-spin" /> JOINING…</> : <>GET MY FREE MONTH <ArrowRight className="size-4" /></>}
       </button>
-      <p className="text-xs leading-5 text-[#687871]">No payment, trial, subscription, or account is created. By joining, you agree to receive reopening updates. See our <Link href="/privacy" className="underline">Privacy Policy</Link>.</p>
+      <p className="text-xs leading-5 text-[#66766e]">No payment, trial, subscription, or account is created. By joining, you agree to receive reopening updates. See our <Link href="/privacy" className="underline">Privacy Policy</Link>.</p>
     </form>
   );
 }
