@@ -51,7 +51,7 @@ async function signIn(
   await page.locator('input[type="email"], input[name="email"]').first().fill(email);
   await page.locator('input[type="password"]').first().fill(password);
   await page.locator('form button[type="submit"]').click();
-  await page.waitForURL(/\/checkout\?plan=starter$/, { timeout: 10000 });
+  await page.waitForURL(/\/billing-subscriptions$/, { timeout: 10000 });
 
   const entitlement = await page.evaluate(async () => {
     const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
@@ -68,7 +68,7 @@ test.describe('Email Login', () => {
 
   test('user can sign in with email and password', async ({ page }) => {
     await signIn(page);
-    await expect(page).toHaveURL(/\/checkout\?plan=starter$/);
+    await expect(page).toHaveURL(/\/billing-subscriptions$/);
   });
 
   test('wrong password shows error', async ({ page }) => {
