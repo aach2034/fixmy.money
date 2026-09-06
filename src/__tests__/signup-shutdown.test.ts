@@ -141,4 +141,15 @@ describe('temporary new-signup shutdown', () => {
     expect(form).toContain("router.push(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding')");
     expect(proxy).toContain('getWorkspaceEntitlementDecision');
   });
+
+  it('renders Turnstile only after the waitlist API requests a challenge and retries once with the token', () => {
+    const form = fs.readFileSync('src/components/ReopeningWaitlistForm.tsx', 'utf8');
+    expect(form).toContain("result.code === 'CHALLENGE_REQUIRED'");
+    expect(form).toContain("challenge.phase === 'required'");
+    expect(form).toContain('<TurnstileChallenge');
+    expect(form).toContain('NEXT_PUBLIC_TURNSTILE_SITE_KEY');
+    expect(form).toContain('challengeRetryInFlight.current');
+    expect(form).toContain('await submitWaitlist(token)');
+    expect(form).not.toContain('TURNSTILE_SECRET_KEY');
+  });
 });

@@ -41,4 +41,62 @@ test.describe('temporary signup shutdown', () => {
       reopeningDate: '2026-10-25',
     });
   });
+
+  test('shows Turnstile only when challenged and resubmits once with its token', async ({ page }) => {
+    const submissions: Array<Record<string, unknown>> = [];
+
+    await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js*', async route => {
+      await route.fulfill({
+        contentType: 'application/javascript',
+        body: `window.turnstile = {
+          render: (element, options) => {
+            window.__turnstileTestCallback = options.callback;
+            element.textContent = 'Test security verification';
+            return 'test-widget';
+          },
+          remove: () => {}
+        };`,
+      });
+    });
+
+    await page.route('**/api/reopening-waitlist', async route => {
+      submissions.push(route.request().postDataJSON() as Record<string, unknown>);
+      if (submissions.length === 1) {
+        await route.fulfill({
+          status: 429,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'Additional verification required.',
+            code: 'CHALLENGE_REQUIRED',
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, reopeningDate: '2026-10-25', offer: 'one_month_free' }),
+      });
+    });
+
+    await page.goto('/signup');
+    await page.getByRole('textbox', { name: 'Email address' }).fill('shared-network@example.invalid');
+    await page.getByRole('button', { name: 'GET MY FREE MONTH' }).click();
+
+    await expect(page.getByText('Complete the security verification to continue.')).toBeVisible();
+    await expect(page.getByLabel('Security verification')).toContainText('Test security verification');
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0]).not.toHaveProperty('challengeToken');
+
+    await page.evaluate(() => {
+      const callback = (window as typeof window & {
+        __turnstileTestCallback?: (token: string) => void;
+      }).__turnstileTestCallback;
+      callback?.('single-use-test-token');
+    });
+
+    await expect(page.getByRole('status')).toContainText('You’re on the reopening list.');
+    expect(submissions).toHaveLength(2);
+    expect(submissions[1]).toMatchObject({ challengeToken: 'single-use-test-token' });
+  });
 });
