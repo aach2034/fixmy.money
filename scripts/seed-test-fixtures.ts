@@ -25,6 +25,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { appendFileSync } from 'node:fs';
+import { findAutomaticallyCreatedOwnerWorkspace } from './test-fixture-workspaces';
 
 const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL;
 const TEST_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY;
@@ -91,62 +92,23 @@ async function seed() {
     }
   }
 
-  // Create workspaces
-  const workspaceAName = 'test_fixture_workspace_a';
-  const workspaceBName = 'test_fixture_workspace_b';
+  // Auth signup creates one workspace per owner. Reuse that exact workspace;
+  // the fixture must never create a second owner workspace or select by name.
+  const workspaceA = await findAutomaticallyCreatedOwnerWorkspace(
+    adminClient,
+    userIds.ownerA,
+    'Workspace A',
+  );
+  const workspaceB = await findAutomaticallyCreatedOwnerWorkspace(
+    adminClient,
+    userIds.ownerB,
+    'Workspace B',
+  );
+  const workspaceAId = workspaceA.id;
+  const workspaceBId = workspaceB.id;
 
-  let workspaceAId: string | null = null;
-  let workspaceBId: string | null = null;
-
-  // Workspace A
-  const { data: existingA } = await adminClient
-    .from('workspaces')
-    .select('id')
-    .eq('name', workspaceAName)
-    .maybeSingle();
-
-  if (existingA) {
-    workspaceAId = existingA.id;
-    console.log(`  ✓ Workspace A exists: ${workspaceAId}`);
-  } else {
-    const { data: wsA, error: wsAErr } = await adminClient
-      .from('workspaces')
-      .insert({ name: workspaceAName, owner_id: userIds.ownerA })
-      .select('id')
-      .single();
-
-    if (wsAErr || !wsA) {
-      console.error('  ✗ Failed to create Workspace A:', wsAErr?.message);
-      process.exit(1);
-    }
-    workspaceAId = wsA.id;
-    console.log(`  ✓ Created Workspace A: ${workspaceAId}`);
-  }
-
-  // Workspace B
-  const { data: existingB } = await adminClient
-    .from('workspaces')
-    .select('id')
-    .eq('name', workspaceBName)
-    .maybeSingle();
-
-  if (existingB) {
-    workspaceBId = existingB.id;
-    console.log(`  ✓ Workspace B exists: ${workspaceBId}`);
-  } else {
-    const { data: wsB, error: wsBErr } = await adminClient
-      .from('workspaces')
-      .insert({ name: workspaceBName, owner_id: userIds.ownerB })
-      .select('id')
-      .single();
-
-    if (wsBErr || !wsB) {
-      console.error('  ✗ Failed to create Workspace B:', wsBErr?.message);
-      process.exit(1);
-    }
-    workspaceBId = wsB.id;
-    console.log(`  ✓ Created Workspace B: ${workspaceBId}`);
-  }
+  console.log(`  ✓ Reusing automatically created Workspace A: ${workspaceAId}`);
+  console.log(`  ✓ Reusing automatically created Workspace B: ${workspaceBId}`);
 
   // Seed clients for each workspace
   const clientsA = [
