@@ -21,6 +21,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { LOCAL_PASSWORD_RESET_REDIRECT_URL } from '../../scripts/integration-test-contracts';
 
 const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL || '';
 const TEST_SUPABASE_ANON_KEY = process.env.TEST_SUPABASE_ANON_KEY || '';
@@ -188,7 +189,7 @@ describe('Authentication Lifecycle Tests', () => {
     it('Password reset request succeeds for existing email', async () => {
       const client = createAnonClient();
       const { error } = await client.auth.resetPasswordForEmail(TEST_EMAIL, {
-        redirectTo: 'https://fixmy.money/auth/callback',
+        redirectTo: LOCAL_PASSWORD_RESET_REDIRECT_URL,
       });
 
       // Supabase returns success even for non-existent emails (security best practice)
@@ -196,19 +197,37 @@ describe('Authentication Lifecycle Tests', () => {
     });
 
     it('Password reset request does not expose whether email exists', async () => {
-      const client = createAnonClient();
-      const { error: existingError } = await client.auth.resetPasswordForEmail(
-        TEST_EMAIL,
-        { redirectTo: 'https://fixmy.money/auth/callback' }
-      );
-      const { error: nonExistingError } = await client.auth.resetPasswordForEmail(
-        'definitely-not-real@test.invalid',
-        { redirectTo: 'https://fixmy.money/auth/callback' }
-      );
+      const existingEmail = `auth-reset-existing-${Date.now()}@test.invalid`;
+      const missingEmail = `auth-reset-missing-${Date.now()}@test.invalid`;
+      const adminClient = createAdminTestClient();
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+        email: existingEmail,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      expect(createError).toBeNull();
+      expect(created.user?.id).toBeTruthy();
 
-      // Both should return the same response (no user enumeration)
-      expect(existingError).toBeNull();
-      expect(nonExistingError).toBeNull();
+      const client = createAnonClient();
+      try {
+        const { error: existingError } = await client.auth.resetPasswordForEmail(
+          existingEmail,
+          { redirectTo: LOCAL_PASSWORD_RESET_REDIRECT_URL },
+        );
+        const { error: nonExistingError } = await client.auth.resetPasswordForEmail(
+          missingEmail,
+          { redirectTo: LOCAL_PASSWORD_RESET_REDIRECT_URL },
+        );
+
+        // Each identity is requested only once, avoiding the documented
+        // per-user recovery cooldown while preserving enumeration coverage.
+        expect(existingError).toBeNull();
+        expect(nonExistingError).toBeNull();
+      } finally {
+        if (created.user?.id) {
+          await adminClient.auth.admin.deleteUser(created.user.id);
+        }
+      }
     });
   });
 
