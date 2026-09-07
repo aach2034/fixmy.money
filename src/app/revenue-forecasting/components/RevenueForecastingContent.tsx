@@ -26,7 +26,7 @@ export default function RevenueForecastingContent() {
       const { data, error: queryError } = await supabase
         .from('staff_clients')
         .select('plan, subscription_status')
-        .eq('owner_id', auth.user.id);
+        ;
       if (!active) return;
       if (queryError) setError('Revenue data could not be loaded.');
       else setClients((data ?? []) as ClientRow[]);
@@ -48,10 +48,11 @@ export default function RevenueForecastingContent() {
   ];
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Revenue</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Account data only — no sample revenue or invented projections</p>
+    <div className="app-page page-stack">
+      <div className="page-header"><div>
+        <h1 className="page-title">Revenue</h1>
+        <p className="page-description">Account data only — no sample revenue or invented projections</p>
+      </div>
       </div>
       {error && <div className="card p-4 text-sm text-danger">{error}</div>}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -67,7 +68,7 @@ export default function RevenueForecastingContent() {
         ))}
       </div>
       {!loading && clients.length === 0 && (
-        <div className="card p-10 text-center">
+        <div className="state-panel min-h-64">
           <DollarSign size={28} className="mx-auto text-muted-foreground mb-3" />
           <h2 className="text-base font-semibold text-foreground">No revenue data yet</h2>
           <p className="text-sm text-muted-foreground mt-1">Revenue will appear after real clients and subscription plans are added.</p>

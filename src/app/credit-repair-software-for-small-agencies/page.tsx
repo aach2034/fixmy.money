@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Zap, Check, ArrowRight, AlertTriangle } from 'lucide-react';
+import { PLANS } from '@/lib/stripe/plans';
 
 export const metadata: Metadata = {
   title: 'Credit Repair Software for Small Agencies | FixMy.Money',
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 const faqs = [
-{ q: 'What plan is best for small agencies?', a: 'Starter ($49/mo) for solo operators, Professional ($129/mo) for growing agencies with 1-5 team members.' },
+{ q: 'What plan is best for small agencies?', a: `Starter ($${PLANS.starter.monthlyPrice}/mo) for individual workflows and Pro ($${PLANS.professional.monthlyPrice}/mo) for growing agencies.` },
 { q: 'Can I upgrade later?', a: 'Yes. Upgrade anytime. You\'ll only pay the difference for the remainder of your billing cycle.' },
 { q: 'What if I outgrow my plan?', a: 'Upgrade to Professional or Agency plan as you grow. No penalties or long-term contracts.' },
 { q: 'Is there a discount for annual billing?', a: 'Yes. Save 20% with annual billing on all plans.' }];
@@ -33,7 +34,7 @@ export default function SmallAgencySoftwarePage() {
           <Link href="/" className="font-bold text-lg">FixMy.Money</Link>
           <div className="flex gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-700 hover:text-slate-900">Pricing</Link>
-            <Link href="/demo-mode" className="text-sm font-medium text-slate-700 hover:text-slate-900">Demo</Link>
+            <Link href="/product-tour" className="text-sm font-medium text-slate-700 hover:text-slate-900">Product Tour</Link>
           </div>
         </div>
       </header>
@@ -50,11 +51,11 @@ export default function SmallAgencySoftwarePage() {
               Credit Repair Software for Small Agencies
             </h1>
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              Affordable, scalable software for solo operators and small agencies. Start at $49/month. No long-term contracts.
+              Affordable, scalable software for solo operators and small agencies. Start at {PLANS.starter.monthlyPrice === null ? 'custom pricing' : `$${PLANS.starter.monthlyPrice}/month`}. No long-term contracts.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
-                Start $1 Trial
+              <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
+                Reserve One Month Free
               </Link>
               <Link href="/pricing" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
                 View Pricing
@@ -69,13 +70,12 @@ export default function SmallAgencySoftwarePage() {
             <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">Plans for Every Stage</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-              { name: 'Starter', price: '$49/mo', clients: '25 clients', team: '1 team member', features: ['Client CRM', 'Dispute management', 'Document storage (5 GB)', 'Stripe billing', 'Audit log'] },
-              { name: 'Professional', price: '$129/mo', clients: '100 clients', team: '5 team members', features: ['Everything in Starter', 'AI credit analysis', 'AI dispute generation', 'Task automation', 'Lead intake forms'] }].
+              { name: PLANS.starter.name, id: PLANS.starter.id, price: `$${PLANS.starter.monthlyPrice}/mo`, features: PLANS.starter.features },
+              { name: PLANS.professional.name, id: PLANS.professional.id, price: `$${PLANS.professional.monthlyPrice}/mo`, features: PLANS.professional.features }].
               map((plan, i) =>
               <div key={i} className="bg-white rounded-xl border border-slate-200 p-8">
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                   <p className="text-3xl font-extrabold text-blue-600 mb-4">{plan.price}</p>
-                  <p className="text-sm text-slate-600 mb-4">{plan.clients} • {plan.team}</p>
                   <ul className="space-y-3 mb-8">
                     {plan.features.map((f, j) =>
                   <li key={j} className="flex items-center gap-2 text-sm text-slate-700">
@@ -84,8 +84,8 @@ export default function SmallAgencySoftwarePage() {
                       </li>
                   )}
                   </ul>
-                  <Link href={`/signup?plan=${plan.name.toLowerCase()}`} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">
-                    Start $1 Trial
+                  <Link href={`/#reopening-list`} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">
+                    Reserve One Month Free
                   </Link>
                 </div>
               )}
@@ -127,9 +127,9 @@ export default function SmallAgencySoftwarePage() {
         <section className="py-20 bg-blue-600">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">Start your agency today</h2>
-            <p className="text-lg text-blue-50 mb-8">14-day trial for $1. Payment method required. Cancel anytime.</p>
-            <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
-              Start $1 Trial <ArrowRight size={18} />
+            <p className="text-lg text-blue-50 mb-8">Join the reopening list and reserve one month free when we reopen October 25, 2026.</p>
+            <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
+              Reserve One Month Free <ArrowRight size={18} />
             </Link>
           </div>
         </section>

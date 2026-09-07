@@ -35,17 +35,17 @@ export default function Modal({ open, onClose, title, subtitle, children, size =
       aria-labelledby="modal-title"
     >
       <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-card border border-border rounded-xl shadow-xl w-full ${sizeClasses[size]} scale-enter max-h-[90vh] flex flex-col`}>
-        <div className="flex items-start justify-between p-5 border-b border-border shrink-0">
+      <div className={`modal-panel ${sizeClasses[size]} scale-enter`}>
+        <div className="flex items-start justify-between gap-4 border-b border-border p-5 shrink-0">
           <div>
             <h2 id="modal-title" className="text-base font-semibold text-foreground">{title}</h2>
             {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted transition-colors duration-150 ml-4" aria-label="Close modal">
+          <button onClick={onClose} className="btn-icon -mr-2 -mt-2" aria-label="Close modal">
             <X size={18} className="text-muted-foreground" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 p-5">{children}</div>
+        <div className="overflow-y-auto flex-1 p-5 sm:p-6">{children}</div>
       </div>
     </div>
   );

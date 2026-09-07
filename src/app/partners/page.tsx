@@ -42,7 +42,7 @@ export default function PartnersPage() {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl">Book Demo</Link>
-            <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">Start Trial</Link>
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">Reserve One Month Free</Link>
           </div>
         </div>
       </nav>

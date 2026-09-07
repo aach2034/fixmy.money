@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { DollarSign, TrendingDown, Target, CheckCircle, Plus, Trash2, Calculator, ArrowRight, Zap, Snowflake,  } from 'lucide-react';
+import { DollarSign, TrendingDown, Target, CheckCircle, Plus, Trash2, Calculator, Zap, Snowflake } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -289,13 +289,9 @@ export default function DebtEliminationContent() {
             <Target size={24} className="text-primary" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-foreground">Get a Personalized Debt Plan</h3>
-            <p className="text-sm text-muted-foreground mt-0.5">Talk to your AI Financial Coach for a custom strategy based on your income and goals.</p>
+            <h3 className="font-semibold text-foreground">Financial coaching temporarily unavailable</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">The AI coach is disabled while additional privacy and usage controls are completed.</p>
           </div>
-          <a href="/ai-financial-coach" className="btn-primary flex items-center gap-2 shrink-0">
-            Ask AI Coach
-            <ArrowRight size={14} />
-          </a>
         </div>
       </div>
     </div>

@@ -87,6 +87,7 @@ export async function trackAffiliateClick(params: {
   provider: string;
   sourcePage: string;
   clientId?: string | null;
+  workspaceClientId?: string | null;
   agencyId?: string | null;
   userId?: string | null;
 }) {
@@ -95,6 +96,7 @@ export async function trackAffiliateClick(params: {
     provider: params.provider,
     source_page: params.sourcePage,
     client_id: params.clientId ?? null,
+    workspace_client_id: params.workspaceClientId ?? null,
     agency_id: params.agencyId ?? null,
     user_id: params.userId ?? null,
   });

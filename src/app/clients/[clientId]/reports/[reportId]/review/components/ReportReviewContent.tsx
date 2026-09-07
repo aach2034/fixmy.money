@@ -1,12 +1,12 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, ArrowRight, Info, Loader2, AlertCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import type { ParsedCreditReport, ParsedAccount, SectionConfidence } from '@/lib/creditReport/parser';
-import { DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
+import { DISPUTE_INSTRUCTIONS, type ParsedCreditReport, type ParsedAccount, type SectionConfidence } from '@/lib/creditReport/parser';
 import DisputeReasonSelect from '@/components/DisputeReasonSelect';
+import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
 
 interface ReportReviewContentProps {
   clientId: string;
@@ -60,7 +60,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .from('parsed_credit_reports')
         .select('*')
         .eq('id', reportId)
-        .eq('owner_id', user.id)
+
         .single();
 
       if (!reportData) { toast.error('Report not found'); router.back(); return; }
@@ -69,7 +69,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .from('staff_clients')
         .select('name')
         .eq('id', clientId)
-        .eq('owner_id', user.id)
+
         .single();
 
       setClientName(clientData?.name ?? 'Client');
@@ -79,11 +79,18 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         .from('negative_items')
         .select('*')
         .eq('report_id', reportId)
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: true });
 
       // Map DB rows to EditableAccount
-      const parsedAccounts: EditableAccount[] = (allItems ?? []).map((item: any) => ({
+      const sourceAccounts: ParsedAccount[] = Array.isArray(reportData.all_accounts) ? reportData.all_accounts : [];
+      const accountItems = (allItems ?? []).filter((item: any) => item.negative_category !== 'hard_inquiry' && item.account_type !== 'Hard Inquiry');
+      const parsedAccounts: EditableAccount[] = accountItems.map((item: any) => {
+        const source = sourceAccounts.find(account =>
+          account.accountNumberMasked === item.account_number_masked
+          && account.creditorName === item.creditor_name
+        );
+        return ({
         id: item.id,
         _dbId: item.id,
         creditorName: item.creditor_name ?? '',
@@ -94,8 +101,11 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         responsibility: 'Individual',
         status: item.status ?? '',
         balance: item.balance ?? null,
-        highBalance: null,
-        creditLimit: null,
+        originalBalance: source?.originalBalance ?? null,
+        collectionAmount: source?.collectionAmount ?? null,
+        chargeOffAmount: source?.chargeOffAmount ?? null,
+        highBalance: source?.highBalance ?? null,
+        creditLimit: source?.creditLimit ?? null,
         pastDue: item.past_due ?? null,
         dateOpened: item.date_opened ?? '',
         dateClosed: '',
@@ -121,7 +131,8 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         _disputeInstruction: item.dispute_instruction ?? '',
         _note: item.notes ?? '',
         _deleted: false,
-      }));
+        });
+      });
 
       setAccounts(parsedAccounts);
 
@@ -162,6 +173,14 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           publicRecords: 0,
           overall: reportData.overall_confidence ?? 0,
         },
+        sectionStatuses: {
+          creditScores: (reportData.scores ?? []).length > 0 ? 'parsed_with_results' : 'section_not_found',
+          inquiries: (reportData.all_inquiries ?? []).length > 0 ? 'parsed_with_results' : 'section_not_found',
+          collections: parsedAccounts.some(a => a.isCollection) ? 'parsed_with_results' : 'parsed_none_reported',
+          publicRecords: (reportData.public_records ?? []).length > 0 ? 'parsed_with_results' : 'section_not_found',
+          chargeOffs: parsedAccounts.some(a => a.isChargeOff) ? 'parsed_with_results' : 'parsed_none_reported',
+          accounts: parsedAccounts.length > 0 ? 'parsed_with_results' : 'section_not_found',
+        },
         negativeClassificationRan: true,
       };
 
@@ -173,13 +192,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           .from('report_snapshots')
           .select('id')
           .eq('parsed_report_id', reportId)
-          .eq('owner_id', user.id);
+          ;
         const snapshotIds = (snapshots ?? []).map((snapshot: any) => snapshot.id);
         if (snapshotIds.length > 0) {
           const { data: issues } = await supabase
             .from('detected_issues')
             .select('id, issue_type, issue_label, affected_bureaus, affected_furnisher, why_flagged, confidence_level, evidence_strength, evidence_still_needed')
-            .eq('owner_id', user.id)
+
             .in('report_snapshot_id', snapshotIds)
             .order('confidence_level', { ascending: false })
             .limit(8);
@@ -236,29 +255,24 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           is_negative: acc._markedNegative,
           is_collection: acc._markedCollection,
           updated_at: new Date().toISOString(),
-        }).eq('id', acc._dbId).eq('owner_id', user.id);
+        }).eq('id', acc._dbId);
         if (updateError) throw new Error(`Could not save ${acc.creditorName || 'account'}: ${updateError.message}`);
       }
 
       for (const acc of toDelete) {
-        const { error: deleteError } = await supabase.from('negative_items').delete().eq('id', acc._dbId).eq('owner_id', user.id);
+        const { error: deleteError } = await supabase.from('negative_items').delete().eq('id', acc._dbId);
         if (deleteError) throw new Error(`Could not remove ${acc.creditorName || 'account'}: ${deleteError.message}`);
       }
 
       const { error: reportUpdateError } = await supabase.from('parsed_credit_reports').update({
         status: 'reviewed',
         reviewed_at: new Date().toISOString(),
-      }).eq('id', reportId).eq('owner_id', user.id);
+      }).eq('id', reportId);
       if (reportUpdateError) throw new Error(`Could not finalize report review: ${reportUpdateError.message}`);
 
       const negCount = toSave.filter(a => a._markedNegative).length;
-      const disputableCount = toSave.filter(a => a._markedNegative || a.accountType === 'Hard Inquiry').length;
-      toast.success(`Report saved. ${negCount} negative items ready for dispute.`);
-      if (disputableCount > 0) {
-        router.push(`/dispute-wizard?clientId=${clientId}&clientName=${encodeURIComponent(clientName)}&reportId=${reportId}&fromReport=true`);
-      } else {
-        router.push(`/clients/${clientId}/negative-items`);
-      }
+      toast.success(`Report saved. ${negCount} negative items are ready for credit audit.`);
+      router.push(`/credit-audit?clientId=${clientId}&reportId=${reportId}`);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save report');
     } finally {
@@ -267,10 +281,11 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   };
 
   const tabs = [
+    { id: 'needs-review', label: 'Needs Review', count: accounts.filter(a => !a._deleted && needsAccountReview(a)).length },
     { id: 'all', label: 'All Accounts', count: accounts.filter(a => !a._deleted && a.accountType !== 'Hard Inquiry').length },
     { id: 'negative', label: 'Possible Negative Items', count: accounts.filter(a => !a._deleted && a._markedNegative).length },
     { id: 'collections', label: 'Collections', count: accounts.filter(a => !a._deleted && a._markedCollection).length },
-    { id: 'inquiries', label: 'Inquiries', count: accounts.filter(a => !a._deleted && a.accountType === 'Hard Inquiry').length + (report?.inquiries?.length ?? 0) },
+    { id: 'inquiries', label: 'Inquiries', count: report?.inquiries?.length ?? 0 },
     { id: 'personal', label: 'Personal Info', count: null },
     { id: 'warnings', label: 'Parser Warnings', count: report?.warnings?.length ?? 0 },
   ];
@@ -278,6 +293,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const getTabAccounts = () => {
     const active = accounts.filter(a => !a._deleted);
     switch (activeTab) {
+      case 'needs-review': return active.filter(needsAccountReview);
       case 'all': return active.filter(a => a.accountType !== 'Hard Inquiry');
       case 'negative': return active.filter(a => a._markedNegative);
       case 'collections': return active.filter(a => a._markedCollection);
@@ -288,7 +304,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
+      <div className="page-container flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={32} className="text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Loading parsed report…</p>
@@ -303,21 +319,20 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const negativeItems = allActive.filter(a => a._markedNegative);
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto space-y-6">
+    <div className="page-container mx-auto max-w-5xl space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Review Parsed Report</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {clientName} · Provider: <span className="font-medium capitalize">{report.provider === 'unknown' ? 'Not detected' : report.provider}</span> · Confidence: <span className={`font-medium ${report.overallConfidence >= 70 ? 'text-success' : report.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{report.overallConfidence}%</span>
-          </p>
+          <p className="text-sm font-semibold text-green-700">Report analysis complete</p>
+          <h1 className="page-title mt-2">We analyzed {clientName}&apos;s credit report.</h1>
+          <p className="text-sm text-muted-foreground mt-1">We found the items that need your attention first.</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <div className="page-actions shrink-0">
           <button
             onClick={() => router.push(`/clients/${clientId}/negative-items`)}
             className="btn-secondary text-sm"
           >
-            Skip to Negative Items
+            View account details
           </button>
           <button
             onClick={handleSaveAll}
@@ -325,16 +340,16 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
             className="btn-primary flex items-center gap-2 text-sm"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save &amp; Continue
+            Continue Audit
             <ArrowRight size={14} />
           </button>
         </div>
       </div>
 
       {/* Confidence bar */}
-      <div className="card p-4 space-y-3">
+      <details className="card p-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground">Parser Confidence</span>
+          <summary className="cursor-pointer text-sm font-medium text-foreground">View import and extraction details</summary>
           <span className={`text-sm font-bold ${report.overallConfidence >= 70 ? 'text-success' : report.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>
             {report.overallConfidence}%
           </span>
@@ -367,9 +382,9 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         )}
         <div className="flex gap-4 text-xs text-muted-foreground flex-wrap">
           {report.sectionsParsed.map(s => <span key={s} className="text-success">✓ {s}</span>)}
-          {report.sectionsMissed.map(s => <span key={s} className="text-muted-foreground">— {s}: Detected — none reported</span>)}
+          {report.sectionsMissed.map(s => <span key={s} className="text-muted-foreground">— {s}: Detected — extraction incomplete</span>)}
         </div>
-      </div>
+      </details>
 
       {/* Warnings */}
       {report.warnings.length > 0 && (
@@ -384,12 +399,13 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { label: 'Total Accounts', value: allActive.filter(a => a.accountType !== 'Hard Inquiry').length, color: 'text-primary', bg: 'bg-primary/10' },
-          { label: 'Negative Items', value: negativeItems.length, color: negativeItems.length > 0 ? 'text-danger' : 'text-muted-foreground', bg: 'bg-danger/10' },
-          { label: 'Collections', value: allActive.filter(a => a._markedCollection).length, color: 'text-warning', bg: 'bg-warning/10' },
-          { label: 'Inquiries', value: allActive.filter(a => a.accountType === 'Hard Inquiry').length + (report.inquiries?.length ?? 0), color: 'text-muted-foreground', bg: 'bg-muted' },
+          { label: 'Accounts', value: allActive.length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Negative items', value: negativeItems.length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Collections', value: allActive.filter(a => a._markedCollection).length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Charge-offs', value: allActive.filter(a => a.isChargeOff).length, color: 'text-slate-950', bg: 'bg-slate-50' },
+          { label: 'Inquiries', value: report.inquiries.length, color: 'text-slate-950', bg: 'bg-slate-50' },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -403,8 +419,8 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
         <div className="card p-5 space-y-4 border border-amber-200 bg-amber-50/40">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-foreground">Potential Reporting Issues</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">These are investigation prompts, not legal conclusions. Confirm evidence before generating factual claims.</p>
+              <h2 className="text-lg font-semibold text-foreground">Your findings</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Review these items before creating a dispute.</p>
             </div>
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">{investigationIssues.length} flagged</span>
           </div>
@@ -418,12 +434,12 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                   </div>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">{issue.evidence_strength || 'insufficient'} evidence</span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                <details className="mt-3 text-[11px] text-muted-foreground"><summary className="cursor-pointer font-semibold text-slate-700">View details</summary><div className="mt-2 flex flex-wrap gap-2">
                   <span>Type: {(issue.issue_type || 'potential_issue').replaceAll('_', ' ')}</span>
                   <span>Bureaus: {(issue.affected_bureaus ?? []).join(', ') || 'Unknown'}</span>
                   <span>Furnisher: {issue.affected_furnisher || 'Unknown'}</span>
                   <span>Confidence: {issue.confidence_level ?? 0}%</span>
-                </div>
+                </div></details>
                 {(issue.evidence_still_needed ?? []).length > 0 && (
                   <p className="mt-2 text-xs text-amber-900">
                     Evidence needed: {(issue.evidence_still_needed ?? []).slice(0, 2).join('; ')}
@@ -504,11 +520,12 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
       )}
 
       {/* Accounts tabs (all, negative, collections, inquiries) */}
-      {(activeTab === 'all' || activeTab === 'negative' || activeTab === 'collections' || activeTab === 'inquiries') && (
+      {(activeTab === 'needs-review' || activeTab === 'all' || activeTab === 'negative' || activeTab === 'collections' || activeTab === 'inquiries') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-foreground">
               {activeTab === 'all' && `All Accounts (${getTabAccounts().length})`}
+              {activeTab === 'needs-review' && `Needs Review (${getTabAccounts().length})`}
               {activeTab === 'negative' && `Possible Negative Items (${getTabAccounts().length})`}
               {activeTab === 'collections' && `Collections (${getTabAccounts().length})`}
               {activeTab === 'inquiries' && `Inquiries (${getTabAccounts().length})`}
@@ -538,7 +555,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                       </div>
                       <div className="flex gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
                         <span>Bureau: {acc.bureau}</span>
-                        {acc.balance !== null && <span>Balance: ${acc.balance.toLocaleString()}</span>}
+                        <span>Reported Amount: {formatReportedAmount(acc)}</span>
                         {acc.status && <span>Status: {acc.status}</span>}
                         {acc.negativeReason && <span className="text-danger">{acc.negativeReason}</span>}
                       </div>
@@ -556,7 +573,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
                         onClick={() => updateAccount(acc.id, { _markedCollection: !acc._markedCollection, _markedNegative: !acc._markedCollection ? true : acc._markedNegative })}
                         className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${acc._markedCollection ? 'bg-warning/10 text-warning border-warning/20' : 'bg-muted text-muted-foreground border-border hover:bg-warning/10 hover:text-warning'}`}
                       >
-                        {acc._markedCollection ? 'Collection ✓' : 'Collection?'}
+                        {acc._markedCollection ? 'Collection ✓' : 'Mark Collection'}
                       </button>
                       <button
                         onClick={() => setExpandedAccounts(prev => { const n = new Set(prev); n.has(acc.id) ? n.delete(acc.id) : n.add(acc.id); return n; })}
@@ -677,7 +694,7 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           </button>
           <button onClick={handleSaveAll} disabled={saving} className="btn-primary flex items-center gap-2 text-sm">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save Report &amp; Go to Negative Items
+            Continue Audit
             <ArrowRight size={14} />
           </button>
         </div>

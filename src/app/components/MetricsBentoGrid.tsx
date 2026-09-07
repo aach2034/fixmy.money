@@ -58,7 +58,7 @@ export default function MetricsBentoGrid() {
         const { data, error } = await supabase
           .from('dashboard_metrics')
           .select('*')
-          .eq('owner_id', user.id)
+
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();

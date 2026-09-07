@@ -52,8 +52,8 @@ export default function AboutPage() {
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
-            <Link href="/sign-up-login-screen?tab=register" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start $1 Trial
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Reserve One Month Free
             </Link>
           </div>
         </div>
@@ -234,10 +234,10 @@ export default function AboutPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/sign-up-login-screen?tab=register"
+              href="/#reopening-list"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Start $1 Trial <ArrowRight size={16} />
+              Reserve One Month Free <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

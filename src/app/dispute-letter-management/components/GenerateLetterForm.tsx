@@ -6,7 +6,10 @@ import { CheckSquare, Square, Loader2, Download, Printer, X, AlertTriangle, File
 import { createClient } from '@/lib/supabase/client';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
-import { buildConsumerSenderBlock, getLetterSenderInfo, type LetterSenderInfo } from '@/lib/disputes/letterSender';
+import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate, type LetterSenderInfo } from '@/lib/disputes/letterSender';
+import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
+import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
 
 interface GenerateLetterFormData {
   clientId: string;
@@ -46,6 +49,7 @@ interface DisputeItem {
   reportedDataSummary?: string;
   disputeBasis?: string;
   isRecommended?: boolean;
+  findings?: AnomalyFindingView[];
   dateOpened: string;
   dateReported: string;
   dateLastActivity: string;
@@ -137,7 +141,7 @@ const bureauAddresses: Record<string, { name: string; address: string }> = {
 };
 
 const legalLanguageByTemplate: Record<string, string> = {
-  'FCRA Section 611': `Pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i, I am formally requesting that you investigate the item(s) listed below and correct or delete any information that cannot be verified. Under the FCRA, you are required to complete your investigation within 30 days of receipt of this dispute (or 45 days if I submit additional information). If you cannot verify the accuracy of the disputed information, you must promptly delete or correct it.`,
+  'FCRA Section 611': `Pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i, I am formally requesting that you investigate the item(s) listed below within the applicable period required by the FCRA and correct or delete information that is unverifiable or otherwise required to be corrected or removed.`,
   'Method of Verification': `Pursuant to 15 U.S.C. § 1681i(a)(6) of the Fair Credit Reporting Act, I am requesting that you provide me with the method of verification used to confirm the accuracy of the disputed item(s). You are required to provide this information upon request. Please provide the name, address, and telephone number of the person or entity that verified the information, as well as the date of verification.`,
   'Reinvestigation': `This letter serves as a formal request for reinvestigation under 15 U.S.C. § 1681i of the Fair Credit Reporting Act. My previous dispute was not properly investigated, and the inaccurate information remains on my credit report. I am again demanding a thorough investigation. Failure to conduct a proper reinvestigation and correct or delete unverifiable information may constitute a willful violation of the FCRA, subjecting your organization to civil liability under 15 U.S.C. § 1681n.`,
   'Goodwill Deletion': `I am writing to respectfully request a goodwill deletion of the item(s) listed below. This account has been paid/resolved, and I am requesting that you consider removing this entry from my credit report as a gesture of goodwill. I understand you are not legally obligated to do so, but I respectfully ask that you consider my request given my otherwise positive payment history and my commitment to financial responsibility.`,
@@ -154,7 +158,7 @@ const legalLanguageByTemplate: Record<string, string> = {
 };
 
 const instructionByTemplate: Record<string, string> = {
-  'FCRA Section 611': 'Please investigate the disputed item(s) within 30 days as required by law. If you cannot verify the accuracy of the information, delete it from my credit report immediately. Please send written confirmation of your investigation results to the address above.',
+  'FCRA Section 611': 'Please investigate the disputed item(s) within the applicable period required by the FCRA. If the information is unverifiable or otherwise required to be corrected or removed, please correct or delete it as applicable. Please send written confirmation of your investigation results to the address above.',
   'Method of Verification': 'Please provide the complete method of verification within 15 days. Include the name, address, and contact information of the verifying party, the date of verification, and all documentation used. If you cannot provide this information, delete the disputed item immediately.',
   'Reinvestigation': 'Please conduct a thorough reinvestigation of the disputed item(s) within 30 days. Do not simply re-verify with the original furnisher — conduct an independent investigation. Provide written results of your investigation to the address above.',
   'Goodwill Deletion': 'Please review my request and notify me of your decision in writing within 30 days. If you agree to delete the item, please confirm the deletion in writing and update all credit reporting agencies accordingly.',
@@ -204,20 +208,27 @@ export function buildFallbackLetter(params: {
     const factualBasis = item.reportedDataSummary && item.disputeBasis
       ? item.disputeBasis
       : item.disputeReason || 'This item is inaccurate, incomplete, or unverifiable and must be investigated.';
+    const findings = formatAnomalyFindingsForLetter(item.findings ?? []);
     return `Item ${i + 1}:
    Creditor / Furnisher: ${item.creditorName}
    ${acctDisplay}
-   Item Type: ${item.type}
+   Item Type: ${formatAccountType(item.type)}
    Amount Reported: ${item.amount}
-   Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}${discrepancyLine}${reportedDataLine}
-   Factual Basis: ${factualBasis}${statusLine}${dateLine}`;
+${findings || `   Dispute Reason: ${item.disputeReason || 'Inaccurate, incomplete, or unverifiable'}${discrepancyLine}${reportedDataLine}
+   Factual Basis: ${factualBasis}`}${statusLine}${dateLine}
+
+   Requested Action: ${instructionText}`;
   }).join('\n\n');
 
-  const docsSection = `SUPPORTING DOCUMENTS ENCLOSED:
-• Copy of government-issued photo ID
-• Copy of proof of current address (utility bill or bank statement)
-• Copy of Social Security card (last 4 digits visible only)
-${params.items.some(i => i.type.toLowerCase().includes('medical')) ? '• HIPAA authorization revocation notice\n' : ''}${params.round > 1 ? '• Copy of previous dispute letter and bureau response\n' : ''}• Any additional documentation relevant to the disputed item(s)`;
+  const documents = deduplicateSupportingDocuments([
+    'Copy of government-issued photo ID',
+    'Copy of proof of current address (utility bill or bank statement)',
+    'Copy of Social Security card (last 4 digits visible only)',
+    ...(params.items.some(i => i.type.toLowerCase().includes('medical')) ? ['HIPAA authorization revocation notice'] : []),
+    ...(params.round > 1 ? ['Copy of previous dispute letter and bureau response'] : []),
+    'Any additional documentation relevant to the disputed item(s)',
+  ]);
+  const docsSection = `SUPPORTING DOCUMENTS ENCLOSED:\n${documents.map(document => `• ${document}`).join('\n')}`;
 
   const notesSection = params.notes
     ? `\nADDITIONAL INFORMATION:\n${params.notes}\n`
@@ -243,10 +254,6 @@ ${legalText}
 DISPUTED ITEM(S):
 
 ${itemsSection}
-
-REQUESTED ACTION:
-
-${instructionText}
 ${notesSection}
 ${docsSection}
 
@@ -278,21 +285,8 @@ function LetterPreviewModal({ letterContent, letterId, clientName, bureau, onClo
       toast.error('Pop-up blocked. Please allow pop-ups to print.');
       return;
     }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Dispute Letter ${letterId}</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 1in; color: #000; }
-            pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
-            @media print { body { margin: 0.75in; } }
-          </style>
-        </head>
-        <body><pre>${letterContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></body>
-      </html>
-    `);
-    printWindow.document.close();
+    printWindow.opener = null;
+    renderLetterForPrint(printWindow.document, letterContent, `Dispute Letter ${letterId}`);
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
@@ -303,27 +297,10 @@ function LetterPreviewModal({ letterContent, letterId, clientName, bureau, onClo
       toast.error('Pop-up blocked. Please allow pop-ups to download.');
       return;
     }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Dispute Letter ${letterId}</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 1in; color: #000; }
-            pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
-            @media print { body { margin: 0.75in; } }
-          </style>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 1000);
-            };
-          </script>
-        </head>
-        <body><pre>${letterContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></body>
-      </html>
-    `);
-    printWindow.document.close();
+    printWindow.opener = null;
+    renderLetterForPrint(printWindow.document, letterContent, `Dispute Letter ${letterId}`);
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     toast.success('Use "Save as PDF" in the print dialog to download');
   };
 
@@ -464,7 +441,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         const { data, error } = await supabase
           .from('staff_clients')
           .select('id, name, email, phone, address, city, state, zip')
-          .eq('owner_id', user.id)
+
           .order('name', { ascending: true });
         if (error) {
           toast.error(`Failed to load clients: ${error.message}`);
@@ -516,11 +493,17 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
         const { data: negativeRows, error: negativeError } = await supabase
           .from('negative_items')
           .select('*')
-          .eq('owner_id', user.id)
+
           .eq('client_id', selectedClient);
         if (negativeError) throw negativeError;
 
         const selectedBureauKey = String(selectedBureau ?? '').trim().toLowerCase();
+        const belongsToSelectedBureau = (item: any) => {
+          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
+            .filter(Boolean)
+            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
+          return !selectedBureauKey || selectedBureauKey === 'all' || bureaus.includes(selectedBureauKey);
+        };
         const availableNegativeRows = (negativeRows ?? []).filter((item: any) => {
           const status = String(item.dispute_status ?? 'draft').toLowerCase();
           if (status === 'resolved') return false;
@@ -531,13 +514,10 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
             (category !== 'positive' && Boolean(item.negative_reason));
           if (!isNegative) return false;
 
-          const bureaus = [item.bureau, ...(Array.isArray(item.bureaus_reporting) ? item.bureaus_reporting : [])]
-            .filter(Boolean)
-            .map((bureau: unknown) => String(bureau).trim().toLowerCase());
-          return !selectedBureauKey || selectedBureauKey === 'all' || bureaus.includes(selectedBureauKey);
+          return true;
         });
 
-        let items: DisputeItem[] = scoreDisputeStrength(deduplicateDisputeRows(availableNegativeRows)).map((d: any) => ({
+        let items: DisputeItem[] = deduplicateDisputeRows(scoreDisputeStrength(availableNegativeRows).filter(belongsToSelectedBureau)).map((d: any) => ({
           id: d.id,
           label: `${d.creditor_name ?? 'Unknown'} — ${itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Item'}`,
           type: itemTypeLabels[d.negative_category] ?? d.negative_category ?? 'Derogatory Item',
@@ -552,6 +532,7 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           reportedDataSummary: d.disputeStrength.reportedDataSummary,
           disputeBasis: d.disputeStrength.disputeBasis,
           isRecommended: d.disputeStrength.isRecommended,
+          findings: prepareAnomalyFindings(d.disputeStrength.findings),
           ...getDisputeItemDates(d),
           source: 'negative_items',
         }));
@@ -561,8 +542,8 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
           let legacyQuery = supabase
             .from('client_disputes')
             .select('*')
-            .eq('owner_id', user.id)
-            .eq('client_id', selectedClient)
+
+            .eq('staff_client_id', selectedClient)
             .not('dispute_status', 'eq', 'resolved');
           if (selectedBureau && selectedBureau !== 'All') legacyQuery = legacyQuery.eq('bureau', selectedBureau);
           const { data: legacyRows, error: legacyError } = await legacyQuery.order('priority', { ascending: true });
@@ -608,10 +589,6 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
   const validateBeforeGenerate = (data: GenerateLetterFormData): ValidationIssue[] => {
     const issues: ValidationIssue[] = [];
     if (!data.clientId) issues.push({ field: 'Client', message: 'Select a client from the dropdown' });
-    const clientInfo = clientOptions.find(c => c.id === data.clientId);
-    if (data.clientId && !getLetterSenderInfo(clientInfo)) {
-      issues.push({ field: 'Client Profile', message: 'Selected client profile must include name, street address, city, 2-letter state, and ZIP before generating a letter' });
-    }
     if (selectedItems.size === 0) issues.push({ field: 'Dispute Items', message: 'Select at least one dispute item to include' });
     return issues;
   };
@@ -640,15 +617,37 @@ export default function GenerateLetterForm({ onClose }: { onClose: () => void })
       const { data: workspace } = await supabase
         .from('workspaces')
         .select('id')
-        .eq('owner_id', user.id)
+
         .single();
 
       const selectedDisputeItems = disputeItems.filter(item => selectedItems.has(item.id));
-      const clientInfo = clientOptions.find(c => c.id === data.clientId);
+      const selectedClientOption = clientOptions.find(client => client.id === data.clientId);
+      const addressInput = { name: selectedClientOption?.name, address: data.clientAddress, city: data.clientCity, state: data.clientState, zip: data.clientZip };
+      const addressUpdate = toCanonicalMailingAddressUpdate(addressInput);
+      if (!addressUpdate) throw new Error(formatMissingMailingAddressError(addressInput) ?? 'Client name is missing.');
+      const { error: addressUpdateError } = await supabase
+        .from('staff_clients')
+        .update(addressUpdate)
+        .eq('id', data.clientId)
+        ;
+      if (addressUpdateError) throw new Error('Client mailing address could not be saved.');
+
+      const { data: clientInfo, error: clientError } = await supabase
+        .from('staff_clients')
+        .select('id, name, email, phone, address, city, state, zip')
+        .eq('id', data.clientId)
+
+        .single();
+      if (clientError || !clientInfo) throw new Error('Selected client profile could not be refreshed.');
+
       const sender = getLetterSenderInfo(clientInfo);
-      if (!sender) {
-        throw new Error('Selected client profile must include a complete mailing address before generating a letter.');
-      }
+      if (!sender) throw new Error(formatMissingMailingAddressError(clientInfo) ?? 'Client name is missing.');
+      const normalizedAddress = normalizeClientMailingAddress(clientInfo);
+      setClientOptions(current => current.map(client => client.id === data.clientId ? clientInfo : client));
+      setValue('clientAddress', normalizedAddress.street);
+      setValue('clientCity', normalizedAddress.city);
+      setValue('clientState', normalizedAddress.state);
+      setValue('clientZip', normalizedAddress.postalCode);
       const clientName = sender.name;
 
       const bureauShort: Record<string, string> = { Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' };

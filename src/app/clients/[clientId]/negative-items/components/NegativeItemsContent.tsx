@@ -6,8 +6,10 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { DISPUTE_INSTRUCTIONS } from '@/lib/creditReport/parser';
 import { selectReliableAuditItems, type SavedAuditItem } from '@/lib/creditReport/auditItems';
+import { isCollectionItem } from '@/lib/creditReport/negativeItemClassification';
 import DisputeReasonSelect from '@/components/DisputeReasonSelect';
 import ImportWizard from '@/components/ImportWizard';
+import { trackEvent } from '@/lib/analytics';
 
 interface NegativeItem {
   id: string;
@@ -94,14 +96,14 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).eq('owner_id', user.id).single();
+      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).single();
       setClientName(clientData?.name ?? 'Client');
 
       const { data: latestReport, error: reportError } = await supabase
         .from('parsed_credit_reports')
         .select('id')
         .eq('client_id', clientId)
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -112,7 +114,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
         .from('negative_items')
         .select('*')
         .eq('client_id', clientId)
-        .eq('owner_id', user.id)
+
         .order('created_at', { ascending: false });
 
       if (latestReport?.id) {
@@ -135,7 +137,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
 
   const filtered = items.filter(item => {
     if (bureauFilter !== 'All' && item.bureau !== bureauFilter) return false;
-    if (filter === 'Collections') return item.isCollection || item.accountType.toLowerCase().includes('collection') || /collection/i.test(item.negativeReason);
+    if (filter === 'Collections') return isCollectionItem(item);
     if (filter === 'Charge-offs') return /charge.?off/i.test(item.accountType + item.negativeReason);
     if (filter === 'Late Payments') return /late/i.test(item.negativeReason + item.status);
     if (filter === 'Inquiries') return /inquiry/i.test(item.accountType);
@@ -152,7 +154,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
   const selectAll = () => setSelected(new Set(filtered.map(i => i.id)));
   const selectByType = (type: string) => {
     const ids = filtered.filter(i => {
-      if (type === 'collections') return /collection/i.test(i.accountType);
+      if (type === 'collections') return isCollectionItem(i);
       if (type === 'chargeoffs') return /charge.?off/i.test(i.accountType + i.negativeReason);
       if (type === 'late') return /late/i.test(i.negativeReason + i.status);
       if (type === 'inquiries') return /inquiry/i.test(i.accountType);
@@ -170,7 +172,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
         dispute_instruction: editValues.disputeInstruction,
         notes: editValues.notes,
         updated_at: new Date().toISOString(),
-      }).eq('id', id).eq('owner_id', user.id);
+      }).eq('id', id);
       setItems(prev => prev.map(i => i.id === id ? { ...i, ...editValues } : i));
       setEditingItem(null);
       toast.success('Item updated');
@@ -183,7 +185,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      await supabase.from('negative_items').delete().eq('id', id).eq('owner_id', user.id);
+      await supabase.from('negative_items').delete().eq('id', id);
       setItems(prev => prev.filter(i => i.id !== id));
       setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
       toast.success('Item removed');
@@ -229,7 +231,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       const selectedItems = items.filter(i => selected.has(i.id));
 
       // Get next round number
-      const { data: existingRounds } = await supabase.from('dispute_rounds').select('round_number').eq('client_id', clientId).eq('owner_id', user.id).order('round_number', { ascending: false }).limit(1);
+      const { data: existingRounds } = await supabase.from('dispute_rounds').select('round_number').eq('client_id', clientId).order('round_number', { ascending: false }).limit(1);
       const nextRound = (existingRounds?.[0]?.round_number ?? 0) + 1;
 
       // Group by bureau
@@ -280,8 +282,14 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       }
 
       // Update negative items status
-      await supabase.from('negative_items').update({ dispute_status: 'ready' }).in('id', [...selected]).eq('owner_id', user.id);
+      await supabase.from('negative_items').update({ dispute_status: 'ready' }).in('id', [...selected]);
 
+      trackEvent('dispute_created', {
+        bureau_count: bureaus.length,
+        items_count: selectedItems.length,
+        round_number: nextRound,
+        authenticated: true,
+      });
       toast.success(`Dispute Round ${nextRound} created with ${selectedItems.length} items`);
       router.push(`/clients/${clientId}/disputes/${round.id}`);
     } catch (err: any) {
@@ -336,7 +344,7 @@ export default function NegativeItemsContent({ clientId }: NegativeItemsContentP
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: 'Total', value: items.length, color: 'text-foreground' },
-          { label: 'Collections', value: items.filter(i => /collection/i.test(i.accountType)).length, color: 'text-danger' },
+          { label: 'Collections', value: items.filter(isCollectionItem).length, color: 'text-danger' },
           { label: 'Charge-offs', value: items.filter(i => /charge.?off/i.test(i.accountType + i.negativeReason)).length, color: 'text-warning' },
           { label: 'Late Payments', value: items.filter(i => /late/i.test(i.negativeReason + i.status)).length, color: 'text-warning' },
           { label: 'Selected', value: selected.size, color: 'text-primary' },

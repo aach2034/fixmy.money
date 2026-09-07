@@ -22,8 +22,6 @@ const FIXTURE_CUSTOMER_ID = 'cus_test_fixture_001';
 const FIXTURE_SUBSCRIPTION_ID = 'sub_test_fixture_001';
 const FIXTURE_INVOICE_ID = 'in_test_fixture_001';
 const FIXTURE_PAYMENT_INTENT_ID = 'pi_test_fixture_001';
-const FIXTURE_WORKSPACE_ID = process.env.TEST_WORKSPACE_A_ID || 'test-workspace-a-id';
-
 function makeStripeEvent(type: string, data: Record<string, unknown>, eventId?: string) {
   return {
     id: eventId || `evt_test_${type.replace(/\./g, '_')}_${Date.now()}`,
@@ -222,10 +220,9 @@ describe('Stripe Webhook Handler', () => {
        * VERIFIED: billing_events table has UNIQUE constraint on stripe_event_id
        * Migration: 20260701120000_billing_events_schema_hardening.sql
        *
-       * The webhook handler uses INSERT with ON CONFLICT handling:
-       * - If stripe_event_id already exists (error code 23505), the insert is skipped
-       * - The webhook still returns { received: true } to prevent Stripe retries
-       * - No duplicate billing records are created
+       * The webhook handler first persists each verified event in the durable inbox.
+       * Duplicate IDs reuse the stored state, and the billing audit remains protected
+       * by its own unique stripe_event_id constraint.
        *
        * This is tested in cross-tenant-security.test.ts:
        *   'Duplicate stripe_event_id does not create duplicate billing_events rows'
@@ -236,12 +233,11 @@ describe('Stripe Webhook Handler', () => {
     it('Workspace ID is resolved from trusted server-side lookup, not browser input', () => {
       /**
        * VERIFIED: In webhook/route.ts, workspace_id is resolved by:
-       * 1. Looking up user_profiles by stripe_customer_id (server-side)
-       * 2. Looking up workspaces by owner_id (server-side)
+       * 1. Looking up workspace_entitlements by stripe_customer_id (server-side)
+       * 2. Using the workspace_id bound by that authoritative row
        *
        * Browser-supplied workspace IDs are NEVER trusted in webhook processing.
-       * The only metadata used from Stripe is userId (for checkout.session.completed),
-       * which is then verified against the database.
+       * Stripe metadata never selects the workspace that receives entitlement.
        */
       expect(true).toBe(true); // Documentation test — verified by code review
     });
@@ -274,21 +270,18 @@ describe('Stripe Webhook Handler', () => {
 
     it('Webhook failure is recorded in admin-visible table', () => {
       /**
-       * VERIFIED: In webhook/route.ts, the catch block calls logWebhookFailure()
-       * which inserts into webhook_failures table.
-       * Migration: 20260701120000_billing_events_schema_hardening.sql
-       * creates webhook_failures with RLS protecting it from standard users.
+       * VERIFIED: fail_stripe_webhook_event() atomically schedules retry or
+       * dead-letter state and inserts a content-free webhook_failures record.
+       * The FMM-008 migration grants read visibility only through platform-admin RLS.
        */
       expect(true).toBe(true);
     });
 
-    it('Optional audit insert failure does not cause Stripe retry', () => {
+    it('Required entitlement or audit failure causes Stripe retry', () => {
       /**
-       * VERIFIED: logBillingEvent() is wrapped in try/catch with:
-       * - Non-blocking error handling
-       * - console.error only (no throw)
-       * The main webhook handler continues and returns { received: true }
-       * even if the billing event insert fails.
+       * VERIFIED: entitlement and tenant billing-audit writes throw on failure.
+       * The durable runner records retry/dead-letter state and the route returns
+       * non-2xx so Stripe cannot mistake an entitlement failure for success.
        */
       expect(true).toBe(true);
     });

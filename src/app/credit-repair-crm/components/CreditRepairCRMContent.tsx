@@ -153,7 +153,7 @@ const CreditRepairCRMContent = () => {
             href="/demo"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-violet-600 font-semibold rounded-lg hover:bg-gray-100 transition"
           >
-            Start $1 Trial <ArrowRight className="ml-2 w-5 h-5" />
+            Reserve One Month Free <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
       </section>

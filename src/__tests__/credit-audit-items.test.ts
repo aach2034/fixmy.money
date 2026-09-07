@@ -86,6 +86,52 @@ describe('credit audit item quality gate', () => {
     expect(scored[0].disputeStrength.reportedDataSummary).toMatch(/TransUnion: \$0/);
   });
 
+  it('generates balance-specific audit and dispute wording', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-balance', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 4812, date_opened: '2021-04-15',
+      },
+      {
+        id: 'ex-balance', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 0, date_opened: '2021-04-15',
+      },
+    ]));
+
+    expect(scored.disputeStrength.issueType).toBe('balance_discrepancy');
+    expect(scored.disputeStrength.anomalyTitle).toBe('Account balance mismatch');
+    expect(scored.disputeStrength.strongestAnomaly).toContain('balance differs');
+    expect(scored.disputeStrength.reportedDataSummary).toContain('Current Balance');
+    expect(scored.disputeStrength.factualBasis).toContain('conflicting balance information');
+    expect(scored.disputeStrength.disputeReason).toContain('account balance');
+    expect(scored.disputeStrength.disputeBasis).not.toContain('different account statuses');
+  });
+
+  it('does not automatically rate an unsubstantiated status difference Strong', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-open', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 0, date_opened: '2021-04-15',
+      },
+      {
+        id: 'ex-closed', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Closed', balance: 0, date_opened: '2021-04-15',
+      },
+    ]));
+
+    expect(scored.disputeStrength.issueType).toBe('status_discrepancy');
+    expect(scored.disputeStrength.strengthLabel).toBe('Moderate');
+    expect(scored.disputeStrength.isRecommended).toBe(false);
+  });
+
   it('converts generic paid-balance findings into evidence-specific letter language', () => {
     const [scored] = scoreDisputeStrength(selectReliableAuditItems([
       {
@@ -102,15 +148,15 @@ describe('credit audit item quality gate', () => {
       },
     ]));
 
-    expect(scored.disputeStrength.strongestAnomaly).toBe('A tradeline that appears paid, settled, or closed is also reporting a positive balance.');
+    expect(scored.disputeStrength.strongestAnomaly).toBe('A tradeline that explicitly appears paid, settled, or satisfied is also reporting a positive balance.');
     expect(scored.disputeStrength.reportedDataSummary).toContain('Equifax');
     expect(scored.disputeStrength.reportedDataSummary).toContain('Status: Paid/Closed');
     expect(scored.disputeStrength.reportedDataSummary).toContain('Current Balance: $1,284');
-    expect(scored.disputeStrength.disputeBasis).toContain('paid, settled, or closed status');
+    expect(scored.disputeStrength.disputeBasis).toContain('balance-ending status');
     expect(scored.disputeStrength.disputeBasis).toContain('positive outstanding balance');
   });
 
-  it('shows both bureau values for cross-bureau status conflicts', () => {
+  it('does not invent a conflict between semantically equivalent closed statuses', () => {
     const scored = scoreDisputeStrength(selectReliableAuditItems([
       {
         id: 'ex-status',
@@ -140,10 +186,35 @@ describe('credit audit item quality gate', () => {
       },
     ]));
 
-    const summaries = scored.map(item => item.disputeStrength.reportedDataSummary).join('\n');
-    expect(summaries).toContain('Experian');
-    expect(summaries).toContain('TransUnion');
-    expect(summaries).toMatch(/Paid\/Closed|Closed/);
+    expect(scored.every(item => item.disputeStrength.issueType !== 'status_discrepancy')).toBe(true);
+    expect(scored.every(item => item.disputeStrength.reportedDataSummary === '')).toBe(true);
+  });
+
+  it('does not score a missing bureau status as a strong cross-bureau dispute', () => {
+    const scored = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-placeholder', creditor_name: 'Yendo Inc', furnisher_name: 'Yendo Inc',
+        negative_category: 'collection', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****8812', account_type: 'Collection',
+        status: '- - -', balance: 0, date_opened: '2022-02-01',
+      },
+      {
+        id: 'ex-closed', creditor_name: 'Yendo Inc', furnisher_name: 'Yendo Inc',
+        negative_category: 'collection', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****8812', account_type: 'Collection',
+        status: 'Closed', balance: 0, date_opened: '2022-02-01',
+      },
+      {
+        id: 'tu-closed', creditor_name: 'Yendo Inc', furnisher_name: 'Yendo Inc',
+        negative_category: 'collection', bureau: 'TransUnion', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****8812', account_type: 'Collection',
+        status: 'Closed', balance: 0, date_opened: '2022-02-01',
+      },
+    ]));
+
+    expect(scored.every(item => item.disputeStrength.issueType !== 'status_discrepancy')).toBe(true);
+    expect(scored.every(item => item.disputeStrength.strengthLabel !== 'Strong')).toBe(true);
+    expect(scored.map(item => item.disputeStrength.reportedDataSummary).join('\n')).not.toContain('- - -');
   });
 
   it('does not invent missing values in evidence summaries', () => {
@@ -217,5 +288,31 @@ describe('credit audit item quality gate', () => {
     expect(scored.disputeStrength.strengthLabel).toBe('Weak');
     expect(scored.disputeStrength.isRecommended).toBe(false);
     expect(scored.disputeStrength.strongestAnomaly).toBe('No factual anomaly detected');
+  });
+
+  it('exposes multiple distinct findings for one tradeline with the strongest first', () => {
+    const [scored] = scoreDisputeStrength(selectReliableAuditItems([
+      {
+        id: 'eq-multi', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Equifax', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Open', balance: 4812, date_opened: '2021-04-15',
+      },
+      {
+        id: 'ex-multi', creditor_name: 'Capital One', furnisher_name: 'Capital One',
+        negative_category: 'other', bureau: 'Experian', is_negative: true,
+        parser_confidence: 90, account_number_masked: '****1234', account_type: 'Credit Card',
+        status: 'Closed', balance: 0, date_opened: '2022-05-16',
+      },
+    ]));
+
+    const findings = scored.disputeStrength.findings;
+    expect(findings.map(item => item.issueType)).toEqual(expect.arrayContaining([
+      'balance_discrepancy',
+      'status_discrepancy',
+      'date_discrepancy',
+    ]));
+    expect(findings[0].score).toBeGreaterThanOrEqual(findings[1].score);
+    expect(new Set(findings.map(item => item.issueType)).size).toBe(findings.length);
   });
 });

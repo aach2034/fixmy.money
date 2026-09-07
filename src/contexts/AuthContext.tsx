@@ -39,41 +39,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Email/Password Sign Up
-  const signUp = async (email: string, password: string, metadata: any = {}) => {
-    try {
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        (typeof window !== 'undefined' ? window.location.origin : '');
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: metadata?.fullName || '',
-            company_name: metadata?.companyName || '',
-            plan: metadata?.plan || '',
-            avatar_url: metadata?.avatarUrl || ''
-          },
-          emailRedirectTo: `${siteUrl}/auth/callback?type=signup&plan=${metadata?.plan || 'growth'}`
-        }
-      });
-      if (error) {
-        console.error('[AuthContext] signUp error:', error.message, error);
-        throw new Error(error.message || 'Unable to create account. Please contact support.');
-      }
-      return data;
-    } catch (err: any) {
-      // Log full error for debugging, throw user-friendly message
-      console.error('[AuthContext] signUp exception:', err);
-      if (err?.message && !err.message.includes('Unable to create account')) {
-        throw err;
-      }
-      throw new Error(err?.message || 'Unable to create account. Please contact support.');
-    }
-  };
-
   // Email/Password Sign In
   const signIn = async (email: string, password: string) => {
     try {
@@ -158,7 +123,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     session,
     loading,
-    signUp,
     signIn,
     signOut,
     getCurrentUser,

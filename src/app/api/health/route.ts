@@ -1,26 +1,47 @@
 import { NextResponse } from 'next/server';
-import { getEnvHealth, validateRequiredEnvVars } from '@/lib/supabase/admin';
-import { isPartixDatabase, getConnectedProjectRef } from '@/lib/supabase/partix-guard';
+import { getAdminClient } from '@/lib/supabase/admin';
+import { getStripeServerClient } from '@/lib/stripe/server';
+import { operationalLog, requestId, within } from '@/lib/observability/server';
+import { deliverOperationalAlert } from '@/lib/observability/alerts';
 
-export async function GET() {
-  const envHealth = getEnvHealth();
-  const { valid, missing } = validateRequiredEnvVars();
+export async function GET(request: Request) {
+  const id = requestId(request);
+  const headers = { 'Cache-Control': 'no-store', 'X-Request-Id': id };
+  const url = new URL(request.url);
+  if (url.searchParams.get('ready') !== '1') {
+    return NextResponse.json({ status: 'alive', request_id: id }, { headers });
+  }
+  const expected = process.env.HEALTHCHECK_SECRET;
+  if (!expected || request.headers.get('x-healthcheck-secret') !== expected) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404, headers });
+  }
 
-  // Detect Partix database misconfiguration
-  const partixMisconfigured = isPartixDatabase();
-  const connectedRef = getConnectedProjectRef();
+  const checks = { database: false, stripe: false };
+  try {
+    const { error } = await within(getAdminClient().from('user_profiles').select('id', { head: true, count: 'exact' }).limit(1));
+    checks.database = !error;
+  } catch { checks.database = false; }
+  try {
+    await within(getStripeServerClient().customers.list({ limit: 1 }));
+    checks.stripe = true;
+  } catch { checks.stripe = false; }
 
-  return NextResponse?.json({
-    status: partixMisconfigured ? 'misconfigured' : valid ? 'healthy' : 'degraded',
-    environment: envHealth,
-    missing_required: missing,
-    partix_guard: {
-      triggered: partixMisconfigured,
-      connected_project_ref: connectedRef,
-      message: partixMisconfigured
-        ? 'FixMy.Money is configured to use the Partix Supabase project. Update the FixMy.Money Supabase environment variables before continuing.'
-        : 'OK',
-    },
-    timestamp: new Date()?.toISOString(),
+  const ready = checks.database && checks.stripe;
+  const alertDelivery = ready
+    ? 'not_required'
+    : await deliverOperationalAlert({
+      event: 'readiness_degraded',
+      severity: 'critical',
+      state: 'triggered',
+      requestId: id,
+      metadata: checks,
+    });
+  operationalLog(ready ? 'info' : 'error', 'readiness_check', id, {
+    ...checks,
+    alert_delivery: alertDelivery,
   });
+  return NextResponse.json(
+    { status: ready ? 'ready' : 'degraded', dependencies: checks, request_id: id },
+    { status: ready ? 200 : 503, headers },
+  );
 }

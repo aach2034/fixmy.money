@@ -7,6 +7,7 @@ export interface SavedAuditItem {
   bureaus_reporting?: string[] | null;
   balance?: number | string | null;
   past_due?: number | string | null;
+  credit_limit?: number | string | null;
   dispute_reason?: string | null;
   negative_reason?: string | null;
   dispute_status?: string | null;
@@ -17,6 +18,7 @@ export interface SavedAuditItem {
   parser_confidence?: number | null;
   account_number_masked?: string | null;
   account_type?: string | null;
+  responsibility?: string | null;
   status?: string | null;
   payment_status?: string | null;
   payment_history?: string | null;
@@ -140,12 +142,25 @@ export type DisputeStrengthLabel = 'Strong' | 'Moderate' | 'Weak';
 export interface DisputeStrengthResult {
   dispute_strength_score: number;
   strengthLabel: DisputeStrengthLabel;
+  anomalyTitle: string;
   strongestAnomaly: string;
   reportedDataSummary: string;
+  factualBasis: string;
+  disputeReason: string;
   recommendedReason: string;
   disputeBasis: string;
   issueType?: string;
   isRecommended: boolean;
+  findings: Array<{
+    issueType: string;
+    title: string;
+    discrepancy: string;
+    reportedData: string;
+    factualBasis: string;
+    disputeReason: string;
+    strengthLabel: DisputeStrengthLabel;
+    score: number;
+  }>;
 }
 
 export type ScoredAuditItem<T extends SavedAuditItem = SavedAuditItem> = T & {
@@ -172,12 +187,13 @@ function asNormalizedAccount(item: SavedAuditItem, index: number): NormalizedAcc
       : [item.bureau ?? 'Unknown'],
     accountNumberMasked: item.account_number_masked ?? '',
     accountType: item.account_type ?? item.negative_category ?? '',
-    responsibility: 'Individual',
+    responsibility: item.responsibility ?? 'Individual',
     dateOpened: item.date_opened ?? '',
     accountStatus: status,
     paymentStatus: item.payment_status ?? '',
     balance: amountValue(item.balance),
-    creditLimit: null,
+    highBalance: null,
+    creditLimit: amountValue(item.credit_limit),
     pastDue: amountValue(item.past_due),
     monthlyPayment: null,
     lastPaymentDate: item.date_last_activity ?? '',
@@ -221,10 +237,18 @@ function formatEvidenceValue(value: unknown): string {
     accountStatus: 'Status',
     paymentStatus: 'Payment Status',
     balance: 'Current Balance',
+    highBalance: 'High Balance',
     pastDue: 'Past Due',
+    creditLimit: 'Credit Limit',
     dateOpened: 'Date Opened',
+    collectionActivityDate: 'Collection Activity Date',
     dateReported: 'Last Reported Date',
     lastPaymentDate: 'Last Payment Date',
+    accountType: 'Account Type',
+    responsibility: 'Ownership / Responsibility',
+    paymentHistory: 'Payment History',
+    remarks: 'Remarks / Comments',
+    originalCreditor: 'Original Creditor',
     creditorName: 'Creditor',
     accountNumberMasked: 'Account',
   };
@@ -241,11 +265,31 @@ function issueFieldLabel(issue: DetectedIssueDraft): string {
     case 'collection_balance_discrepancy':
       return 'Current Balance';
     case 'status_discrepancy':
+    case 'charge_off_status_discrepancy':
+    case 'collection_status_discrepancy':
       return 'Account Status';
     case 'payment_status_discrepancy':
       return 'Payment Status';
+    case 'past_due_discrepancy':
+      return 'Past-Due Amount';
+    case 'credit_limit_discrepancy':
+      return 'Credit Limit';
+    case 'collection_activity_before_opening':
+      return 'Collection Activity Date and Date Opened';
+    case 'high_balance_discrepancy':
+      return 'High Balance';
     case 'date_discrepancy':
       return 'Date Opened';
+    case 'last_payment_date_discrepancy':
+      return 'Date of Last Activity';
+    case 'account_type_discrepancy':
+      return 'Account Type';
+    case 'responsibility_discrepancy':
+      return 'Ownership / Responsibility';
+    case 'payment_history_discrepancy':
+      return 'Payment History';
+    case 'remarks_discrepancy':
+      return 'Remarks / Comments';
     case 'original_creditor_discrepancy':
       return 'Original Creditor';
     case 'paid_account_reporting_balance':
@@ -273,37 +317,29 @@ function reportedDataSummaryFor(issue: DetectedIssueDraft): string {
 }
 
 function disputeBasisFor(issue: DetectedIssueDraft): string {
-  const reported = issue.reportedData as Record<string, unknown>;
-  switch (issue.issueType) {
-    case 'balance_discrepancy':
-    case 'collection_balance_discrepancy':
-      return `The same likely account reports different current balances across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
-    case 'status_discrepancy':
-      return `The same likely account reports different account statuses across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
-    case 'payment_status_discrepancy':
-      return `The same likely account reports different payment statuses across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
-    case 'date_discrepancy':
-      return `The same likely account reports conflicting Date Opened values across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
-    case 'original_creditor_discrepancy':
-      return `The same likely account reports conflicting original creditor information across bureaus. Please investigate and correct or delete any information that cannot be verified as accurate.`;
-    case 'paid_account_reporting_balance':
-      return `The account is being reported with a paid, settled, or closed status while also carrying a positive outstanding balance. Please investigate and correct or delete any information that cannot be verified as accurate.`;
-    case 'potential_duplicate_obligation':
-      return 'Multiple similar tradelines from the same bureau share account-identifying fields and may represent a duplicate obligation. Please investigate whether this item is duplicated and correct or delete any information that cannot be verified as accurate.';
-    default:
-      return `${issue.whyFlagged} Please investigate and correct or delete any information that cannot be verified as accurate.`;
-  }
+  return `${issue.factualBasis} Please investigate and correct or delete any information that cannot be verified as accurate.`;
 }
 
 function scoreIssue(issue: DetectedIssueDraft): number {
   const baseByType: Partial<Record<DetectedIssueDraft['issueType'], number>> = {
     collection_balance_discrepancy: 86,
     balance_discrepancy: 84,
-    status_discrepancy: 82,
-    payment_status_discrepancy: 78,
+    status_discrepancy: 74,
+    charge_off_status_discrepancy: 78,
+    collection_status_discrepancy: 76,
+    payment_status_discrepancy: 74,
+    past_due_discrepancy: 78,
+    credit_limit_discrepancy: 72,
+    high_balance_discrepancy: 70,
     paid_account_reporting_balance: 78,
+    responsibility_discrepancy: 76,
+    payment_history_discrepancy: 72,
     original_creditor_discrepancy: 72,
     date_discrepancy: 70,
+    collection_activity_before_opening: 72,
+    last_payment_date_discrepancy: 68,
+    account_type_discrepancy: 66,
+    remarks_discrepancy: 62,
     potential_duplicate_obligation: 66,
   };
   return Math.max(baseByType[issue.issueType] ?? 60, issue.confidenceLevel);
@@ -314,11 +350,15 @@ function emptyStrength(item: SavedAuditItem): DisputeStrengthResult {
   return {
     dispute_strength_score: 25,
     strengthLabel: 'Weak',
+    anomalyTitle: 'No factual anomaly detected',
     strongestAnomaly: 'No factual anomaly detected',
     reportedDataSummary: '',
+    factualBasis: '',
+    disputeReason: reason,
     recommendedReason: 'Available for review, but not recommended as a first-round priority without a factual discrepancy.',
     disputeBasis: reason,
     isRecommended: false,
+    findings: [],
   };
 }
 
@@ -344,22 +384,39 @@ export function scoreDisputeStrength<T extends SavedAuditItem>(items: T[]): Scor
     const strongest = issues[0];
     if (!strongest) return { ...item, disputeStrength: emptyStrength(item) };
 
-    const score = Math.min(100, scoreIssue(strongest) + Math.max(0, issues.length - 1) * 5);
+    const score = scoreIssue(strongest);
     const strengthLabel: DisputeStrengthLabel = score >= 80 ? 'Strong' : score >= 55 ? 'Moderate' : 'Weak';
+    const findings = issues.map(finding => {
+      const findingScore = scoreIssue(finding);
+      return {
+        issueType: finding.issueType,
+        title: finding.issueTitle,
+        discrepancy: finding.whyFlagged,
+        reportedData: reportedDataSummaryFor(finding),
+        factualBasis: finding.factualBasis,
+        disputeReason: finding.disputeReason,
+        strengthLabel: (findingScore >= 80 ? 'Strong' : findingScore >= 55 ? 'Moderate' : 'Weak') as DisputeStrengthLabel,
+        score: findingScore,
+      };
+    });
 
     return {
       ...item,
       disputeStrength: {
         dispute_strength_score: score,
         strengthLabel,
+        anomalyTitle: strongest.issueTitle,
         strongestAnomaly: strongest.whyFlagged,
         reportedDataSummary: reportedDataSummaryFor(strongest),
+        factualBasis: strongest.factualBasis,
+        disputeReason: strongest.disputeReason,
         recommendedReason: strengthLabel === 'Strong'
           ? 'Recommended for the first round because the imported report contains a specific factual discrepancy.'
           : 'Keep available for review; the detected discrepancy is less direct or lower confidence than stronger items.',
         disputeBasis: disputeBasisFor(strongest),
         issueType: strongest.issueType,
         isRecommended: strengthLabel === 'Strong',
+        findings,
       },
     };
   }).sort((a, b) => b.disputeStrength.dispute_strength_score - a.disputeStrength.dispute_strength_score);

@@ -7,12 +7,12 @@ export const metadata: Metadata = createSeoMetadata('/what-is-fixmy-money');
 
 const helps = [
   'Client CRM and portal',
-  'Credit report uploads',
-  'AI-assisted report review',
+  'Credit report import',
+  'Structured report review',
   'Source-linked evidence',
   'Dispute draft workflows',
   'Human verification and approval',
-  'Stripe billing',
+  'FixMy.Money subscription management',
   'Bureau response deadlines',
   'Audit history',
 ];
@@ -23,7 +23,7 @@ export default function WhatIsFixMyMoneyPage() {
       <nav className="border-b border-slate-100 px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link href="/" className="text-lg font-bold">FixMy.Money</Link>
-          <Link href="/sign-up-login-screen?tab=register" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white">Start $1 Trial</Link>
+          <Link href="/#reopening-list" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white">Reserve One Month Free</Link>
         </div>
       </nav>
 
@@ -34,10 +34,10 @@ export default function WhatIsFixMyMoneyPage() {
           </div>
           <h1 className="max-w-3xl text-4xl font-extrabold leading-tight sm:text-6xl">What is FixMy.Money?</h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
-            FixMy.Money is business software for credit repair professionals and agencies. It helps teams manage client records, credit report review, evidence, dispute workflows, approvals, billing, and bureau response tracking from one secure workspace.
+            FixMy.Money is business software for credit repair professionals and agencies. It organizes client records, credit report review, evidence, dispute workflows, approvals, and bureau response tracking.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/credit-repair-software" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-4 font-bold text-white">Explore credit repair software <ArrowRight size={16} /></Link>
+            <Link href="/product-tour" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-4 font-bold text-white">Explore the product tour <ArrowRight size={16} /></Link>
             <Link href="/demo" className="inline-flex items-center justify-center rounded-xl border border-white/20 px-6 py-4 font-bold text-white">Book demo</Link>
           </div>
         </div>
@@ -69,8 +69,7 @@ export default function WhatIsFixMyMoneyPage() {
             FixMy.Money is not a law firm, does not provide legal advice, does not guarantee credit score improvement, and does not remove the agency's responsibility to comply with CROA, FCRA, TSR, and applicable state laws.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/credit-repair-business-software" className="rounded-lg border border-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">Credit repair business software</Link>
-            <Link href="/credit-repair-automation" className="rounded-lg border border-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">Credit repair automation</Link>
+            <Link href="/product-tour" className="rounded-lg border border-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">Product tour</Link>
             <Link href="/pricing" className="rounded-lg border border-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">Pricing</Link>
           </div>
         </div>

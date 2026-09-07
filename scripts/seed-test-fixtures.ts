@@ -18,16 +18,17 @@
  * Copy these into your .env.test file before running the security tests.
  *
  * ─── SAFETY ──────────────────────────────────────────────────────────────────
- * This script refuses to run if TEST_SUPABASE_URL matches NEXT_PUBLIC_SUPABASE_URL.
+ * This script runs only against a localhost Supabase stack.
  * It only creates users with @test.invalid email addresses.
  * All seeded data is tagged with the prefix 'test_fixture_' for easy cleanup.
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { appendFileSync } from 'node:fs';
+import { findAutomaticallyCreatedOwnerWorkspace } from './test-fixture-workspaces';
 
 const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL;
 const TEST_SERVICE_ROLE_KEY = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY;
-const PRODUCTION_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 // ─── Safety checks ────────────────────────────────────────────────────────────
 
@@ -37,9 +38,10 @@ if (!TEST_SUPABASE_URL || !TEST_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-if (TEST_SUPABASE_URL === PRODUCTION_URL) {
-  console.error('ERROR: TEST_SUPABASE_URL matches NEXT_PUBLIC_SUPABASE_URL (production).');
-  console.error('Refusing to seed test fixtures into the production database.');
+const testUrl = new URL(TEST_SUPABASE_URL);
+if (testUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(testUrl.hostname)) {
+  console.error('ERROR: TEST_SUPABASE_URL must use the isolated local Supabase stack.');
+  console.error('Refusing to seed test fixtures into any remote database.');
   process.exit(1);
 }
 
@@ -90,62 +92,23 @@ async function seed() {
     }
   }
 
-  // Create workspaces
-  const workspaceAName = 'test_fixture_workspace_a';
-  const workspaceBName = 'test_fixture_workspace_b';
+  // Auth signup creates one workspace per owner. Reuse that exact workspace;
+  // the fixture must never create a second owner workspace or select by name.
+  const workspaceA = await findAutomaticallyCreatedOwnerWorkspace(
+    adminClient,
+    userIds.ownerA,
+    'Workspace A',
+  );
+  const workspaceB = await findAutomaticallyCreatedOwnerWorkspace(
+    adminClient,
+    userIds.ownerB,
+    'Workspace B',
+  );
+  const workspaceAId = workspaceA.id;
+  const workspaceBId = workspaceB.id;
 
-  let workspaceAId: string | null = null;
-  let workspaceBId: string | null = null;
-
-  // Workspace A
-  const { data: existingA } = await adminClient
-    .from('workspaces')
-    .select('id')
-    .eq('name', workspaceAName)
-    .maybeSingle();
-
-  if (existingA) {
-    workspaceAId = existingA.id;
-    console.log(`  ✓ Workspace A exists: ${workspaceAId}`);
-  } else {
-    const { data: wsA, error: wsAErr } = await adminClient
-      .from('workspaces')
-      .insert({ name: workspaceAName, owner_id: userIds.ownerA })
-      .select('id')
-      .single();
-
-    if (wsAErr || !wsA) {
-      console.error('  ✗ Failed to create Workspace A:', wsAErr?.message);
-      process.exit(1);
-    }
-    workspaceAId = wsA.id;
-    console.log(`  ✓ Created Workspace A: ${workspaceAId}`);
-  }
-
-  // Workspace B
-  const { data: existingB } = await adminClient
-    .from('workspaces')
-    .select('id')
-    .eq('name', workspaceBName)
-    .maybeSingle();
-
-  if (existingB) {
-    workspaceBId = existingB.id;
-    console.log(`  ✓ Workspace B exists: ${workspaceBId}`);
-  } else {
-    const { data: wsB, error: wsBErr } = await adminClient
-      .from('workspaces')
-      .insert({ name: workspaceBName, owner_id: userIds.ownerB })
-      .select('id')
-      .single();
-
-    if (wsBErr || !wsB) {
-      console.error('  ✗ Failed to create Workspace B:', wsBErr?.message);
-      process.exit(1);
-    }
-    workspaceBId = wsB.id;
-    console.log(`  ✓ Created Workspace B: ${workspaceBId}`);
-  }
+  console.log(`  ✓ Reusing automatically created Workspace A: ${workspaceAId}`);
+  console.log(`  ✓ Reusing automatically created Workspace B: ${workspaceBId}`);
 
   // Seed clients for each workspace
   const clientsA = [
@@ -208,6 +171,22 @@ async function seed() {
   console.log(`TEST_WORKSPACE_A_ID=${workspaceAId}`);
   console.log(`TEST_WORKSPACE_B_ID=${workspaceBId}`);
   console.log('\n─────────────────────────────────────────────────────────────');
+
+  if (process.env.GITHUB_ENV) {
+    appendFileSync(process.env.GITHUB_ENV, [
+      `TEST_OWNER_A_EMAIL=${FIXTURES.ownerA.email}`,
+      `TEST_OWNER_A_PASSWORD=${TEST_PASSWORD}`,
+      `TEST_OWNER_B_EMAIL=${FIXTURES.ownerB.email}`,
+      `TEST_OWNER_B_PASSWORD=${TEST_PASSWORD}`,
+      `TEST_STAFF_A_EMAIL=${FIXTURES.staffA.email}`,
+      `TEST_STAFF_A_PASSWORD=${TEST_PASSWORD}`,
+      `TEST_WORKSPACE_A_ID=${workspaceAId}`,
+      `TEST_WORKSPACE_B_ID=${workspaceBId}`,
+      '',
+    ].join('\n'));
+    console.log('Published isolated fixture variables to the GitHub Actions environment.');
+  }
+
   console.log('\nSeeding complete. Run tests with:');
   console.log('  npx vitest run src/__tests__/cross-tenant-security.test.ts\n');
 }

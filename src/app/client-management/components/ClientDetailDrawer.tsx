@@ -1,9 +1,12 @@
 'use client';
-import React, { useState } from 'react';
-import { X, Mail, Phone, FileText, CheckCircle2, Brain, Sparkles, AlertTriangle, TrendingUp, Calendar, Shield, ChevronRight, Plus, User, Upload, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Mail, Phone, FileText, CheckCircle2, AlertTriangle, TrendingUp, Calendar, Shield, ChevronRight, Plus, User, Upload, RefreshCw } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Link from 'next/link';
 import ImportWizard from '@/components/ImportWizard';
+import { createClient } from '@/lib/supabase/client';
+import { formatMissingMailingAddressError, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
+import { toast } from 'sonner';
 
 interface Client {
   id: string; name: string; email: string; phone: string;
@@ -12,24 +15,108 @@ interface Client {
   lastActivity: string; nextTaskDue: string; nextTaskLabel: string;
   assignedStaff: string; bureaus: string[]; score: number;
   reportAnalyzed?: boolean;
+  address: string; city: string; state: string; zip: string;
 }
 
 const TIMELINE: Array<{ id: string; date: string; event: string; detail: string; type: string }> = [];
-const AI_RISK_FACTORS: Array<{ label: string; severity: string }> = [];
-
-const SEVERITY_COLORS: Record<string, string> = {
-  high: 'bg-red-100 text-red-700',
-  medium: 'bg-amber-100 text-amber-700',
-  low: 'bg-slate-100 text-slate-600',
-};
-
-const TABS = ['Overview', 'Disputes', 'AI Analysis', 'Notes', 'Billing'] as const;
+const TABS = ['Overview', 'Disputes', 'Notes', 'Billing'] as const;
 type Tab = typeof TABS[number];
 
-export default function ClientDetailDrawer({ client, onClose }: { client: Client; onClose: () => void }) {
+type ClientAddressUpdate = Pick<Client, 'id' | 'address' | 'city' | 'state' | 'zip'>;
+
+export default function ClientDetailDrawer({ client, onClose, onClientUpdated }: { client: Client; onClose: () => void; onClientUpdated: (client: ClientAddressUpdate) => void }) {
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [address, setAddress] = useState(client.address);
+  const [city, setCity] = useState(client.city);
+  const [state, setState] = useState(client.state);
+  const [zip, setZip] = useState(client.zip);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [sendingPortalInvitation, setSendingPortalInvitation] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const supabase = createClient();
   const initials = client.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  useEffect(() => {
+    setAddress(client.address);
+    setCity(client.city);
+    setState(client.state);
+    setZip(client.zip);
+  }, [client]);
+
+  const saveMailingAddress = async () => {
+    const profile = { name: client.name, address, city, state, zip };
+    const validationError = formatMissingMailingAddressError(profile);
+    if (validationError) {
+      setAddressError(validationError);
+      return;
+    }
+    const update = toCanonicalMailingAddressUpdate(profile);
+    if (!update) return;
+
+    setSavingAddress(true);
+    setAddressError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { error: updateError } = await supabase
+        .from('staff_clients')
+        .update(update)
+        .eq('id', client.id)
+        ;
+      if (updateError) throw updateError;
+
+      const { data: saved, error: reloadError } = await supabase
+        .from('staff_clients')
+        .select('address, city, state, zip')
+        .eq('id', client.id)
+
+        .single();
+      if (reloadError || !saved) throw new Error('Address saved but could not be reloaded.');
+      const normalized = normalizeClientMailingAddress(saved);
+      const updatedClient = { id: client.id, address: saved.address ?? '', city: saved.city ?? '', state: saved.state ?? '', zip: saved.zip ?? '' };
+      setAddress(normalized.street + (normalized.line2 ? `\n${normalized.line2}` : ''));
+      setCity(normalized.city);
+      setState(normalized.state);
+      setZip(normalized.postalCode);
+      onClientUpdated(updatedClient);
+      toast.success('Client mailing address saved');
+    } catch (error: any) {
+      setAddressError(error?.message ?? 'Could not save the mailing address.');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const sendPortalInvitation = async () => {
+    setSendingPortalInvitation(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('Not authenticated');
+      const response = await fetch('/api/workspaces/client-invitations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          clientId: client.id,
+          email: client.email,
+          clientName: client.name,
+          assignedStaff: client.assignedStaff,
+          clientPlan: client.plan,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.emailSent) throw new Error('Invitation email could not be sent');
+      toast.success('Client portal invitation sent');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Could not send the client portal invitation.');
+    } finally {
+      setSendingPortalInvitation(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end fade-in" role="dialog" aria-modal="true">
@@ -37,39 +124,38 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
       <div className="relative bg-white border-l border-slate-200 w-full max-w-lg flex flex-col shadow-2xl overflow-hidden">
 
         {/* ── PROFILE HEADER ── */}
-        <div className="bg-gradient-to-br from-slate-900 to-blue-950 p-6 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-          <button onClick={onClose} className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-lg transition-colors z-10">
-            <X size={18} className="text-white/70" />
+        <div className="relative overflow-hidden border-b border-slate-200 bg-white p-6">
+          <button onClick={onClose} className="absolute top-4 right-4 z-10 rounded-lg p-1.5 transition-colors hover:bg-slate-100" aria-label="Close client profile">
+            <X size={18} className="text-slate-500" />
           </button>
           <div className="flex items-start gap-4 relative">
-            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-white">{client.name}</h2>
+              <h2 className="text-lg font-bold text-slate-950">{client.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <StatusBadge status={client.caseStage as 'active'} />
-                <span className="text-xs text-blue-200">{client.plan} Plan</span>
+                <span className="text-xs font-medium text-slate-500">{client.plan} Plan</span>
               </div>
               <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-slate-300 flex items-center gap-1"><Mail size={11} /> {client.email}</span>
+                <span className="text-xs text-slate-600 flex items-center gap-1"><Mail size={11} /> {client.email}</span>
               </div>
             </div>
           </div>
           {/* KPI row */}
           <div className="grid grid-cols-3 gap-3 mt-5">
             {[
-              { label: 'Credit Score', value: client.score || '—', icon: TrendingUp, color: 'text-blue-300' },
-              { label: 'Disputes', value: client.activeDisputes, icon: Shield, color: 'text-violet-300' },
-              { label: 'Items Removed', value: client.itemsDeleted, icon: CheckCircle2, color: 'text-emerald-300' },
+              { label: 'Credit Score', value: client.score || '—', icon: TrendingUp, color: 'text-blue-600' },
+              { label: 'Disputes', value: client.activeDisputes, icon: Shield, color: 'text-teal-700' },
+              { label: 'Items Removed', value: client.itemsDeleted, icon: CheckCircle2, color: 'text-emerald-600' },
             ].map(kpi => {
               const KpiIcon = kpi.icon;
               return (
-                <div key={kpi.label} className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm border border-white/10">
+                <div key={kpi.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
                   <KpiIcon size={14} className={`${kpi.color} mx-auto mb-1`} />
-                  <p className="text-base font-bold text-white">{kpi.value}</p>
-                  <p className="text-xs text-slate-400">{kpi.label}</p>
+                  <p className="text-base font-bold text-slate-950">{kpi.value}</p>
+                  <p className="text-xs text-slate-500">{kpi.label}</p>
                 </div>
               );
             })}
@@ -79,19 +165,19 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
           <div className="mt-4 relative">
             <button
               onClick={() => setShowImportWizard(true)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all group"
+              className="group flex w-full items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 transition-colors hover:bg-green-100"
             >
               <div className="flex items-center gap-2.5">
                 {client.reportAnalyzed ? (
-                  <RefreshCw size={16} className="text-blue-300" />
+                  <RefreshCw size={16} className="text-green-700" />
                 ) : (
-                  <Upload size={16} className="text-blue-300" />
+                  <Upload size={16} className="text-green-700" />
                 )}
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-green-900">
                   {client.reportAnalyzed ? 'Re-import Updated Report' : 'Import / Audit Credit Report'}
                 </span>
               </div>
-              <ChevronRight size={14} className="text-white/60 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight size={14} className="text-green-700 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
@@ -107,7 +193,6 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
               }`}
             >
               {t}
-              {t === 'AI Analysis' && <span className="ml-1 text-xs font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">AI</span>}
             </button>
           ))}
         </div>
@@ -136,6 +221,28 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
                 <div className="flex items-center gap-2.5 text-sm text-slate-700">
                   <Calendar size={14} className="text-slate-400 shrink-0" />
                   <span>Enrolled: {client.enrolledDate}</span>
+                </div>
+                <button
+                  type="button"
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                  disabled={sendingPortalInvitation}
+                  onClick={sendPortalInvitation}
+                >
+                  <Mail size={13} />
+                  {sendingPortalInvitation ? 'Sending invitation…' : 'Send portal invitation'}
+                </button>
+                <div className="border-t border-slate-200 pt-3 mt-3 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mailing Address</p>
+                  <textarea className="input-field min-h-16" aria-label="Street address" placeholder="Street address (apartment/unit optional)" value={address} onChange={event => setAddress(event.target.value)} />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input className="input-field" aria-label="City" placeholder="City" value={city} onChange={event => setCity(event.target.value)} />
+                    <input className="input-field" aria-label="State" placeholder="ST" maxLength={2} value={state} onChange={event => setState(event.target.value.toUpperCase())} />
+                    <input className="input-field" aria-label="ZIP code" placeholder="ZIP" value={zip} onChange={event => setZip(event.target.value)} />
+                  </div>
+                  {addressError && <p className="text-xs text-red-600" role="alert">{addressError}</p>}
+                  <button type="button" className="btn-primary px-3 py-2 text-xs" disabled={savingAddress} onClick={saveMailingAddress}>
+                    {savingAddress ? 'Saving…' : 'Save mailing address'}
+                  </button>
                 </div>
               </div>
 
@@ -213,47 +320,6 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
             </div>
           )}
 
-          {/* AI ANALYSIS */}
-          {activeTab === 'AI Analysis' && (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-br from-violet-50 to-white border border-violet-100 rounded-2xl p-5">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
-                    <Brain size={18} className="text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">AI Credit Summary</p>
-                    <p className="text-xs text-slate-500">Powered by FixMy AI</p>
-                  </div>
-                  <span className="ml-auto text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">AI</span>
-                </div>
-                <p className="text-sm text-slate-700 leading-relaxed">Run an analysis after importing a verified credit report. No estimated outcomes or sample recommendations are shown.</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Risk Factors</p>
-                <div className="space-y-2">
-                  {AI_RISK_FACTORS.map(rf => (
-                    <div key={rf.label} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                      <AlertTriangle size={14} className={rf.severity === 'high' ? 'text-red-500' : rf.severity === 'medium' ? 'text-amber-500' : 'text-slate-400'} />
-                      <span className="text-sm text-slate-700 flex-1">{rf.label}</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${SEVERITY_COLORS[rf.severity]}`}>{rf.severity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="flex items-center justify-between p-4 bg-blue-600 rounded-2xl text-white hover:bg-blue-700 transition-colors group">
-                <div className="flex items-center gap-3">
-                  <Sparkles size={18} />
-                  <div>
-                    <p className="text-sm font-bold">Run Full AI Analysis</p>
-                    <p className="text-xs text-blue-200">Generate complete action plan</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
-          )}
-
           {/* NOTES */}
           {activeTab === 'Notes' && (
             <div className="space-y-3">
@@ -287,13 +353,9 @@ export default function ClientDetailDrawer({ client, onClose }: { client: Client
 
         {/* ── FOOTER ACTIONS ── */}
         <div className="border-t border-slate-200 p-4 flex gap-2 bg-slate-50">
-          <Link href={`/dispute-letter-management?client=${client.id}`} className="flex-1 btn-primary py-2.5 text-center text-sm rounded-xl flex items-center justify-center gap-2">
+          <Link href={`/dispute-letter-management?client=${client.id}`} className="w-full btn-primary py-2.5 text-center text-sm rounded-xl flex items-center justify-center gap-2">
             <FileText size={14} />
             Generate Letter
-          </Link>
-          <Link href={`/ai-dispute-analyzer?client=${client.id}`} className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2.5 text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
-            <Brain size={14} />
-            AI Analysis
           </Link>
         </div>
       </div>

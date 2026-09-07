@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BookOpen, Check, ArrowRight, AlertTriangle } from 'lucide-react';
+import { BookOpen, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Credit Repair Business Startup Checklist | FixMy.Money',
@@ -33,7 +33,7 @@ export default function StartupChecklistPage() {
           <Link href="/" className="font-bold text-lg">FixMy.Money</Link>
           <div className="flex gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-700 hover:text-slate-900">Pricing</Link>
-            <Link href="/demo-mode" className="text-sm font-medium text-slate-700 hover:text-slate-900">Demo</Link>
+            <Link href="/product-tour" className="text-sm font-medium text-slate-700 hover:text-slate-900">Product Tour</Link>
           </div>
         </div>
       </header>
@@ -53,10 +53,10 @@ export default function StartupChecklistPage() {
               Complete checklist for starting a credit repair business. Legal requirements, compliance, bonding, and operations setup.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
-                Start $1 Trial
+              <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
+                Reserve One Month Free
               </Link>
-              <Link href="/demo-mode" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
+              <Link href="/product-tour" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl border border-white/20 transition-colors">
                 View Demo
               </Link>
             </div>
@@ -105,8 +105,8 @@ export default function StartupChecklistPage() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">Ready to start your credit repair business?</h2>
             <p className="text-lg text-blue-50 mb-8">Use FixMy.Money to manage clients, disputes, and compliance from day one.</p>
-            <Link href="/signup?plan=starter" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
-              Start $1 Trial <ArrowRight size={18} />
+            <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
+              Reserve One Month Free <ArrowRight size={18} />
             </Link>
           </div>
         </section>

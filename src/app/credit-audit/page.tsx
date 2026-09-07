@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import AppLayout from '@/components/AppLayout';
 import CreditAuditContent from './components/CreditAuditContent';
 
@@ -10,7 +10,9 @@ export const metadata = {
 export default function CreditAuditPage() {
   return (
     <AppLayout>
-      <CreditAuditContent />
+      <Suspense fallback={<div className="card min-h-64 animate-pulse" aria-label="Loading credit audit" />}>
+        <CreditAuditContent />
+      </Suspense>
     </AppLayout>
   );
 }

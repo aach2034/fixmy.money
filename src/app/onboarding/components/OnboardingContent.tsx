@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@/lib/supabase/client';
 import AppLogo from '@/components/ui/AppLogo';
 import { toast } from 'sonner';
-import { Building2, User, CreditCard, CheckCircle2, ArrowRight, Loader2, Upload, Phone, Zap, Shield, Check, Sparkles, ExternalLink, FileText } from 'lucide-react';
+import { Building2, User, CreditCard, CheckCircle2, ArrowRight, Loader2, Shield, Check, Sparkles, FileText, AlertCircle } from 'lucide-react';
 
 import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
 import { DEFAULT_PROVIDERS, ReportProvider } from '@/lib/affiliates/reportProviders';
+import { trackEvent } from '@/lib/analytics';
 
 
 interface OnboardingStep {
@@ -20,7 +20,7 @@ interface OnboardingStep {
 
 const STEPS: OnboardingStep[] = [
   { id: 1, title: 'Company Setup', description: 'Tell us about your business', icon: Building2 },
-  { id: 2, title: 'Connect Stripe', description: 'Set up client billing', icon: CreditCard },
+  { id: 2, title: 'Client Payments', description: 'Connection status', icon: CreditCard },
   { id: 3, title: 'Ready to Go', description: 'Your workspace is ready', icon: CheckCircle2 },
 ];
 
@@ -39,12 +39,9 @@ interface CompanyFormData {
 export default function OnboardingContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const supabase = createClient();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [stripeConnecting, setStripeConnecting] = useState(false);
-  const [stripeConnected, setStripeConnected] = useState(false);
   const [providers] = useState<ReportProvider[]>(DEFAULT_PROVIDERS.filter(p => p.isVisible));
 
   const [companyData, setCompanyData] = useState<CompanyFormData>({
@@ -78,6 +75,26 @@ export default function OnboardingContent() {
     }
   }, [user, authLoading]);
 
+  useEffect(() => {
+    if (user) trackEvent('onboarding_started', { authenticated: true });
+  }, [user]);
+
+  // Resume from server-authoritative state; never infer completion from local UI.
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    fetch('/api/onboarding', { cache: 'no-store' })
+      .then(async response => response.ok ? response.json() : null)
+      .then(status => {
+        if (!active || !status) return;
+        if (status.state === 'completed') router.replace('/dashboard');
+        else if (status.nextStep === 'connect') setCurrentStep(2);
+        else if (status.nextStep === 'finish') setCurrentStep(3);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [user, router]);
+
   const validateCompany = (): boolean => {
     const newErrors: Partial<CompanyFormData> = {};
     if (!companyData.companyName.trim()) newErrors.companyName = 'Company name is required';
@@ -92,39 +109,12 @@ export default function OnboardingContent() {
 
     setSaving(true);
     try {
-      const workspaceSlug = `${companyData.companyName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '') || 'business'}-${user.id.slice(0, 8)}`;
-      // Save to workspace
-      const { error: wsError } = await supabase
-        .from('workspaces')
-        .upsert({
-          owner_id: user.id,
-          name: companyData.companyName,
-          slug: workspaceSlug,
-          phone: companyData.phone || null,
-          website: companyData.website || null,
-          address: companyData.address || null,
-          city: companyData.city || null,
-          state: companyData.state || null,
-          zip: companyData.zip || null,
-          business_type: companyData.businessType,
-        }, { onConflict: 'owner_id' });
-
-      if (wsError) {
-        throw wsError;
-      }
-
-      // Update user profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({
-          full_name: companyData.ownerName,
-          company_name: companyData.companyName,
-        })
-        .eq('id', user.id);
-      if (profileError) throw profileError;
+      const response = await fetch('/api/onboarding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(companyData),
+      });
+      if (!response.ok) throw new Error('ONBOARDING_COMPANY_SAVE_REJECTED');
 
       setCurrentStep(2);
       toast.success('Company setup saved!');
@@ -136,26 +126,7 @@ export default function OnboardingContent() {
     }
   };
 
-  const handleConnectStripe = async () => {
-    setStripeConnecting(true);
-    try {
-      // In a real implementation, this would redirect to Stripe Connect OAuth
-      // For now, mark as connected and proceed
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setStripeConnected(true);
-      toast.success('Stripe connected successfully!');
-    } catch (err) {
-      toast.error('Failed to connect Stripe. You can do this later in Settings.');
-    } finally {
-      setStripeConnecting(false);
-    }
-  };
-
   const handleSkipStripe = () => {
-    setCurrentStep(3);
-  };
-
-  const handleStripeNext = () => {
     setCurrentStep(3);
   };
 
@@ -163,12 +134,10 @@ export default function OnboardingContent() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error: finishError } = await supabase
-        .from('user_profiles')
-        .update({ onboarding_completed: true })
-        .eq('id', user.id);
-      if (finishError) throw finishError;
+      const finishResponse = await fetch('/api/onboarding', { method: 'POST' });
+      if (!finishResponse.ok) throw new Error('ONBOARDING_COMPLETION_REJECTED');
 
+      trackEvent('onboarding_completed', { authenticated: true, destination });
       toast.success('Welcome to FixMy.Money! 🎉');
       router.push(destination);
     } catch (err) {
@@ -182,7 +151,7 @@ export default function OnboardingContent() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 size={32} className="animate-spin text-blue-600" />
+        <Loader2 size={32} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -194,7 +163,7 @@ export default function OnboardingContent() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <AppLogo size={32} />
-            <span className="font-bold text-slate-900">FixMy.Money</span>
+            <span className="font-semibold tracking-[-.03em] text-[#101d3d]">FixMy<span className="text-[#3fa447]">.Money</span></span>
           </div>
           <span className="text-sm text-slate-500">Setup Wizard</span>
         </div>
@@ -216,12 +185,12 @@ export default function OnboardingContent() {
                         isCompleted
                           ? 'bg-emerald-500 text-white'
                           : isActive
-                          ? 'bg-blue-600 text-white ring-4 ring-blue-100' :'bg-slate-200 text-slate-400'
+                          ? 'bg-primary text-white ring-4 ring-green-100' :'bg-slate-200 text-slate-400'
                       }`}
                     >
                       {isCompleted ? <Check size={18} /> : <StepIcon size={18} />}
                     </div>
-                    <p className={`text-xs font-semibold mt-1.5 ${isActive ? 'text-blue-600' : isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    <p className={`text-xs font-semibold mt-1.5 ${isActive ? 'text-primary' : isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
                       {step.title}
                     </p>
                   </div>
@@ -395,7 +364,7 @@ export default function OnboardingContent() {
             </div>
           )}
 
-          {/* ── STEP 2: Connect Stripe ── */}
+          {/* ── STEP 2: Client payments availability ── */}
           {currentStep === 2 && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
               <div className="flex items-center gap-3 mb-6">
@@ -403,68 +372,27 @@ export default function OnboardingContent() {
                   <CreditCard size={20} className="text-violet-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Connect Stripe</h2>
-                  <p className="text-sm text-slate-500">Accept payments from your clients directly</p>
+                  <h2 className="text-xl font-bold text-slate-900">Client payments</h2>
+                  <p className="text-sm text-slate-500">Stripe Connect is not available yet</p>
                 </div>
               </div>
 
-              {!stripeConnected ? (
-                <>
-                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
-                        <Zap size={16} className="text-violet-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900 text-sm mb-1">Why connect Stripe?</p>
-                        <ul className="text-sm text-slate-600 space-y-1">
-                          <li className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /> Charge clients automatically on a recurring basis</li>
-                          <li className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /> Send invoices and track payment history</li>
-                          <li className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /> Get paid directly to your bank account</li>
-                          <li className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /> Manage refunds and disputes from the dashboard</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      onClick={handleConnectStripe}
-                      disabled={stripeConnecting}
-                      className="flex-1 inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white font-bold px-6 py-3 rounded-xl transition-colors"
-                    >
-                      {stripeConnecting ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
-                      {stripeConnecting ? 'Connecting…' : 'Connect Stripe Account'}
-                    </button>
-                    <button
-                      onClick={handleSkipStripe}
-                      className="flex-1 inline-flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold px-6 py-3 rounded-xl transition-colors"
-                    >
-                      Skip for now
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-400 text-center mt-3">
-                    You can connect Stripe later from Settings → Billing
+              <div className="bg-amber-50 rounded-xl border border-amber-200 p-5 mb-6 flex items-start gap-3">
+                <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-900 text-sm mb-1">Coming soon</p>
+                  <p className="text-sm text-amber-800">
+                    Connecting your own Stripe account for client payments is not currently supported. This does not affect the FixMy.Money subscription checkout.
                   </p>
-                </>
-              ) : (
-                <>
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6 flex items-center gap-3">
-                    <CheckCircle2 size={24} className="text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="font-bold text-emerald-800">Stripe connected successfully!</p>
-                      <p className="text-sm text-emerald-700">You can now accept payments from clients.</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleStripeNext}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl transition-colors"
-                  >
-                    Continue
-                    <ArrowRight size={16} />
-                  </button>
-                </>
-              )}
+                </div>
+              </div>
+              <button
+                onClick={handleSkipStripe}
+                className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl transition-colors"
+              >
+                Continue without connecting
+                <ArrowRight size={16} />
+              </button>
             </div>
           )}
 
@@ -482,8 +410,8 @@ export default function OnboardingContent() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
                 {[
                   { icon: User, title: 'Add a Client', desc: 'Onboard your first client and set up their profile', href: '/client-management', color: 'text-blue-600', bg: 'bg-blue-50' },
-                  { icon: Shield, title: 'Upload Credit Report', desc: 'Analyze a credit report with AI to find disputes', href: '/credit-report-import', color: 'text-violet-600', bg: 'bg-violet-50' },
-                  { icon: Sparkles, title: 'Explore Dashboard', desc: 'See your business metrics and AI insights', href: '/dashboard', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                  { icon: Shield, title: 'Import Credit Report', desc: 'Parse a report and review the extracted account data', href: '/credit-report-import', color: 'text-violet-600', bg: 'bg-violet-50' },
+                  { icon: Sparkles, title: 'Explore Dashboard', desc: 'See your clients, disputes, and workflow status', href: '/dashboard', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 ].map((item) => {
                   const ItemIcon = item.icon;
                   return (

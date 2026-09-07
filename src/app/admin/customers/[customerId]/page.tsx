@@ -31,7 +31,7 @@ export default async function AdminCustomerProfilePage({ params }: { params: Pro
   const accountAgeDays = summary.createdAt ? Math.max(0, Math.floor((Date.now() - new Date(summary.createdAt).getTime()) / 86_400_000)) : 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
+    <section className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <div className="mx-auto max-w-7xl">
         <Link href="/admin/customers" className="text-sm font-bold text-blue-600">← Customer directory</Link>
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -261,6 +261,6 @@ export default async function AdminCustomerProfilePage({ params }: { params: Pro
           </aside>
         </div>
       </div>
-    </main>
+    </section>
   );
 }

@@ -1,19 +1,16 @@
 'use client';
 
 import React, { memo, useMemo } from 'react';
-import AppIcon from './AppIcon';
 
 interface AppLogoProps {
-  src?: string; // Image source (optional)
-  iconName?: string; // Icon name when no image
+  src?: string; // Retained for backwards compatibility
+  iconName?: string; // Retained for backwards compatibility
   size?: number; // Size for icon/image
   className?: string; // Additional classes
   onClick?: () => void; // Click handler
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/fix_my_money_logo-1780535345534.png',
-  iconName = 'SparklesIcon',
   size = 64,
   className = '',
   onClick,
@@ -28,18 +25,13 @@ const AppLogo = memo(function AppLogo({
 
   return (
     <div className={containerClassName} onClick={onClick}>
-      {/* Show image if src provided, otherwise show icon */}
-      {src ? (
-        <img
-          src={src}
-          alt="Logo" 
-          width={size}
-          height={size}
-          className="flex-shrink-0"
-        />
-      ) : (
-        <AppIcon name={iconName} size={size} className="flex-shrink-0" />
-      )}
+      <span
+        aria-hidden="true"
+        className="grid flex-shrink-0 place-items-center rounded-[30%] bg-[#083a32] font-bold text-white"
+        style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.42)) }}
+      >
+        F
+      </span>
     </div>
   );
 });

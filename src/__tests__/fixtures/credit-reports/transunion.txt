@@ -1,0 +1,15 @@
+TransUnion Credit Report
+Personal Information
+Name: Test Consumer
+Current Address: 100 Example Street, Atlanta, GA 30301
+Credit Scores
+TransUnion Score: 690
+Accounts
+TRANSUNION TEST BANK
+Account Number: ****3333
+Account Type: Revolving
+Account Status: Collection
+Balance: $750
+Past Due: $750
+Date Opened: 03/01/2020
+Bureau: TransUnion

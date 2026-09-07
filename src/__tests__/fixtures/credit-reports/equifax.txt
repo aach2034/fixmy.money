@@ -1,0 +1,15 @@
+Equifax Credit Report
+Personal Information
+Name: Test Consumer
+Current Address: 100 Example Street, Atlanta, GA 30301
+Credit Scores
+Equifax Score: 670
+Accounts
+EQUIFAX TEST BANK
+Account Number: ****2222
+Account Type: Installment
+Account Status: Charge-off
+Balance: $900
+Past Due: $300
+Date Opened: 02/01/2020
+Bureau: Equifax

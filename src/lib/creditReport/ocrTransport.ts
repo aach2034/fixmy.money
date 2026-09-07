@@ -29,12 +29,61 @@ export interface CachedOcrExtraction {
       score: number;
       meaningful: boolean;
     };
+    extraction?: {
+      pageNumber: number;
+      nativeTextAvailable: boolean;
+      nativeCharacterCount: number;
+      renderedSuccessfully: boolean;
+      preprocessingApplied: string[];
+      primaryOcrAttempted: boolean;
+      primaryOcrSucceeded: boolean;
+      primaryOcrConfidence: number | null;
+      retryAttempted: boolean;
+      retryRecovered: boolean;
+      fallbackOcrAttempted: boolean;
+      fallbackOcrSucceeded: boolean;
+      fallbackOcrConfidence: number | null;
+      extractedCharacterCount: number;
+      finalStatus: 'native_text' | 'ocr_primary' | 'ocr_retry' | 'ocr_fallback' | 'unreadable';
+      failureReason: string | null;
+      engine?: string;
+    };
   }>;
+  pageResults?: Array<{
+    pageNumber: number;
+    nativeTextAvailable: boolean;
+    nativeCharacterCount: number;
+    renderedSuccessfully: boolean;
+    preprocessingApplied: string[];
+    primaryOcrAttempted: boolean;
+    primaryOcrSucceeded: boolean;
+    primaryOcrConfidence: number | null;
+    retryAttempted: boolean;
+    retryRecovered: boolean;
+    fallbackOcrAttempted: boolean;
+    fallbackOcrSucceeded: boolean;
+    fallbackOcrConfidence: number | null;
+    extractedCharacterCount: number;
+    finalStatus: 'native_text' | 'ocr_primary' | 'ocr_retry' | 'ocr_fallback' | 'unreadable';
+    failureReason: string | null;
+    engine?: string;
+  }>;
+  primaryOcrSuccesses?: number;
+  primaryOcrFailures?: number;
+  retryRecoveries?: number;
+  fallbackRecoveries?: number;
+  capability?: {
+    nativePdfExtraction: boolean;
+    pageRendering: boolean;
+    primaryOcr: boolean;
+    fallbackOcr: boolean;
+    reasons: Record<string, string | undefined>;
+  };
 }
 
-export function createOcrCachePath(userId: string, sha256: string): string {
+export function createOcrCachePath(workspaceOwnerId: string, sha256: string): string {
   if (!/^[a-f0-9]{64}$/.test(sha256)) throw new Error('Invalid PDF SHA-256');
-  return `${userId}/ocr-cache/v${OCR_CACHE_VERSION}-${sha256}.json`;
+  return `${workspaceOwnerId}/ocr-cache/v${OCR_CACHE_VERSION}-${sha256}.json`;
 }
 
 export function isValidCachedOcrExtraction(
@@ -85,19 +134,19 @@ export function sanitizeOcrFileName(fileName: string): string {
 }
 
 export function createOcrStoragePath(
-  userId: string,
+  workspaceOwnerId: string,
   fileName: string,
   requestId = crypto.randomUUID(),
 ): string {
   const safeRequestId = requestId.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 64);
-  return `${userId}/ocr-temp/${safeRequestId}-${sanitizeOcrFileName(fileName)}`;
+  return `${workspaceOwnerId}/ocr-temp/${safeRequestId}-${sanitizeOcrFileName(fileName)}`;
 }
 
-export function isOwnedOcrStoragePath(storagePath: string, userId: string): boolean {
+export function isOwnedOcrStoragePath(storagePath: string, workspaceOwnerId: string): boolean {
   if (!storagePath || storagePath.length > 512 || storagePath.includes('..')) return false;
   const segments = storagePath.split('/');
   return segments.length === 3
-    && segments[0] === userId
+    && segments[0] === workspaceOwnerId
     && segments[1] === 'ocr-temp'
     && segments[2].length > 4
     && segments[2].toLowerCase().endsWith('.pdf');

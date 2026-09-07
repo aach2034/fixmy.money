@@ -6,6 +6,8 @@ import {
   normalizeCrossBureauAccounts,
 } from '@/lib/disputeEngine/evidenceEngine';
 import type { NormalizedAccount } from '@/lib/creditReport/adapters';
+import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
+import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
 
 function asNormalizedAccount(row: any): NormalizedAccount {
   return {
@@ -18,15 +20,26 @@ function asNormalizedAccount(row: any): NormalizedAccount {
     accountType: row.accountType ?? row.account_type ?? '',
     responsibility: row.responsibility ?? 'Individual',
     dateOpened: row.dateOpened ?? row.date_opened ?? '',
+    dateOpenedField: row.dateOpenedField === 'date_opened' || row.date_opened_field === 'date_opened'
+      ? 'date_opened'
+      : undefined,
     accountStatus: row.accountStatus ?? row.status ?? '',
-    paymentStatus: row.paymentStatus ?? '',
+    paymentStatus: row.paymentStatus ?? row.payment_status ?? '',
     balance: row.balance ?? null,
+    highBalance: row.highBalance ?? row.high_balance ?? null,
     creditLimit: row.creditLimit ?? row.credit_limit ?? null,
     pastDue: row.pastDue ?? row.past_due ?? null,
     monthlyPayment: row.monthlyPayment ?? null,
-    lastPaymentDate: row.lastPaymentDate ?? '',
+    lastPaymentDate: row.lastPaymentDate ?? row.last_payment_date ?? row.dateLastActivity ?? row.date_last_activity ?? '',
+    lastActivityField: row.lastActivityField === 'date_of_last_activity' || row.last_activity_field === 'date_of_last_activity'
+      ? 'date_of_last_activity'
+      : undefined,
+    collectionActivityDate: row.collectionActivityDate ?? row.collection_activity_date ?? '',
+    collectionActivityField: row.collectionActivityField === 'collection_account_activity' || row.collection_activity_field === 'collection_account_activity'
+      ? 'collection_account_activity'
+      : undefined,
     dateReported: row.dateReported ?? row.date_reported ?? '',
-    paymentHistory: row.paymentHistory ?? '',
+    paymentHistory: row.paymentHistory ?? row.payment_history ?? '',
     remarks: row.remarks ?? [],
     originalCreditor: row.originalCreditor ?? row.original_creditor ?? '',
     collectionAgency: row.collectionAgency ?? row.collection_agency ?? '',
@@ -35,7 +48,7 @@ function asNormalizedAccount(row: any): NormalizedAccount {
     isCollection: Boolean(row.isCollection ?? row.is_collection),
     isChargeOff: Boolean(row.isChargeOff ?? row.is_charge_off),
     isLate: Boolean(row.isLate ?? row.is_late),
-    rawText: row.rawText ?? row.raw_text_source ?? '',
+    rawText: '',
     parserConfidence: row.parserConfidence ?? row.parser_confidence ?? 0,
   };
 }
@@ -64,28 +77,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'parsedReportId and clientId are required' }, { status: 400 });
     }
 
+    const authorization = await authorizeStaffClient(supabase, user.id, clientId, 'write');
+    if (!authorization) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
+    }
+    const ownerId = authorization.workspaceOwnerId;
+
     const { data: report, error: reportError } = await supabase
       .from('parsed_credit_reports')
       .select('id, owner_id, client_id, provider, report_date, all_accounts')
       .eq('id', parsedReportId)
-      .eq('owner_id', user.id)
+      .eq('owner_id', ownerId)
       .single();
 
     if (reportError || !report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
-    if (report.client_id && report.client_id !== clientId) {
+    if (!sameAuthorizedClient(report, authorization)) {
       return NextResponse.json({ error: 'Report/client mismatch' }, { status: 403 });
-    }
-
-    const { data: clientRow } = await supabase
-      .from('staff_clients')
-      .select('id')
-      .eq('id', clientId)
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!clientRow) {
-      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
 
     const accounts = Array.isArray(report.all_accounts)
@@ -101,7 +109,8 @@ export async function POST(request: NextRequest) {
     const { data: existingSnapshot } = await supabase
       .from('report_snapshots')
       .select('id')
-      .eq('owner_id', user.id)
+      .eq('owner_id', ownerId)
+      .eq('client_id', clientId)
       .eq('parsed_report_id', parsedReportId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -110,7 +119,7 @@ export async function POST(request: NextRequest) {
     const { data: reportSnapshot, error: snapshotError } = existingSnapshot
       ? { data: existingSnapshot, error: null }
       : await supabase.from('report_snapshots').insert({
-        owner_id: user.id,
+        owner_id: ownerId,
         client_id: clientId,
         parsed_report_id: parsedReportId,
         import_id: importId || null,
@@ -119,7 +128,7 @@ export async function POST(request: NextRequest) {
         report_date: report.report_date ?? '',
         accounts_count: accounts.length,
         bureaus: [...new Set(accounts.map((account: NormalizedAccount) => account.bureau || 'Unknown'))],
-        snapshot_data: { accounts: canonicalAccounts },
+        snapshot_data: stripRawReportArtifacts({ accounts: canonicalAccounts }),
       })
       .select('id')
       .single();
@@ -135,8 +144,9 @@ export async function POST(request: NextRequest) {
       const { data: creditAccount, error: accountError } = await supabase
         .from('credit_accounts')
         .upsert({
-          owner_id: user.id,
+          owner_id: ownerId,
           client_id: clientId,
+          workspace_id: authorization.workspaceId,
           canonical_key: canonical.canonicalKey,
           display_name: canonical.displayName,
           creditor_name: first?.creditorName ?? canonical.displayName,
@@ -147,7 +157,7 @@ export async function POST(request: NextRequest) {
           collection_agency: first?.collectionAgency ?? '',
           last_seen_snapshot_id: reportSnapshot.id,
           latest_reported_at: first?.dateReported ?? '',
-          normalized_fields: canonical,
+          normalized_fields: stripRawReportArtifacts(canonical),
         }, { onConflict: 'owner_id,client_id,canonical_key' })
         .select('id')
         .single();
@@ -155,7 +165,7 @@ export async function POST(request: NextRequest) {
       normalizedCount++;
 
       const tradelineRows = canonical.tradelines.map(row => ({
-        owner_id: user.id,
+        owner_id: ownerId,
         client_id: clientId,
         credit_account_id: creditAccount.id,
         parsed_report_id: parsedReportId,
@@ -176,7 +186,7 @@ export async function POST(request: NextRequest) {
         last_payment_date: row.lastPaymentDate,
         payment_history: row.paymentHistory,
         remarks: row.remarks,
-        raw_tradeline: row,
+        raw_tradeline: stripRawReportArtifacts(row),
         parser_confidence: row.parserConfidence,
       }));
       if (tradelineRows.length > 0) {
@@ -190,7 +200,7 @@ export async function POST(request: NextRequest) {
         const { data: existingIssue } = await supabase
           .from('detected_issues')
           .select('id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', ownerId)
           .eq('credit_account_id', creditAccount.id)
           .eq('report_snapshot_id', reportSnapshot.id)
           .eq('issue_type', issue.issueType)
@@ -203,12 +213,12 @@ export async function POST(request: NextRequest) {
         const { data: detectedIssue, error: issueError } = await supabase
           .from('detected_issues')
           .insert({
-            owner_id: user.id,
+            owner_id: ownerId,
             client_id: clientId,
             credit_account_id: creditAccount.id,
             report_snapshot_id: reportSnapshot.id,
             issue_type: issue.issueType,
-            issue_label: 'Potential reporting discrepancy',
+            issue_label: issue.issueTitle,
             affected_bureaus: issue.affectedBureaus,
             affected_furnisher: issue.affectedFurnisher,
             reported_data: issue.reportedData,
@@ -228,7 +238,7 @@ export async function POST(request: NextRequest) {
         const { data: existingCases } = await supabase
           .from('credit_cases')
           .select('id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', ownerId)
           .eq('detected_issue_id', detectedIssue.id)
           .limit(1);
 
@@ -236,17 +246,17 @@ export async function POST(request: NextRequest) {
           const { count } = await supabase
             .from('credit_cases')
             .select('id', { count: 'exact', head: true })
-            .eq('owner_id', user.id);
+            .eq('owner_id', ownerId);
           const caseNumber = buildCaseNumber((count ?? 0) + 1);
           const { data: creditCase, error: caseError } = await supabase
             .from('credit_cases')
             .insert({
-              owner_id: user.id,
+              owner_id: ownerId,
               client_id: clientId,
               credit_account_id: creditAccount.id,
               detected_issue_id: detectedIssue.id,
               case_number: caseNumber,
-              issue_summary: issue.whyFlagged,
+              issue_summary: issue.factualBasis,
               responsible_party: issue.affectedFurnisher,
               evidence_strength: strength.strength,
               escalation_level: 1,
@@ -259,7 +269,7 @@ export async function POST(request: NextRequest) {
           caseCount++;
 
           await supabase.from('case_events').insert({
-            owner_id: user.id,
+            owner_id: ownerId,
             client_id: clientId,
             credit_case_id: creditCase.id,
             event_type: 'potential_issue_detected',

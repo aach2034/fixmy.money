@@ -39,7 +39,7 @@ export default function RecentActivity() {
         const { data: letters } = await supabase
           .from('dispute_letters')
           .select('id, letter_id, client_name, bureau, items_count, letter_status, created_at, updated_at')
-          .eq('owner_id', user.id)
+
           .order('updated_at', { ascending: false })
           .limit(4);
 
@@ -47,7 +47,7 @@ export default function RecentActivity() {
         const { data: newClients } = await supabase
           .from('staff_clients')
           .select('id, name, plan, subscription_status, case_stage, created_at')
-          .eq('owner_id', user.id)
+
           .order('created_at', { ascending: false })
           .limit(3);
 

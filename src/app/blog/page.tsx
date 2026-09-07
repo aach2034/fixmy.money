@@ -18,8 +18,8 @@ export default function BlogPage() {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
-            <Link href="/signup" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start $1 Trial
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Reserve One Month Free
             </Link>
           </div>
         </div>
@@ -76,8 +76,8 @@ export default function BlogPage() {
                   <Link href={`/blog/${article.slug}`}>{article.title}</Link>
                 </h2>
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">{article.excerpt}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
                       <User size={12} />
                       {article.author}
@@ -93,7 +93,7 @@ export default function BlogPage() {
                   </div>
                   <Link
                     href={`/blog/${article.slug}`}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    className="flex shrink-0 items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
                   >
                     Read <ArrowRight size={12} />
                   </Link>
@@ -117,12 +117,12 @@ export default function BlogPage() {
       <section className="a11y-dark py-12 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-extrabold text-white mb-3">Ready to run your agency from one platform?</h2>
-          <p className="text-slate-400 mb-6 text-sm">14-day trial for $1. Payment method required.</p>
+          <p className="text-slate-400 mb-6 text-sm">One full month free when you activate after reopening.</p>
           <Link
-            href="/signup"
+            href="/#reopening-list"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
           >
-            Start $1 Trial <ArrowRight size={16} />
+            Reserve One Month Free <ArrowRight size={16} />
           </Link>
         </div>
       </section>

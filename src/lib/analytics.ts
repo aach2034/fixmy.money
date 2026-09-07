@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { attributionEventParams, captureCurrentAttribution } from './attribution';
 
 declare global {
   interface Window {
@@ -20,6 +21,39 @@ function getStoredAttribution(): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function runtimeEventContext(): Record<string, unknown> {
+  if (typeof window === 'undefined') return {};
+  const width = window.innerWidth;
+  return {
+    page_path: `${window.location.pathname}${window.location.search}`,
+    device_type: width < 768 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop',
+  };
+}
+
+const SERVER_ANALYTICS_EVENTS = new Set([
+  'onboarding_started',
+  'onboarding_completed',
+  'credit_report_import_started',
+  'credit_report_import_completed',
+  'credit_audit_viewed',
+  'dispute_wizard_started',
+  'dispute_created',
+  'letter_generated',
+  'checkout_started',
+]);
+
+function persistAuthenticatedEvent(eventName: string, eventParams: Record<string, unknown>) {
+  if (typeof window === 'undefined' || eventParams.authenticated !== true || !SERVER_ANALYTICS_EVENTS.has(eventName)) return;
+  const eventId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  void fetch('/api/analytics/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    keepalive: true,
+    body: JSON.stringify({ event_name: eventName, properties: eventParams, event_id: eventId }),
+  }).catch(() => undefined);
 }
 
 function persistOrganicAttribution(pagePath: string, searchParams: URLSearchParams) {
@@ -63,22 +97,49 @@ export function useGoogleAnalytics() {
 
   useEffect(() => {
     const url = pathname + (searchParams.toString() ? `?${searchParams}` : '');
+    const acquisitionAttribution = captureCurrentAttribution();
     const attribution = persistOrganicAttribution(pathname, searchParams);
     if (window.gtag) {
       window.gtag('event', 'page_view', {
         page_location: window.location.href,
         page_path: url,
         page_title: document.title,
+        event_name: 'landing_page_view',
         ...attribution,
+        ...attributionEventParams(acquisitionAttribution),
       });
+      window.gtag('event', 'landing_page_view', {
+        page_location: window.location.href,
+        page_path: url,
+        page_title: document.title,
+        ...attributionEventParams(acquisitionAttribution),
+      });
+      if (pathname === '/') {
+        trackEvent('homepage_view', { authenticated: false });
+      }
+      if (pathname === '/pricing') {
+        trackEvent('pricing_view', {
+          page_location: window.location.href,
+          page_path: url,
+          authenticated: false,
+          ...attributionEventParams(acquisitionAttribution),
+        });
+      }
     }
   }, [pathname, searchParams]);
 }
 
 export function trackEvent(eventName: string, eventParams: Record<string, unknown> = {}) {
+  const normalizedParams = {
+    ...runtimeEventContext(),
+    ...getStoredAttribution(),
+    ...attributionEventParams(),
+    ...eventParams,
+  };
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, { ...getStoredAttribution(), ...eventParams });
+    window.gtag('event', eventName, normalizedParams);
   }
+  persistAuthenticatedEvent(eventName, normalizedParams);
 }
 
 export function trackOrganicConversionStep(step: string, eventParams: Record<string, unknown> = {}) {
@@ -96,20 +157,44 @@ export function trackOrganicConversionStep(step: string, eventParams: Record<str
  * @param plan - The plan name/id (e.g. 'starter', 'professional', 'agency')
  * @param location - Where on the page the CTA was clicked (e.g. 'hero', 'pricing', 'sticky_bar', 'footer_cta')
  */
+export function getPlanAudience(plan: string): 'individual' | 'business' | 'unknown' {
+  if (plan === 'starter') return 'individual';
+  if (plan === 'professional' || plan === 'agency') return 'business';
+  return 'unknown';
+}
+
 export function trackTrialSignup(plan: string = 'starter', location: string = 'unknown') {
   trackEvent('trial_start_click', {
     event_category: 'conversion',
     event_label: `trial_start_${plan}`,
     plan_name: plan,
+    audience: getPlanAudience(plan),
     cta_location: location,
+    source_page: 'homepage',
     currency: 'USD',
   });
-  trackEvent('begin_checkout', {
-    event_category: 'conversion',
-    event_label: `trial_signup_${plan}`,
-    plan_name: plan,
+}
+
+export function trackToolStarted(toolName: string, location = 'tools') {
+  trackEvent('tool_started', {
+    event_category: 'engagement',
+    tool_name: toolName,
     cta_location: location,
-    currency: 'USD',
+  });
+}
+
+export function trackToolCompleted(toolName: string, location = 'tools') {
+  trackEvent('tool_completed', {
+    event_category: 'conversion',
+    tool_name: toolName,
+    cta_location: location,
+  });
+}
+
+export function trackLead(eventName: 'professional_lead' | 'mortgage_partner_lead' | 'affiliate_referral', eventParams: Record<string, unknown> = {}) {
+  trackEvent(eventName, {
+    event_category: 'lead',
+    ...eventParams,
   });
 }
 

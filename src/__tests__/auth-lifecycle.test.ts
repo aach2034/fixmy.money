@@ -21,6 +21,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { LOCAL_PASSWORD_RESET_REDIRECT_URL } from '../../scripts/integration-test-contracts';
 
 const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL || '';
 const TEST_SUPABASE_ANON_KEY = process.env.TEST_SUPABASE_ANON_KEY || '';
@@ -40,10 +41,11 @@ function assertAuthTestConfig() {
     );
   }
 
-  if (TEST_SUPABASE_URL === process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  const testUrl = new URL(TEST_SUPABASE_URL);
+  if (testUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(testUrl.hostname)) {
     throw new Error(
-      '[Auth Tests] TEST_SUPABASE_URL must not match production NEXT_PUBLIC_SUPABASE_URL. ' +
-      'Never run auth tests against production.'
+      '[Auth Tests] TEST_SUPABASE_URL must use the isolated local Supabase stack. ' +
+      'Remote projects, including production, are forbidden.'
     );
   }
 }
@@ -187,7 +189,7 @@ describe('Authentication Lifecycle Tests', () => {
     it('Password reset request succeeds for existing email', async () => {
       const client = createAnonClient();
       const { error } = await client.auth.resetPasswordForEmail(TEST_EMAIL, {
-        redirectTo: 'https://fixmy.money/auth/callback',
+        redirectTo: LOCAL_PASSWORD_RESET_REDIRECT_URL,
       });
 
       // Supabase returns success even for non-existent emails (security best practice)
@@ -195,19 +197,37 @@ describe('Authentication Lifecycle Tests', () => {
     });
 
     it('Password reset request does not expose whether email exists', async () => {
-      const client = createAnonClient();
-      const { error: existingError } = await client.auth.resetPasswordForEmail(
-        TEST_EMAIL,
-        { redirectTo: 'https://fixmy.money/auth/callback' }
-      );
-      const { error: nonExistingError } = await client.auth.resetPasswordForEmail(
-        'definitely-not-real@test.invalid',
-        { redirectTo: 'https://fixmy.money/auth/callback' }
-      );
+      const existingEmail = `auth-reset-existing-${Date.now()}@test.invalid`;
+      const missingEmail = `auth-reset-missing-${Date.now()}@test.invalid`;
+      const adminClient = createAdminTestClient();
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+        email: existingEmail,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      expect(createError).toBeNull();
+      expect(created.user?.id).toBeTruthy();
 
-      // Both should return the same response (no user enumeration)
-      expect(existingError).toBeNull();
-      expect(nonExistingError).toBeNull();
+      const client = createAnonClient();
+      try {
+        const { error: existingError } = await client.auth.resetPasswordForEmail(
+          existingEmail,
+          { redirectTo: LOCAL_PASSWORD_RESET_REDIRECT_URL },
+        );
+        const { error: nonExistingError } = await client.auth.resetPasswordForEmail(
+          missingEmail,
+          { redirectTo: LOCAL_PASSWORD_RESET_REDIRECT_URL },
+        );
+
+        // Each identity is requested only once, avoiding the documented
+        // per-user recovery cooldown while preserving enumeration coverage.
+        expect(existingError).toBeNull();
+        expect(nonExistingError).toBeNull();
+      } finally {
+        if (created.user?.id) {
+          await adminClient.auth.admin.deleteUser(created.user.id);
+        }
+      }
     });
   });
 
@@ -251,7 +271,7 @@ describe('Authentication Lifecycle Tests', () => {
   // ── OAuth Configuration Verification ──────────────────────────────────────
 
   describe('OAuth configuration (manual verification required)', () => {
-    it('Documents required OAuth configuration for Google', () => {
+    it('keeps the integration runtime isolated from production', () => {
       /**
        * MANUAL VERIFICATION REQUIRED:
        *
@@ -274,10 +294,13 @@ describe('Authentication Lifecycle Tests', () => {
        *   - Error reports
        *   - Browser history (use POST-based flows)
        */
-      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBeDefined();
-      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).not.toContain('qpgkbbtamfnodbbcqykd');
-      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toContain('agxzfdyvewptjwdfuvwq');
-      expect(process.env.NEXT_PUBLIC_SITE_URL).toBe('https://fixmy.money');
+      const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '');
+      const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL || '');
+      expect(['127.0.0.1', 'localhost']).toContain(supabaseUrl.hostname);
+      expect(supabaseUrl.protocol).toBe('http:');
+      expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBe(TEST_SUPABASE_URL);
+      expect(['127.0.0.1', 'localhost']).toContain(siteUrl.hostname);
+      expect(siteUrl.protocol).toBe('http:');
     });
 
     it('Auth callback route exists at /auth/callback', async () => {

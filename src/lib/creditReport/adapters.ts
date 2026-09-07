@@ -1,11 +1,11 @@
-'use client';
 // ─── Provider Adapter Architecture ───────────────────────────────────────────
 // Each adapter converts a provider-specific report into the NormalizedReport schema.
 // No adapter is allowed to crash on malformed input — all errors are captured as warnings.
 
-import { safeNormalizeText, type SupportedProvider } from './parser';
+import { normalizeCreditReportToHtml, safeNormalizeText, type SupportedProvider } from './parser';
 import { extractCreditReportDate } from './dateValidation';
 import { isReliableInquiry } from './auditItems';
+import type { AnalyzerOutcome } from './analyzerOutcome';
 
 // ─── Normalized Schema ────────────────────────────────────────────────────────
 
@@ -43,13 +43,21 @@ export interface NormalizedAccount {
   accountType: string;
   responsibility: string;
   dateOpened: string;
+  dateOpenedField?: 'date_opened';
   accountStatus: string;
   paymentStatus: string;
   balance: number | null;
+  originalBalance?: number | null;
+  collectionAmount?: number | null;
+  chargeOffAmount?: number | null;
+  highBalance?: number | null;
   creditLimit: number | null;
   pastDue: number | null;
   monthlyPayment: number | null;
   lastPaymentDate: string;
+  lastActivityField?: 'date_of_last_activity';
+  collectionActivityDate?: string;
+  collectionActivityField?: 'collection_account_activity';
   dateReported: string;
   paymentHistory: string;
   remarks: string[];
@@ -130,6 +138,7 @@ export interface NormalizedReport {
   inquiries: NormalizedInquiry[];
   publicRecords: NormalizedPublicRecord[];
   collections: NormalizedCollection[];
+  analysisOutcome?: AnalyzerOutcome;
 }
 
 // ─── Negative classification helpers ─────────────────────────────────────────
@@ -225,7 +234,18 @@ class GenericAdapter extends BaseAdapter {
     const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
 
     const scores = this.extractScores(normalized);
-    const accounts = this.extractAccounts(normalized, lines);
+    const extractedAccounts = this.extractAccounts(normalized, lines);
+    const accounts = extractedAccounts.filter(account => {
+      if (account.creditorName !== 'Unknown Creditor' || !account.accountNumberMasked) return true;
+
+      return !extractedAccounts.some(candidate =>
+        candidate.creditorName !== 'Unknown Creditor' &&
+        candidate.accountNumberMasked === account.accountNumberMasked &&
+        candidate.bureau === account.bureau &&
+        candidate.accountStatus === account.accountStatus &&
+        candidate.balance === account.balance
+      );
+    });
     const inquiries = this.extractInquiries(normalized, lines);
     const clientInfo = this.extractClientInfo(normalized, lines);
     const reportDate = this.extractReportDate(normalized);
@@ -401,6 +421,7 @@ class GenericAdapter extends BaseAdapter {
       const statusMatch = block.match(/(?:account\s+status|status)[:\s]+([^\n]+)/i);
       const typeMatch = block.match(/(?:account\s+type|type)[:\s]+([^\n]+)/i);
       const dateOpenedMatch = block.match(/(?:date\s+opened|opened)[:\s]+([^\n]+)/i);
+      const collectionActivityMatch = block.match(/(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)[:\s]+([^\n]+)/i);
       const bureauMatch = block.match(/\b(TransUnion|Equifax|Experian)\b/i);
 
       if (!creditorMatch && !accountNumMatch) {
@@ -428,6 +449,9 @@ class GenericAdapter extends BaseAdapter {
         accountType: typeMatch ? typeMatch[1].trim() : '',
         responsibility: 'Individual',
         dateOpened: dateOpenedMatch ? dateOpenedMatch[1].trim() : '',
+        dateOpenedField: /^\s*(?:date\s+opened|opened|open\s+date)\s*(?::|\t|$)/im.test(block)
+          ? 'date_opened'
+          : undefined,
         accountStatus,
         paymentStatus: '',
         balance: balanceMatch ? this.parseAmount(balanceMatch[1]) : null,
@@ -435,6 +459,10 @@ class GenericAdapter extends BaseAdapter {
         pastDue: null,
         monthlyPayment: null,
         lastPaymentDate: '',
+        collectionActivityDate: collectionActivityMatch ? collectionActivityMatch[1].trim() : '',
+        collectionActivityField: /^\s*(?:collection\s+activity\s+date|collection\s+account\s+activity\s+date)\s*(?::|\t|$)/im.test(block)
+          ? 'collection_account_activity'
+          : undefined,
         dateReported: '',
         paymentHistory: '',
         remarks,
@@ -578,7 +606,25 @@ export function parseWithAdapter(
 ): NormalizedReport {
   try {
     const adapter = getAdapter(provider);
-    return adapter.parse(text, provider);
+    const normalized = safeNormalizeText(text ?? '');
+    const isHtml = /<(?:!doctype|html|head|body|table|thead|tbody|tr|td|th|dl|dt|dd|section|div|span|p|br|script|style)\b/i.test(text ?? '');
+    if (isHtml || normalized.trim().length === 0) {
+      return adapter.parse(normalized, provider);
+    }
+
+    const canonical = normalizeCreditReportToHtml(normalized, provider);
+    const parserInput = canonical.diagnostics.accountSectionsProduced > 0
+      ? `${normalized.trim()}\n\n${safeNormalizeText(canonical.html)}`.trim()
+      : normalized;
+    const parsed = adapter.parse(parserInput, provider);
+    if (canonical.diagnostics.accountSectionsProduced > 0) {
+      parsed.warnings.push({
+        section: 'normalization',
+        message: `Canonical HTML normalization produced ${canonical.diagnostics.accountSectionsProduced} account section(s) before adapter parsing.`,
+        severity: 'info',
+      });
+    }
+    return parsed;
   } catch (err: any) {
     // Never crash — return a minimal failed result
     const generic = new GenericAdapter();

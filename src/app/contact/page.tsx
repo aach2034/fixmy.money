@@ -26,8 +26,8 @@ export default function ContactPage() {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
-            <Link href="/signup" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start $1 Trial
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Reserve One Month Free
             </Link>
           </div>
         </div>
@@ -133,10 +133,10 @@ export default function ContactPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                href="/signup"
+                href="/#reopening-list"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm"
               >
-                Start $1 Trial <ArrowRight size={14} />
+                Reserve One Month Free <ArrowRight size={14} />
               </Link>
               <a
                 href="mailto:adam@fixmy.money"

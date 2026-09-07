@@ -11,6 +11,14 @@ import { defineConfig, devices } from '@playwright/test';
  */
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4028';
+const releaseGate = process.env.CI === 'true' || process.env.FMM_RELEASE_GATE === '1';
+
+if (releaseGate) {
+  const baseUrl = new URL(BASE_URL);
+  if (!['127.0.0.1', 'localhost'].includes(baseUrl.hostname)) {
+    throw new Error('Release-gate browser tests are restricted to the local application server.');
+  }
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -38,6 +46,10 @@ export default defineConfig({
       use: { ...devices?.['Desktop Firefox'] },
     },
     {
+      name: 'webkit',
+      use: { ...devices?.['Desktop Safari'] },
+    },
+    {
       name: 'mobile-chrome-375',
       use: {
         ...devices?.['Pixel 5'],
@@ -46,6 +58,13 @@ export default defineConfig({
     },
     {
       name: 'mobile-chrome-390',
+      use: {
+        ...devices?.['iPhone 12'],
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
+      name: 'mobile-webkit-390',
       use: {
         ...devices?.['iPhone 12'],
         viewport: { width: 390, height: 844 },

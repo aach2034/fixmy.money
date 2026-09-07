@@ -1,53 +1,26 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle2, Info, Loader2, X, ArrowRight, RefreshCw, Eye, AlertCircle, ChevronDown, ChevronUp, ScanLine } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Upload, FileText, AlertTriangle, CheckCircle2, Info, Loader2, X, ArrowRight, RefreshCw, AlertCircle, ChevronDown, ChevronUp, ScanLine, ShieldCheck, UsersRound, FileUp, ExternalLink, Building2, SearchCheck, Sparkles, ListChecks, LockKeyhole, Bell, WalletCards } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import AffiliateProviderCard, { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
-import { DEFAULT_PROVIDERS, getProviders, ReportProvider } from '@/lib/affiliates/reportProviders';
+import { AffiliateDisclosure } from '@/components/AffiliateProviderCard';
+import { DEFAULT_PROVIDERS, getProviders, ReportProvider, trackAffiliateClick } from '@/lib/affiliates/reportProviders';
 import { parseCreditReport, type ParsedCreditReport, type SupportedProvider, type SectionConfidence, type ParseStageError, type OcrMetadata, safeNormalizeText } from '@/lib/creditReport/parser';
 import { extractPdfText, validateCreditReportExtraction, type PdfExtractionResult } from '@/lib/creditReport/pdfUtils';
 import { hashPdfFile, ocrPdfLocally } from '@/lib/creditReport/localOcr';
+import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
+import { isReliableInquiry } from '@/lib/creditReport/auditItems';
+import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
+import { formatReportedAmount, needsAccountReview } from '@/lib/creditReport/reviewFlow';
+import { getActionableUnmatchedBlocks } from '@/lib/creditReport/persistenceContract';
+import { determineAnalyzerOutcome } from '@/lib/creditReport/analyzerOutcome';
 import {
-  OCR_STORAGE_BUCKET,
-  createOcrCachePath,
-  isValidCachedOcrExtraction,
-  type CachedOcrExtraction,
-} from '@/lib/creditReport/ocrTransport';
-import { currentIsoDate, isFalseFutureDateClaim, isUnsupportedMissingReportingDateClaim } from '@/lib/creditReport/dateValidation';
-import { isReliableInquiry, selectReliableAuditItems } from '@/lib/creditReport/auditItems';
-import { trackOrganicConversionStep } from '@/lib/analytics';
+  SUPPORTED_CREDIT_REPORT_FORMATS_LABEL,
+  validateCreditReportFileContent,
+  validateCreditReportFileMetadata,
+} from '@/lib/creditReport/reportFileValidation';
 
-type SavedReportItem = {
-  id: string;
-  bureau: string | null;
-  creditor_name: string | null;
-  account_number_masked: string | null;
-  negative_category: string | null;
-  negative_reason: string | null;
-  balance: number | null;
-  date_opened?: string | null;
-  date_reported: string | null;
-  date_last_activity?: string | null;
-  parser_confidence: number | null;
-  is_negative?: boolean | null;
-};
-
-type AISelection = {
-  candidate: number;
-  rank: number;
-  strength: 'Strong' | 'Moderate' | 'Review';
-  why: string;
-  disputeReason: string;
-  requestedAction: string;
-};
-
-const BUREAU_ADDRESSES: Record<string, string> = {
-  Equifax: 'Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256',
-  Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
-  TransUnion: 'TransUnion LLC Consumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
-};
 const CREDIT_BUREAUS = ['TransUnion', 'Experian', 'Equifax'];
 type ParsedAccountItem = ParsedCreditReport['accounts'][number];
 
@@ -63,66 +36,27 @@ function expandCanonicalAccountByBureau(account: ParsedAccountItem): ParsedAccou
 }
 
 function accountsForPersistence(report: ParsedCreditReport): ParsedAccountItem[] {
-  if (report.bureauTradelines?.length) return report.bureauTradelines;
-  return report.accounts.flatMap(account => account.tradelines?.length ? account.tradelines : expandCanonicalAccountByBureau(account));
+  const tradelines = report.bureauTradelines?.length
+    ? report.bureauTradelines
+    : report.accounts.flatMap(account => account.tradelines?.length ? account.tradelines : expandCanonicalAccountByBureau(account));
+
+  // Native SmartCredit exports can repeat the same bureau tradeline in more
+  // than one report section. Remove only exact persistence duplicates before
+  // inserting; cross-bureau rows and materially different classifications stay.
+  const seen = new Set<string>();
+  return tradelines.filter(item => {
+    const category = item.isCollection ? 'collection' : item.isChargeOff ? 'charge_off' : item.isLate ? 'late_payment' : 'other';
+    const key = [item.bureau, item.creditorName, item.accountNumberMasked, category]
+      .map(value => String(value ?? '').trim().toLowerCase())
+      .join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
-function buildAutomaticDraft(params: {
-  client: any;
-  bureau: string;
-  letterId: string;
-  selections: Array<{ item: SavedReportItem; opinion: AISelection }>;
-}) {
-  const clean = (value: unknown, fallback = '') => safeNormalizeText(String(value ?? ''))
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/[\u0000-\u001F\u007F]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || fallback;
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const address = params.client.address
-    ? `${params.client.address}\n${params.client.city || ''}, ${params.client.state || ''} ${params.client.zip || ''}`
-    : '[Client Address — add and verify before use]';
-  const items = params.selections.map(({ item, opinion }, index) => {
-    const dates = [
-      item.date_opened && `Opened: ${clean(item.date_opened)}`,
-      item.date_reported && `Reported: ${clean(item.date_reported)}`,
-      item.date_last_activity && `Last activity: ${clean(item.date_last_activity)}`,
-    ].filter(Boolean).join(' | ');
-    return `Item ${index + 1}: ${clean(item.creditor_name, 'Reported account')}${item.account_number_masked ? ` (Account: ${clean(item.account_number_masked)})` : ''}
-   Type: ${clean(item.negative_category, 'reported item').replaceAll('_', ' ')}
-   ${dates ? `Report Dates: ${dates}\n   ` : ''}Dispute Reason: ${clean(opinion.disputeReason, 'Review the reported information for accuracy')}
-   Requested Action: ${clean(opinion.requestedAction, 'Investigate and correct or delete if unverifiable')}`;
-  }).join('\n\n');
-
-  return `${params.client.name}
-${address}
-
-${today}
-
-${BUREAU_ADDRESSES[params.bureau] || params.bureau}
-
-Re: Formal Credit Dispute — AI-Assisted Draft
-    Letter Reference: ${params.letterId}
-
-To Whom It May Concern:
-
-I am writing to dispute the specific information identified below pursuant to the Fair Credit Reporting Act, 15 U.S.C. § 1681i. Please conduct a reasonable reinvestigation and correct or delete information that is inaccurate, incomplete, or cannot be verified.
-
-DISPUTED ITEM(S):
-
-${items}
-
-Please provide the written results of your investigation and an updated copy of my credit report. Please send all correspondence to the address above.
-
-Sincerely,
-
-
-_________________________________
-${params.client.name}
-Date: ${today}
-
----
-LETTER NOTICE: This is an editable AI-assisted draft. The subscribing business must verify every fact, confirm the consumer authorized the dispute, add supporting documents, obtain any required signature, and decide whether to use or send it. FixMy.Money does not provide legal advice or guarantee outcomes.`;
+function analyzerOutcomeFor(report: ParsedCreditReport) {
+  return report.analysisOutcome ?? determineAnalyzerOutcome(report);
 }
 
 const PROVIDERS_LIST: { value: SupportedProvider; label: string }[] = [
@@ -138,6 +72,64 @@ const PROVIDERS_LIST: { value: SupportedProvider; label: string }[] = [
   { value: 'annualcreditreport', label: 'AnnualCreditReport.com' },
   { value: 'creditkarma', label: 'Credit Karma (paste)' },
 ];
+
+type ImportMode = 'get-report' | 'upload';
+
+type ImportProviderCard = {
+  key: string;
+  name: string;
+  description: string;
+  provider: SupportedProvider;
+  status: 'partner' | 'upload';
+  partner?: ReportProvider;
+  preferred?: boolean;
+};
+
+const UPLOAD_FORMATS = SUPPORTED_CREDIT_REPORT_FORMATS_LABEL;
+
+const PROVIDER_UPLOAD_GUIDANCE: ImportProviderCard[] = [
+  {
+    key: 'creditkarma',
+    name: 'Credit Karma',
+    description: 'Use a saved report or copied report text.',
+    provider: 'creditkarma',
+    status: 'upload',
+  },
+  {
+    key: 'experian',
+    name: 'Experian',
+    description: 'Use an Experian report you have already downloaded.',
+    provider: 'experian',
+    status: 'upload',
+  },
+  {
+    key: 'identityiq',
+    name: 'IdentityIQ',
+    description: 'Use a downloaded IdentityIQ monitoring report.',
+    provider: 'identityiq',
+    status: 'upload',
+  },
+  {
+    key: 'annualcreditreport',
+    name: 'AnnualCreditReport.com',
+    description: 'Use an official bureau report downloaded from this source.',
+    provider: 'annualcreditreport',
+    status: 'upload',
+  },
+  {
+    key: 'other',
+    name: 'Other provider',
+    description: 'Use this if your report source is not listed here.',
+    provider: 'unknown',
+    status: 'upload',
+  },
+];
+
+const SUPPORTED_PROVIDER_VALUES = new Set(PROVIDERS_LIST.map(provider => provider.value));
+
+function toSupportedProvider(providerKey: string): SupportedProvider {
+  return SUPPORTED_PROVIDER_VALUES.has(providerKey as SupportedProvider) ? providerKey as SupportedProvider : 'unknown';
+}
 
 // Provider selection modal shown when confidence < 60%
 function ProviderSelectionModal({
@@ -337,13 +329,13 @@ interface OcrStatus {
 
 function OcrStatusPanel({ status }: { status: OcrStatus }) {
   const stageLabel: Record<OcrStatus['stage'], string> = {
-    detecting: 'Detecting PDF type…',
-    rendering: 'Rendering PDF pages…',
-    ocr: 'Running OCR on pages…',
-    parsing: 'Parsing credit report sections…',
-    done: 'Extraction complete',
-    failed: 'OCR failed',
-    unavailable: 'OCR unavailable',
+    detecting: 'Reading your report…',
+    rendering: 'Preparing report pages…',
+    ocr: 'Reading scanned pages…',
+    parsing: 'Identifying accounts and negative items…',
+    done: 'Report ready to review',
+    failed: 'We could not read enough of this report',
+    unavailable: 'We could not read this file automatically',
   };
 
   const isActive = !['done', 'failed', 'unavailable'].includes(status.stage);
@@ -362,11 +354,11 @@ function OcrStatusPanel({ status }: { status: OcrStatus }) {
       </div>
 
       {status.stage === 'unavailable' && status.errorMessage && (
-        <p className="text-xs text-warning">{status.errorMessage}</p>
+        <p className="text-xs text-warning">Try uploading the original PDF from your report provider, or paste readable report text below.</p>
       )}
 
       {status.stage === 'failed' && status.errorMessage && (
-        <p className="text-xs text-warning">{status.errorMessage}</p>
+        <p className="text-xs text-warning">Try uploading the original PDF from your report provider, or paste readable report text below.</p>
       )}
 
       {status.totalPages > 0 && (
@@ -451,15 +443,45 @@ export default function CreditReportImportContent() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('unknown');
+  const [importMode, setImportMode] = useState<ImportMode>('get-report');
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [rawText, setRawText] = useState('');
   const [fileName, setFileName] = useState('');
   const [ocrMeta, setOcrMeta] = useState<OcrMetadata | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploaderRef = useRef<HTMLElement>(null);
   const supabase = createClient();
+
+  const providerCards = useMemo(() => {
+    const cards: ImportProviderCard[] = [];
+    const seen = new Set<string>();
+
+    providers.forEach(provider => {
+      cards.push({
+        key: provider.key,
+        name: provider.name,
+        description: provider.description || 'Use this provider to get a report, then return here to upload it.',
+        provider: toSupportedProvider(provider.key),
+        status: provider.affiliateUrl ? 'partner' : 'upload',
+        partner: provider,
+        preferred: provider.isPreferred,
+      });
+      seen.add(provider.key);
+    });
+
+    PROVIDER_UPLOAD_GUIDANCE.forEach(provider => {
+      if (!seen.has(provider.key)) cards.push(provider);
+    });
+
+    return cards;
+  }, [providers]);
+  const otherProviderCard = providerCards.find(card => card.key === 'other');
 
   useEffect(() => {
     loadProviders();
+    trackEvent('credit_import_viewed', {
+      page: 'credit-report-import',
+    });
   }, []);
 
   const loadProviders = async () => {
@@ -467,9 +489,25 @@ export default function CreditReportImportContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
-      const { data: ws } = await supabase.from('workspaces').select('id').eq('owner_id', user.id).single();
-      const wsId = ws?.id ?? null;
+      const response = await fetch('/api/clients', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null) as {
+        workspaceId?: string;
+        clients?: { id: string; name: string }[];
+      } | null;
+      if (!response.ok || !payload?.workspaceId || !Array.isArray(payload.clients)) {
+        throw new Error('Selected workspace clients could not be loaded');
+      }
+      const wsId = payload.workspaceId;
+      const workspaceClients = payload.clients;
       setWorkspaceId(wsId);
+      setClients(workspaceClients);
+      setClientsLoaded(true);
+      const storageKey = `credit-report-import:selected-client:${user.id}:${wsId}`;
+      const restoredClientId = window.sessionStorage.getItem(storageKey) ?? '';
+      setSelectedClientId(current => {
+        const candidate = current || restoredClientId;
+        return workspaceClients.some(client => client.id === candidate) ? candidate : '';
+      });
       const loaded = await getProviders(wsId);
       setProviders(loaded);
     } catch {
@@ -479,11 +517,61 @@ export default function CreditReportImportContent() {
 
   const loadClients = async () => {
     if (clientsLoaded) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('staff_clients').select('id, name').eq('owner_id', user.id).order('name');
-    setClients(data ?? []);
-    setClientsLoaded(true);
+    await loadProviders();
+  };
+
+  const selectClient = (clientId: string) => {
+    setSelectedClientId(clientId);
+    if (!userId || !workspaceId) return;
+    const storageKey = `credit-report-import:selected-client:${userId}:${workspaceId}`;
+    if (clientId) window.sessionStorage.setItem(storageKey, clientId);
+    else window.sessionStorage.removeItem(storageKey);
+  };
+
+  const selectProviderForUpload = (provider: SupportedProvider, source: string) => {
+    setSelectedProvider(provider);
+    setImportMode('upload');
+    trackEvent('credit_import_provider_selected', {
+      provider,
+      source,
+      provider_state: 'upload_guidance_only',
+    });
+  };
+
+  const showUploader = () => {
+    setImportMode('upload');
+    window.requestAnimationFrame(() => {
+      uploaderRef.current?.focus();
+    });
+  };
+
+  const startProviderUpload = (card: ImportProviderCard) => {
+    selectProviderForUpload(card.provider, card.key);
+    fileRef.current?.click();
+  };
+
+  const openPartnerProvider = (card: ImportProviderCard) => {
+    const partner = card.partner;
+    if (!partner?.affiliateUrl) return;
+
+    setSelectedProvider(card.provider);
+    setImportMode('get-report');
+    trackEvent('credit_import_provider_selected', {
+      provider: card.key,
+      source: 'provider_card',
+      provider_state: 'partner_referral',
+    });
+    trackEvent('credit_import_partner_clicked', {
+      provider: card.key,
+      source: 'credit-report-import',
+    });
+    void trackAffiliateClick({
+      provider: card.key,
+      sourcePage: 'credit-report-import',
+      agencyId: workspaceId,
+      userId,
+    });
+    window.open(partner.affiliateUrl, '_blank', 'noopener,noreferrer');
   };
 
   const parseText = async (text: string, provider?: SupportedProvider, meta?: OcrMetadata): Promise<ParsedCreditReport | null> => {
@@ -491,6 +579,8 @@ export default function CreditReportImportContent() {
     try {
       const forceProvider = provider && provider !== 'unknown' ? provider : undefined;
       const result = parseCreditReport(text, forceProvider, meta ?? ocrMeta ?? undefined);
+      const analysisOutcome = analyzerOutcomeFor(result);
+      result.analysisOutcome = analysisOutcome;
       const extractionMeta = meta ?? ocrMeta;
       if (extractionMeta?.fileHash) {
         console.info('[CreditReport/Extraction]', {
@@ -505,7 +595,7 @@ export default function CreditReportImportContent() {
           parserConfidence: result.overallConfidence,
           processingDurationMs: extractionMeta.processingDurationMs ?? null,
           openAiGenerationCount: extractionMeta.openAiGenerationCount ?? 0,
-          finalStatus: 'parsed',
+          finalStatus: analysisOutcome.state,
           cacheHit: extractionMeta.cacheHit ?? false,
         });
       }
@@ -521,6 +611,12 @@ export default function CreditReportImportContent() {
         };
       });
 
+      if (analysisOutcome.state === 'failed') {
+        setParsedReport(result);
+        toast.error('The report could not be parsed safely. Try the original report, select the provider, or use manual review.');
+        return null;
+      }
+
       // Show provider modal if confidence < 60% and provider is unknown
       if (result.providerConfidence < 60 && result.provider === 'unknown') {
         setShowProviderModal(true);
@@ -533,8 +629,8 @@ export default function CreditReportImportContent() {
 
       setParsedReport(result);
 
-      if (result.overallConfidence < 60) {
-        toast.warning(`Parsed with ${result.overallConfidence}% confidence. Review results carefully.`);
+      if (analysisOutcome.state === 'needs_review') {
+        toast.warning(`Parsing requires review (${result.overallConfidence}% confidence). No automated analysis was marked successful.`);
       } else {
         const negCount = result.negativeAccounts.length;
         const accCount = result.accounts.length;
@@ -573,23 +669,7 @@ export default function CreditReportImportContent() {
 
     try {
       const fileHash = await hashPdfFile(file);
-      const { data: { user } } = await supabase.auth.getUser();
-      const cachePath = user ? createOcrCachePath(user.id, fileHash) : null;
-      let cached: CachedOcrExtraction | null = null;
-
-      if (cachePath) {
-        const { data } = await supabase.storage.from(OCR_STORAGE_BUCKET).download(cachePath);
-        if (data) {
-          try {
-            const parsed = JSON.parse(await data.text()) as unknown;
-            if (isValidCachedOcrExtraction(parsed, fileHash)) cached = parsed;
-          } catch {
-            cached = null;
-          }
-        }
-      }
-
-      const result = cached ?? await ocrPdfLocally(file, progress => {
+      const result = await ocrPdfLocally(file, progress => {
         setOcrProgress({ current: progress.currentPage, total: progress.totalPages });
         setOcrStatus(prev => prev ? {
           ...prev,
@@ -607,6 +687,13 @@ export default function CreditReportImportContent() {
       const failedPages = result.pages.filter(page => page.source === 'failed').length;
       const meanOcrConfidence = result.meanOcrConfidence;
       const processingDurationMs = Math.round(performance.now() - startedAt);
+      const pageResults = (result.pageResults ?? result.pages
+        .map(page => page.extraction)
+        .filter((page): page is NonNullable<typeof page> => Boolean(page)));
+      const primaryOcrSuccesses = result.primaryOcrSuccesses ?? pageResults.filter(page => page.primaryOcrSucceeded).length;
+      const primaryOcrFailures = result.primaryOcrFailures ?? pageResults.filter(page => page.primaryOcrAttempted && !page.primaryOcrSucceeded).length;
+      const retryRecoveries = result.retryRecoveries ?? pageResults.filter(page => page.finalStatus === 'ocr_retry').length;
+      const fallbackRecoveries = result.fallbackRecoveries ?? pageResults.filter(page => page.finalStatus === 'ocr_fallback').length;
 
       setOcrStatus({
         stage: validation.valid ? 'parsing' : 'failed',
@@ -618,7 +705,7 @@ export default function CreditReportImportContent() {
         nativeExtractionQuality: extraction.nativeExtractionQuality,
         meanOcrConfidence,
         extractionQuality: validation.quality,
-        cacheHit: Boolean(cached),
+        cacheHit: false,
         errorMessage: validation.valid
           ? undefined
           : 'OCR_FAILED: Readable credit-report text could not be verified before parsing.',
@@ -633,37 +720,21 @@ export default function CreditReportImportContent() {
         failedPages: failedPages + validation.unaccountedPages,
         extractedCharacters: validation.characters,
         ocrConfidence: meanOcrConfidence,
+        primaryOcrSuccesses,
+        primaryOcrFailures,
+        retryRecoveries,
+        fallbackRecoveries,
+        unreadablePages: pageResults
+          .filter(page => page.finalStatus === 'unreadable')
+          .map(page => ({ pageNumber: page.pageNumber, reason: page.failureReason })),
         parserConfidence: null,
         processingDurationMs,
         openAiGenerationCount: 0,
         finalStatus: validation.valid ? 'ready_for_parser' : 'OCR_FAILED',
-        cacheHit: Boolean(cached),
+        cacheHit: false,
       });
 
       if (!validation.valid) return null;
-
-      if (!cached && cachePath) {
-        const cacheValue: CachedOcrExtraction = {
-          version: 1,
-          sha256: fileHash,
-          createdAt: new Date().toISOString(),
-          text: result.text,
-          totalPages: result.totalPages,
-          nativePages,
-          ocrPages,
-          failedPages,
-          meanOcrConfidence,
-          nativeExtractionQuality: extraction.nativeExtractionQuality,
-          extractionQuality: validation.quality,
-          processingDurationMs: result.processingDurationMs,
-          pages: result.pages,
-        };
-        await supabase.storage.from(OCR_STORAGE_BUCKET).upload(
-          cachePath,
-          new Blob([JSON.stringify(cacheValue)], { type: 'application/json' }),
-          { contentType: 'application/json', upsert: true },
-        );
-      }
 
       return {
         text: result.text,
@@ -682,7 +753,16 @@ export default function CreditReportImportContent() {
           extractionQuality: validation.quality,
           processingDurationMs,
           openAiGenerationCount: 0,
-          cacheHit: Boolean(cached),
+          cacheHit: false,
+          pageResults: pageResults.map(page => ({
+            pageNumber: page.pageNumber,
+            finalStatus: page.finalStatus,
+            failureReason: page.failureReason,
+          })),
+          primaryOcrSuccesses,
+          primaryOcrFailures,
+          retryRecoveries,
+          fallbackRecoveries,
         },
       };
     } catch (error: unknown) {
@@ -705,20 +785,53 @@ export default function CreditReportImportContent() {
 
   const handleFile = async (file: File) => {
     if (!file) return;
-    const allowed = ['application/pdf', 'text/plain', 'text/html', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowed.includes(file.type) && !file.name.endsWith('.pdf') && !file.name.endsWith('.txt')) {
-      toast.error('Please upload a PDF, TXT, or DOC file');
+    const fileNameLower = file.name.toLowerCase();
+    const metadataValidation = validateCreditReportFileMetadata({
+      fileName: file.name,
+      mimeType: file.type,
+      size: file.size,
+    });
+    if (!metadataValidation.valid) {
+      toast.error(metadataValidation.message);
+      trackEvent('credit_import_upload_failed', {
+        provider: selectedProvider,
+        reason: metadataValidation.code.toLowerCase(),
+        file_type: file.type || 'unknown',
+      });
       return;
     }
 
     setFileName(file.name);
     setOcrStatus(null);
+    trackEvent('credit_import_upload_started', {
+      provider: selectedProvider,
+      file_type: file.type || 'unknown',
+      file_name_extension: fileNameLower.split('.').pop() ?? 'unknown',
+    });
+    trackEvent('credit_report_import_started', {
+      provider: selectedProvider,
+      file_type: file.type || 'unknown',
+      file_name_extension: fileNameLower.split('.').pop() ?? 'unknown',
+      authenticated: true,
+    });
     setUploading(true);
     await new Promise(r => setTimeout(r, 400));
     setUploading(false);
 
     try {
-      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+      const fileBytes = new Uint8Array(await file.arrayBuffer());
+      const contentValidation = validateCreditReportFileContent(metadataValidation, fileBytes);
+      if (!contentValidation.valid) {
+        toast.error(contentValidation.message);
+        trackEvent('credit_import_upload_failed', {
+          provider: selectedProvider,
+          reason: contentValidation.code.toLowerCase(),
+          file_type: file.type || 'unknown',
+        });
+        return;
+      }
+
+      const isPdf = metadataValidation.format === 'pdf';
 
       if (isPdf) {
         // ── PDF handling: detect image-based vs text-based ──────────────────
@@ -726,49 +839,79 @@ export default function CreditReportImportContent() {
         const extraction = await extractPdfText(file);
 
         if (extraction.isImageBased) {
-          toast.info('Scanned report detected. Reading each page with on-device OCR.');
+          toast.info('Scanned report detected. We are reading each page now.');
         } else if (extraction.pagesRequiringOcr > 0) {
-          toast.info('Mixed PDF detected. Reading only the image-only pages with OCR.');
+          toast.info('Some pages need extra reading. We are processing them now.');
         }
 
         const extractionResult = await runOcrOnPdf(file, extraction);
         if (!extractionResult) {
-          toast.warning('OCR_FAILED: Readable credit-report text could not be verified.');
+          toast.warning('We could not read enough of this report automatically. Try uploading the original PDF or a clearer text export.');
+          trackEvent('credit_import_upload_failed', {
+            provider: selectedProvider,
+            reason: 'unreadable_pdf',
+            file_type: file.type || 'unknown',
+          });
           return;
         }
 
         const normalizedText = safeNormalizeText(extractionResult.text);
         setRawText(normalizedText);
         setOcrMeta(extractionResult.meta);
-        toast.success(
-          `Extraction complete: ${extractionResult.meta.pagesWithEmbeddedText} native, ${extractionResult.meta.ocrPagesSucceeded} OCR, ${extractionResult.meta.ocrPagesFailed} failed pages.`,
-        );
+        toast.success('Report text is ready. Identifying accounts and negative items now.');
         setOcrStatus(prev => prev ? { ...prev, stage: 'parsing' } : prev);
-        await parseText(normalizedText, selectedProvider, extractionResult.meta);
-        setOcrStatus(prev => prev ? { ...prev, stage: 'done' } : prev);
+        const parsed = await parseText(normalizedText, selectedProvider, extractionResult.meta);
+        if (parsed) {
+          trackEvent('credit_import_upload_succeeded', {
+            provider: parsed.provider,
+            accounts_count: parsed.accounts.length,
+            negative_items_count: parsed.negativeAccounts.length,
+            parse_outcome: analyzerOutcomeFor(parsed).state,
+          });
+        }
+        setOcrStatus(prev => prev ? {
+          ...prev,
+          stage: parsed ? 'done' : 'failed',
+          errorMessage: parsed ? prev.errorMessage : 'REPORT_PARSE_FAILED: The extracted report could not be parsed safely.',
+        } : prev);
         return;
 
       } else {
-        // Non-PDF file (TXT, HTML, DOC) — decode directly
+        // Non-PDF file (TXT, HTML, JSON) — validated and decoded as UTF-8.
         setOcrStatus(null);
-        const arrayBuffer = await file.arrayBuffer();
-        const decoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: true });
-        const rawDecoded = decoder.decode(arrayBuffer);
-        const text = safeNormalizeText(rawDecoded);
+        const text = safeNormalizeText(contentValidation.text ?? '');
 
         if (!text || text.trim().length < 20) {
           toast.info('File appears to be empty or unreadable.');
           toast.warning('For best results, use a text-based export from your credit report provider, or paste the report text below.');
+          trackEvent('credit_import_upload_failed', {
+            provider: selectedProvider,
+            reason: 'empty_or_unreadable',
+            file_type: file.type || 'unknown',
+          });
           setParsing(false);
           return;
         }
 
         setRawText(text);
-        await parseText(text, selectedProvider);
+        const parsed = await parseText(text, selectedProvider);
+        if (parsed) {
+          trackEvent('credit_import_upload_succeeded', {
+            provider: parsed.provider,
+            accounts_count: parsed.accounts.length,
+            negative_items_count: parsed.negativeAccounts.length,
+            parse_outcome: analyzerOutcomeFor(parsed).state,
+          });
+        }
       }
-    } catch (err: any) {
+    } catch {
       toast.info('Could not read file directly.');
       toast.warning('For best results, use a text-based export from your credit report provider, or paste the report text below.');
+      trackEvent('credit_import_upload_failed', {
+        provider: selectedProvider,
+        reason: 'read_failed',
+        file_type: file.type || 'unknown',
+      });
       setParsing(false);
     }
   };
@@ -795,25 +938,38 @@ export default function CreditReportImportContent() {
   const handleSaveToClient = async () => {
     if (!selectedClientId) { toast.error('Select a client to save this report to'); return; }
     if (!parsedReport) return;
+    const analysisOutcome = analyzerOutcomeFor(parsedReport);
+    if (!analysisOutcome.canPersistDraft) {
+      toast.error('This failed parse cannot be saved. Re-parse the report or enter the information manually.');
+      return;
+    }
+    trackEvent('credit_import_review_clicked', {
+      provider: parsedReport.provider,
+      parser_confidence: parsedReport.overallConfidence,
+      accounts_count: parsedReport.accounts.length,
+      negative_items_count: parsedReport.negativeAccounts.length,
+      selected_client: true,
+    });
     setSaving(true);
     setSaveStage('Saving report…');
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Confidence is advisory only. Always persist the parsed report and its
-      // accounts so a low-confidence parse never loses client data or blocks
-      // the letter workflow.
-      const lowConfidence = parsedReport.overallConfidence < 50;
+      // Review-only parses may be preserved as drafts, but failed parses never
+      // persist and only threshold-clearing parses may be marked analyzed.
+      const lowConfidence = analysisOutcome.state === 'needs_review';
       trackOrganicConversionStep('credit_report_upload_started', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+      });
+      trackEvent('report_upload_started', {
         provider: parsedReport.provider,
         parser_confidence: parsedReport.overallConfidence,
       });
 
       const accountItemsForPersistence = accountsForPersistence(parsedReport);
-      const { data: reportRecord, error: reportErr } = await supabase.from('parsed_credit_reports').insert({
-        owner_id: user.id,
-        client_id: selectedClientId,
+      const reportPayload = {
         provider: parsedReport.provider,
         provider_confidence: parsedReport.providerConfidence,
         parser_version: parsedReport.parserVersion,
@@ -829,25 +985,18 @@ export default function CreditReportImportContent() {
         collections_count: accountItemsForPersistence.filter(item => item.isCollection).length,
         inquiries_count: parsedReport.inquiries.length,
         public_records_count: parsedReport.publicRecords.length,
-        raw_text: parsedReport.rawText.slice(0, 50000),
         file_name: fileName,
-        status: 'pending_review',
-        // Store ALL accounts (not just negative) as JSON for review screen
-        all_accounts: parsedReport.accounts,
+        all_accounts: stripRawReportArtifacts(parsedReport.accounts),
         all_inquiries: parsedReport.inquiries,
         public_records: parsedReport.publicRecords,
-      }).select().single();
-
-      if (reportErr) throw reportErr;
+        section_confidence: parsedReport.sectionConfidence,
+      };
 
       // Save ALL accounts as negative_items (with is_negative flag).
       // `positive` is not a valid negative_item_category enum value in the
       // production schema; non-negative rows use `other` plus is_negative=false.
       const accountRows = accountItemsForPersistence.map(item => {
         return {
-          owner_id: user.id,
-          client_id: selectedClientId,
-          report_id: reportRecord.id,
           bureau: item.bureau,
           creditor_name: item.creditorName,
           furnisher_name: item.furnisherName,
@@ -865,28 +1014,16 @@ export default function CreditReportImportContent() {
           bureaus_reporting: item.bureaus,
           remarks: item.remarks,
           parser_confidence: item.parserConfidence,
-          raw_text_source: item.rawText.slice(0, 2000),
+          raw_text_source: '',
           is_negative: item.isNegative,
           is_collection: item.isCollection,
         };
       });
-      const savedItems: SavedReportItem[] = [];
-      if (accountRows.length > 0) {
-        const { data: insertedAccounts, error: accountInsertError } = await supabase.from('negative_items').insert(accountRows).select('id, bureau, creditor_name, account_number_masked, negative_category, negative_reason, balance, date_opened, date_reported, date_last_activity, parser_confidence, is_negative');
-        if (accountInsertError) throw new Error(`Report saved, but account items failed to save: ${accountInsertError.message}`);
-        savedItems.push(...((insertedAccounts ?? []).filter((item: any) => item.is_negative === true) as SavedReportItem[]));
-      }
-
-      // Persist only inquiries backed by a creditor, date, and recognized bureau.
-      {
-        const inquiryRows = parsedReport.inquiries.filter(inq => inq.type === 'hard' && isReliableInquiry({
+      const inquiryRows = parsedReport.inquiries.filter(inq => inq.type === 'hard' && isReliableInquiry({
           creditor_name: inq.creditor,
           bureau: inq.bureau,
           date_reported: inq.date,
         })).map(inq => ({
-            owner_id: user.id,
-            client_id: selectedClientId,
-            report_id: reportRecord.id,
             bureau: inq.bureau,
             creditor_name: inq.creditor,
             account_type: 'Hard Inquiry',
@@ -898,12 +1035,6 @@ export default function CreditReportImportContent() {
             is_negative: false,
             is_collection: false,
           }));
-        if (inquiryRows.length > 0) {
-          const { data: insertedInquiries, error: inquiryInsertError } = await supabase.from('negative_items').insert(inquiryRows).select('id, bureau, creditor_name, account_number_masked, negative_category, negative_reason, balance, date_reported, parser_confidence');
-          if (inquiryInsertError) throw new Error(`Accounts saved, but inquiries failed to save: ${inquiryInsertError.message}`);
-          savedItems.push(...((insertedInquiries ?? []) as SavedReportItem[]));
-        }
-      }
 
       const personalAddress = parsedReport.personalInfo.currentAddress;
       const primaryScore = parsedReport.scores
@@ -911,151 +1042,64 @@ export default function CreditReportImportContent() {
         .filter(score => Number.isFinite(score) && score > 0)
         .sort((a, b) => b - a)[0];
       const clientUpdates: Record<string, unknown> = {
-        report_analyzed: true,
-        last_activity: 'Credit report saved',
+        last_activity: analysisOutcome.canMarkAnalyzed ? 'Credit report saved' : 'Credit report saved for review',
       };
+      if (analysisOutcome.canMarkAnalyzed) clientUpdates.report_analyzed = true;
       if (personalAddress?.street) clientUpdates.address = personalAddress.street;
       if (personalAddress?.city) clientUpdates.city = personalAddress.city;
       if (personalAddress?.state) clientUpdates.state = personalAddress.state;
       if (personalAddress?.zip) clientUpdates.zip = personalAddress.zip;
       if (primaryScore) clientUpdates.credit_score = primaryScore;
-      const { error: clientUpdateError } = await supabase
-        .from('staff_clients')
-        .update(clientUpdates)
-        .eq('id', selectedClientId)
-        .eq('owner_id', user.id);
-      if (clientUpdateError) throw new Error(`Report items saved, but client information failed to save: ${clientUpdateError.message}`);
-
-      try {
-        setSaveStage('Building investigation cases...');
-        const { data: sessionData } = await supabase.auth.getSession();
-        const evidenceResponse = await fetch('/api/credit-report/evidence-engine', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
-          },
-          body: JSON.stringify({
-            parsedReportId: reportRecord.id,
-            clientId: selectedClientId,
-          }),
-        });
-        if (!evidenceResponse.ok) {
-          const payload = await evidenceResponse.json().catch(() => null);
-          throw new Error(payload?.error ?? 'Evidence engine indexing failed');
-        }
-      } catch (engineError: any) {
-        console.warn('[CreditReportImport] Evidence engine indexing skipped:', engineError?.message ?? engineError);
-        toast.warning('Report saved, but investigation indexing needs to be retried from the report review.');
+      setSaveStage('Saving report transaction…');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch('/api/credit-report/save-atomic', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          clientId: selectedClientId,
+          report: reportPayload,
+          items: [...accountRows, ...inquiryRows],
+          clientUpdates,
+        }),
+      });
+      const saveResult = await response.json().catch(() => null);
+      if (!response.ok || !saveResult?.reportId) {
+        throw new Error(saveResult?.error ?? 'Report save failed; no partial data was committed');
       }
+      const reportRecord = { id: saveResult.reportId as string };
 
-      let generatedLetters = 0;
-      const reliableSavedItems = selectReliableAuditItems(savedItems) as SavedReportItem[];
-      const shouldCreateAutomaticDrafts = false;
-      if (shouldCreateAutomaticDrafts && reliableSavedItems.length > 0) {
-        setSaveStage('AI is ranking the strongest items…');
-        const analysisDate = currentIsoDate();
-        const candidates = reliableSavedItems.slice(0, 20).map((item, index) => ({
-          candidate: index + 1,
-          bureau: item.bureau,
-          category: item.negative_category,
-          balance: item.balance,
-          dateOpened: item.date_opened,
-          dateReported: item.date_reported,
-          dateLastActivity: item.date_last_activity,
-          reportedIssue: item.negative_reason,
-          parserConfidence: item.parser_confidence,
-        }));
-        const aiResponse = await fetch('/api/ai/chat-completion', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: 'OPEN_AI',
-            model: 'gpt-4o',
-            stream: false,
-            parameters: { max_completion_tokens: 1000, temperature: 0.2 },
-            messages: [
-              {
-                role: 'system',
-                content: `You review parsed credit-report items for a credit-repair business. Today's date is ${analysisDate}. Select and rank at most 5 candidates that present the strongest specific, factual, and verifiable dispute opportunities. dateOpened, dateReported, and dateLastActivity are separate fields and must never be conflated. An empty dateReported field alone is not a dispute opportunity and must not be selected. A reporting date is in the future only when it is later than ${analysisDate}; never compare it with your training cutoff. Do not select an item merely because it is negative, and never invent an inaccuracy or promise an outcome. Return JSON only: {"summary":"2 concise sentences","selections":[{"candidate":1,"rank":1,"strength":"Strong|Moderate|Review","why":"why this item was selected","disputeReason":"a narrow factual reason using only supplied facts","requestedAction":"investigate and correct or delete if unverifiable"}]}.`,
-              },
-              {
-                role: 'user',
-                content: `Rank the strongest candidates and explain every selection. No client name or full account number is included:\n${JSON.stringify(candidates)}`,
-              },
-            ],
-          }),
-        });
-        if (!aiResponse.ok) throw new Error('The report was saved, but AI draft generation is temporarily unavailable.');
-        const completion = await aiResponse.json();
-        const raw = completion?.choices?.[0]?.message?.content || '';
-        const opinion = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '').trim()) as { summary: string; selections: AISelection[] };
-        const selections = (opinion.selections ?? [])
-          .filter(selection => Number.isInteger(selection.candidate) && selection.candidate >= 1 && selection.candidate <= reliableSavedItems.length)
-          .filter(selection => {
-            const item = reliableSavedItems[selection.candidate - 1];
-            const explanation = `${selection.why || ''} ${selection.disputeReason || ''}`;
-            return !isUnsupportedMissingReportingDateClaim(explanation) && !isFalseFutureDateClaim(
-              item?.date_reported,
-              explanation,
-              analysisDate,
-            );
-          })
-          .slice(0, 5);
-
-        if (selections.length > 0) {
-          setSaveStage('Creating editable letter drafts…');
-          const { data: clientRecord, error: clientError } = await supabase
-            .from('staff_clients')
-            .select('id, name, email, phone, address, city, state, zip')
-            .eq('id', selectedClientId)
-            .eq('owner_id', user.id)
-            .single();
-          if (clientError) throw clientError;
-
-          const byBureau = new Map<string, Array<{ item: SavedReportItem; opinion: AISelection }>>();
-          selections.forEach(selection => {
-            const item = reliableSavedItems[selection.candidate - 1];
-            const bureau = item.bureau || 'Equifax';
-            byBureau.set(bureau, [...(byBureau.get(bureau) || []), { item, opinion: selection }]);
+      if (analysisOutcome.canMarkAnalyzed) {
+        try {
+          setSaveStage('Building investigation cases...');
+          const { data: sessionData } = await supabase.auth.getSession();
+          const evidenceResponse = await fetch('/api/credit-report/evidence-engine', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+            },
+            body: JSON.stringify({
+              parsedReportId: reportRecord.id,
+              clientId: selectedClientId,
+            }),
           });
-
-          for (const [bureau, bureauSelections] of byBureau.entries()) {
-            const short = ({ Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' } as Record<string, string>)[bureau] || 'DL';
-            const letterId = `${short}-AI-${Math.floor(1000 + Math.random() * 9000)}`;
-            const rationale = `${opinion.summary}\n\n${bureauSelections.map(({ item, opinion: selected }) => `#${selected.rank} ${item.creditor_name || 'Reported item'} (${selected.strength}): ${selected.why}`).join('\n')}`;
-            const letterContent = buildAutomaticDraft({ client: clientRecord, bureau, letterId, selections: bureauSelections });
-            const { error: letterError } = await supabase.from('dispute_letters').insert({
-              owner_id: user.id,
-              client_id: selectedClientId,
-              workspace_id: workspaceId,
-              letter_id: letterId,
-              client_name: clientRecord.name,
-              bureau,
-              items_count: bureauSelections.length,
-              round: 1,
-              sent_date: null,
-              response_due_date: null,
-              days_remaining: 0,
-              letter_status: 'draft',
-              template: 'AI-ranked FCRA Section 611',
-              auto_generated: true,
-              dispute_reason: rationale,
-              priority: bureauSelections.some(({ opinion: selected }) => selected.strength === 'Strong') ? 'high' : 'medium',
-              letter_content: letterContent,
-              generated_at: new Date().toISOString(),
-              generation_error: null,
-            });
-            if (letterError) throw letterError;
-            const selectedIds = bureauSelections.map(({ item }) => item.id);
-            await supabase.from('negative_items').update({ dispute_status: 'generated', is_selected: true, tag_status: 'dispute' }).in('id', selectedIds).eq('owner_id', user.id);
-            generatedLetters++;
+          if (!evidenceResponse.ok) {
+            const payload = await evidenceResponse.json().catch(() => null);
+            throw new Error(payload?.error ?? 'Evidence engine indexing failed');
           }
+        } catch (engineError: any) {
+          console.warn('[CreditReportImport] Evidence engine indexing skipped:', engineError?.message ?? engineError);
+          toast.warning('Report saved, but investigation indexing needs to be retried from the report review.');
         }
       }
+
+      const generatedLetters = 0;
 
       if (lowConfidence) {
-        toast.warning(`Report saved at ${parsedReport.overallConfidence}% confidence. All ${parsedReport.accounts.length} accounts were preserved and are available for selection.`);
+        toast.warning(`Report saved as needs review at ${parsedReport.overallConfidence}% confidence. It was not marked analyzed.`);
       } else {
         const negCount = parsedReport.negativeAccounts.length;
         toast.success(`Report saved. ${parsedReport.accounts.length} accounts queued for review. ${negCount} flagged as negative.`);
@@ -1067,12 +1111,21 @@ export default function CreditReportImportContent() {
         negative_items_count: parsedReport.negativeAccounts.length,
         draft_letters_created: generatedLetters,
       });
-
-      if (generatedLetters > 0) {
-        toast.success(`${generatedLetters} AI-ranked letter draft${generatedLetters === 1 ? '' : 's'} created and ready for review.`);
-        router.push(`/dispute-letter-management?autoGenerated=${generatedLetters}`);
-        return;
-      }
+      trackEvent('report_upload_completed', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+        accounts_count: parsedReport.accounts.length,
+        negative_items_count: parsedReport.negativeAccounts.length,
+        draft_letters_created: generatedLetters,
+      });
+      trackEvent('credit_report_import_completed', {
+        provider: parsedReport.provider,
+        parser_confidence: parsedReport.overallConfidence,
+        accounts_count: parsedReport.accounts.length,
+        negative_items_count: parsedReport.negativeAccounts.length,
+        draft_letters_created: generatedLetters,
+        authenticated: true,
+      });
 
       router.push(`/clients/${selectedClientId}/reports/${reportRecord.id}/review`);
     } catch (err: any) {
@@ -1085,8 +1138,12 @@ export default function CreditReportImportContent() {
 
   // Determine save button state
   const getSaveWarning = (report: ParsedCreditReport): { type: 'ok' | 'warn' | 'block'; message: string } => {
-    if (report.overallConfidence < 50) {
-      return { type: 'warn', message: `Parser confidence is ${report.overallConfidence}%. The report and every detected account will still be saved; verify item details before using a letter.` };
+    const outcome = analyzerOutcomeFor(report);
+    if (outcome.state === 'failed') {
+      return { type: 'block', message: 'Parsing failed. This result cannot be saved or treated as analyzed.' };
+    }
+    if (outcome.state === 'needs_review') {
+      return { type: 'warn', message: `Parser confidence is ${report.overallConfidence}%. Saving creates a review draft and does not mark the report analyzed.` };
     }
     if (report.overallConfidence < 60 && report.provider === 'unknown') {
       return { type: 'block', message: `Provider unknown at ${report.overallConfidence}% confidence. Select a provider before saving, or continue with manual review.` };
@@ -1098,7 +1155,7 @@ export default function CreditReportImportContent() {
   };
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
       {showProviderModal && parsedReport && (
         <ProviderSelectionModal
           onSelect={handleReparse}
@@ -1108,122 +1165,257 @@ export default function CreditReportImportContent() {
         />
       )}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Credit Report Import</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Upload and parse client credit reports to identify dispute items</p>
-      </div>
-
-      {!parsedReport ? (
-        <div className="space-y-6">
-          {/* Affiliate Provider Cards */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">Recommended Report Providers</h2>
-              <a href="/settings/report-providers" className="text-xs text-primary hover:underline">Manage providers</a>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have a credit report yet? Get one from a recommended provider, then return to upload it here.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {providers.map(provider => (
-                <AffiliateProviderCard
-                  key={provider.key}
-                  provider={provider}
-                  sourcePage="credit-report-import"
-                  agencyId={workspaceId}
-                  userId={userId}
-                  showUploadButton={true}
-                  onUploadClick={() => fileRef.current?.click()}
-                  showParseButton={false}
-                />
-              ))}
-            </div>
-            <AffiliateDisclosure />
-          </div>
-
-          <div className="relative flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground font-medium">or upload an existing report</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          {/* Provider selection */}
-          <div className="flex items-center gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Report Provider</label>
-              <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value as SupportedProvider)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card text-foreground">
-                {PROVIDERS_LIST.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">Select your provider for best parsing accuracy, or leave on Auto-detect</p>
-          </div>
-
-          {/* Upload area */}
-          <div
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileRef.current?.click()}
-            className={`card p-12 flex flex-col items-center justify-center gap-4 cursor-pointer border-2 border-dashed transition-all ${dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'}`}
-          >
-            <input ref={fileRef} type="file" className="hidden" accept=".pdf,.txt,.doc,.docx,.html" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-            {uploading || parsing || ocrRunning ? (
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 size={32} className="text-primary animate-spin" />
-                {ocrRunning ? (
-                  <>
-                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                      <ScanLine size={16} className="text-primary" />
-                      Running OCR on image-based PDF…
-                    </p>
-                    <p className="text-xs text-muted-foreground text-center max-w-xs">
-                      This PDF is image-based. OCR is reading each page to extract text. This may take a moment.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-foreground">{uploading ? 'Uploading report…' : 'Parsing credit report…'}</p>
-                    <p className="text-xs text-muted-foreground">{parsing ? 'Extracting accounts, negative items, inquiries…' : ''}</p>
-                  </>
-                )}
+      <div className="app-page page-stack max-w-screen-xl">
+        {!parsedReport && (
+          <div className="page-header mb-0">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-success">
+                Structured credit report import
               </div>
-            ) : (
-              <>
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Upload size={28} className="text-primary" />
-                </div>
-                <div className="text-center">
-                  <p className="text-base font-semibold text-foreground">Upload Credit Report</p>
-                  <p className="text-sm text-muted-foreground mt-1">Drag and drop or click to select</p>
-                  <p className="text-xs text-muted-foreground mt-1">Supports PDF, TXT, HTML — SmartCredit, IdentityIQ, MyScoreIQ, Experian, TransUnion, Equifax, AnnualCreditReport.com</p>
-                </div>
-              </>
-            )}
+              <h1 className="page-title mt-3">
+                Import credit report
+              </h1>
+              <p className="page-description">
+                Tell us where your report is from, then upload the file. FixMy.Money will read the report, identify accounts, and prepare it for review.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl border border-success/20 bg-white px-4 py-3 text-sm shadow-sm">
+              <ShieldCheck size={26} className="text-success" />
+              <div>
+                <p className="font-bold text-[#071942]">Private workspace import</p>
+                <p className="text-xs text-[#52627f]">Raw files and OCR text are processed locally/server-side and are never sent to external AI. Optional AI review requires separate consent and sends only minimized categories.</p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* OCR status panel — shown when OCR is running or has completed/failed */}
-          {ocrStatus && (
-            <OcrStatusPanel status={ocrStatus} />
-          )}
+        {!parsedReport ? (
+          <div className="space-y-6">
+            <input ref={fileRef} type="file" className="hidden" accept=".pdf,.txt,.html,.htm,.json" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
 
-          {/* Paste text fallback */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Or paste report text directly (Credit Karma, copy-paste fallback):</p>
-            <textarea
-              value={rawText}
-              onChange={e => setRawText(e.target.value)}
-              rows={5}
-              className="w-full text-xs font-mono border border-border rounded-xl px-3 py-2 bg-card text-foreground resize-y"
-              placeholder="Paste credit report text here…"
-            />
-            {rawText.trim() && (
-              <button onClick={() => parseText(rawText, selectedProvider)} disabled={parsing} className="btn-primary flex items-center gap-2 text-sm">
-                {parsing ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                Parse Pasted Text
-              </button>
-            )}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[#cfd8ea] bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('get-report')}
+                    className={`flex min-h-20 items-center justify-center gap-3 rounded-xl border-2 px-3 text-left transition ${importMode === 'get-report' ? 'border-[#0b2d65] bg-[#eef4ff] text-[#071942] shadow-sm' : 'border-transparent bg-white text-[#23345f] hover:border-[#b8c6dc] hover:bg-[#f8fbff]'}`}
+                  >
+                    <UsersRound size={20} className="text-success" />
+                    <span>
+                      <span className="block text-sm font-extrabold">Get a Report</span>
+                      <span className="mt-0.5 block text-xs font-medium text-[#52627f]">I don&apos;t have my report yet</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={showUploader}
+                    className={`flex min-h-20 items-center justify-center gap-3 rounded-xl border-2 px-3 text-left transition ${importMode === 'upload' ? 'border-[#0b2d65] bg-[#eef4ff] text-[#071942] shadow-sm' : 'border-transparent bg-white text-[#23345f] hover:border-[#b8c6dc] hover:bg-[#f8fbff]'}`}
+                  >
+                    <FileUp size={20} className="text-[#071942]" />
+                    <span>
+                      <span className="block text-sm font-extrabold">Upload File</span>
+                      <span className="mt-0.5 block text-xs font-medium text-[#52627f]">I already have my report</span>
+                    </span>
+                  </button>
+                </div>
+
+                <section className="space-y-3">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                      <h2 className="text-lg font-extrabold text-[#071942]">Where is your credit report from?</h2>
+                      <p className="text-sm text-[#52627f]">Choose the closest source so the importer can use the best matching parser.</p>
+                    </div>
+                    <a href="/settings/report-providers" className="text-xs font-semibold text-primary hover:underline">Manage providers</a>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {providerCards.filter(card => card.key !== 'other').map(card => {
+                      const isFeaturedPartner = card.key === 'smartcredit' || card.key === 'myscoreiq';
+                      return (
+                        <div key={card.key} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md ${isFeaturedPartner ? 'border-success/40 bg-success/[0.035] shadow-sm hover:border-success/60' : 'border-[#dbe3f0] bg-white hover:border-[#b8c6dc]'}`}>
+                          <div className="flex min-w-0 items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${isFeaturedPartner ? 'bg-success/10 text-success' : 'bg-[#eef4ff] text-[#071942]'}`}>
+                                <Building2 size={20} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="break-words text-sm font-extrabold leading-tight text-[#071942]">{card.name}</p>
+                                <p className="mt-0.5 text-xs font-medium text-[#52627f]">{card.status === 'partner' ? 'Partner report source' : 'Upload from this provider'}</p>
+                              </div>
+                            </div>
+                            {isFeaturedPartner && (
+                              <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[11px] font-bold text-success">Partner</span>
+                            )}
+                          </div>
+                          <p className="mt-3 text-sm leading-5 text-[#23345f]">{card.description}</p>
+                          <div className="mt-3 flex gap-2">
+                            {card.status === 'partner' ? (
+                              <>
+                                <button type="button" onClick={() => openPartnerProvider(card)} className="btn-primary flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm sm:min-h-0">
+                                  Get My Report
+                                  <ExternalLink size={14} />
+                                </button>
+                                <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary min-h-11 px-3 text-sm sm:min-h-0">Upload</button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => startProviderUpload(card)} className="btn-secondary flex min-h-11 w-full items-center justify-center gap-1.5 text-sm sm:min-h-0">
+                                Upload Report
+                                <Upload size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {otherProviderCard && (
+                      <div className="flex flex-col gap-3 rounded-xl border border-[#dbe3f0] bg-[#f8fbff] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#071942] shadow-sm">
+                            <Building2 size={17} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#071942]">{otherProviderCard.name}</p>
+                            <p className="text-xs leading-5 text-[#52627f]">{otherProviderCard.description}</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => startProviderUpload(otherProviderCard)} className="btn-secondary min-h-11 shrink-0 px-4 text-sm sm:min-h-0">
+                          Upload Report
+                        </button>
+                      </div>
+                  )}
+                  <AffiliateDisclosure />
+                </section>
+
+                <section
+                  ref={uploaderRef}
+                  tabIndex={-1}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => {
+                    setImportMode('upload');
+                    fileRef.current?.click();
+                  }}
+                  className={`rounded-2xl border-2 border-dashed bg-white p-5 shadow-sm transition focus:outline-none sm:p-6 ${dragOver ? 'border-success bg-success/5' : 'border-[#b8c6dc] hover:border-success/60'}`}
+                >
+                  {uploading || parsing || ocrRunning ? (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center">
+                      <Loader2 size={34} className="animate-spin text-success" />
+                      {ocrRunning ? (
+                        <>
+                          <p className="flex items-center gap-2 text-sm font-bold text-[#071942]">
+                            <ScanLine size={16} className="text-success" />
+                            Reading scanned pages…
+                          </p>
+                          {ocrProgress && (
+                            <p className="text-xs font-semibold text-success">
+                              Page {ocrProgress.current} of {ocrProgress.total}
+                            </p>
+                          )}
+                          <p className="max-w-sm text-xs text-[#52627f]">This can take a moment for scanned reports. Keep this page open while we prepare the audit.</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-bold text-[#071942]">{uploading ? 'Uploading report…' : 'Finding accounts and negative items…'}</p>
+                          <p className="text-xs text-[#52627f]">{parsing ? 'Preparing your report review.' : ''}</p>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#eef4ff]">
+                          <Upload size={28} className="text-[#071942]" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-extrabold text-[#071942]">Already have your report?</h3>
+                          <p className="mt-1 text-sm text-[#23345f]">Drop it here or choose a file.</p>
+                          <p className="mt-1 text-xs text-[#52627f]">Supported formats: {UPLOAD_FORMATS}. Scanned PDFs are read automatically when possible.</p>
+                        </div>
+                      </div>
+                      <button type="button" className="btn-primary shrink-0 text-sm">Choose File</button>
+                    </div>
+                  )}
+                </section>
+
+                {ocrStatus && (
+                  <OcrStatusPanel status={ocrStatus} />
+                )}
+
+                <section className="rounded-2xl border border-[#dbe3f0] bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-[#071942]">Paste report text instead</p>
+                      <p className="text-xs text-[#52627f]">Helpful for copied Credit Karma text or readable text exports.</p>
+                    </div>
+                    <select value={selectedProvider} onChange={e => setSelectedProvider(e.target.value as SupportedProvider)} className="rounded-lg border border-[#cfd8ea] bg-white px-3 py-2 text-xs text-[#071942]">
+                      {PROVIDERS_LIST.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                  </div>
+                  <textarea
+                    value={rawText}
+                    onChange={e => setRawText(e.target.value)}
+                    rows={5}
+                    className="mt-3 w-full resize-y rounded-xl border border-[#cfd8ea] bg-white px-3 py-2 font-mono text-xs text-[#071942]"
+                    placeholder="Paste credit report text here…"
+                  />
+                  {rawText.trim() && (
+                    <button onClick={() => parseText(rawText, selectedProvider)} disabled={parsing} className="btn-primary mt-3 flex items-center gap-2 text-sm">
+                      {parsing ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                      Parse Pasted Text
+                    </button>
+                  )}
+                </section>
+              </div>
+
+              <aside className="space-y-4">
+                <div className="rounded-2xl border border-[#dbe3f0] bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-extrabold text-[#071942]">What happens next</h2>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      { icon: FileUp, title: 'Upload or get a report', detail: 'Use a partner link or upload the file you already have.' },
+                      { icon: SearchCheck, title: 'AI reads the report', detail: 'Accounts, bureaus, and negative items are extracted.' },
+                      { icon: ListChecks, title: 'Review the results', detail: 'You confirm classifications before moving forward.' },
+                      { icon: Sparkles, title: 'Prepare disputes', detail: 'Qualified items can continue into the dispute workflow.' },
+                    ].map(step => {
+                      const Icon = step.icon;
+                      return (
+                        <div key={step.title} className="flex gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+                            <Icon size={17} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-[#071942]">{step.title}</p>
+                            <p className="text-xs leading-5 text-[#52627f]">{step.detail}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[#dbe3f0] bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-extrabold text-[#071942]">Import notes</h2>
+                  <div className="mt-4 space-y-3 text-sm text-[#23345f]">
+                    <div className="flex gap-3">
+                      <LockKeyhole size={18} className="mt-0.5 shrink-0 text-[#071942]" />
+                      <p>Use safe client data only and review all imported facts before saving.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <WalletCards size={18} className="mt-0.5 shrink-0 text-[#071942]" />
+                      <p>Partner buttons may open a third-party report source. Return here after downloading the report.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Bell size={18} className="mt-0.5 shrink-0 text-[#071942]" />
+                      <p>If a report cannot be read, try the original PDF or paste readable report text.</p>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
           </div>
-        </div>
       ) : (
         <div className="space-y-5">
           {ocrStatus && <OcrStatusPanel status={ocrStatus} />}
@@ -1236,6 +1428,9 @@ export default function CreditReportImportContent() {
                   Provider: <span className="font-medium capitalize">{parsedReport.provider === 'unknown' ? 'Not detected' : parsedReport.provider}</span> ·
                   Parser confidence: <span className={`font-medium ${parsedReport.overallConfidence >= 70 ? 'text-success' : parsedReport.overallConfidence >= 40 ? 'text-warning' : 'text-danger'}`}>{parsedReport.overallConfidence}%</span>
                   {parsedReport.reportDate && <> · Report Date: <span className="font-medium">{parsedReport.reportDate}</span></>}
+                </p>
+                <p className={`mt-1 text-xs font-bold uppercase ${analyzerOutcomeFor(parsedReport).state === 'success' ? 'text-success' : analyzerOutcomeFor(parsedReport).state === 'needs_review' ? 'text-warning' : 'text-danger'}`}>
+                  Parse outcome: {analyzerOutcomeFor(parsedReport).state.replace('_', ' ')}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1260,7 +1455,7 @@ export default function CreditReportImportContent() {
             {/* Sections parsed/missed */}
             <div className="flex gap-3 text-xs text-muted-foreground flex-wrap">
               {parsedReport.sectionsParsed.map(s => <span key={s} className="text-success">✓ {s}</span>)}
-              {parsedReport.sectionsMissed.map(s => <span key={s} className="text-warning">⚠ {s}: Detected — none reported</span>)}
+              {parsedReport.sectionsMissed.map(s => <span key={s} className="text-warning">⚠ {s}: Detected — extraction incomplete</span>)}
               {(parsedReport.sectionsNotFound ?? []).map(s => <span key={s} className="text-muted-foreground">— {s}: Not detected</span>)}
             </div>
 
@@ -1308,21 +1503,23 @@ export default function CreditReportImportContent() {
             )}
           </div>
 
-          {/* Negative items preview */}
+          {/* Exception-first account preview */}
           {parsedReport.negativeAccounts.length > 0 && (
             <div className="card p-5 space-y-3">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <AlertTriangle size={15} className="text-danger" />
-                Negative Items Detected ({parsedReport.negativeAccounts.length})
+                Needs Review ({parsedReport.accounts.filter(needsAccountReview).length})
               </h3>
+              <p className="text-xs text-muted-foreground">High-confidence accounts are ready to save automatically. Only uncertain or incomplete accounts need attention.</p>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {parsedReport.negativeAccounts.map((acc, i) => (
+                {[...parsedReport.accounts].sort((a, b) => Number(needsAccountReview(b)) - Number(needsAccountReview(a))).map((acc, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-border text-xs">
                     <div>
                       <p className="font-medium text-foreground">{acc.creditorName}</p>
-                      <p className="text-muted-foreground">{acc.accountType} · {acc.bureau}</p>
+                      <p className="text-muted-foreground">{acc.accountNumberMasked || 'Account not reported'} · {acc.accountType} · {acc.status || 'Status not reported'} · {acc.bureau}</p>
+                      <p className="text-muted-foreground">Reported Amount: <span className="text-foreground font-medium">{formatReportedAmount(acc)}</span>{acc.isCollection ? ' · Confirmed collection' : ''}</p>
                     </div>
-                    <span className="text-danger text-xs">{acc.negativeReason}</span>
+                    <span className={needsAccountReview(acc) ? 'text-warning text-xs' : 'text-success text-xs'}>{needsAccountReview(acc) ? 'Needs Review' : (acc.negativeReason || 'Ready to save')}</span>
                   </div>
                 ))}
               </div>
@@ -1330,8 +1527,8 @@ export default function CreditReportImportContent() {
           )}
 
           {/* Unparsed blocks debug section — shown only when blocks were rejected */}
-          {parsedReport.unparsedBlocks && parsedReport.unparsedBlocks.length > 0 && (
-            <UnparsedBlocksDebug blocks={parsedReport.unparsedBlocks} />
+          {getActionableUnmatchedBlocks(parsedReport).length > 0 && (
+            <UnparsedBlocksDebug blocks={getActionableUnmatchedBlocks(parsedReport)} />
           )}
 
           {/* Save to client */}
@@ -1341,7 +1538,7 @@ export default function CreditReportImportContent() {
               <label className="text-xs font-medium text-muted-foreground block mb-1">Select Client</label>
               <select
                 value={selectedClientId}
-                onChange={e => setSelectedClientId(e.target.value)}
+                onChange={e => selectClient(e.target.value)}
                 className="w-full text-sm border border-border rounded-xl px-3 py-2 bg-card text-foreground"
               >
                 <option value="">Select a client…</option>
@@ -1374,26 +1571,14 @@ export default function CreditReportImportContent() {
                 </button>
               )}
 
-              {/* Review accounts manually button — always shown when accounts exist */}
-              {parsedReport.accounts.length > 0 && selectedClientId && (
-                <button
-                  onClick={handleSaveToClient}
-                  disabled={saving}
-                  className="btn-secondary text-sm flex items-center gap-2"
-                >
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-                  {saving ? saveStage : `Review ${parsedReport.accounts.length} Accounts Manually`}
-                </button>
-              )}
-
               {/* Normal save — disabled if provider unknown + low confidence */}
               <button
                 onClick={handleSaveToClient}
-                disabled={saving || !selectedClientId || (parsedReport.providerConfidence < 60 && parsedReport.provider === 'unknown' && parsedReport.accounts.length === 0)}
+                disabled={saving || !selectedClientId || !analyzerOutcomeFor(parsedReport).canPersistDraft || (parsedReport.providerConfidence < 60 && parsedReport.provider === 'unknown' && parsedReport.accounts.length === 0)}
                 className="btn-primary flex items-center gap-2 text-sm"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                {saving ? saveStage : 'Save & Build Investigation Cases'}
+                {saving ? saveStage : 'Save Report'}
                 <ArrowRight size={14} />
               </button>
             </div>
@@ -1403,6 +1588,7 @@ export default function CreditReportImportContent() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

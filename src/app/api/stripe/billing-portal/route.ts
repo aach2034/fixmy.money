@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { getStripeServerClient } from '@/lib/stripe/server';
+import { getSelectedWorkspaceContext, getWorkspaceEntitlementDecision } from '@/lib/subscription/server';
 
-
-function getStripeInstance(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey || secretKey === 'your-stripe-secret-key-here' || secretKey.trim() === '') {
-    throw new Error('STRIPE_SECRET_KEY is not configured.');
-  }
-  return new Stripe(secretKey);
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   let stripe: Stripe;
   try {
-    stripe = getStripeInstance();
+    stripe = getStripeServerClient();
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Stripe is not configured';
     console.error('[Stripe] Billing portal configuration error:', message);
@@ -32,13 +24,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please sign in to manage billing.' }, { status: 401 });
     }
 
-    const supabaseAdmin = getAdminClient();
-    const { data: profile } = await supabaseAdmin
-      .from('user_profiles')
-      .select('stripe_customer_id')
-      .eq('id', user.id)
-      .single();
-    const customerId = profile?.stripe_customer_id;
+    const workspace = await getSelectedWorkspaceContext(supabase);
+    if (!workspace || workspace.workspace_owner_id !== user.id || workspace.member_role !== 'owner') {
+      return NextResponse.json({ error: 'Only the workspace owner can manage billing.' }, { status: 403 });
+    }
+
+    const entitlement = await getWorkspaceEntitlementDecision({
+      workspaceId: workspace.workspace_id,
+      forceReconcile: true,
+    });
+    const customerId = entitlement.row.stripe_customer_id;
     if (!customerId) return NextResponse.json({ error: 'No billing account was found.' }, { status: 404 });
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money';

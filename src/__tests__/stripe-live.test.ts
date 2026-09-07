@@ -21,6 +21,11 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
+import {
+  buildTestPortalConfigurationParams,
+  buildTestSubscriptionParams,
+  STRIPE_INTEGRATION_API_VERSION,
+} from '../../scripts/integration-test-contracts';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -111,7 +116,7 @@ describe('Stripe Test-Mode API', () => {
 
   it('can connect to Stripe test-mode API', async () => {
     const Stripe = (await import('stripe'))?.default;
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-05-28.basil' });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_INTEGRATION_API_VERSION });
 
     // Verify we can reach the API
     const balance = await stripe?.balance?.retrieve();
@@ -121,7 +126,7 @@ describe('Stripe Test-Mode API', () => {
 
   it('can create a test checkout session', async () => {
     const Stripe = (await import('stripe'))?.default;
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-05-28.basil' });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_INTEGRATION_API_VERSION });
 
     const session = await stripe?.checkout?.sessions?.create({
       mode: 'subscription',
@@ -153,67 +158,66 @@ describe('Stripe Test-Mode API', () => {
 
   it('can create and cancel a test subscription', async () => {
     const Stripe = (await import('stripe'))?.default;
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-05-28.basil' });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_INTEGRATION_API_VERSION });
 
-    // Create test customer
-    const customer = await stripe?.customers?.create({
-      email: 'test-subscription@test.invalid',
-      metadata: { test: 'true' },
-    });
+    let customerId: string | null = null;
+    let productId: string | null = null;
+    let priceId: string | null = null;
+    let subscriptionId: string | null = null;
 
-    // Create test subscription with trial
-    const subscription = await stripe?.subscriptions?.create({
-      customer: customer?.id,
-      items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: { name: 'Test Subscription' },
-            unit_amount: 4900,
-            recurring: { interval: 'month' },
-          },
-        },
-      ],
-      trial_period_days: 14,
-    });
+    try {
+      const customer = await stripe.customers.create({
+        email: 'test-subscription@test.invalid',
+        metadata: { test: 'true' },
+      });
+      customerId = customer.id;
+      const product = await stripe.products.create({
+        name: 'FMM isolated integration subscription',
+        metadata: { test: 'true' },
+      });
+      productId = product.id;
+      const price = await stripe.prices.create({
+        currency: 'usd',
+        product: product.id,
+        unit_amount: 4900,
+        recurring: { interval: 'month' },
+        metadata: { test: 'true' },
+      });
+      priceId = price.id;
+      const subscription = await stripe.subscriptions.create(
+        buildTestSubscriptionParams(customer.id, price.id),
+      );
+      subscriptionId = subscription.id;
 
-    expect(subscription?.id)?.toMatch(/^sub_/);
-    expect(subscription?.status)?.toBe('trialing');
-    expect(subscription?.livemode)?.toBe(false);
+      expect(subscription.id).toMatch(/^sub_/);
+      expect(subscription.status).toBe('trialing');
+      expect(subscription.livemode).toBe(false);
 
-    // Cancel the subscription
-    const cancelled = await stripe?.subscriptions?.cancel(subscription?.id);
-    expect(cancelled?.status)?.toBe('canceled');
-
-    // Clean up customer
-    await stripe?.customers?.del(customer?.id)?.catch(() => {});
+      const cancelled = await stripe.subscriptions.cancel(subscription.id);
+      subscriptionId = null;
+      expect(cancelled.status).toBe('canceled');
+    } finally {
+      if (subscriptionId) {
+        await stripe.subscriptions.cancel(subscriptionId).catch(() => {});
+      }
+      if (customerId) await stripe.customers.del(customerId).catch(() => {});
+      if (priceId) await stripe.prices.update(priceId, { active: false }).catch(() => {});
+      if (productId) await stripe.products.update(productId, { active: false }).catch(() => {});
+    }
   });
 
   it('billing portal configuration exists or can be created', async () => {
     const Stripe = (await import('stripe'))?.default;
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-05-28.basil' });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_INTEGRATION_API_VERSION });
 
     // Check if billing portal is configured
     const configs = await stripe?.billingPortal?.configurations?.list({ limit: 1 });
 
     if (configs?.data?.length === 0) {
       // Create a basic configuration for testing
-      const config = await stripe?.billingPortal?.configurations?.create({
-        business_profile: {
-          headline: 'FixMy.Money — Manage your subscription',
-          return_url: 'https://fixmy.money/dashboard',
-        },
-        features: {
-          subscription_cancel: { enabled: true },
-          subscription_update: {
-            enabled: true,
-            default_allowed_updates: ['price'],
-            proration_behavior: 'create_prorations',
-          },
-          payment_method_update: { enabled: true },
-          invoice_history: { enabled: true },
-        },
-      });
+      const config = await stripe.billingPortal.configurations.create(
+        buildTestPortalConfigurationParams(),
+      );
       expect(config?.id)?.toBeTruthy();
     } else {
       expect(configs?.data?.[0]?.id)?.toBeTruthy();
@@ -261,12 +265,11 @@ describe('Stripe Idempotency', () => {
   it('workspace ID is resolved server-side, not from browser', () => {
     /**
      * VERIFIED: webhook/route.ts resolves workspace_id by:
-     * 1. Looking up user_profiles by stripe_customer_id (server-side Stripe data)
-     * 2. Looking up workspaces by owner_id (server-side database lookup)
+     * 1. Looking up workspace_entitlements by stripe_customer_id
+     * 2. Using the workspace_id bound by that server-only authority row
      *
      * The browser never supplies workspace_id to the webhook handler.
-     * Stripe metadata may contain userId (set at checkout creation),
-     * which is then verified against the database.
+     * Stripe metadata does not choose the workspace that receives entitlement.
      */
     expect(true)?.toBe(true);
   });

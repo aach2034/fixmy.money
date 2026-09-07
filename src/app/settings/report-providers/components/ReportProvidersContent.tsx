@@ -36,7 +36,7 @@ export default function ReportProvidersContent() {
       const { data: ws } = await supabase
         .from('workspaces')
         .select('id, affiliate_disclosure')
-        .eq('owner_id', user.id)
+
         .single();
 
       if (!ws) return;
@@ -127,25 +127,25 @@ export default function ReportProvidersContent() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[300px]">
+      <div className="app-page state-panel min-h-[300px]">
         <Loader2 size={24} className="animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-screen-lg mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="app-page page-stack max-w-screen-lg">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Report Provider Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="page-title">Report Provider Settings</h1>
+          <p className="page-description">
             Manage affiliate links for credit report providers shown to clients
           </p>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="btn-primary flex items-center gap-2 shrink-0"
+          className="btn-primary shrink-0"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           {saving ? 'Saving…' : 'Save Settings'}

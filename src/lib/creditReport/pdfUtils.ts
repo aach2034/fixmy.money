@@ -32,10 +32,38 @@ export interface PdfPageText {
   quality: TextQualityMetrics;
 }
 
+export type PdfPageFinalStatus =
+  | 'native_text'
+  | 'ocr_primary'
+  | 'ocr_retry'
+  | 'ocr_fallback'
+  | 'unreadable';
+
+export interface PdfPageExtractionResult {
+  pageNumber: number;
+  nativeTextAvailable: boolean;
+  nativeCharacterCount: number;
+  renderedSuccessfully: boolean;
+  preprocessingApplied: string[];
+  primaryOcrAttempted: boolean;
+  primaryOcrSucceeded: boolean;
+  primaryOcrConfidence: number | null;
+  retryAttempted: boolean;
+  retryRecovered: boolean;
+  fallbackOcrAttempted: boolean;
+  fallbackOcrSucceeded: boolean;
+  fallbackOcrConfidence: number | null;
+  extractedCharacterCount: number;
+  finalStatus: PdfPageFinalStatus;
+  failureReason: string | null;
+  engine?: string;
+}
+
 export interface ExtractedPdfPage extends PdfPageText {
   source: 'native' | 'ocr' | 'failed';
   ocrConfidence?: number;
   rotation?: number;
+  extraction?: PdfPageExtractionResult;
 }
 
 export interface ExtractionValidation {

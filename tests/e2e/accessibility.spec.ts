@@ -108,7 +108,7 @@ test?.describe('Desktop Accessibility', () => {
 
       // Check for skip link or main landmark
       const hasMain = await page?.locator('main, [role="main"]')?.count();
-      expect(hasMain)?.toBeGreaterThanOrEqual(1);
+      expect(hasMain)?.toBe(1);
     });
   }
 });

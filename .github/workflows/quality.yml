@@ -1,0 +1,170 @@
+name: Required quality gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm type-check
+      - run: pnpm lint --max-warnings=50
+      - run: pnpm test
+      - run: pnpm test:revenue-path
+      - run: pnpm test:d1-replay
+      # image-size 2.0.3 is not published and the affected parsers are an
+      # unused vinext build-only path; see the reviewed exception record.
+      - run: pnpm audit --audit-level high --ignore GHSA-w3rx-r6r6-pgpr --ignore GHSA-5p2g-fcmc-qvqq
+      - run: pnpm build
+      - run: pnpm build:budget
+
+  migration-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - name: Clean migration replay
+        run: supabase db reset --local --no-seed
+      - name: Repeat migration replay
+        run: supabase db reset --local --no-seed
+      - run: supabase test db
+      - run: supabase db lint --local --level error --fail-on error
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FMM_RELEASE_GATE: "1"
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: whsec_ci_local_${{ github.run_id }}_${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local --no-seed
+      - name: Configure isolated integration environment
+        run: |
+          if [[ "$STRIPE_SECRET_KEY" != sk_test_* ]]; then
+            echo "STRIPE_TEST_SECRET_KEY must be configured as a Stripe sk_test_ GitHub Actions secret." >&2
+            exit 1
+          fi
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          source "$RUNNER_TEMP/supabase.env"
+          {
+            echo "NEXT_PUBLIC_SITE_URL=http://127.0.0.1:4028"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_SUPABASE_URL=$API_URL"
+            echo "TEST_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "TEST_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+      - run: pnpm seed-test
+      - run: pnpm test:integration
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            engine: chromium
+          - project: firefox
+            engine: firefox
+          - project: webkit
+            engine: webkit
+          - project: mobile-webkit-390
+            engine: webkit
+    env:
+      FMM_RELEASE_GATE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local --no-seed
+      - name: Configure isolated browser environment
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          source "$RUNNER_TEMP/supabase.env"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_SUPABASE_URL=$API_URL"
+            echo "TEST_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "TEST_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_USER_EMAIL=fmm-e2e-owner@test.invalid"
+            echo "TEST_USER_PASSWORD=FmmE2E_2026_LocalOnly!"
+            echo "TEST_MEMBER_EMAIL=fmm-e2e-member@test.invalid"
+            echo "TEST_MEMBER_PASSWORD=FmmE2E_Member_2026_LocalOnly!"
+            # Cloudflare's published always-pass test site key. No production
+            # Turnstile credential is used by the browser gate.
+            echo "NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA"
+          } >> "$GITHUB_ENV"
+      - run: pnpm seed:e2e-local
+      - run: pnpm exec playwright install --with-deps ${{ matrix.engine }}
+      - run: pnpm build
+      - name: Run browser gates
+        run: |
+          pnpm start &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:4028/api/health && break
+            sleep 1
+          done
+          curl --fail http://127.0.0.1:4028/api/health
+          pnpm exec playwright test --project=${{ matrix.project }}
+
+  release-gate:
+    if: always()
+    needs: [quality, migration-replay, integration, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every release job to succeed
+        run: >-
+          node scripts/verify-release-gate.mjs
+          quality=${{ needs.quality.result }}
+          migration-replay=${{ needs.migration-replay.result }}
+          integration=${{ needs.integration.result }}
+          browser=${{ needs.browser.result }}

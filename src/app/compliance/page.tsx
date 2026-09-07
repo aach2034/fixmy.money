@@ -62,8 +62,8 @@ export default function CompliancePage() {
         <div className="mt-6 bg-slate-900 rounded-2xl p-6 text-center">
           <p className="text-white font-bold mb-2">Tools to support your compliance process</p>
           <p className="text-slate-400 text-sm mb-4">FixMy.Money includes CROA-aware workflow tools, disclosure templates, and audit trails to support your operations.</p>
-          <Link href="/sign-up-login-screen?tab=register" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors">
-            Start Agency Trial
+          <Link href="/#reopening-list" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors">
+            Reserve One Month Free
           </Link>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useCallback, useReducer, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -12,6 +12,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { trackLeadMagnetSignup } from '@/lib/analytics';
+import TurnstileChallenge from '@/components/TurnstileChallenge';
+import {
+  initialLeadChallengeState,
+  leadChallengeReducer,
+} from '@/lib/marketing/leadChallenge';
 
 type SubmissionState = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -27,9 +32,16 @@ export default function LeadCaptureSection() {
   const [website, setWebsite] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [challenge, dispatchChallenge] = useReducer(
+    leadChallengeReducer,
+    initialLeadChallengeState,
+  );
+  const challengeRetryInFlight = useRef(false);
+  const challengeGeneration = useRef(challenge.widgetGeneration);
+  challengeGeneration.current = challenge.widgetGeneration;
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submitLead = useCallback(async (challengeToken?: string) => {
     setSubmissionState('submitting');
     setErrorMessage('');
 
@@ -41,14 +53,28 @@ export default function LeadCaptureSection() {
           email,
           website,
           source: 'homepage_walkthrough',
+          ...(challengeToken ? { challengeToken } : {}),
         }),
       });
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as { error?: string; code?: string };
 
       if (!response.ok) {
+        if (result.code === 'CHALLENGE_REQUIRED') {
+          dispatchChallenge({
+            type: challengeToken ? 'challenge_rejected' : 'challenge_required',
+          });
+          setSubmissionState('idle');
+          setErrorMessage(
+            challengeToken
+              ? 'Verification expired or was not accepted. Complete the new verification to retry.'
+              : 'Complete the security verification to continue.',
+          );
+          return;
+        }
         throw new Error(result.error || 'We could not save your signup. Please try again.');
       }
 
+      dispatchChallenge({ type: 'resolved' });
       setSubmissionState('success');
       trackLeadMagnetSignup();
     } catch (error) {
@@ -57,6 +83,43 @@ export default function LeadCaptureSection() {
         error instanceof Error ? error.message : 'We could not save your signup. Please try again.'
       );
     }
+  }, [email, website]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await submitLead();
+  };
+
+  const handleChallengeToken = useCallback(async (token: string, generation: number) => {
+    if (
+      challengeRetryInFlight.current ||
+      challenge.phase !== 'required' ||
+      generation !== challengeGeneration.current
+    ) return;
+    challengeRetryInFlight.current = true;
+    dispatchChallenge({ type: 'token_received' });
+    try {
+      await submitLead(token);
+    } finally {
+      challengeRetryInFlight.current = false;
+    }
+  }, [challenge.phase, submitLead]);
+
+  const handleChallengeExpired = useCallback(() => {
+    dispatchChallenge({ type: 'challenge_expired' });
+    setSubmissionState('idle');
+    setErrorMessage('Security verification expired. Please complete the new verification.');
+  }, []);
+
+  const handleChallengeError = useCallback(() => {
+    setSubmissionState('error');
+    setErrorMessage('Security verification could not load. Use Retry verification or try again later.');
+  }, []);
+
+  const retryChallenge = () => {
+    dispatchChallenge({ type: 'challenge_expired' });
+    setSubmissionState('idle');
+    setErrorMessage('');
   };
 
   return (
@@ -147,14 +210,41 @@ export default function LeadCaptureSection() {
                     onChange={(event) => setWebsite(event.target.value)}
                   />
                 </div>
-                {submissionState === 'error' && (
+                {errorMessage && (
                   <p id="starter-kit-error" role="alert" className="mt-3 text-sm font-semibold text-rose-300">
                     {errorMessage}
                   </p>
                 )}
+                {challenge.phase === 'required' && (
+                  <div className="mt-4" aria-live="polite">
+                    {turnstileSiteKey ? (
+                      <TurnstileChallenge
+                        key={challenge.widgetGeneration}
+                        generation={challenge.widgetGeneration}
+                        siteKey={turnstileSiteKey}
+                        onToken={handleChallengeToken}
+                        onExpired={handleChallengeExpired}
+                        onError={handleChallengeError}
+                      />
+                    ) : (
+                      <p role="alert" className="text-sm font-semibold text-rose-300">
+                        Security verification is temporarily unavailable. Please try again later.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {challenge.phase === 'required' && submissionState === 'error' && turnstileSiteKey && (
+                  <button
+                    type="button"
+                    onClick={retryChallenge}
+                    className="mt-3 text-sm font-bold text-cyan-200 underline underline-offset-2 hover:text-cyan-100"
+                  >
+                    Retry verification
+                  </button>
+                )}
                 <button
                   type="submit"
-                  disabled={submissionState === 'submitting'}
+                  disabled={submissionState === 'submitting' || challenge.phase !== 'idle'}
                   className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-cyan-400 px-6 py-4 font-extrabold text-[#031322] transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-[#0A2940]"
                 >
                   {submissionState === 'submitting' ? 'Preparing your kit…' : 'Get the free starter kit'}

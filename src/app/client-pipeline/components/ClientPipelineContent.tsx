@@ -41,7 +41,7 @@ export default function ClientPipelineContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { if (active) setLoading(false); return; }
       await purgeLegacyProductionSeeds(supabase, user.id);
-      const { data, error: queryError } = await supabase.from('staff_clients').select('id, name, email, phone, credit_score, plan, case_stage, active_disputes, report_analyzed, enrolled_date, created_at, subscription_status').eq('owner_id', user.id).order('created_at', { ascending: false });
+      const { data, error: queryError } = await supabase.from('staff_clients').select('id, name, email, phone, credit_score, plan, case_stage, active_disputes, report_analyzed, enrolled_date, created_at, subscription_status').order('created_at', { ascending: false });
       if (!active) return;
       if (queryError) setError('Client pipeline could not be loaded.');
       else setRows((data ?? []).filter(row => !isLegacySeedClient(row)));
@@ -55,8 +55,8 @@ export default function ClientPipelineContent() {
     return { id: row.id, name: row.name || '', email: row.email || '', phone: row.phone || '', score: Number(row.credit_score || 0), plan: row.plan || 'Starter', daysInStage: Math.max(0, Math.floor((Date.now() - start) / 86400000)), priority: row.subscription_status === 'overdue' ? 'high' : Number(row.active_disputes || 0) > 0 ? 'medium' : 'low' };
   }) }));
 
-  return <div className="p-6 max-w-screen-2xl mx-auto space-y-5">
-    <div className="flex items-center justify-between"><div><h1 className="text-2xl font-semibold text-foreground">Client Pipeline</h1><p className="text-sm text-muted-foreground mt-0.5">{loading ? 'Loading real client records…' : `${rows.length} clients across ${STAGES.length} stages`}</p></div><Link href="/client-management" className="btn-primary flex items-center gap-1.5"><Plus size={15}/>Add Client</Link></div>
+  return <div className="app-page page-stack">
+    <div className="page-header"><div><h1 className="page-title">Client Pipeline</h1><p className="page-description">{loading ? 'Loading real client records…' : `${rows.length} clients across ${STAGES.length} stages`}</p></div><div className="page-actions"><Link href="/client-management" className="btn-primary"><Plus size={15}/>Add Client</Link></div></div>
     {error && <div className="card p-4 text-sm text-danger">{error}</div>}
     {loading ? <div className="card p-10 flex justify-center"><Loader2 className="animate-spin text-primary"/></div> : <>
       <div className="flex items-center gap-2 overflow-x-auto pb-1">{columns.map((column, index) => <React.Fragment key={column.stage}><div className="flex items-center gap-1.5 shrink-0"><span className="text-xs font-semibold text-muted-foreground">{column.stage}</span><span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${column.headerBg} ${column.color}`}>{column.clients.length}</span></div>{index < columns.length - 1 && <ArrowRight size={12} className="text-muted-foreground/40 shrink-0"/>}</React.Fragment>)}</div>

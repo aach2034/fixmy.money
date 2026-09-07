@@ -32,7 +32,10 @@ function accountIdentity(row: DisputeSourceRow): string {
   const account = normalized(row.account_number_masked ?? row.account_number).replace(/[^a-z0-9*]/g, '');
   const category = normalized(row.negative_category ?? row.negative_item_type);
 
-  if (account) return `${creditor}|${account}|${category}`;
+  // A parser duplicate can assign different negative categories to the same
+  // identified account. The account number, not that classification, defines
+  // the one account entry shown in audit and dispute workflows.
+  if (account) return `${creditor}|${account}`;
 
   // Some reports omit account numbers. These fields distinguish two real
   // accounts at the same creditor while still collapsing repeated parser rows.

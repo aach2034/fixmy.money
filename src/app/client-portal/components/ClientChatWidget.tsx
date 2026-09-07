@@ -15,7 +15,7 @@ interface Message {
 }
 
 interface ClientChatWidgetProps {
-  clientAccountId: string;
+  workspaceClientId: string;
   clientName: string;
 }
 
@@ -23,7 +23,7 @@ function formatMessageTime(dateStr: string) {
   return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-export default function ClientChatWidget({ clientAccountId, clientName }: ClientChatWidgetProps) {
+export default function ClientChatWidget({ workspaceClientId, clientName }: ClientChatWidgetProps) {
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -41,14 +41,14 @@ export default function ClientChatWidget({ clientAccountId, clientName }: Client
 
   // Get or create conversation for this client
   const initConversation = useCallback(async () => {
-    if (!clientAccountId) return;
+    if (!workspaceClientId) return;
     setLoading(true);
     try {
       // Look for existing open conversation
       const { data: existing } = await supabase
         .from('chat_conversations')
         .select('id')
-        .eq('client_account_id', clientAccountId)
+        .eq('workspace_client_id', workspaceClientId)
         .eq('status', 'open')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -61,7 +61,7 @@ export default function ClientChatWidget({ clientAccountId, clientName }: Client
         const { data: newConv, error } = await supabase
           .from('chat_conversations')
           .insert({
-            client_account_id: clientAccountId,
+            workspace_client_id: workspaceClientId,
             status: 'open',
             subject: `Support Chat - ${clientName}`,
           })
@@ -95,15 +95,15 @@ export default function ClientChatWidget({ clientAccountId, clientName }: Client
     } finally {
       setLoading(false);
     }
-  }, [clientAccountId, clientName, supabase]);
+  }, [workspaceClientId, clientName, supabase]);
 
   // Check unread count when widget is closed
   const checkUnread = useCallback(async () => {
-    if (!clientAccountId) return;
+    if (!workspaceClientId) return;
     const { data: existing } = await supabase
       .from('chat_conversations')
       .select('id')
-      .eq('client_account_id', clientAccountId)
+      .eq('workspace_client_id', workspaceClientId)
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(1)
@@ -119,11 +119,17 @@ export default function ClientChatWidget({ clientAccountId, clientName }: Client
       .eq('is_read', false);
 
     setUnreadCount(count || 0);
-  }, [clientAccountId, supabase]);
+  }, [workspaceClientId, supabase]);
 
   useEffect(() => {
     checkUnread();
   }, [checkUnread]);
+
+  useEffect(() => {
+    setConversationId(null);
+    setMessages([]);
+    setUnreadCount(0);
+  }, [workspaceClientId]);
 
   useEffect(() => {
     if (isOpen && !conversationId) {
@@ -180,8 +186,9 @@ export default function ClientChatWidget({ clientAccountId, clientName }: Client
     try {
       const { error } = await supabase.from('chat_messages').insert({
         conversation_id: conversationId,
+        workspace_client_id: workspaceClientId,
         sender_type: 'client',
-        sender_id: clientAccountId,
+        sender_id: '',
         sender_name: clientName,
         content,
         is_read: false,

@@ -35,9 +35,9 @@ const EDUCATION_ARTICLES = [
 ];
 
 const TOOLS = [
-  { icon: Brain, title: 'AI Credit Analysis', description: 'Upload a credit report and get instant AI-powered analysis of negative items and dispute opportunities.', cta: 'Try for $1', href: '/sign-up-login-screen?tab=register' },
-  { icon: FileText, title: 'Dispute Letter Generator', description: 'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion in seconds.', cta: 'Try for $1', href: '/sign-up-login-screen?tab=register' },
-  { icon: Users, title: 'Client Management CRM', description: 'Manage all your clients, disputes, documents, and billing from one professional dashboard.', cta: 'Try for $1', href: '/sign-up-login-screen?tab=register' },
+  { icon: Brain, title: 'AI Credit Analysis', description: 'Upload a credit report and get instant AI-powered analysis of negative items and dispute opportunities.', cta: 'Reserve One Month Free', href: '/#reopening-list' },
+  { icon: FileText, title: 'Dispute Letter Generator', description: 'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion in seconds.', cta: 'Reserve One Month Free', href: '/#reopening-list' },
+  { icon: Users, title: 'Client Management CRM', description: 'Manage all your clients, disputes, documents, and billing from one professional dashboard.', cta: 'Reserve One Month Free', href: '/#reopening-list' },
 ];
 
 export default function FinanceContent() {
@@ -78,7 +78,7 @@ export default function FinanceContent() {
               <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Articles</Link>
               <Link href="/#pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Pricing</Link>
               <Link
-                href="/sign-up-login-screen?tab=register"
+                href="/#reopening-list"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all"
               >
                 Try FixMy.Money for $1 <ArrowRight size={14} />
@@ -105,7 +105,7 @@ export default function FinanceContent() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/sign-up-login-screen?tab=register"
+              href="/#reopening-list"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
             >
               <Sparkles size={18} />
@@ -285,11 +285,11 @@ export default function FinanceContent() {
           <p className="text-blue-100 mb-8 text-lg">FixMy.Money is the software platform — AI analysis, dispute automation, client management, and billing in one place.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/sign-up-login-screen?tab=register"
+              href="/#reopening-list"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-white text-blue-600 font-bold text-base px-8 py-4 rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
             >
               <Sparkles size={18} />
-              Start $1 Trial on FixMy.Money
+              Reserve One Month Free on FixMy.Money
             </Link>
             <Link
               href="/"

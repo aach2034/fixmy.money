@@ -51,13 +51,17 @@ type ProfileRow = {
   company_name: string | null;
   created_at: string | null;
   onboarding_completed: boolean | null;
-  subscription_status: string | null;
-  subscription_plan: string | null;
-  stripe_customer_id: string | null;
   customer_type?: string | null;
   do_not_contact?: boolean | null;
-  trial_end: string | null;
-  paid_trial: boolean | null;
+};
+
+type WorkspaceEntitlementAdminRow = {
+  stripe_customer_id: string | null;
+  stripe_status: string | null;
+  access_state: string | null;
+  plan_id: string | null;
+  trial_ends_at: string | null;
+  workspaces: { owner_id: string } | Array<{ owner_id: string }> | null;
 };
 
 type AlertStateRow = {
@@ -87,6 +91,22 @@ function maxDate(current: string | null, candidate: string | null | undefined): 
 
 function normalizeCustomerType(value: string | null | undefined): CustomerType {
   return CUSTOMER_TYPES.has(value as CustomerType) ? (value as CustomerType) : 'real';
+}
+
+function entitlementOwnerId(row: WorkspaceEntitlementAdminRow): string | null {
+  const workspace = Array.isArray(row.workspaces) ? row.workspaces[0] : row.workspaces;
+  return workspace?.owner_id || null;
+}
+
+function entitlementDisplayStatus(row: WorkspaceEntitlementAdminRow | undefined): string {
+  if (!row) return 'none';
+  if (row.access_state === 'active') return 'active';
+  if (row.access_state === 'trial') return 'trialing';
+  if (row.access_state === 'grace') return 'past_due';
+  const inactiveStripeStatus = String(row.stripe_status || 'none').toLowerCase();
+  return ['past_due', 'unpaid', 'paused', 'canceled', 'incomplete', 'incomplete_expired'].includes(inactiveStripeStatus)
+    ? inactiveStripeStatus
+    : 'expired';
 }
 
 export function classifyCustomer(input: {
@@ -248,6 +268,7 @@ export async function getAdminCustomerSummaries() {
   const admin = getAdminClient();
   const [
     profilesResult,
+    entitlementsResult,
     reportsResult,
     importsResult,
     negativeItemsResult,
@@ -257,7 +278,8 @@ export async function getAdminCustomerSummaries() {
     alertStatesResult,
     platformAdminsResult,
   ] = await Promise.all([
-    admin.from('user_profiles').select('id,email,full_name,company_name,created_at,onboarding_completed,subscription_status,subscription_plan,stripe_customer_id,customer_type,do_not_contact,trial_end,paid_trial').order('created_at', { ascending: false }),
+    admin.from('user_profiles').select('id,email,full_name,company_name,created_at,onboarding_completed,customer_type,do_not_contact').order('created_at', { ascending: false }),
+    admin.from('workspace_entitlements').select('stripe_customer_id,stripe_status,access_state,plan_id,trial_ends_at,workspaces!inner(owner_id)'),
     admin.from('parsed_credit_reports').select('owner_id,created_at,status,import_status'),
     admin.from('credit_report_imports').select('owner_id,created_at,import_status,error_code,error_message'),
     admin.from('negative_items').select('owner_id,created_at'),
@@ -269,6 +291,7 @@ export async function getAdminCustomerSummaries() {
   ]);
 
   if (profilesResult.error) throw profilesResult.error;
+  if (entitlementsResult.error) throw entitlementsResult.error;
 
   const reportCounts = new Map<string, number>();
   const failedImportCounts = new Map<string, number>();
@@ -280,6 +303,11 @@ export async function getAdminCustomerSummaries() {
   const lastWorkflow = new Map<string, string | null>();
   const alertStates = new Map<string, Map<string, AlertStateRow>>();
   const platformAdminIds = new Set((platformAdminsResult.data ?? []).map((row) => row.user_id).filter(Boolean));
+  const entitlementByOwner = new Map<string, WorkspaceEntitlementAdminRow>();
+  for (const entitlement of (entitlementsResult.data ?? []) as unknown as WorkspaceEntitlementAdminRow[]) {
+    const ownerId = entitlementOwnerId(entitlement);
+    if (ownerId) entitlementByOwner.set(ownerId, entitlement);
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -322,7 +350,8 @@ export async function getAdminCustomerSummaries() {
   }
 
   const customers = ((profilesResult.data ?? []) as ProfileRow[]).map((profile) => {
-    const subscriptionStatus = (profile.subscription_status || 'none').toLowerCase();
+    const entitlement = entitlementByOwner.get(profile.id);
+    const subscriptionStatus = entitlementDisplayStatus(entitlement);
     const reportsImported = reportCounts.get(profile.id) ?? 0;
     const failedImports = failedImportCounts.get(profile.id) ?? 0;
     const disputeRounds = roundCounts.get(profile.id) ?? 0;
@@ -339,7 +368,7 @@ export async function getAdminCustomerSummaries() {
     const rawAttention = getAttentionForCustomer({
       onboardingCompleted: Boolean(profile.onboarding_completed),
       subscriptionStatus,
-      trialEnd: profile.trial_end,
+      trialEnd: entitlement?.trial_ends_at || null,
       reportsImported,
       failedImports,
       disputeRounds,
@@ -362,12 +391,12 @@ export async function getAdminCustomerSummaries() {
       createdAt: profile.created_at || '',
       onboardingCompleted: Boolean(profile.onboarding_completed),
       subscriptionStatus,
-      subscriptionPlan: profile.subscription_plan || profile.subscription_status || '',
-      stripeCustomerId: profile.stripe_customer_id || '',
+      subscriptionPlan: entitlement?.plan_id || '',
+      stripeCustomerId: entitlement?.stripe_customer_id || '',
       customerType,
       doNotContact,
-      trialEnd: profile.trial_end,
-      paidTrial: Boolean(profile.paid_trial),
+      trialEnd: entitlement?.trial_ends_at || null,
+      paidTrial: entitlement?.access_state === 'trial' || entitlement?.access_state === 'active',
       reportsImported,
       failedImports,
       negativeItems: negativeCounts.get(profile.id) ?? 0,

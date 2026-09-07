@@ -2,6 +2,20 @@
 -- migration. Every predicate uses the exact fixture signature so legitimate
 -- customer data is preserved. Safe to run repeatedly.
 
+-- Remove the obsolete client-portal demo fixture before FMM-007 requires every
+-- portal row to have an explicit workspace relationship. Deleting the exact
+-- account cascades only its fixture disputes, timeline events, updates,
+-- documents, and chat rows. The matching Auth identity cascades its demo-only
+-- profile; both statements are no-ops when the fixture is already absent.
+DELETE FROM public.client_accounts
+WHERE lower(btrim(email)) = 'client@demo.com'
+  AND full_name = 'Sarah Johnson'
+  AND phone = '(555) 234-5678';
+
+DELETE FROM auth.users
+WHERE lower(btrim(email)) = 'client@demo.com'
+  AND raw_user_meta_data @> '{"full_name":"Sarah Johnson","is_client":true}'::jsonb;
+
 DELETE FROM public.dispute_letters
 WHERE letter_id IN (
   'EQ-2847', 'TU-1923', 'EX-3341', 'EQ-2901', 'EX-3190', 'TU-1887',

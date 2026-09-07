@@ -1,0 +1,15 @@
+Experian Credit Report
+Personal Information
+Name: Test Consumer
+Current Address: 100 Example Street, Atlanta, GA 30301
+Credit Scores
+Experian Score: 680
+Accounts
+EXPERIAN TEST BANK
+Account Number: ****1111
+Account Type: Revolving
+Account Status: 60 days late
+Balance: $500
+Past Due: $125
+Date Opened: 01/01/2020
+Bureau: Experian

@@ -188,7 +188,7 @@ The goal is not to remove people from the process. It is to give people a cleare
       'This article is for educational purposes only and does not constitute legal, financial, or credit-repair advice. AI output may be incomplete or inaccurate, and agencies remain responsible for reviewing their work and following applicable laws.',
     cta: {
       heading: 'Review report evidence with a human in control',
-      body: 'See how FixMy.Money connects AI-assisted analysis, source documents, staff review, approvals, and outcomes in one agency workflow.',
+      body: 'FixMy.Money currently provides user-reviewed report and dispute workflows. External AI analysis is temporarily unavailable.',
     },
   },
   {
@@ -515,7 +515,7 @@ Several states — including Georgia, Louisiana, and others — require credit r
 
 Avoid platforms that advertise assured deletions or score increases — those claims are not supportable and should be a red flag about the vendor's compliance posture.
 
-FixMy.Money is designed specifically for credit repair agencies and includes all of the above features in a single platform.`,
+FixMy.Money currently provides client, report-review, and dispute-workflow tools. Team access, business analytics, white-labeling, external AI analysis, and client document upload are not currently available. Verify current capabilities on the product and pricing pages before purchasing.`,
       },
       {
         heading: 'Building Your Client Onboarding Process',
@@ -596,14 +596,14 @@ Typical monthly fees in 2026 range from $79 to $199 per month depending on the m
       },
       {
         question: 'What software do I need to run a credit repair business?',
-        answer: 'You need software that handles client management, credit report analysis, dispute letter generation, CROA workflow tracking, audit logging, and billing. FixMy.Money is designed specifically for this use case.',
+        answer: 'Choose software by verifying the exact client-management, report-review, letter, recordkeeping, and billing workflows your business needs. FixMy.Money currently focuses on user-reviewed client and dispute workflows; verify current capabilities before purchasing.',
       },
     ],
     relatedSlugs: ['credit-repair-client-onboarding-checklist', 'how-croa-billing-workflows-work', 'best-credit-repair-software-2026'],
     disclaimer: 'This article is for informational purposes only and does not constitute legal advice. Credit repair agencies are responsible for their own compliance with CROA, FCRA, TSR, and applicable state laws. Consult a qualified attorney before launching your business.',
     cta: {
       heading: 'Ready to run your agency from one platform?',
-      body: 'FixMy.Money includes client management, CROA workflow tracking, dispute letter generation, audit logging, and billing — everything you need to operate a compliant credit repair agency.',
+      body: 'Review FixMy.Money’s current client, report-review, and dispute-workflow capabilities. Legal compliance remains the responsibility of each business.',
     },
   },
   {
@@ -866,7 +866,7 @@ This guide is not a takedown of any specific platform. It is a framework for eva
 - AI should not invent dispute reasons or account facts
 - Look for platforms that display clear AI disclaimers
 
-FixMy.Money includes AI-assisted analysis with mandatory human review requirements built into the workflow.`,
+FixMy.Money’s external AI analysis is temporarily unavailable while additional privacy and usage controls are completed. Current report and dispute workflows require user review.`,
       },
       {
         heading: 'Compliance and Audit Features',
@@ -900,7 +900,7 @@ FixMy.Money includes AI-assisted analysis with mandatory human review requiremen
 - Evaluate support quality at each tier
 - Look at annual vs. monthly pricing options
 
-FixMy.Money offers transparent, tiered pricing starting at $49/month with a 14-day trial for $1. Payment method required to start.`,
+FixMy.Money offers tiered pricing starting at $39/month with a 14-day trial for $1. Payment method required to start.`,
       },
       {
         heading: 'Making the Switch',
@@ -920,7 +920,7 @@ Most platforms offer migration assistance or onboarding support. Take advantage 
     faqs: [
       {
         question: 'Is FixMy.Money a Credit Repair Cloud alternative?',
-        answer: 'Yes. FixMy.Money is a full-featured credit repair software platform designed for agencies of all sizes. It includes client management, CROA workflow support, AI-assisted analysis, dispute letter generation, audit logging, and billing.',
+        answer: 'FixMy.Money provides user-reviewed client, report, and dispute workflows. External AI analysis, team access, business analytics, and white-labeling are not currently available; verify current capabilities before selecting it as an alternative.',
       },
       {
         question: 'Can I migrate my data from Credit Repair Cloud to another platform?',
@@ -1047,7 +1047,7 @@ If you are ever challenged on a billing dispute or face a regulatory inquiry, th
 - **Supporting arrears billing** — Making it easy to generate invoices after services are documented, not before.
 - **Documenting the CROA workflow** — Tracking disclosure delivery, contract execution, and cancellation periods.
 
-FixMy.Money is designed around CROA-compliant billing workflows. The platform tracks completed services, maintains immutable audit logs, and generates billing eligibility indicators based on documented activity.`,
+FixMy.Money provides user-reviewed workflow records and billing documentation tools. It does not currently advertise immutable audit logs or automatic billing-eligibility decisions. Each business remains responsible for its billing and legal compliance.`,
       },
     ],
     faqs: [
@@ -1430,7 +1430,7 @@ FixMy.Money's workflow automation engine supports this entire process with built
     disclaimer: 'This article is for informational purposes only. Automation decisions should be made with appropriate human oversight. AI-generated content must be reviewed before use.',
     cta: {
       heading: 'Automate your dispute workflows',
-      body: 'FixMy.Money includes AI-assisted letter generation, automated deadline tracking, and workflow automation — all with built-in human review checkpoints.',
+      body: 'FixMy.Money currently provides user-reviewed dispute workflow tools. Automatic AI letter generation is temporarily unavailable.',
     },
   },
   {
@@ -1713,7 +1713,7 @@ White labeling may not be worth the cost if you are a solo operator just startin
 - Is there documentation for the setup process?
 - Is technical support available if something breaks?
 
-FixMy.Money includes white-label capabilities in the Agency plan, including custom logo, color scheme, and client portal branding.`,
+FixMy.Money does not currently advertise or enable white-label capabilities. Verify current vendor capabilities before selecting a platform.`,
       },
       {
         heading: 'Technical Considerations',
@@ -1748,8 +1748,8 @@ FixMy.Money includes white-label capabilities in the Agency plan, including cust
     relatedSlugs: ['best-credit-repair-software-2026', 'credit-repair-cloud-alternatives-2026', 'how-to-start-a-credit-repair-business-2026'],
     disclaimer: 'This article is for informational purposes only. White-label features vary by platform. Verify current capabilities directly with vendors.',
     cta: {
-      heading: 'White-label your credit repair platform',
-      body: 'FixMy.Money Agency plan includes white-label branding for your client portal, dispute letters, and communications.',
+      heading: 'Evaluate your branding requirements',
+      body: 'FixMy.Money does not currently provide white-label branding. Confirm current capabilities directly with each vendor.',
     },
   },
   {
@@ -2094,7 +2094,7 @@ This data helps you understand which dispute strategies are most effective and i
 4. **Review regularly** — Set aside time each week to review your tracking data and act on what you find.
 5. **Protect sensitive data** — Client data, especially SSNs and financial information, must be stored securely with appropriate access controls.
 
-FixMy.Money is designed to be the central tracking system for credit repair agencies — combining client management, dispute tracking, compliance documentation, billing records, and business analytics in a single platform.`,
+FixMy.Money currently provides client management, dispute tracking, and user-reviewed workflow documentation. Business analytics are not currently available.`,
       },
     ],
     faqs: [
@@ -2108,14 +2108,14 @@ FixMy.Money is designed to be the central tracking system for credit repair agen
       },
       {
         question: 'Do I need special software to track all of this?',
-        answer: 'You can track some of this manually, but as your client volume grows, manual tracking becomes unreliable. Purpose-built credit repair software like FixMy.Money automates much of this tracking and maintains the immutable audit logs required for compliance.',
+        answer: 'You can track some of this manually, but manual tracking becomes harder as client volume grows. Evaluate purpose-built software against your exact recordkeeping requirements; FixMy.Money does not currently advertise immutable audit logs.',
       },
     ],
     relatedSlugs: ['credit-repair-audit-logs-explained', 'how-croa-billing-workflows-work', 'credit-repair-client-onboarding-checklist'],
     disclaimer: 'This article is for informational purposes only and does not constitute legal advice. Consult a qualified attorney about your specific record retention and compliance obligations.',
     cta: {
       heading: 'Track everything from one platform',
-      body: 'FixMy.Money combines client management, dispute tracking, compliance documentation, billing records, and business analytics in a single platform.',
+      body: 'FixMy.Money currently provides client management, dispute tracking, and user-reviewed workflow documentation. Business analytics are not currently available.',
     },
   },
   ...AUDIT_EDUCATION_ARTICLES,

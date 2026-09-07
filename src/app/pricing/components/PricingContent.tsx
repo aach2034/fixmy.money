@@ -23,29 +23,19 @@ const COMPARISON_ROWS: {
   rows: { feature: string; starter: string | boolean; professional: string | boolean; agency: string | boolean; enterprise: string | boolean; tooltip?: string }[];
 }[] = [
   {
-    category: 'Clients & Team',
-    rows: [
-      { feature: 'People or active clients', starter: 'You + 3 friends/family', professional: '300', agency: '600', enterprise: 'Unlimited' },
-      { feature: 'Users', starter: '1', professional: '3', agency: '6', enterprise: 'Unlimited' },
-    ],
-  },
-  {
     category: 'Core Features',
     rows: [
       { feature: 'Client portal', starter: true, professional: true, agency: true, enterprise: true },
       { feature: 'Dispute management', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Document storage', starter: '5 GB', professional: '25 GB', agency: '100 GB', enterprise: 'Custom' },
-      { feature: 'Credit report upload', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Credit report import', starter: true, professional: true, agency: true, enterprise: true },
       { feature: 'Audit log', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Client billing and payments', starter: false, professional: true, agency: true, enterprise: true },
     ],
   },
   {
-    category: 'Evidence Review',
+    category: 'Review',
     rows: [
-      { feature: 'AI-assisted report analysis', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'AI-generated editable dispute drafts', starter: true, professional: true, agency: true, enterprise: true },
-      { feature: 'Evidence-linked human review', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Structured report review', starter: true, professional: true, agency: true, enterprise: true },
+      { feature: 'Human verification before use', starter: true, professional: true, agency: true, enterprise: true },
     ],
   },
   {
@@ -53,13 +43,11 @@ const COMPARISON_ROWS: {
     rows: [
       { feature: 'Workflow templates', starter: false, professional: true, agency: true, enterprise: true },
       { feature: 'Response tracking', starter: false, professional: true, agency: true, enterprise: true },
-      { feature: 'Role-based review controls', starter: false, professional: false, agency: true, enterprise: true },
     ],
   },
   {
     category: 'Advanced',
     rows: [
-      { feature: 'Analytics dashboard', starter: false, professional: true, agency: true, enterprise: true },
       { feature: 'Data export', starter: false, professional: false, agency: true, enterprise: true },
       { feature: 'Onboarding assistance', starter: false, professional: false, agency: true, enterprise: true },
     ],
@@ -83,7 +71,6 @@ const BILLING_FAQS = [
   { q: 'What is the annual discount?', a: 'Annual billing saves approximately 20% compared to monthly billing. Annual plans are billed once per year.' },
   { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
   { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
-  { q: 'What happens to my data if I exceed plan limits?', a: 'If you exceed your active client limit, you will be prompted to upgrade your plan. Existing client records are not deleted. New clients cannot be added until you upgrade or reduce your active client count.' },
 ];
 
 function CellValue({ value }: { value: string | boolean }) {
@@ -104,8 +91,8 @@ export default function PricingContent() {
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Start $1 Trial ${planName}`, '/signup', 'pricing_page');
-    router.push(`/signup?plan=${planId}`);
+    trackCtaClick(`Reserve One Month Free ${planName}`, '/#reopening-list', 'pricing_page');
+    router.push(`/#reopening-list`);
   };
 
   return (
@@ -117,8 +104,8 @@ export default function PricingContent() {
           <div className="flex items-center gap-3">
             <Link href="/product-tour" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Product Tour</Link>
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
-            <Link href="/signup" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Start $1 Trial
+            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Reserve One Month Free
             </Link>
           </div>
         </div>
@@ -131,7 +118,7 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
+          <p className="text-xl text-slate-300 mb-3">New accounts reopen October 25, 2026. Join now to reserve one full month free.</p>
           <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
 
           {/* Billing Toggle */}
@@ -210,7 +197,7 @@ export default function PricingContent() {
                         : plan.id === 'enterprise' ?'bg-slate-900 hover:bg-slate-800 text-white' :'bg-slate-100 hover:bg-slate-200 text-slate-900'
                     }`}
                   >
-                    {plan.cta}
+                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Reserve One Month Free'}
                   </button>
                 </div>
               );
@@ -236,7 +223,7 @@ export default function PricingContent() {
           <DemoVideoPlayer
             placement="pricing"
             showTrialCta
-            onTrialClick={() => router.push('/signup')}
+            onTrialClick={() => router.push('/#reopening-list')}
           />
         </div>
       </section>
@@ -371,13 +358,13 @@ export default function PricingContent() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">$1 today for 14 days. Then your selected monthly rate. Cancel anytime.</p>
+          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after October 25, 2026.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href="/#reopening-list"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Start $1 Trial <ArrowRight size={16} />
+              Reserve One Month Free <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

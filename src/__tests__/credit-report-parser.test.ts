@@ -7,6 +7,8 @@ import {
   DISPUTE_REASONS,
   DISPUTE_INSTRUCTIONS,
   safeNormalizeText,
+  isLikelyCreditorName,
+  normalizeCreditReportToHtml,
 } from '../lib/creditReport/parser';
 
 // ─── Provider detection ───────────────────────────────────────────────────────
@@ -394,6 +396,30 @@ Inquiries
       bureaus: ['Experian', 'Equifax'],
       balance: 557,
     });
+  });
+
+  it('does not promote OCR section/legal fragments to negative accounts', () => {
+    const report = `
+Image OCR Credit Report
+Accounts
+(To be used for GRANTOR
+Account Type: Revolving account REVOLVING Revolving . TransUnion
+Account Status: Charge-off
+
+assigned to attorney, collection
+Account Type: Open account
+Account Status: Collection
+
+Public Records; -- Inquiries(2 years): 3 2 2 +
+Account Type: Revolving account REVOLVING Revolving . Multiple
+Account Status: Collection account
+`;
+    const result = parseCreditReport(report);
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('(To be used for GRANTOR');
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('assigned to attorney, collection');
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('Public Records; -- Inquiries(2 years): 3 2 2 +');
+    expect(result.accounts).toHaveLength(0);
+    expect(result.negativeAccounts).toHaveLength(0);
   });
 
   it('does not miss MyScoreIQ OCR blocks when Account # appears deep below the bureau header', () => {
@@ -902,6 +928,46 @@ Collection
 });
 
 describe('HTML report and inquiry evidence safety', () => {
+  it('normalizes extracted account text into canonical HTML before downstream parsing', () => {
+    const normalized = normalizeCreditReportToHtml(`
+      TransUnion Credit Report
+      Account History
+      1ST DIGITAL / SYNOVUS / VT
+      Account Number
+      XXXX1234
+      Type
+      Secured Credit Card
+      Opened
+      Nov. 03, 2020
+      Current Payment Status
+      Charge Off
+      Balance
+      $1,247
+      Inquiries
+    `, 'transunion');
+
+    expect(normalized.html).toContain('<section class="credit-account"');
+    expect(normalized.html).toContain('<h2>1ST DIGITAL / SYNOVUS / VT</h2>');
+    expect(normalized.html).toContain('<dt>Date Opened</dt>');
+    expect(normalized.html).toContain('<dd data-page="1" data-source-block=');
+    expect(normalized.html).toContain('2020-11-03');
+    expect(normalized.html).toContain('<section class="negative-indicators">');
+    expect(normalized.diagnostics).toMatchObject({
+      accountSectionsProduced: 1,
+      blocksRejected: 0,
+    });
+
+    const result = parseCreditReport(normalized.html, 'transunion');
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({
+      creditorName: '1ST DIGITAL / SYNOVUS / VT',
+      dateOpened: '2020-11-03',
+      status: 'Charge Off',
+      balance: 1247,
+      isNegative: true,
+    });
+  });
+
   it('converts report HTML into text without leaking tags or scripts', () => {
     const normalized = safeNormalizeText(`
       <table><tr><th width="20%">Creditor</th><td>Discover Bank</td></tr></table>
@@ -1006,5 +1072,213 @@ describe('HTML report and inquiry evidence safety', () => {
     expect(result.inquiries).toEqual([
       expect.objectContaining({ creditor: 'TEST LENDER', bureau: 'Experian', date: '2026-05-04', type: 'hard' }),
     ]);
+  });
+
+  it('does not promote OCR labels, statuses, dates, or navigation text into creditor names', () => {
+    const bogusCreditorCandidates = [
+      'Current Payment Status Current',
+      'Worst Payment Status Current',
+      'Account Details',
+      'Opened Nov. 03, 2020 (5 yrs, 8 mos)',
+      'Opened Sep. 07, 2022 (3 yrs, 9 mos)',
+      'Type Secured',
+      'Type Secured Credit Card',
+      'Today Credit Cards Loans Money',
+      'Reporting Act',
+      'Fair Credit Reporting Act',
+    ];
+
+    for (const candidate of bogusCreditorCandidates) {
+      expect(isLikelyCreditorName(candidate)).toBe(false);
+    }
+
+    const result = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      Current Payment Status
+      Current
+      Worst Payment Status
+      Current
+      Account Details
+      Opened
+      Nov. 03, 2020 (5 yrs, 8 mos)
+      Type
+      Secured Credit Card
+      Today Credit Cards Loans Money
+      Inquiries
+    `, 'transunion');
+
+    expect(result.accounts).toHaveLength(0);
+    expect(result.negativeAccounts).toHaveLength(0);
+    expect(result.diagnostics?.rejectedAccountCandidates.length).toBeGreaterThan(0);
+  });
+
+  it('pairs split OCR field labels and values before validating an account', () => {
+    const result = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      SAFE CREDIT UNION
+      Account Number
+      998877XX
+      Current Payment Status
+      Current
+      Opened
+      Nov. 03, 2020 (5 yrs, 8 mos)
+      Type
+      Secured Credit Card
+      Balance
+      $125
+      Inquiries
+    `, 'transunion');
+
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({
+      creditorName: 'SAFE CREDIT UNION',
+      accountNumber: '998877XX',
+      status: 'Current',
+      dateOpened: '2020-11-03',
+      accountType: 'Secured Credit Card',
+      balance: 125,
+    });
+  });
+
+  it('preserves unknown readable OCR text as auditable unclassified blocks', () => {
+    const result = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      This readable OCR paragraph has no recognizable credit-report field shape
+      or tradeline evidence but it should survive for parser review.
+      Inquiries
+    `, 'transunion');
+
+    expect(result.blockDispositions?.some(block =>
+      block.finalDisposition === 'preserved-unclassified'
+      && /readable OCR paragraph/i.test(block.rawText)
+    )).toBe(true);
+    expect(result.diagnostics?.reconciliation.readableBlocks).toBe(
+      result.diagnostics?.reconciliation.accountedFor
+    );
+  });
+
+  it('marks missing major sections unreadable when OCR failed pages prevent verification', () => {
+    const result = parseCreditReport(`
+      --- Page 1 ---
+      TransUnion Credit Report
+      Account History
+      SAFE CREDIT UNION
+      Account Number
+      998877XX
+      Account Status
+      Current
+      Balance
+      $125
+
+      --- Page 2 ---
+    `, 'transunion', {
+      isImageBasedPdf: true,
+      ocrWasUsed: true,
+      totalPdfPages: 2,
+      pagesWithEmbeddedText: 0,
+      pagesRequiringOcr: 2,
+      ocrPagesSucceeded: 1,
+      ocrPagesFailed: 1,
+      binaryBlocksSkipped: 0,
+      pageResults: [
+        { pageNumber: 1, finalStatus: 'ocr_primary', failureReason: null },
+        { pageNumber: 2, finalStatus: 'unreadable', failureReason: 'OCR returned empty text.' },
+      ],
+    });
+
+    expect(result.accounts).toHaveLength(1);
+    expect(result.sectionStatuses.accounts).toBe('parsed_with_results');
+    expect(result.sectionStatuses.inquiries).toBe('section_unreadable');
+    expect(result.sectionStatuses.publicRecords).toBe('section_unreadable');
+    expect(result.inquiries).toHaveLength(0);
+  });
+
+  it('merges nearby OCR creditor fragments instead of creating fragment accounts', () => {
+    const result = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      OUEST
+      Sou
+      Account Number
+      445566XX
+      Account Type
+      Revolving
+      Account Status
+      Charge Off
+      Balance
+      $884
+      Date Opened
+      09/07/2022
+      Inquiries
+    `, 'transunion');
+
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({
+      creditorName: 'OUEST Sou',
+      accountNumber: '445566XX',
+      accountType: 'Revolving',
+      status: 'Charge Off',
+      balance: 884,
+      isNegative: true,
+    });
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('OUEST');
+    expect(result.accounts.map(account => account.creditorName)).not.toContain('Sou');
+    expect(result.diagnostics?.accountFragmentsMerged).toBeGreaterThanOrEqual(1);
+  });
+
+  it('records collection-date provenance only for explicit supported labels', () => {
+    const explicit = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      ABC COLLECTIONS
+      Account Number
+      112233XX
+      Account Type
+      Collection
+      Account Status
+      Collection
+      Date Opened
+      04/06/2026
+      Collection Account Activity Date
+      03/15/2026
+      Balance
+      $160
+    `, 'transunion');
+
+    expect(explicit.accounts[0]).toMatchObject({
+      dateOpened: '2026-04-06',
+      dateOpenedField: 'date_opened',
+      collectionActivityDate: '2026-03-15',
+      collectionActivityField: 'collection_account_activity',
+    });
+
+    const excluded = parseCreditReport(`
+      TransUnion Credit Report
+      Account History
+      XYZ COLLECTIONS
+      Account Number
+      445566XX
+      Account Type
+      Collection
+      Account Status
+      Collection
+      Date Opened
+      04/06/2026
+      Date of Last Payment
+      03/15/2026
+      Date Reported
+      03/16/2026
+      Balance
+      $160
+    `, 'transunion');
+
+    expect(excluded.accounts[0]).toMatchObject({
+      dateOpenedField: 'date_opened',
+    });
+    expect(excluded.accounts[0].collectionActivityDate).toBeFalsy();
+    expect(excluded.accounts[0].collectionActivityField).toBeUndefined();
   });
 });

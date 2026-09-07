@@ -1,6 +1,12 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { isSupabaseAuthCookie } from '@/lib/auth/session-isolation';
 
 const PFX = 'sb_';
+
+const cookieSecurityAttributes = () =>
+  typeof window !== 'undefined' && window.location.protocol === 'https:'
+    ? 'SameSite=None; Secure; Partitioned'
+    : 'SameSite=Lax';
 
 const canUseCookies = (() => {
   let cache: boolean | null = null;
@@ -8,9 +14,9 @@ const canUseCookies = (() => {
     if (typeof document === 'undefined') return false;
     if (cache !== null) return cache;
     const k = '__sb_test__';
-    document.cookie = `${k}=1; Path=/; SameSite=None; Secure; Partitioned`;
+    document.cookie = `${k}=1; Path=/; ${cookieSecurityAttributes()}`;
     cache = document.cookie.includes(k);
-    document.cookie = `${k}=; Path=/; Max-Age=0; SameSite=None; Secure`;
+    document.cookie = `${k}=; Path=/; Max-Age=0; ${cookieSecurityAttributes()}`;
     return cache;
   };
 })();
@@ -33,7 +39,7 @@ const fromStorage = () => {
 };
 
 const setCookie = (name: string, value: string, options?: any) => {
-  let s = `${name}=${encodeURIComponent(value)}; Path=${options?.path || '/'}; SameSite=None; Secure; Partitioned`;
+  let s = `${name}=${encodeURIComponent(value)}; Path=${options?.path || '/'}; ${cookieSecurityAttributes()}`;
   if (options?.maxAge) s += `; Max-Age=${options.maxAge}`;
   if (options?.domain) s += `; Domain=${options.domain}`;
   if (options?.expires) s += `; Expires=${new Date(options.expires).toUTCString()}`;
@@ -56,6 +62,29 @@ const deleteCookie = (name: string) => {
     });
   });
 };
+
+export function isSupabaseAuthStorageKey(name: string): boolean {
+  const normalized = name.startsWith(PFX) ? name.slice(PFX.length) : name;
+  return isSupabaseAuthCookie(normalized);
+}
+
+export function clearLocalAuthState(): void {
+  if (typeof document !== 'undefined') {
+    fromCookies()
+      .filter(({ name }) => isSupabaseAuthStorageKey(name))
+      .forEach(({ name }) => deleteCookie(name));
+  }
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      Object.keys(localStorage)
+        .filter(isSupabaseAuthStorageKey)
+        .forEach((name) => localStorage.removeItem(name));
+    } catch {
+      // Storage can be unavailable in privacy-restricted browsers.
+    }
+  }
+}
 
 const getToken = () =>
   (canUseCookies() ? fromCookies() : fromStorage())

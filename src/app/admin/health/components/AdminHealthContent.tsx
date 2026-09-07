@@ -2,18 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, XCircle, Clock, Database, Shield, Zap, RefreshCw, ArrowLeft, Server, Key } from 'lucide-react';
-import Icon from '@/components/ui/AppIcon';
+import { AlertTriangle, CheckCircle2, XCircle, Clock, Shield, Zap, RefreshCw, ArrowLeft, Server, Key } from 'lucide-react';
 
 
 interface HealthData {
-  envHealth: Record<string, 'configured' | 'missing'>;
+  environment: Record<string, 'configured' | 'missing'>;
   timestamp: string;
   status: string;
 }
 
 interface AdminHealthContentProps {
   userEmail: string;
+  webhookHealth: { available: boolean; retry: number; deadLetter: number };
 }
 
 function StatusIndicator({ status }: { status: 'ok' | 'warning' | 'error' | 'unknown' }) {
@@ -32,7 +32,7 @@ function StatusIndicator({ status }: { status: 'ok' | 'warning' | 'error' | 'unk
   );
 }
 
-export default function AdminHealthContent({ userEmail }: AdminHealthContentProps) {
+export default function AdminHealthContent({ userEmail, webhookHealth }: AdminHealthContentProps) {
   const [healthData, setHealthData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -55,10 +55,8 @@ export default function AdminHealthContent({ userEmail }: AdminHealthContentProp
     fetchHealth();
   }, []);
 
-  const envEntries = healthData?.envHealth ? Object.entries(healthData.envHealth) : [];
+  const envEntries = healthData?.environment ? Object.entries(healthData.environment) : [];
   const missingVars = envEntries.filter(([, v]) => v === 'missing').map(([k]) => k);
-  const configuredVars = envEntries.filter(([, v]) => v === 'configured').map(([k]) => k);
-
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* Header */}
@@ -116,23 +114,31 @@ export default function AdminHealthContent({ userEmail }: AdminHealthContentProp
               },
               {
                 label: 'Stripe Configuration',
-                status: (healthData?.envHealth?.STRIPE_SECRET_KEY === 'configured' &&
-                  healthData?.envHealth?.STRIPE_WEBHOOK_SECRET === 'configured' ? 'ok' : 'warning') as 'ok' | 'warning',
-                detail: 'Webhook and secret key status',
+                status: (healthData?.environment?.STRIPE_SECRET_KEY === 'configured' &&
+                  healthData?.environment?.STRIPE_WEBHOOK_SECRET === 'configured' &&
+                  healthData?.environment?.STRIPE_WEBHOOK_WORKER_SECRET === 'configured' ? 'ok' : 'warning') as 'ok' | 'warning',
+                detail: 'Webhook, worker, and secret key status',
+              },
+              {
+                label: 'Webhook Processing',
+                status: (!webhookHealth.available || webhookHealth.deadLetter > 0 ? 'error' : webhookHealth.retry > 0 ? 'warning' : 'ok') as 'ok' | 'warning' | 'error',
+                detail: webhookHealth.available
+                  ? `${webhookHealth.retry} retrying · ${webhookHealth.deadLetter} dead-letter`
+                  : 'Durable queue status unavailable',
               },
               {
                 label: 'Supabase Connection',
-                status: (healthData?.envHealth?.NEXT_PUBLIC_SUPABASE_URL === 'configured' ? 'ok' : 'error') as 'ok' | 'error',
+                status: (healthData?.environment?.NEXT_PUBLIC_SUPABASE_URL === 'configured' ? 'ok' : 'error') as 'ok' | 'error',
                 detail: 'Database connectivity',
               },
               {
                 label: 'AI Services',
-                status: (healthData?.envHealth?.OPENAI_API_KEY === 'configured' ? 'ok' : 'warning') as 'ok' | 'warning',
+                status: (healthData?.environment?.OPENAI_API_KEY === 'configured' ? 'ok' : 'warning') as 'ok' | 'warning',
                 detail: 'OpenAI API key status',
               },
               {
                 label: 'Service Role Key',
-                status: (healthData?.envHealth?.SUPABASE_SERVICE_ROLE_KEY === 'configured' ? 'ok' : 'error') as 'ok' | 'error',
+                status: (healthData?.environment?.SUPABASE_SERVICE_ROLE_KEY === 'configured' ? 'ok' : 'error') as 'ok' | 'error',
                 detail: 'Admin operations key',
               },
             ].map(item => (
@@ -171,7 +177,7 @@ export default function AdminHealthContent({ userEmail }: AdminHealthContentProp
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {envEntries.map(([key, status]) => {
-                    const required = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'].includes(key);
+                    const required = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_WORKER_SECRET', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'].includes(key);
                     return (
                       <tr key={key} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-mono text-xs text-slate-700">{key}</td>
@@ -249,8 +255,9 @@ export default function AdminHealthContent({ userEmail }: AdminHealthContentProp
                 { item: 'Sensitive data not logged in webhook handlers', status: 'ok' },
                 { item: 'Demo mode uses static fixtures only', status: 'ok' },
                 { item: 'Cross-tenant security tests available', status: 'ok' },
-                { item: 'SUPABASE_SERVICE_ROLE_KEY configured', status: healthData?.envHealth?.SUPABASE_SERVICE_ROLE_KEY === 'configured' ? 'ok' : 'error' },
-                { item: 'STRIPE_WEBHOOK_SECRET configured', status: healthData?.envHealth?.STRIPE_WEBHOOK_SECRET === 'configured' ? 'ok' : 'error' },
+                { item: 'SUPABASE_SERVICE_ROLE_KEY configured', status: healthData?.environment?.SUPABASE_SERVICE_ROLE_KEY === 'configured' ? 'ok' : 'error' },
+                { item: 'STRIPE_WEBHOOK_SECRET configured', status: healthData?.environment?.STRIPE_WEBHOOK_SECRET === 'configured' ? 'ok' : 'error' },
+                { item: 'STRIPE_WEBHOOK_WORKER_SECRET configured', status: healthData?.environment?.STRIPE_WEBHOOK_WORKER_SECRET === 'configured' ? 'ok' : 'error' },
               ].map(({ item, status }) => (
                 <div key={item} className="flex items-center gap-2">
                   {status === 'ok' ? (
