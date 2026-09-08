@@ -7,6 +7,16 @@ export interface AnomalyFindingView {
   disputeReason: string;
   strengthLabel: 'Strong' | 'Moderate' | 'Weak';
   score: number;
+  affectedBureaus?: string[];
+  reportedDataByBureau?: Record<string, unknown>;
+  sourceRowIds?: string[];
+  isAmbiguous?: boolean;
+  confirmedSupportingEvidence?: {
+    confirmed: true;
+    value: unknown;
+    sourceId: string;
+    sourceLabel: string;
+  };
 }
 
 export function prepareAnomalyFindings(findings: AnomalyFindingView[] | null | undefined): AnomalyFindingView[] {

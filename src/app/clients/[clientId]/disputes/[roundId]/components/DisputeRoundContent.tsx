@@ -5,6 +5,11 @@ import { FileText, Download, Send, Loader2, CheckCircle2, AlertTriangle, ArrowLe
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
+import { buildConsumerBureauLetter, NoQualifyingLetterEvidenceError, type ConsumerLetterItem } from '@/lib/disputes/consumerLetter';
+import { recordLetterProvenance } from '@/lib/disputes/letterProvenance';
+import { getLetterSenderInfo, type LetterSenderInfo } from '@/lib/disputes/letterSender';
+import { prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 
 interface RoundItem {
   id: string;
@@ -17,6 +22,7 @@ interface RoundItem {
   disputeReason: string;
   disputeInstruction: string;
   status: string;
+  findings: AnomalyFindingView[];
 }
 
 interface GeneratedLetter {
@@ -51,62 +57,6 @@ const BUREAU_COLORS: Record<string, string> = {
   TransUnion: 'bureau-tu',
 };
 
-function generateLetterContent(
-  bureau: string,
-  clientName: string,
-  items: RoundItem[],
-  roundNumber: number
-): string {
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const bureauAddresses: Record<string, string> = {
-    Equifax: 'Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256',
-    Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
-    TransUnion: 'TransUnion LLC\nConsumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
-  };
-
-  const itemsList = items.map((item, i) => `
-${i + 1}. Creditor/Furnisher: ${item.creditorName}
-   Account Type: ${item.accountType}
-   Negative Reason: ${item.negativeReason}
-   Dispute Reason: ${item.disputeReason || 'Account information inaccurate'}
-   Requested Action: ${item.disputeInstruction || 'Verify all information'}
-   ${item.accountNumberMasked ? `Account Reference: ${item.accountNumberMasked}` : ''}
-`).join('\n');
-
-  return `${today}
-
-${bureauAddresses[bureau] ?? bureau + ' Credit Bureau'}
-
-Re: Formal Dispute of Inaccurate Credit Information — Round ${roundNumber}
-Consumer: ${clientName}
-
-To Whom It May Concern:
-
-I am writing to formally dispute the following item(s) appearing on my credit report maintained by ${bureau}. Pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i, I request that you investigate and correct or remove the following inaccurate information:
-
-DISPUTED ITEMS:
-${itemsList}
-
-Under the FCRA, you are required to:
-1. Conduct a reasonable investigation of the disputed information within 30 days of receipt of this dispute.
-2. Forward all relevant information to the furnisher of the disputed information.
-3. Provide me with written results of the investigation.
-4. Delete or correct any information that cannot be verified.
-
-Please provide me with written confirmation of the results of your investigation. If you are unable to verify the accuracy of the disputed information, please delete it from my credit report immediately.
-
-I am requesting that you:
-- Investigate each item listed above
-- Provide the method of verification used
-- Send me an updated copy of my credit report reflecting any corrections
-
-Sincerely,
-
-${clientName}
-
-Enclosures: [Attach supporting documentation as needed]`;
-}
-
 export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundContentProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -115,6 +65,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
   const [items, setItems] = useState<RoundItem[]>([]);
   const [letters, setLetters] = useState<GeneratedLetter[]>([]);
   const [clientName, setClientName] = useState('');
+  const [letterSender, setLetterSender] = useState<LetterSenderInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [previewLetter, setPreviewLetter] = useState<GeneratedLetter | null>(null);
@@ -127,8 +78,9 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: clientData } = await supabase.from('staff_clients').select('name').eq('id', clientId).single();
+      const { data: clientData } = await supabase.from('staff_clients').select('name,address,city,state,zip').eq('id', clientId).single();
       setClientName(clientData?.name ?? '');
+      setLetterSender(getLetterSenderInfo(clientData));
 
       const { data: roundData } = await supabase.from('dispute_rounds').select('*').eq('id', roundId).single();
       if (roundData) {
@@ -145,7 +97,11 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       }
 
       const { data: itemsData } = await supabase.from('dispute_round_items').select('*').eq('round_id', roundId);
-      setItems((itemsData ?? []).map((row: any) => ({
+      const { data: negativeRows } = await supabase.from('negative_items').select('*').eq('client_id', clientId);
+      const scoredById = new Map(scoreDisputeStrength(negativeRows ?? []).map((row: any) => [row.id, row]));
+      setItems((itemsData ?? []).map((row: any) => {
+        const scored = scoredById.get(row.negative_item_id) as any;
+        return {
         id: row.id,
         negativeItemId: row.negative_item_id ?? null,
         bureau: row.bureau,
@@ -156,7 +112,9 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
         disputeReason: row.dispute_reason,
         disputeInstruction: row.dispute_instruction,
         status: row.status,
-      })));
+        findings: prepareAnomalyFindings(scored?.disputeStrength?.findings),
+      };
+      }));
 
       const { data: lettersData } = await supabase.from('generated_dispute_letters').select('*').eq('round_id', roundId);
       setLetters((lettersData ?? []).map((row: any) => ({
@@ -192,12 +150,34 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       }
 
       const newLetters: GeneratedLetter[] = [];
+      const generatedNegativeItemIds = new Set<string>();
 
       for (const [bureau, bureauItems] of Object.entries(bureauGroups)) {
         if (bureauItems.length === 0) continue;
 
-        if (!clientName.trim()) throw new Error('Selected client profile is missing a consumer name.');
-        const content = generateLetterContent(bureau, clientName, bureauItems, round.roundNumber);
+        if (!clientName.trim() || !letterSender) throw new Error('Selected client profile is missing a complete consumer mailing address.');
+        let builtLetter;
+        try {
+          builtLetter = buildConsumerBureauLetter({
+            sender: letterSender,
+            bureau,
+            round: round.roundNumber,
+            letterId: `${bureau}-${round.id}`,
+            items: bureauItems.map((item): ConsumerLetterItem => ({
+              source: 'negative_items',
+              sourceRowId: item.negativeItemId ?? '',
+              bureau,
+              creditorName: item.creditorName,
+              accountNumberMasked: item.accountNumberMasked,
+              findings: item.findings,
+            })),
+          });
+        } catch (error) {
+          if (error instanceof NoQualifyingLetterEvidenceError) continue;
+          throw error;
+        }
+        const content = builtLetter.content;
+        builtLetter.provenance.forEach(paragraph => generatedNegativeItemIds.add(paragraph.sourceRowId));
         const responseDue = new Date();
         responseDue.setDate(responseDue.getDate() + 30);
 
@@ -207,24 +187,40 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
           round_id: roundId,
           bureau,
           letter_content: content,
-          items_count: bureauItems.length,
-          items_summary: bureauItems.map(i => ({ creditor: i.creditorName, reason: i.disputeReason })),
+          items_count: builtLetter.itemCount,
+          items_summary: builtLetter.provenance,
           status: 'generated',
           response_due_date: responseDue.toISOString().split('T')[0],
           days_remaining: 30,
         }).select().single();
 
         if (error) throw error;
+        try {
+          await recordLetterProvenance(supabase, {
+            ownerId: user.id,
+            clientId,
+            actorEmail: user.email,
+            letterRecordId: letter.id,
+            letterReference: `${bureau}-${round.id}`,
+            letterTable: 'generated_dispute_letters',
+            letter: builtLetter,
+          });
+        } catch (auditError) {
+          await supabase.from('generated_dispute_letters').delete().eq('id', letter.id);
+          throw auditError;
+        }
         newLetters.push({
           id: letter.id,
           bureau,
           letterContent: content,
-          itemsCount: bureauItems.length,
+          itemsCount: builtLetter.itemCount,
           status: 'generated',
           mailedAt: null,
           responseDueDate: responseDue.toISOString().split('T')[0],
         });
       }
+
+      if (newLetters.length === 0) throw new NoQualifyingLetterEvidenceError();
 
       // Update round status and letter count
       await supabase.from('dispute_rounds').update({
@@ -234,12 +230,14 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
       }).eq('id', roundId);
 
       // Update round items status
-      await supabase.from('dispute_round_items').update({ status: 'generated' }).eq('round_id', roundId);
+      const generatedNegativeItemIdList = [...generatedNegativeItemIds];
+      if (generatedNegativeItemIdList.length > 0) {
+        await supabase.from('dispute_round_items').update({ status: 'generated' }).eq('round_id', roundId).in('negative_item_id', generatedNegativeItemIdList);
+      }
 
       // Update negative items status
-      const negItemIds = items.map(i => i.negativeItemId).filter((id): id is string => Boolean(id));
-      if (negItemIds.length > 0) {
-        await supabase.from('negative_items').update({ dispute_status: 'generated' }).in('id', negItemIds);
+      if (generatedNegativeItemIdList.length > 0) {
+        await supabase.from('negative_items').update({ dispute_status: 'generated' }).in('id', generatedNegativeItemIdList);
       }
 
       setLetters(newLetters);

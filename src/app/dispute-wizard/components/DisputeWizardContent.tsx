@@ -8,10 +8,12 @@ import { useSearchParams } from 'next/navigation';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
-import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
-import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
-import { CORRECTION_FIRST_REQUESTED_ACTION, deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
+import { formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
+import { prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { CORRECTION_FIRST_REQUESTED_ACTION } from '@/lib/disputes/letterPresentation';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
+import { buildConsumerBureauLetter, type ConsumerLetterItem } from '@/lib/disputes/consumerLetter';
+import { recordLetterProvenance } from '@/lib/disputes/letterProvenance';
 
 
 interface WizardClient {
@@ -408,69 +410,22 @@ export default function DisputeWizardContent() {
       const letterId = `${shortCode}-${letterNum}`;
 
       const selectedDisputeItems = disputeItems.filter(i => selectedItems.has(i.id));
-      const finalReason = disputeReason === 'Other (specify in notes)' ? customReason : disputeReason;
-
-      const bureauAddresses: Record<string, string> = {
-        Equifax: 'Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256',
-        Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
-        TransUnion: 'TransUnion LLC Consumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
-      };
-
-      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const clientAddr = buildConsumerSenderBlock(sender);
-
-      const itemsSection = selectedDisputeItems.map((item, i) => {
-        const dates = accountDateSummary(item);
-        const findings = formatAnomalyFindingsForLetter(item.findings);
-        const hasDetectedEvidence = Boolean(item.reportedDataSummary && item.disputeBasis);
-        const itemReason = hasDetectedEvidence ? item.disputeBasis : finalReason;
-        const reportedData = item.reportedDataSummary ? `   Reported Data: ${item.reportedDataSummary}\n` : '';
-        const factualBasis = hasDetectedEvidence ? item.disputeBasis : item.strongestAnomaly;
-        return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
-   Type: ${formatAccountType(item.type)} | Amount: ${item.amount}
-   ${dates ? `Report Dates: ${dates}\n` : ''}${findings || `   Dispute Strength: ${item.strengthLabel}
-   Discrepancy: ${item.strongestAnomaly}
-${reportedData}   Factual Basis: ${factualBasis}
-   Dispute Reason: ${itemReason}`}
-
-   Requested Action: ${instruction}`;
-      }).join('\n\n');
-
-      const supportingDocuments = deduplicateSupportingDocuments([
-        'Copy of government-issued photo ID',
-        'Copy of proof of current address',
-        ...attachedDocs,
-      ]);
-
-      const letterContent = `${clientAddr}
-
-${today}
-
-${bureauAddresses[selectedBureau] ?? selectedBureau}
-
-Re: Formal Credit Dispute — Round ${round}
-    Letter Reference: ${letterId}
-
-To Whom It May Concern:
-
-I am writing to formally dispute the following item(s) on my credit report pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i. I request that you investigate each item listed below within the applicable period required by the FCRA and correct or delete information that is unverifiable or otherwise required to be corrected or removed.
-
-DISPUTED ITEM(S):
-
-${itemsSection}
-
-${notes ? `ADDITIONAL INFORMATION:\n${notes}\n` : ''}
-SUPPORTING DOCUMENTS ENCLOSED:
-${supportingDocuments.map(document => `• ${document}`).join('\n')}
-
-Please send written confirmation of your investigation results to the address above. If you cannot verify the accuracy of the disputed information, you must promptly delete or correct it.
-
-Sincerely,
-
-
-_________________________________
-${sender.name}
-Date: ${today}`;
+      const letter = buildConsumerBureauLetter({
+        sender,
+        bureau: selectedBureau,
+        round,
+        letterId,
+        items: selectedDisputeItems.map((item): ConsumerLetterItem => ({
+          source: 'negative_items',
+          sourceRowId: item.source === 'negative_items' ? item.id : '',
+          bureau: selectedBureau,
+          creditorName: item.creditorName,
+          accountNumberMasked: item.accountNumber,
+          findings: item.findings,
+        })),
+        attachments: attachedDocs.map((label, index) => ({ id: `confirmed-attachment-${index + 1}`, label, confirmed: true as const })),
+      });
+      const letterContent = letter.content;
 
       const responseDueDate = new Date();
       responseDueDate.setDate(responseDueDate.getDate() + 30);
@@ -482,19 +437,34 @@ Date: ${today}`;
         letter_id: letterId,
         client_name: sender.name,
         bureau: selectedBureau,
-        items_count: selectedItems.size,
+        items_count: letter.itemCount,
         round,
         sent_date: null,
         response_due_date: null,
         days_remaining: 0,
         letter_status: 'draft',
-        template: 'FCRA Section 611',
+        template: 'Evidence-specific bureau dispute',
         auto_generated: false,
         letter_content: letterContent,
         generated_at: new Date().toISOString(),
       }).select('id, letter_id').single();
 
       if (insertError || !savedLetter?.id) throw new Error('We could not save the generated letter. Please try again.');
+
+      try {
+        await recordLetterProvenance(supabase, {
+          ownerId: user.id,
+          clientId: selectedClient.id,
+          actorEmail: user.email,
+          letterRecordId: savedLetter.id,
+          letterReference: savedLetter.letter_id ?? letterId,
+          letterTable: 'dispute_letters',
+          letter,
+        });
+      } catch (auditError) {
+        await supabase.from('dispute_letters').delete().eq('id', savedLetter.id);
+        throw auditError;
+      }
 
       const negativeItemIds = selectedDisputeItems
         .filter(item => item.source === 'negative_items')
@@ -811,8 +781,8 @@ Date: ${today}`;
               ))}
             </div>
             <div>
-              <label className="label-text">Additional notes (optional)</label>
-              <textarea className="input-field resize-none" rows={2} placeholder="Any additional context for this dispute…" value={notes} onChange={e => setNotes(e.target.value)} />
+              <label className="label-text">Internal review notes (not included in the letter)</label>
+              <textarea className="input-field resize-none" rows={2} placeholder="Internal context for your review…" value={notes} onChange={e => setNotes(e.target.value)} />
             </div>
           </div>
         )}
