@@ -5,10 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createServerClient: vi.fn(),
+  getAdminClient: vi.fn(),
 }));
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: mocks.createServerClient,
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getAdminClient: mocks.getAdminClient,
 }));
 
 import { GET as authCallback } from '@/app/auth/callback/route';
@@ -99,6 +104,21 @@ function createMockClient({
   return { exchangeCodeForSession, verifyOtp, getUser };
 }
 
+function createAdministratorRecoveryMock(
+  role: 'platform_admin' | 'platform_superadmin' | null,
+  error: Error | null = null
+) {
+  const maybeSingle = vi.fn().mockResolvedValue({
+    data: role ? { role } : null,
+    error,
+  });
+  const eq = vi.fn(() => ({ maybeSingle }));
+  const select = vi.fn(() => ({ eq }));
+  const from = vi.fn(() => ({ select }));
+  mocks.getAdminClient.mockReturnValue({ from });
+  return { from, select, eq, maybeSingle };
+}
+
 describe('signup callback session isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -171,6 +191,52 @@ describe('signup callback session isolation', () => {
       'https://fixmy.money/checkout?plan=starter&verified=1'
     );
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
+  });
+
+  it('allows a post-shutdown invited administrator to complete password recovery', async () => {
+    createMockClient({
+      exchangeUserId: 'invited-admin',
+      verifiedCreatedAt: '2026-09-11T12:00:00.000Z',
+    });
+    const administrator = createAdministratorRecoveryMock('platform_admin');
+
+    const response = await authCallback(
+      request('/auth/callback?type=recovery&code=valid-recovery-code')
+    );
+
+    expect(administrator.from).toHaveBeenCalledWith('platform_admins');
+    expect(administrator.select).toHaveBeenCalledWith('role');
+    expect(administrator.eq).toHaveBeenCalledWith('user_id', 'invited-admin');
+    expect(response.headers.get('location')).toBe('https://fixmy.money/reset-password');
+    expect(response.headers.get('set-cookie')).toContain('new-session-value');
+  });
+
+  it('does not let an ordinary post-shutdown identity spoof a recovery callback', async () => {
+    createMockClient({
+      exchangeUserId: 'ordinary-new-user',
+      verifiedCreatedAt: '2026-09-11T12:00:00.000Z',
+    });
+    createAdministratorRecoveryMock(null);
+
+    const response = await authCallback(
+      request('/auth/callback?type=recovery&code=valid-looking-code')
+    );
+
+    expect(response.headers.get('location')).toBe('https://fixmy.money/signup?blocked=1');
+  });
+
+  it('fails closed when administrator recovery eligibility is unavailable', async () => {
+    createMockClient({
+      exchangeUserId: 'unverified-admin',
+      verifiedCreatedAt: '2026-09-11T12:00:00.000Z',
+    });
+    createAdministratorRecoveryMock(null, new Error('lookup failed'));
+
+    const response = await authCallback(
+      request('/auth/callback?type=recovery&code=valid-looking-code')
+    );
+
+    expect(response.headers.get('location')).toBe('https://fixmy.money/signup?blocked=1');
   });
 
   it('accepts only local callback destinations and recognized plans', async () => {

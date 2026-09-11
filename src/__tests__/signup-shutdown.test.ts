@@ -76,8 +76,11 @@ describe('temporary new-signup shutdown', () => {
 
   it('blocks newly-created OAuth/callback identities while preserving recovery routing', () => {
     const callback = fs.readFileSync('src/app/auth/callback/route.ts', 'utf8');
-    expect(callback).toContain("if (!isPreShutdownUser(verifiedUser.created_at))");
+    expect(callback).toContain("type === 'recovery'");
+    expect(callback).toContain("from('platform_admins')");
+    expect(callback).toContain('!isAdministratorRecovery');
     expect(callback).toContain("destination = '/reset-password'");
+    expect(callback).not.toContain('user_metadata');
     expect(fs.readFileSync('src/contexts/AuthContext.tsx', 'utf8')).not.toContain('.auth.signUp(');
     expect(fs.readFileSync('src/app/client-portal/components/ClientPortalLoginContent.tsx', 'utf8')).not.toContain('.auth.signUp(');
   });
