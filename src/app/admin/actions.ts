@@ -2,13 +2,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requirePlatformAdmin } from '@/lib/admin/authorization';
+import { requirePlatformAdmin, requireRecentPlatformAdmin } from '@/lib/admin/authorization';
 import type { AlertStatus, CustomerType } from '@/lib/admin/customerManagement';
 import { getAdminClient } from '@/lib/supabase/admin';
 
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readRequestId(formData: FormData): string {
+  const requestId = readString(formData, 'requestId');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(requestId)) {
+    throw new Error('A valid mutation request ID is required.');
+  }
+  return requestId;
 }
 
 async function assertCustomerExists(customerId: string) {
@@ -117,11 +125,12 @@ export async function toggleFollowUp(formData: FormData) {
 }
 
 export async function updateRetentionAlert(formData: FormData) {
-  const { user } = await requirePlatformAdmin();
+  const { user } = await requireRecentPlatformAdmin('customer_retention_update');
   const customerId = readString(formData, 'customerId');
   const alertKey = readString(formData, 'alertKey');
   const status = validateAlertStatus(readString(formData, 'status'));
   const reason = readString(formData, 'reason');
+  const requestId = readRequestId(formData);
   const snoozeDaysValue = Number.parseInt(readString(formData, 'snoozeDays') || '3', 10);
   const snoozeDays = Number.isFinite(snoozeDaysValue) && snoozeDaysValue > 0 ? Math.min(snoozeDaysValue, 90) : 3;
 
@@ -130,25 +139,16 @@ export async function updateRetentionAlert(formData: FormData) {
 
   const snoozedUntil = status === 'snoozed' ? new Date(Date.now() + snoozeDays * 86_400_000).toISOString().slice(0, 10) : null;
   const admin = getAdminClient();
-  const { error } = await admin.from('admin_retention_alert_states').upsert(
-    {
-      customer_id: customerId,
-      alert_key: alertKey,
-      status,
-      snoozed_until: snoozedUntil,
-      reason: reason || null,
-      admin_id: user.id,
-    },
-    { onConflict: 'customer_id,alert_key' }
-  );
-  if (error) throw error;
-
-  await admin.from('admin_action_audit_logs').insert({
-    admin_id: user.id,
-    customer_id: customerId,
-    action: `admin_retention_alert_${status}`,
-    metadata: { alert_key: alertKey, reason: reason || null, snoozed_until: snoozedUntil },
+  const { error } = await admin.rpc('admin_update_retention_alert_atomic', {
+    p_admin_id: user.id,
+    p_customer_id: customerId,
+    p_alert_key: alertKey,
+    p_status: status,
+    p_snoozed_until: snoozedUntil,
+    p_reason: reason,
+    p_request_id: requestId,
   });
+  if (error) throw error;
 
   revalidatePath('/admin');
   revalidatePath('/admin/customers');
@@ -156,32 +156,26 @@ export async function updateRetentionAlert(formData: FormData) {
 }
 
 export async function updateCustomerClassification(formData: FormData) {
-  const { user } = await requirePlatformAdmin();
+  const { user } = await requireRecentPlatformAdmin('customer_classification_update');
   const customerId = readString(formData, 'customerId');
   const customerType = validateCustomerType(readString(formData, 'customerType') || 'real');
   const doNotContact = formData.get('doNotContact') === 'on';
   const note = readString(formData, 'classificationNote');
+  const requestId = readRequestId(formData);
 
   if (!customerId) return;
   await assertCustomerExists(customerId);
 
   const admin = getAdminClient();
-  const { error } = await admin
-    .from('user_profiles')
-    .update({
-      customer_type: customerType,
-      do_not_contact: doNotContact,
-      admin_classification_note: note || null,
-    })
-    .eq('id', customerId);
-  if (error) throw error;
-
-  await admin.from('admin_action_audit_logs').insert({
-    admin_id: user.id,
-    customer_id: customerId,
-    action: 'admin_customer_classification_updated',
-    metadata: { customer_type: customerType, do_not_contact: doNotContact, note: note || null },
+  const { error } = await admin.rpc('admin_update_customer_classification_atomic', {
+    p_admin_id: user.id,
+    p_customer_id: customerId,
+    p_customer_type: customerType,
+    p_do_not_contact: doNotContact,
+    p_note: note,
+    p_request_id: requestId,
   });
+  if (error) throw error;
 
   revalidatePath('/admin');
   revalidatePath('/admin/customers');

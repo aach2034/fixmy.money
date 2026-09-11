@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { randomUUID } from 'node:crypto';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { addAdminNote, createFollowUp, toggleFollowUp, updateCustomerClassification, updateRetentionAlert } from '@/app/admin/actions';
@@ -148,6 +149,7 @@ export default async function AdminCustomerProfilePage({ params }: { params: Pro
               <h2 className="text-lg font-black">Classification</h2>
               <p className="mt-1 text-sm text-slate-500">Controls whether this account appears in default retention metrics.</p>
               <form action={updateCustomerClassification} className="mt-4 space-y-3">
+                <input type="hidden" name="requestId" value={randomUUID()} />
                 <input type="hidden" name="customerId" value={summary.id} />
                 <select name="customerType" defaultValue={summary.customerType} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200">
                   {['real', 'internal', 'qa', 'demo', 'test'].map((type) => <option key={type} value={type}>{type}</option>)}
@@ -175,6 +177,7 @@ export default async function AdminCustomerProfilePage({ params }: { params: Pro
                         ['snoozed', 'Snooze 3d', 'Follow up later.'],
                       ].map(([status, label, reason]) => (
                         <form key={status} action={updateRetentionAlert}>
+                          <input type="hidden" name="requestId" value={randomUUID()} />
                           <input type="hidden" name="customerId" value={summary.id} />
                           <input type="hidden" name="alertKey" value={issue.key} />
                           <input type="hidden" name="status" value={status} />

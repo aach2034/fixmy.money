@@ -4,7 +4,7 @@ export function immutableAssetCacheControl(pathname: string): string | null {
     : null;
 }
 
-export function contentSecurityPolicyFor(requestUrl: string): string {
+export function contentSecurityPolicyFor(requestUrl: string, nonce?: string): string {
   const hostname = new URL(requestUrl).hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
   const localSupabaseSources = isLocal
@@ -16,7 +16,7 @@ export function contentSecurityPolicyFor(requestUrl: string): string {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self' https://checkout.stripe.com",
-    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://js.stripe.com https://challenges.cloudflare.com",
+    `script-src 'self'${nonce ? ` 'nonce-${nonce}' 'strict-dynamic'` : ''} https://www.googletagmanager.com https://js.stripe.com https://challenges.cloudflare.com`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",

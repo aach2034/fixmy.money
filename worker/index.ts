@@ -28,11 +28,27 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
-function withSecurityHeaders(response: Response, request?: Request): Response {
-  const secured = new Response(response.body, response);
+type HtmlElement = { setAttribute(name: string, value: string): void };
+declare const HTMLRewriter: {
+  new (): {
+    on(selector: string, handlers: { element(element: HtmlElement): void }): {
+      transform(response: Response): Response;
+    };
+  };
+};
+
+function createCspNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+}
+
+async function withSecurityHeaders(response: Response, request?: Request): Promise<Response> {
+  let secured = new Response(response.body, response);
+  const isHtml = secured.headers.get('Content-Type')?.toLowerCase().includes('text/html') ?? false;
+  const nonce = isHtml ? createCspNonce() : undefined;
   secured.headers.set(
     'Content-Security-Policy',
-    contentSecurityPolicyFor(request?.url || 'https://fixmy.money'),
+    contentSecurityPolicyFor(request?.url || 'https://fixmy.money', nonce),
   );
   secured.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   secured.headers.set('X-Content-Type-Options', 'nosniff');
@@ -41,6 +57,23 @@ function withSecurityHeaders(response: Response, request?: Request): Response {
   secured.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")');
   const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
   if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
+  if (nonce) {
+    if (typeof HTMLRewriter === 'undefined') {
+      const html = await secured.text();
+      secured = new Response(
+        html.replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`),
+        {
+          status: secured.status,
+          statusText: secured.statusText,
+          headers: secured.headers,
+        },
+      );
+      return secured;
+    }
+    secured = new HTMLRewriter()
+      .on('script', { element: element => element.setAttribute('nonce', nonce) })
+      .transform(secured);
+  }
   return secured;
 }
 
@@ -50,14 +83,14 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/api/marketing/lead') {
-      return withSecurityHeaders(await captureMarketingLead(request, env), request);
+      return await withSecurityHeaders(await captureMarketingLead(request, env), request);
     }
     if (url.pathname === '/api/reopening-waitlist') {
-      return withSecurityHeaders(await captureReopeningWaitlist(request, env), request);
+      return await withSecurityHeaders(await captureReopeningWaitlist(request, env), request);
     }
     if (url.pathname === '/_vinext/image') {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return withSecurityHeaders(await handleImageOptimization(
+      return await withSecurityHeaders(await handleImageOptimization(
         request,
         {
           fetchAsset: path => env.ASSETS
@@ -74,7 +107,7 @@ export default {
         allowedWidths,
       ), request);
     }
-    return withSecurityHeaders(await handler.fetch(request, env, ctx), request);
+    return await withSecurityHeaders(await handler.fetch(request, env, ctx), request);
   },
   async scheduled(_controller: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
     if (!env.DB) {

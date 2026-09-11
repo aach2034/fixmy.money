@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { randomUUID } from 'node:crypto';
 import type { Metadata } from 'next';
 import { AlertTriangle, CheckCircle2, Circle, Clock, FileText, Search, ShieldCheck, Users } from 'lucide-react';
 import { updateRetentionAlert } from '@/app/admin/actions';
@@ -28,6 +29,7 @@ function RetentionActions({ customer }: { customer: AdminCustomerSummary }) {
         ['snoozed', 'Snooze 3d', 'Follow up later.'],
       ].map(([status, label, reason]) => (
         <form key={status} action={updateRetentionAlert}>
+          <input type="hidden" name="requestId" value={randomUUID()} />
           <input type="hidden" name="customerId" value={customer.id} />
           <input type="hidden" name="alertKey" value={customer.topIssue?.key} />
           <input type="hidden" name="status" value={status} />
@@ -131,6 +133,10 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/admin/security" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:border-blue-200 hover:text-blue-700">
+              <ShieldCheck size={16} />
+              Security
+            </Link>
             <Link href="/admin/acquisition" className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-100">
               Acquisition funnel
             </Link>

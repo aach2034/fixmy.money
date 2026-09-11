@@ -20,6 +20,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createHmac } from 'node:crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { LOCAL_PASSWORD_RESET_REDIRECT_URL } from '../../scripts/integration-test-contracts';
 
@@ -66,6 +67,27 @@ function createAdminTestClient(): SupabaseClient {
 const TEST_EMAIL = `auth-test-${Date.now()}@test.invalid`;
 const TEST_PASSWORD = 'AuthTest_2026!';
 let createdUserId: string | null = null;
+
+function totpCode(base32Secret: string, at = Date.now()): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const normalized = base32Secret.replace(/=+$/u, '').toUpperCase();
+  let bits = '';
+  for (const character of normalized) {
+    const value = alphabet.indexOf(character);
+    if (value < 0) throw new Error('Invalid synthetic TOTP secret.');
+    bits += value.toString(2).padStart(5, '0');
+  }
+  const bytes = Buffer.alloc(Math.floor(bits.length / 8));
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(bits.slice(index * 8, index * 8 + 8), 2);
+  }
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
+  const digest = createHmac('sha1', bytes).update(counter).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const binary = (digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return binary.toString().padStart(6, '0');
+}
 
 describe('Authentication Lifecycle Tests', () => {
   beforeAll(() => {
@@ -343,6 +365,93 @@ describe('Authentication Lifecycle Tests', () => {
       }
 
       await client.auth.signOut();
+    });
+  });
+
+  describe('Administrator MFA revocation integration', () => {
+    it('denies the stale AAL2 session after direct provider-side factor removal', async () => {
+      const adminClient = createAdminTestClient();
+      const email = `fmm015-admin-${Date.now()}@test.invalid`;
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+        email,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      expect(createError).toBeNull();
+      const userId = created.user?.id;
+      expect(userId).toBeTruthy();
+      if (!userId) throw new Error('Synthetic administrator was not created.');
+
+      try {
+        const { error: roleError } = await adminClient.from('platform_admins').insert({
+          user_id: userId,
+          role: 'platform_admin',
+          active: true,
+          created_by: userId,
+          notes: 'Synthetic FMM-015 integration administrator',
+        });
+        expect(roleError).toBeNull();
+
+        const client = createAnonClient();
+        const { error: signInError } = await client.auth.signInWithPassword({ email, password: TEST_PASSWORD });
+        expect(signInError).toBeNull();
+        const { data: enrollment, error: enrollError } = await client.auth.mfa.enroll({
+          factorType: 'totp',
+          friendlyName: 'FMM-015 integration factor',
+        });
+        expect(enrollError).toBeNull();
+        expect(enrollment?.totp.secret).toBeTruthy();
+        const { error: verificationError } = await client.auth.mfa.challengeAndVerify({
+          factorId: enrollment!.id,
+          code: totpCode(enrollment!.totp.secret),
+        });
+        expect(verificationError).toBeNull();
+
+        const { error: eligibilityError } = await adminClient.rpc(
+          'confirm_platform_admin_mfa_factors',
+          { p_user_id: userId, p_factor_ids: [enrollment!.id] },
+        );
+        expect(eligibilityError).toBeNull();
+
+        const { data: aal2Rows, error: aal2Error } = await client.from('platform_admins').select('user_id');
+        expect(aal2Error).toBeNull();
+        expect(aal2Rows?.some((row) => row.user_id === userId)).toBe(true);
+
+        const { data: sessionData } = await client.auth.getSession();
+        const accessToken = sessionData.session?.access_token || '';
+        const payload = JSON.parse(Buffer.from(accessToken.split('.')[1] || '', 'base64url').toString('utf8')) as {
+          session_id?: string;
+          aal?: string;
+        };
+        expect(payload.aal).toBe('aal2');
+        expect(payload.session_id).toBeTruthy();
+
+        const { error: removalError } = await client.auth.mfa.unenroll({ factorId: enrollment!.id });
+        expect(removalError).toBeNull();
+
+        const { data: state, error: stateError } = await adminClient
+          .from('platform_admins')
+          .select('revoked_session_ids')
+          .eq('user_id', userId)
+          .single();
+        expect(stateError).toBeNull();
+        expect(state?.revoked_session_ids).toContain(payload.session_id);
+
+        const { data: staleRows, error: staleError } = await client.from('platform_admins').select('user_id');
+        expect(staleError).toBeNull();
+        expect(staleRows).toHaveLength(0);
+
+        const { count: auditCount, error: auditError } = await adminClient
+          .from('admin_action_audit_logs')
+          .select('id', { count: 'exact', head: true })
+          .eq('admin_id', userId)
+          .eq('action', 'admin_mfa_factor_removed_and_sessions_revoked');
+        expect(auditError).toBeNull();
+        expect(auditCount).toBe(1);
+      } finally {
+        await adminClient.from('platform_admins').delete().eq('user_id', userId);
+        await adminClient.auth.admin.deleteUser(userId);
+      }
     });
   });
 });
