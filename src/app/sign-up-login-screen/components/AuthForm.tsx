@@ -40,6 +40,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const router = useRouter();
   const searchParams = useSearchParams();
   const authTransitionFailed = searchParams.get('auth_transition') === 'verification_failed';
+  const forceReauth = searchParams.get('force_reauth') === '1';
   const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
   const [supabase] = useState(() => {
     if (authTransitionFailed) clearLocalAuthState();
@@ -57,6 +58,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   useEffect(() => {
     let cancelled = false;
     async function checkSession() {
+      if (forceReauth) return;
       if (authTransitionFailed) {
         clearLocalAuthState();
         window.history.replaceState({}, '', '/login');
@@ -76,7 +78,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
     }
     checkSession().catch(error => console.error('[AuthForm] checkSession error:', error));
     return () => { cancelled = true; };
-  }, [authTransitionFailed, redirectTo, router, supabase]);
+  }, [authTransitionFailed, forceReauth, redirectTo, router, supabase]);
 
   const loginForm = useForm<LoginFormData>({ defaultValues: { email: '', password: '', remember: false } });
   const forgotPasswordForm = useForm<ForgotPasswordFormData>({ defaultValues: { email: '' } });
@@ -137,6 +139,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
               <p className="mt-1 mb-6 text-sm text-slate-500">Sign in to your existing FixMy.Money account</p>
               {authTransitionFailed && <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">The previous verification link could not safely establish its account. Sign in with your existing account.</div>}
+              {forceReauth && <div role="status" className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">Sign in again to confirm this security-sensitive action. Your billing account has not been changed.</div>}
               <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
                 <div><label htmlFor="login-email" className="label-text">Email address</label><input id="login-email" {...loginForm.register('email', { required: 'Email is required' })} type="email" className="input-field" autoComplete="email" required />{loginForm.formState.errors.email && <p className="error-text">{loginForm.formState.errors.email.message}</p>}</div>
                 <div><div className="flex justify-between"><label htmlFor="login-password" className="label-text">Password</label><button type="button" onClick={() => { setResetEmailSent(false); setTab('forgot'); }} className="text-xs font-semibold text-blue-600 hover:underline">Forgot password?</button></div><div className="relative"><input id="login-password" {...loginForm.register('password', { required: 'Password is required' })} type={showPass ? 'text' : 'password'} className="input-field pr-10" autoComplete="current-password" required /><button type="button" aria-label={showPass ? 'Hide password' : 'Show password'} onClick={() => setShowPass(value => !value)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center text-slate-400">{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>

@@ -75,6 +75,10 @@ export default function BillingContent() {
         method: "POST",
       });
       const data = await response.json();
+      if (response.status === 428 && data.code === 'recent_auth_required') {
+        window.location.href = '/login?force_reauth=1&redirect=%2Fbilling-subscriptions';
+        return;
+      }
       if (!response.ok || !data.url)
         throw new Error(data.error || "Billing portal unavailable");
       window.location.href = data.url;

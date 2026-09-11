@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { getStripeServerClient } from '@/lib/stripe/server';
 import { getSelectedWorkspaceContext, getWorkspaceEntitlementDecision } from '@/lib/subscription/server';
+import { hasRecentPrimaryAuthentication } from '@/lib/auth/recent-auth';
 
 export async function POST(_req: NextRequest) {
   let stripe: Stripe;
@@ -29,6 +30,17 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json({ error: 'Only the workspace owner can manage billing.' }, { status: 403 });
     }
 
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.access_token || !hasRecentPrimaryAuthentication(session.access_token)) {
+      return NextResponse.json(
+        {
+          code: 'recent_auth_required',
+          error: 'Sign in again before opening billing management.',
+        },
+        { status: 428 }
+      );
+    }
+
     const entitlement = await getWorkspaceEntitlementDecision({
       workspaceId: workspace.workspace_id,
       forceReconcile: true,
@@ -38,12 +50,12 @@ export async function POST(_req: NextRequest) {
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money';
 
-    const session = await stripe.billingPortal.sessions.create({
+    const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${siteUrl}/billing-subscriptions`,
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: portalSession.url });
   } catch (error: unknown) {
     const isStripeError = error instanceof Stripe.errors.StripeError;
     const message = error instanceof Error ? error.message : 'Failed to create billing portal session';
