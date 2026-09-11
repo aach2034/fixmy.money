@@ -8,6 +8,7 @@ import {
   isSupabaseAuthCookie,
 } from '@/lib/auth/session-isolation';
 import { isPreShutdownUser } from '@/lib/signup/closure';
+import { getAdminClient } from '@/lib/supabase/admin';
 
 const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
 
@@ -116,14 +117,35 @@ export async function GET(request: NextRequest) {
       return createFailedAuthRedirect(request);
     }
 
+    const type = searchParams.get('type');
+    let isAdministratorRecovery = false;
+
+    if (type === 'recovery') {
+      try {
+        const { data: administrator, error: administratorError } = await getAdminClient()
+          .from('platform_admins')
+          .select('role')
+          .eq('user_id', verifiedUser.id)
+          .maybeSingle();
+
+        isAdministratorRecovery =
+          !administratorError &&
+          (administrator?.role === 'platform_admin' || administrator?.role === 'platform_superadmin');
+      } catch {
+        console.error('[Auth Callback] Administrator recovery eligibility could not be verified.');
+      }
+    }
+
     // Supabase's hosted "Allow new users to sign up" setting is the primary
     // authority. This callback is defense in depth for stale signup links and
     // any newly-created OAuth identity that reaches the application anyway.
-    if (!isPreShutdownUser(verifiedUser.created_at)) {
+    // A verified, database-authorized administrator may recover an existing
+    // invited account without reopening customer signups. The role lookup is
+    // server-only and deliberately ignores user-editable metadata.
+    if (!isPreShutdownUser(verifiedUser.created_at) && !isAdministratorRecovery) {
       return createAuthRedirect(request, '/signup?blocked=1');
     }
 
-    const type = searchParams.get('type');
     let destination: string;
 
     if (type === 'recovery') {
