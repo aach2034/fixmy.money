@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import {
   buildClientDocumentPath,
   CLIENT_DOCUMENT_BUCKET,
@@ -112,6 +113,11 @@ export async function POST(request: NextRequest) {
     throw error;
   }
 
+  // All caller-controlled checks must pass before the service-role client is
+  // used. Browser roles have no direct Storage or document-metadata mutation
+  // path; this route is the single trusted write boundary.
+  const admin = getAdminClient();
+
   const storagePath = buildClientDocumentPath({
     workspaceId: scopedRelationship.workspace_id,
     relationshipId,
@@ -139,11 +145,11 @@ export async function POST(request: NextRequest) {
       return data;
     },
     createPending: async record => {
-      const { error } = await supabase.from('client_documents').insert(record);
+      const { error } = await admin.from('client_documents').insert(record);
       return !error;
     },
     uploadObject: async (path, body, mimeType) => {
-      const { error } = await supabase.storage.from(CLIENT_DOCUMENT_BUCKET).upload(path, body, {
+      const { error } = await admin.storage.from(CLIENT_DOCUMENT_BUCKET).upload(path, body, {
         cacheControl: '0',
         contentType: mimeType,
         upsert: false,
@@ -151,7 +157,7 @@ export async function POST(request: NextRequest) {
       return !error;
     },
     markUploaded: async (id, scopedRelationshipId) => {
-      const { data, error } = await supabase
+      const { data, error } = await admin
         .from('client_documents')
         .update({ doc_status: 'uploaded' })
         .eq('id', id)
@@ -162,16 +168,18 @@ export async function POST(request: NextRequest) {
       return !error && Boolean(data);
     },
     removeObject: async path => {
-      const { error } = await supabase.storage.from(CLIENT_DOCUMENT_BUCKET).remove([path]);
+      const { error } = await admin.storage.from(CLIENT_DOCUMENT_BUCKET).remove([path]);
       return !error;
     },
     deleteRecord: async (id, scopedRelationshipId) => {
-      const { error } = await supabase
+      const { data, error } = await admin
         .from('client_documents')
         .delete()
         .eq('id', id)
-        .eq('workspace_client_id', scopedRelationshipId);
-      return !error;
+        .eq('workspace_client_id', scopedRelationshipId)
+        .select('id')
+        .maybeSingle();
+      return !error && Boolean(data);
     },
   });
 

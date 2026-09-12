@@ -8,6 +8,7 @@ export default defineConfig({
     include: [
       'src/__tests__/auth-lifecycle.test.ts',
       'src/__tests__/cross-tenant-security.test.ts',
+      'src/__tests__/fmm-006-009-storage-boundary.integration.test.ts',
       'src/__tests__/stripe-live.test.ts',
     ],
     exclude: ['node_modules', '.next'],

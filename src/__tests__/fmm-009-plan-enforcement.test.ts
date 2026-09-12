@@ -19,6 +19,10 @@ describe('FMM-009 plan entitlement enforcement', () => {
     path.resolve(process.cwd(), 'supabase/migrations/20260904020000_fmm_009_allocation_trigger_row_safety.sql'),
     'utf8',
   );
+  const storageBoundaryMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/20260912105022_fmm_006_009_server_only_client_document_storage.sql'),
+    'utf8',
+  );
   const signupMigration = fs.readFileSync(
     path.resolve(process.cwd(), 'supabase/migrations/20260903024321_fmm_007_tenant_constraints_and_policies.sql'),
     'utf8',
@@ -117,6 +121,16 @@ describe('FMM-009 plan entitlement enforcement', () => {
     const uploadRoute = fs.readFileSync(path.resolve(process.cwd(), 'src/app/api/client-portal/documents/route.ts'), 'utf8');
     const aiServer = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/ai/server.ts'), 'utf8');
     for (const source of [clientRoute, uploadRoute, aiServer]) expect(source).toContain('authorizeWorkspacePlanOperation');
+  });
+
+  it('counts every retained document status and denies browser Storage bypass', () => {
+    const planServer = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/subscription/planServer.ts'), 'utf8');
+    expect(planServer).toContain("admin.from('client_documents').select('file_size')");
+    expect(planServer).not.toMatch(/client_documents[\s\S]{0,180}\.in\('doc_status'/);
+    expect(storageBoundaryMigration).toContain("WHERE workspace_id = target_workspace\n      AND id IS DISTINCT FROM NEW.id");
+    expect(storageBoundaryMigration).not.toMatch(/client_documents[\s\S]{0,250}doc_status IN \('pending', 'uploaded'\)/);
+    expect(storageBoundaryMigration).toContain('client_documents_storage_authenticated_route_only');
+    expect(storageBoundaryMigration).toContain('REVOKE INSERT, UPDATE, DELETE ON TABLE public.client_documents FROM anon, authenticated');
   });
 
   it('creates the initial fail-closed entitlement before the owner membership', () => {
