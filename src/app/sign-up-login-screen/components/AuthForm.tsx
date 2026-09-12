@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  getAdministratorDestination,
+  resolvePostLoginDestination,
+} from '@/lib/auth/post-login';
 import { clearLocalAuthState, createClient } from '@/lib/supabase/client';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
@@ -65,15 +69,20 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       }
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled || !session) return;
-      const { data: profile } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
-      const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
-      const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+      const destination = await resolvePostLoginDestination({
+        redirectTo,
+        getAdministratorDestination,
+        getProfile: async () => {
+          const { data } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
+          return data;
+        },
+        getEntitlement: async () => {
+          const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
+          return response.ok ? await response.json() : null;
+        },
+      });
       if (cancelled) return;
-      if (profile && entitlement?.canAccess) {
-        router.replace(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding');
-      } else {
-        router.replace('/billing-subscriptions');
-      }
+      router.replace(destination);
     }
     checkSession().catch(error => console.error('[AuthForm] checkSession error:', error));
     return () => { cancelled = true; };
@@ -91,14 +100,19 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         router.push(redirectTo || '/dashboard');
         return;
       }
-      const { data: profile } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
-      const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
-      const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
-      if (profile && entitlement?.canAccess) {
-        router.push(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding');
-      } else {
-        router.push('/billing-subscriptions');
-      }
+      const destination = await resolvePostLoginDestination({
+        redirectTo,
+        getAdministratorDestination,
+        getProfile: async () => {
+          const { data } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
+          return data;
+        },
+        getEntitlement: async () => {
+          const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
+          return response.ok ? await response.json() : null;
+        },
+      });
+      router.push(destination);
     } catch (error) {
       loginForm.setError('email', { message: error instanceof Error ? error.message : 'Invalid email or password. Please try again.' });
     } finally {
