@@ -184,8 +184,26 @@ describe('FMM-015 administrator assurance', () => {
     ]) {
       expect(read(path), path).toContain('requirePlatformAdmin');
     }
-    expect(read('src/app/admin/security/page.tsx')).toContain('requirePlatformAdminIdentity');
-    expect(read('src/app/admin/security/actions.ts')).toContain('requirePlatformAdminIdentity');
+    expect(read('src/app/admin/security/page.tsx')).toContain('requirePlatformAdminEnrollmentIdentity');
+    expect(read('src/app/admin/security/actions.ts')).toContain('requirePlatformAdminEnrollmentIdentity');
+  });
+
+  it('keeps inactive administrator bootstrap confined to MFA enrollment', () => {
+    const authorization = read('src/lib/admin/authorization.ts');
+    const destination = read('src/app/api/auth/administrator-destination/route.ts');
+    const actions = read('src/app/admin/security/actions.ts');
+    const panel = read('src/app/admin/security/AdminMfaPanel.tsx');
+    const proxy = read('src/proxy.ts');
+
+    expect(authorization).toContain('requirePlatformAdminEnrollmentIdentity');
+    expect(authorization).toContain('requirePlatformAdminMfaBootstrap');
+    expect(authorization).toContain('getAuthenticatedPlatformAdminRole');
+    expect(destination).toContain("{ destination: enrollment ? '/admin/security' : null }");
+    expect(actions).toContain('if (!active)');
+    expect(actions).toContain('activationPending: true');
+    expect(panel).toContain('Administrator access remains inactive');
+    expect(proxy.slice(proxy.indexOf('const ONBOARDING_GATED_PATHS'), proxy.indexOf('const SUBSCRIPTION_GATED_PATHS'))).not.toContain("'/admin'");
+    expect(authorization).not.toContain('user_metadata');
   });
 
   it('adds database tenant, role, MFA-bypass, and revoked-session denial tests', () => {

@@ -74,11 +74,10 @@ const ONBOARDING_GATED_PATHS = [
   '/credit-report-import',
   '/credit-audit',
   '/dispute-wizard',
-  '/admin',
 ];
 
 const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
-  (path) => !['/billing-subscriptions', '/onboarding', '/admin'].includes(path)
+  (path) => !['/billing-subscriptions', '/onboarding'].includes(path)
 );
 interface CurrentWorkspaceContext {
   workspace_id: string;

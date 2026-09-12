@@ -1,4 +1,4 @@
-export type AdministratorDestination = '/admin' | null;
+export type AdministratorDestination = '/admin' | '/admin/security' | null;
 
 type ProfileState = { onboarding_completed: boolean } | null;
 type EntitlementState = { canAccess?: boolean } | null;
@@ -14,7 +14,9 @@ export async function getAdministratorDestination(
     if (!response.ok) return null;
 
     const body = (await response.json()) as { destination?: unknown };
-    return body.destination === '/admin' ? '/admin' : null;
+    return body.destination === '/admin' || body.destination === '/admin/security'
+      ? body.destination
+      : null;
   } catch {
     return null;
   }

@@ -4,8 +4,10 @@ import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import {
   type DestructiveAdminAction,
+  getAuthenticatedPlatformAdminRole,
   requirePlatformAdmin,
-  requirePlatformAdminIdentity,
+  requirePlatformAdminEnrollmentIdentity,
+  requirePlatformAdminMfaBootstrap,
   requireOneTimePlatformAdmin,
   writeSecurityAudit,
 } from '@/lib/admin/authorization';
@@ -60,18 +62,33 @@ function validateDestructiveIntent(
   }
 }
 
-export async function confirmAdminStepUp(): Promise<{ ok: true }> {
-  const { user, sessionId, accessToken, verifiedFactorIds } = await requirePlatformAdmin();
+export async function confirmAdminStepUp(): Promise<{ ok: true; activationPending: boolean }> {
+  const { user, role, active, sessionId, accessToken, verifiedFactorIds, supabase } =
+    await requirePlatformAdminMfaBootstrap();
   if (!hasRecentAuthenticationMethod(accessToken, TOTP_AUTHENTICATION_METHODS)) {
     await writeSecurityAudit(user.id, 'admin_step_up_denied', { reason: 'fresh_challenge_required' });
     throw new Error('A fresh authenticator challenge is required.');
   }
+
+  if (!active) {
+    await writeSecurityAudit(user.id, 'admin_mfa_enrollment_verified_pending_activation', {
+      assurance: 'aal2',
+      verified_factor_count: verifiedFactorIds.length,
+    });
+    return { ok: true, activationPending: true };
+  }
+
   const { error: eligibilityError } = await getAdminClient().rpc(
     'confirm_platform_admin_mfa_factors',
     { p_user_id: user.id, p_factor_ids: verifiedFactorIds }
   );
   if (eligibilityError) {
     throw new Error('Administrator MFA eligibility could not be recorded.');
+  }
+
+  const authenticatedRole = await getAuthenticatedPlatformAdminRole(supabase, user.id);
+  if (authenticatedRole !== role) {
+    throw new Error('Administrator database eligibility could not be verified.');
   }
 
   const token = createAdminStepUpToken(
@@ -92,7 +109,7 @@ export async function confirmAdminStepUp(): Promise<{ ok: true }> {
     path: '/',
     maxAge: ADMIN_STEP_UP_MAX_AGE_SECONDS,
   });
-  return { ok: true };
+  return { ok: true, activationPending: false };
 }
 
 export async function authorizeDestructiveAdminAction(
@@ -166,7 +183,7 @@ const allowedEvents = new Set([
 ]);
 
 export async function recordAdminSecurityEvent(action: string): Promise<void> {
-  const { user } = await requirePlatformAdminIdentity();
+  const { user } = await requirePlatformAdminEnrollmentIdentity();
   if (!allowedEvents.has(action)) throw new Error('Unsupported administrator security event.');
   await writeSecurityAudit(user.id, action);
 }

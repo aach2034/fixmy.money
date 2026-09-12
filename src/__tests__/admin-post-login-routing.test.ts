@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
-  getPlatformAdminRole: vi.fn(),
+  getAuthenticatedPlatformAdminRole: vi.fn(),
+  getPlatformAdminEnrollment: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -10,7 +11,8 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 vi.mock('@/lib/admin/authorization', () => ({
-  getPlatformAdminRole: mocks.getPlatformAdminRole,
+  getAuthenticatedPlatformAdminRole: mocks.getAuthenticatedPlatformAdminRole,
+  getPlatformAdminEnrollment: mocks.getPlatformAdminEnrollment,
 }));
 
 import { GET as getAdministratorDestinationRoute } from '@/app/api/auth/administrator-destination/route';
@@ -22,6 +24,8 @@ import {
 describe('administrator post-login routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getAuthenticatedPlatformAdminRole.mockResolvedValue(null);
+    mocks.getPlatformAdminEnrollment.mockResolvedValue(null);
     mocks.createClient.mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
@@ -33,26 +37,45 @@ describe('administrator post-login routing', () => {
   });
 
   it('routes an active superadministrator such as Adam directly to /admin', async () => {
-    mocks.getPlatformAdminRole.mockResolvedValue('platform_superadmin');
+    mocks.getAuthenticatedPlatformAdminRole.mockResolvedValue('platform_superadmin');
 
     const response = await getAdministratorDestinationRoute();
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ destination: '/admin' });
-    expect(mocks.getPlatformAdminRole).toHaveBeenCalledWith('verified-administrator');
+    expect(mocks.getAuthenticatedPlatformAdminRole).toHaveBeenCalledWith(
+      expect.objectContaining({ auth: expect.any(Object) }),
+      'verified-administrator'
+    );
+    expect(mocks.getPlatformAdminEnrollment).not.toHaveBeenCalled();
     expect(response.headers.get('cache-control')).toContain('no-store');
   });
 
   it('routes an active standard administrator directly to /admin', async () => {
-    mocks.getPlatformAdminRole.mockResolvedValue('platform_admin');
+    mocks.getAuthenticatedPlatformAdminRole.mockResolvedValue('platform_admin');
 
     const response = await getAdministratorDestinationRoute();
 
     await expect(response.json()).resolves.toEqual({ destination: '/admin' });
   });
 
-  it('fails closed for an inactive administrator or ordinary user', async () => {
-    mocks.getPlatformAdminRole.mockResolvedValue(null);
+  it('routes a pre-provisioned inactive administrator only to MFA enrollment', async () => {
+    mocks.getPlatformAdminEnrollment.mockResolvedValue({ role: 'platform_admin', active: false });
+
+    const response = await getAdministratorDestinationRoute();
+
+    await expect(response.json()).resolves.toEqual({ destination: '/admin/security' });
+  });
+
+  it('routes an active AAL1 administrator to MFA enrollment instead of privileged pages', async () => {
+    mocks.getPlatformAdminEnrollment.mockResolvedValue({ role: 'platform_superadmin', active: true });
+
+    const response = await getAdministratorDestinationRoute();
+
+    await expect(response.json()).resolves.toEqual({ destination: '/admin/security' });
+  });
+
+  it('fails closed for an ordinary user', async () => {
 
     const response = await getAdministratorDestinationRoute();
 
@@ -69,7 +92,8 @@ describe('administrator post-login routing', () => {
     const response = await getAdministratorDestinationRoute();
 
     expect(response.status).toBe(401);
-    expect(mocks.getPlatformAdminRole).not.toHaveBeenCalled();
+    expect(mocks.getAuthenticatedPlatformAdminRole).not.toHaveBeenCalled();
+    expect(mocks.getPlatformAdminEnrollment).not.toHaveBeenCalled();
   });
 
   it('does not call profile, entitlement, subscription, or Stripe paths for an administrator', async () => {
@@ -84,6 +108,22 @@ describe('administrator post-login routing', () => {
     });
 
     expect(destination).toBe('/admin');
+    expect(getProfile).not.toHaveBeenCalled();
+    expect(getEntitlement).not.toHaveBeenCalled();
+  });
+
+  it('does not call customer routing for an administrator who needs MFA enrollment', async () => {
+    const getProfile = vi.fn();
+    const getEntitlement = vi.fn();
+
+    const destination = await resolvePostLoginDestination({
+      redirectTo: '/dashboard',
+      getAdministratorDestination: vi.fn().mockResolvedValue('/admin/security'),
+      getProfile,
+      getEntitlement,
+    });
+
+    expect(destination).toBe('/admin/security');
     expect(getProfile).not.toHaveBeenCalled();
     expect(getEntitlement).not.toHaveBeenCalled();
   });
@@ -113,11 +153,15 @@ describe('administrator post-login routing', () => {
     expect(customerWithoutEntitlement).toBe('/billing-subscriptions');
   });
 
-  it('accepts only the exact server-issued /admin destination', async () => {
+  it('accepts only exact server-issued administrator destinations', async () => {
+    const enrollmentFetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ destination: '/admin/security' }), { status: 200 })
+    );
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ destination: 'https://attacker.example' }), { status: 200 })
     );
 
+    await expect(getAdministratorDestination(enrollmentFetcher)).resolves.toBe('/admin/security');
     await expect(getAdministratorDestination(fetcher)).resolves.toBeNull();
   });
 });

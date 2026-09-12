@@ -369,6 +369,86 @@ describe('Authentication Lifecycle Tests', () => {
   });
 
   describe('Administrator MFA revocation integration', () => {
+    it('keeps inactive enrollment RLS-denied until verified-factor activation completes', async () => {
+      const adminClient = createAdminTestClient();
+      const email = `fmm015-inactive-admin-${Date.now()}@test.invalid`;
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+        email,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      expect(createError).toBeNull();
+      const userId = created.user?.id;
+      expect(userId).toBeTruthy();
+      if (!userId) throw new Error('Synthetic inactive administrator was not created.');
+
+      try {
+        const { error: roleError } = await adminClient.from('platform_admins').insert({
+          user_id: userId,
+          role: 'platform_admin',
+          active: false,
+          created_by: userId,
+          notes: 'Synthetic inactive FMM-015 bootstrap administrator',
+        });
+        expect(roleError).toBeNull();
+
+        const client = createAnonClient();
+        const { error: signInError } = await client.auth.signInWithPassword({
+          email,
+          password: TEST_PASSWORD,
+        });
+        expect(signInError).toBeNull();
+        const { data: enrollment, error: enrollError } = await client.auth.mfa.enroll({
+          factorType: 'totp',
+          friendlyName: 'FMM-015 inactive bootstrap factor',
+        });
+        expect(enrollError).toBeNull();
+        expect(enrollment?.totp.secret).toBeTruthy();
+        const { error: verificationError } = await client.auth.mfa.challengeAndVerify({
+          factorId: enrollment!.id,
+          code: totpCode(enrollment!.totp.secret),
+        });
+        expect(verificationError).toBeNull();
+
+        const { data: assurance } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+        expect(assurance?.currentLevel).toBe('aal2');
+
+        const { error: inactiveRegistrationError } = await adminClient.rpc(
+          'confirm_platform_admin_mfa_factors',
+          { p_user_id: userId, p_factor_ids: [enrollment!.id] },
+        );
+        expect(inactiveRegistrationError).toBeTruthy();
+
+        const { data: inactiveRows, error: inactiveRowsError } = await client
+          .from('platform_admins')
+          .select('user_id, role');
+        expect(inactiveRowsError).toBeNull();
+        expect(inactiveRows).toHaveLength(0);
+
+        const { error: activationError } = await adminClient
+          .from('platform_admins')
+          .update({ active: true, revoked_at: null })
+          .eq('user_id', userId)
+          .eq('active', false);
+        expect(activationError).toBeNull();
+
+        const { error: registrationError } = await adminClient.rpc(
+          'confirm_platform_admin_mfa_factors',
+          { p_user_id: userId, p_factor_ids: [enrollment!.id] },
+        );
+        expect(registrationError).toBeNull();
+
+        const { data: activeRows, error: activeRowsError } = await client
+          .from('platform_admins')
+          .select('user_id, role');
+        expect(activeRowsError).toBeNull();
+        expect(activeRows).toEqual([{ user_id: userId, role: 'platform_admin' }]);
+      } finally {
+        await adminClient.from('platform_admins').delete().eq('user_id', userId);
+        await adminClient.auth.admin.deleteUser(userId);
+      }
+    });
+
     it('denies the stale AAL2 session after direct provider-side factor removal', async () => {
       const adminClient = createAdminTestClient();
       const email = `fmm015-admin-${Date.now()}@test.invalid`;

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getPlatformAdminRole } from '@/lib/admin/authorization';
+import {
+  getAuthenticatedPlatformAdminRole,
+  getPlatformAdminEnrollment,
+} from '@/lib/admin/authorization';
 import { createClient } from '@/lib/supabase/server';
 
 const NO_STORE_HEADERS = {
@@ -23,9 +26,17 @@ export async function GET() {
     );
   }
 
-  const role = await getPlatformAdminRole(user.id);
+  const role = await getAuthenticatedPlatformAdminRole(supabase, user.id);
+  if (role) {
+    return NextResponse.json(
+      { destination: '/admin' },
+      { headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const enrollment = await getPlatformAdminEnrollment(user.id);
   return NextResponse.json(
-    { destination: role ? '/admin' : null },
+    { destination: enrollment ? '/admin/security' : null },
     { headers: NO_STORE_HEADERS }
   );
 }
