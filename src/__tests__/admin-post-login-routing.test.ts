@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
-  getPlatformAdminRole: vi.fn(),
+  getAuthenticatedPlatformAdminRole: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 vi.mock('@/lib/admin/authorization', () => ({
-  getPlatformAdminRole: mocks.getPlatformAdminRole,
+  getAuthenticatedPlatformAdminRole: mocks.getAuthenticatedPlatformAdminRole,
 }));
 
 import { GET as getAdministratorDestinationRoute } from '@/app/api/auth/administrator-destination/route';
@@ -33,18 +33,21 @@ describe('administrator post-login routing', () => {
   });
 
   it('routes an active superadministrator such as Adam directly to /admin', async () => {
-    mocks.getPlatformAdminRole.mockResolvedValue('platform_superadmin');
+    mocks.getAuthenticatedPlatformAdminRole.mockResolvedValue('platform_superadmin');
 
     const response = await getAdministratorDestinationRoute();
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ destination: '/admin' });
-    expect(mocks.getPlatformAdminRole).toHaveBeenCalledWith('verified-administrator');
+    expect(mocks.getAuthenticatedPlatformAdminRole).toHaveBeenCalledWith(
+      expect.objectContaining({ auth: expect.any(Object) }),
+      'verified-administrator'
+    );
     expect(response.headers.get('cache-control')).toContain('no-store');
   });
 
   it('routes an active standard administrator directly to /admin', async () => {
-    mocks.getPlatformAdminRole.mockResolvedValue('platform_admin');
+    mocks.getAuthenticatedPlatformAdminRole.mockResolvedValue('platform_admin');
 
     const response = await getAdministratorDestinationRoute();
 
@@ -52,7 +55,7 @@ describe('administrator post-login routing', () => {
   });
 
   it('fails closed for an inactive administrator or ordinary user', async () => {
-    mocks.getPlatformAdminRole.mockResolvedValue(null);
+    mocks.getAuthenticatedPlatformAdminRole.mockResolvedValue(null);
 
     const response = await getAdministratorDestinationRoute();
 
@@ -69,7 +72,7 @@ describe('administrator post-login routing', () => {
     const response = await getAdministratorDestinationRoute();
 
     expect(response.status).toBe(401);
-    expect(mocks.getPlatformAdminRole).not.toHaveBeenCalled();
+    expect(mocks.getAuthenticatedPlatformAdminRole).not.toHaveBeenCalled();
   });
 
   it('does not call profile, entitlement, subscription, or Stripe paths for an administrator', async () => {

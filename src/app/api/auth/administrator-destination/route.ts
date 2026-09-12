@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPlatformAdminRole } from '@/lib/admin/authorization';
+import { getAuthenticatedPlatformAdminRole } from '@/lib/admin/authorization';
 import { createClient } from '@/lib/supabase/server';
 
 const NO_STORE_HEADERS = {
@@ -23,7 +23,7 @@ export async function GET() {
     );
   }
 
-  const role = await getPlatformAdminRole(user.id);
+  const role = await getAuthenticatedPlatformAdminRole(supabase, user.id);
   return NextResponse.json(
     { destination: role ? '/admin' : null },
     { headers: NO_STORE_HEADERS }

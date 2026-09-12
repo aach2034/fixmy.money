@@ -10,6 +10,29 @@ export type PlatformAdminSession = {
   role: PlatformAdminRole;
 };
 
+type AuthenticatedAdminClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Resolve the current user's administrator role through their authenticated
+ * database session. The platform_admins RLS policy is the authorization
+ * authority, so inactive and ordinary users receive no row and fail closed.
+ */
+export async function getAuthenticatedPlatformAdminRole(
+  supabase: AuthenticatedAdminClient,
+  userId: string
+): Promise<PlatformAdminRole | null> {
+  const { data, error } = await supabase
+    .from('platform_admins')
+    .select('role, active')
+    .eq('user_id', userId)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (data.role === 'platform_superadmin') return 'platform_superadmin';
+  return data.role === 'platform_admin' ? 'platform_admin' : null;
+}
+
 export async function getPlatformAdminRole(userId: string): Promise<PlatformAdminRole | null> {
   const { data, error } = await getAdminClient()
     .from('platform_admins')
@@ -34,7 +57,7 @@ export async function requirePlatformAdmin(): Promise<PlatformAdminSession> {
 
   if (!user) redirect('/login');
 
-  const role = await getPlatformAdminRole(user.id);
+  const role = await getAuthenticatedPlatformAdminRole(supabase, user.id);
   if (!role) redirect('/dashboard');
 
   return { user, role };
