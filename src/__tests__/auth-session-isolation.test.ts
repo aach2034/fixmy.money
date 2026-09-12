@@ -23,7 +23,7 @@ import {
   isSupabaseAuthCookie,
 } from '@/lib/auth/session-isolation';
 import { PASSWORD_RECOVERY_COOKIE } from '@/lib/auth/password-recovery-state';
-import { isSupabaseAuthStorageKey } from '@/lib/supabase/client';
+import { isSupabaseAuthStorageKey, replaceBrowserCookie } from '@/lib/supabase/client';
 import { proxy } from '@/proxy';
 
 const oldAuthCookie = 'sb-testproject-auth-token';
@@ -387,5 +387,39 @@ describe('proxy auth response isolation', () => {
     expect(response.headers.get('cache-control')).toContain('private');
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(response.headers.get('vary')).toBe('Cookie');
+  });
+});
+
+describe('browser auth-cookie rotation', () => {
+  it('expires unpartitioned and partitioned variants before writing the new session', () => {
+    const writes: string[] = [];
+    const documentStub = {
+      get cookie() {
+        return '';
+      },
+      set cookie(value: string) {
+        writes.push(value);
+      },
+    };
+    vi.stubGlobal('document', documentStub);
+    vi.stubGlobal('window', {
+      location: { protocol: 'https:', hostname: 'fixmy.money' },
+    });
+
+    try {
+      replaceBrowserCookie(oldAuthCookie, 'fresh-aal2-session', { path: '/', maxAge: 3600 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const replacementIndex = writes.findIndex((value) =>
+      value.startsWith(`${oldAuthCookie}=fresh-aal2-session`)
+    );
+    expect(replacementIndex).toBeGreaterThan(0);
+    expect(writes.slice(0, replacementIndex)).toEqual(expect.arrayContaining([
+      expect.stringContaining(`${oldAuthCookie}=; Max-Age=0; Path=/; SameSite=None; Secure`),
+      expect.stringContaining(`${oldAuthCookie}=; Max-Age=0; Path=/; SameSite=None; Secure; Partitioned`),
+    ]));
+    expect(writes[replacementIndex]).toContain('SameSite=None; Secure; Partitioned');
   });
 });
