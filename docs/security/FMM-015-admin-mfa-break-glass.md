@@ -1,6 +1,6 @@
 # FMM-015 administrator MFA, recovery, and break-glass runbook
 
-Status: source procedure only. Running any production step requires separate, explicit production authorization.
+Status: operational in production under the temporary owner-accepted risk exception recorded in [FMM-015 production risk exception — 2026-09-12](./FMM-015-production-risk-exception-20260912.md). The two-independent-administrator recovery control is deferred, not passed.
 
 ## Control standard
 
