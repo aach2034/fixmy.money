@@ -153,7 +153,9 @@ describe('temporary new-signup shutdown', () => {
     const proxy = fs.readFileSync('src/proxy.ts', 'utf8');
     expect(auth).toContain('signInWithPassword');
     expect(auth).toContain('getSession()');
-    expect(form).toContain("router.push(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding')");
+    expect(form).toContain('resolvePostLoginDestination');
+    expect(form).toContain('getAdministratorDestination');
+    expect(form).not.toContain('user_metadata');
     expect(proxy).toContain('getWorkspaceEntitlementDecision');
   });
 
