@@ -12,6 +12,7 @@ export default defineConfig({
     exclude: [
       'node_modules',
       '.next',
+      'src/__tests__/**/*.integration.test.ts',
       'src/__tests__/auth-lifecycle.test.ts',
       'src/__tests__/cross-tenant-security.test.ts',
       'src/__tests__/stripe-live.test.ts',

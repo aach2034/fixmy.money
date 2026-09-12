@@ -196,6 +196,7 @@ export interface StoredClientDocument {
   file_size: number;
   mime_type: string;
   doc_status: string;
+  uploaded_at?: string;
 }
 
 export interface ClientDocumentUploadDependencies {
@@ -212,6 +213,40 @@ export type ClientDocumentUploadResult =
   | {
       ok: false;
       code: 'IDEMPOTENCY_CONFLICT' | 'PENDING_CLEANUP_FAILED' | 'METADATA_CREATE_FAILED' | 'STORAGE_WRITE_FAILED' | 'METADATA_FINALIZE_FAILED';
+      cleanupComplete: boolean;
+    };
+
+export interface ClientDocumentDeleteDependencies {
+  removeObject: (path: string) => Promise<boolean>;
+  deleteRecord: (documentId: string, relationshipId: string, storagePath: string) => Promise<boolean>;
+}
+
+export type ClientDocumentDeleteResult =
+  | { ok: true }
+  | { ok: false; code: 'STORAGE_DELETE_FAILED' | 'METADATA_DELETE_FAILED'; objectRemoved: boolean };
+
+export interface ClientDocumentReplacementDependencies {
+  uploadObject: (path: string, bytes: Uint8Array, mimeType: string) => Promise<boolean>;
+  updateRecord: (
+    documentId: string,
+    relationshipId: string,
+    previousStoragePath: string,
+    replacement: StoredClientDocument,
+  ) => Promise<boolean>;
+  removeObject: (path: string) => Promise<boolean>;
+  restoreRecord: (
+    documentId: string,
+    relationshipId: string,
+    replacementStoragePath: string,
+    previous: StoredClientDocument,
+  ) => Promise<boolean>;
+}
+
+export type ClientDocumentReplacementResult =
+  | { ok: true; storagePath: string }
+  | {
+      ok: false;
+      code: 'STORAGE_WRITE_FAILED' | 'METADATA_UPDATE_FAILED' | 'OLD_OBJECT_DELETE_FAILED';
       cleanupComplete: boolean;
     };
 
@@ -252,8 +287,11 @@ export async function persistClientDocumentUpload(
       return { ok: false, code: 'IDEMPOTENCY_CONFLICT', cleanupComplete: true };
     }
     const objectRemoved = await safeOperation(() => dependencies.removeObject(existing.file_url));
+    if (!objectRemoved) {
+      return { ok: false, code: 'PENDING_CLEANUP_FAILED', cleanupComplete: false };
+    }
     const recordDeleted = await safeOperation(() => dependencies.deleteRecord(existing.id, input.relationshipId));
-    if (!objectRemoved || !recordDeleted) {
+    if (!recordDeleted) {
       return { ok: false, code: 'PENDING_CLEANUP_FAILED', cleanupComplete: false };
     }
   }
@@ -275,16 +313,102 @@ export async function persistClientDocumentUpload(
   const storageWritten = await safeOperation(() => dependencies.uploadObject(input.storagePath, input.bytes, input.mimeType));
   if (!storageWritten) {
     const objectRemoved = await safeOperation(() => dependencies.removeObject(input.storagePath));
-    const recordDeleted = await safeOperation(() => dependencies.deleteRecord(input.uploadId, input.relationshipId));
+    const recordDeleted = objectRemoved
+      ? await safeOperation(() => dependencies.deleteRecord(input.uploadId, input.relationshipId))
+      : false;
     return { ok: false, code: 'STORAGE_WRITE_FAILED', cleanupComplete: objectRemoved && recordDeleted };
   }
 
   const finalized = await safeOperation(() => dependencies.markUploaded(input.uploadId, input.relationshipId));
   if (!finalized) {
     const objectRemoved = await safeOperation(() => dependencies.removeObject(input.storagePath));
-    const recordDeleted = await safeOperation(() => dependencies.deleteRecord(input.uploadId, input.relationshipId));
+    const recordDeleted = objectRemoved
+      ? await safeOperation(() => dependencies.deleteRecord(input.uploadId, input.relationshipId))
+      : false;
     return { ok: false, code: 'METADATA_FINALIZE_FAILED', cleanupComplete: objectRemoved && recordDeleted };
   }
 
   return { ok: true, idempotent: false, documentId: input.uploadId, storagePath: input.storagePath };
+}
+
+/**
+ * Delete the private object before its metadata row so a partial failure can
+ * never leave an untracked object. A metadata failure may leave a stale row,
+ * but the signed-access route will fail closed because the object is gone.
+ */
+export async function deleteClientDocument(
+  input: { documentId: string; relationshipId: string; storagePath: string },
+  dependencies: ClientDocumentDeleteDependencies,
+): Promise<ClientDocumentDeleteResult> {
+  const objectRemoved = await safeOperation(() => dependencies.removeObject(input.storagePath));
+  if (!objectRemoved) {
+    return { ok: false, code: 'STORAGE_DELETE_FAILED', objectRemoved: false };
+  }
+
+  const recordDeleted = await safeOperation(() => dependencies.deleteRecord(
+    input.documentId,
+    input.relationshipId,
+    input.storagePath,
+  ));
+  return recordDeleted
+    ? { ok: true }
+    : { ok: false, code: 'METADATA_DELETE_FAILED', objectRemoved: true };
+}
+
+/**
+ * Write a replacement to a fresh canonical path, switch the metadata row, and
+ * only then remove the prior object. Failures before the row switch remove the
+ * new object. A failed old-object removal attempts to restore the original row
+ * and remove the replacement so no untracked object is silently accepted.
+ */
+export async function replaceClientDocument(
+  input: {
+    previous: StoredClientDocument;
+    replacement: StoredClientDocument;
+    bytes: Uint8Array;
+  },
+  dependencies: ClientDocumentReplacementDependencies,
+): Promise<ClientDocumentReplacementResult> {
+  if (input.previous.file_url === input.replacement.file_url) {
+    return { ok: false, code: 'STORAGE_WRITE_FAILED', cleanupComplete: true };
+  }
+
+  const storageWritten = await safeOperation(() => dependencies.uploadObject(
+    input.replacement.file_url,
+    input.bytes,
+    input.replacement.mime_type,
+  ));
+  if (!storageWritten) {
+    const removed = await safeOperation(() => dependencies.removeObject(input.replacement.file_url));
+    return { ok: false, code: 'STORAGE_WRITE_FAILED', cleanupComplete: removed };
+  }
+
+  const recordUpdated = await safeOperation(() => dependencies.updateRecord(
+    input.previous.id,
+    input.previous.workspace_client_id,
+    input.previous.file_url,
+    input.replacement,
+  ));
+  if (!recordUpdated) {
+    const removed = await safeOperation(() => dependencies.removeObject(input.replacement.file_url));
+    return { ok: false, code: 'METADATA_UPDATE_FAILED', cleanupComplete: removed };
+  }
+
+  const previousRemoved = await safeOperation(() => dependencies.removeObject(input.previous.file_url));
+  if (previousRemoved) return { ok: true, storagePath: input.replacement.file_url };
+
+  const recordRestored = await safeOperation(() => dependencies.restoreRecord(
+    input.previous.id,
+    input.previous.workspace_client_id,
+    input.replacement.file_url,
+    input.previous,
+  ));
+  const replacementRemoved = recordRestored
+    ? await safeOperation(() => dependencies.removeObject(input.replacement.file_url))
+    : false;
+  return {
+    ok: false,
+    code: 'OLD_OBJECT_DELETE_FAILED',
+    cleanupComplete: recordRestored && replacementRemoved,
+  };
 }

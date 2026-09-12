@@ -14,8 +14,10 @@ async function loadUsage(workspaceId: string) {
       .eq('workspace_id', workspaceId).not('case_stage', 'in', '(completed,churned)'),
     admin.from('workspace_memberships').select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId).in('status', ['active', 'invited']),
+    // Every retained document object consumes Storage, regardless of workflow
+    // status (uploaded, reviewed, approved, rejected, or pending).
     admin.from('client_documents').select('file_size')
-      .eq('workspace_id', workspaceId).in('doc_status', ['pending', 'uploaded']),
+      .eq('workspace_id', workspaceId),
   ]);
   if (clients.error || seats.error || documents.error) throw new PlanAuthorizationError('USAGE_UNAVAILABLE', 503);
   return {
