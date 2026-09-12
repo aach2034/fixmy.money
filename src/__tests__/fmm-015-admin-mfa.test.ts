@@ -211,6 +211,18 @@ describe('FMM-015 administrator assurance', () => {
     expect(authorization).not.toContain('user_metadata');
   });
 
+  it('cannot leave administrator verification permanently busy after Auth settles', () => {
+    const panel = read('src/app/admin/security/AdminMfaPanel.tsx');
+    const verifyBody = panel.slice(panel.indexOf('async function verify()'), panel.indexOf('\n  async function removeFactor()'));
+
+    expect(verifyBody.indexOf('try {')).toBeLessThan(verifyBody.indexOf('challengeAndVerify'));
+    expect(verifyBody).toContain('withVerificationTimeout(');
+    expect(verifyBody).toContain('finally {');
+    expect(verifyBody).toContain('setBusy(false);');
+    expect(verifyBody).toContain("window.location.assign('/admin')");
+    expect(verifyBody).not.toContain("router.push('/admin')");
+  });
+
   it('adds database tenant, role, MFA-bypass, and revoked-session denial tests', () => {
     const migration = read('supabase/migrations/20260910005214_fmm_015_admin_mfa_enforcement.sql');
     const databaseTest = read('supabase/tests/database/fmm_015_admin_mfa.test.sql');

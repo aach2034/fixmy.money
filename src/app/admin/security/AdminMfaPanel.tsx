@@ -18,6 +18,23 @@ type AdminSecurityOperation =
   | { operation: 'remove_factor'; factorId: string }
   | { operation: 'revoke_sessions' };
 
+const ADMIN_VERIFICATION_TIMEOUT_MS = 15_000;
+
+class AdminVerificationTimeoutError extends Error {}
+
+async function withVerificationTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new AdminVerificationTimeoutError()), ADMIN_VERIFICATION_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 async function runAdminSecurityOperation<T>(operation: AdminSecurityOperation): Promise<T> {
   const response = await fetch('/api/admin/security', {
     method: 'POST',
@@ -99,38 +116,52 @@ export default function AdminMfaPanel({ reason, active }: { reason?: string; act
     }
     setBusy(true);
     setError('');
-    const supabase = createClient();
-    const { error: verificationError } = await supabase.auth.mfa.challengeAndVerify({
-      factorId,
-      code,
-    });
-    if (verificationError) {
-      await runAdminSecurityOperation({
-        operation: 'record_event',
-        action: 'admin_mfa_challenge_failed',
-      }).catch(() => undefined);
-      setError('The code could not be verified. Administrator access remains locked.');
-      setBusy(false);
-      return;
-    }
-
+    let factorVerified = false;
+    let navigateToAdmin = false;
     try {
-      const result = await runAdminSecurityOperation<{ ok: true; activationPending: boolean }>({
-        operation: 'confirm_step_up',
-      });
+      const supabase = createClient();
+      const { error: verificationError } = await withVerificationTimeout(
+        supabase.auth.mfa.challengeAndVerify({ factorId, code })
+      );
+      if (verificationError) {
+        await runAdminSecurityOperation({
+          operation: 'record_event',
+          action: 'admin_mfa_challenge_failed',
+        }).catch(() => undefined);
+        setError('The code could not be verified. Administrator access remains locked.');
+        return;
+      }
+
+      factorVerified = true;
+      const result = await withVerificationTimeout(
+        runAdminSecurityOperation<{ ok: true; activationPending: boolean }>({
+          operation: 'confirm_step_up',
+        })
+      );
       if (result.activationPending) {
         setActivationPending(true);
         setQrCode('');
         setCode('');
-        setBusy(false);
         return;
       }
-      router.push('/admin');
-      router.refresh();
-    } catch {
-      setError('Verification succeeded, but secure administrator access could not be recorded. Sign out and try again.');
+
+      navigateToAdmin = true;
+    } catch (verificationFailure) {
+      if (verificationFailure instanceof AdminVerificationTimeoutError) {
+        // A timed-out browser promise may follow a successful Auth/session
+        // rotation. Let the database-authoritative /admin guard decide using a
+        // fresh document request instead of leaving the button permanently busy.
+        navigateToAdmin = true;
+      } else if (factorVerified) {
+        setError('Verification succeeded, but secure administrator access could not be recorded. Sign out and try again.');
+      } else {
+        setError('The code could not be verified. Administrator access remains locked.');
+      }
+    } finally {
       setBusy(false);
     }
+
+    if (navigateToAdmin) window.location.assign('/admin');
   }
 
   async function removeFactor() {
