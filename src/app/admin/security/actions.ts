@@ -188,6 +188,34 @@ export async function recordAdminSecurityEvent(action: string): Promise<void> {
   await writeSecurityAudit(user.id, action);
 }
 
+export async function prepareAdminMfaEnrollment(): Promise<{ ok: true; cleared: number }> {
+  const { user } = await requirePlatformAdminEnrollmentIdentity();
+  const supabase = await createClient();
+  const {
+    data: { user: sessionUser },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !sessionUser || sessionUser.id !== user.id) {
+    throw new Error('Administrator enrollment identity could not be verified.');
+  }
+
+  const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+  if (factorsError) throw new Error('Administrator factors could not be inspected.');
+  const staleFactorIds = factors.all
+    .filter((factor) => factor.factor_type === 'totp' && factor.status === 'unverified')
+    .map((factor) => factor.id);
+  for (const factorId of staleFactorIds) {
+    const { error } = await supabase.auth.mfa.unenroll({ factorId });
+    if (error) throw new Error('An incomplete administrator enrollment could not be cleared.');
+  }
+  if (staleFactorIds.length > 0) {
+    await writeSecurityAudit(user.id, 'admin_mfa_incomplete_enrollment_cleared', {
+      cleared_factor_count: staleFactorIds.length,
+    });
+  }
+  return { ok: true, cleared: staleFactorIds.length };
+}
+
 async function revokeCurrentAdmin(userId: string, action: string): Promise<{ ok: true }> {
   const { error: revokeError } = await getAdminClient().rpc('revoke_platform_admin_sessions', {
     p_user_id: userId,

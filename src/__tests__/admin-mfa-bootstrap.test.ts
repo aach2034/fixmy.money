@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   adminRpc: vi.fn(),
   cookieSet: vi.fn(),
   cookies: vi.fn(),
+  createClient: vi.fn(),
+  getUser: vi.fn(),
+  listFactors: vi.fn(),
+  unenroll: vi.fn(),
 }));
 
 vi.mock('@/lib/admin/authorization', () => ({
@@ -39,14 +43,14 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(),
+  createClient: mocks.createClient,
 }));
 
 vi.mock('next/headers', () => ({
   cookies: mocks.cookies,
 }));
 
-import { confirmAdminStepUp } from '@/app/admin/security/actions';
+import { confirmAdminStepUp, prepareAdminMfaEnrollment } from '@/app/admin/security/actions';
 
 const bootstrapSession = {
   user: { id: 'preprovisioned-admin' },
@@ -63,6 +67,18 @@ describe('administrator MFA bootstrap', () => {
     mocks.hasRecentAuthenticationMethod.mockReturnValue(true);
     mocks.cookies.mockResolvedValue({ set: mocks.cookieSet });
     mocks.adminRpc.mockResolvedValue({ error: null });
+    mocks.getUser.mockResolvedValue({
+      data: { user: { id: 'preprovisioned-admin' } },
+      error: null,
+    });
+    mocks.listFactors.mockResolvedValue({ data: { all: [], totp: [] }, error: null });
+    mocks.unenroll.mockResolvedValue({ error: null });
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getUser: mocks.getUser,
+        mfa: { listFactors: mocks.listFactors, unenroll: mocks.unenroll },
+      },
+    });
   });
 
   it('keeps an inactive pre-provisioned administrator pending after verified TOTP', async () => {
@@ -118,5 +134,48 @@ describe('administrator MFA bootstrap', () => {
       'Administrator database eligibility could not be verified.'
     );
     expect(mocks.cookieSet).not.toHaveBeenCalled();
+  });
+
+  it('clears only the caller own incomplete TOTP enrollment before retrying', async () => {
+    mocks.requirePlatformAdminMfaBootstrap.mockResolvedValue({
+      ...bootstrapSession,
+      active: true,
+    });
+    const requireEnrollment = await import('@/lib/admin/authorization');
+    vi.mocked(requireEnrollment.requirePlatformAdminEnrollmentIdentity).mockResolvedValue({
+      user: { id: 'preprovisioned-admin' },
+    } as never);
+    mocks.listFactors.mockResolvedValue({
+      data: {
+        all: [
+          { id: 'stale-totp', factor_type: 'totp', status: 'unverified' },
+          { id: 'verified-totp', factor_type: 'totp', status: 'verified' },
+          { id: 'stale-phone', factor_type: 'phone', status: 'unverified' },
+        ],
+      },
+      error: null,
+    });
+
+    await expect(prepareAdminMfaEnrollment()).resolves.toEqual({ ok: true, cleared: 1 });
+    expect(mocks.unenroll).toHaveBeenCalledTimes(1);
+    expect(mocks.unenroll).toHaveBeenCalledWith({ factorId: 'stale-totp' });
+    expect(mocks.writeSecurityAudit).toHaveBeenCalledWith(
+      'preprovisioned-admin',
+      'admin_mfa_incomplete_enrollment_cleared',
+      { cleared_factor_count: 1 }
+    );
+  });
+
+  it('does not clear a factor when the session identity changes', async () => {
+    const requireEnrollment = await import('@/lib/admin/authorization');
+    vi.mocked(requireEnrollment.requirePlatformAdminEnrollmentIdentity).mockResolvedValue({
+      user: { id: 'preprovisioned-admin' },
+    } as never);
+    mocks.getUser.mockResolvedValue({ data: { user: { id: 'different-user' } }, error: null });
+
+    await expect(prepareAdminMfaEnrollment()).rejects.toThrow(
+      'Administrator enrollment identity could not be verified.'
+    );
+    expect(mocks.unenroll).not.toHaveBeenCalled();
   });
 });

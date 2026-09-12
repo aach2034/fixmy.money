@@ -3,19 +3,34 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import {
-  authorizeDestructiveAdminAction,
-  confirmAdminStepUp,
-  recordAdminSecurityEvent,
-  removeAdminFactor,
-  revokeAdminSessions,
-} from '@/app/admin/security/actions';
 
 type TotpFactor = {
   id: string;
   status: 'verified' | 'unverified';
   friendly_name?: string;
 };
+
+type AdminSecurityOperation =
+  | { operation: 'prepare_enrollment' }
+  | { operation: 'record_event'; action: string }
+  | { operation: 'confirm_step_up' }
+  | { operation: 'authorize_destructive'; action: string; targetId: string; material: Record<string, string> }
+  | { operation: 'remove_factor'; factorId: string }
+  | { operation: 'revoke_sessions' };
+
+async function runAdminSecurityOperation<T>(operation: AdminSecurityOperation): Promise<T> {
+  const response = await fetch('/api/admin/security', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'content-type': 'application/json',
+      'x-fixmymoney-admin-security': '1',
+    },
+    body: JSON.stringify(operation),
+  });
+  if (!response.ok) throw new Error('Administrator security operation failed.');
+  return response.json() as Promise<T>;
+}
 
 export default function AdminMfaPanel({ reason, active }: { reason?: string; active: boolean }) {
   const router = useRouter();
@@ -43,20 +58,38 @@ export default function AdminMfaPanel({ reason, active }: { reason?: string; act
   async function enroll() {
     setBusy(true);
     setError('');
-    const supabase = createClient();
-    const { data, error: enrollmentError } = await supabase.auth.mfa.enroll({
-      factorType: 'totp',
-      friendlyName: 'FixMy.Money administrator',
-    });
-    if (enrollmentError || !data) {
-      await recordAdminSecurityEvent('admin_mfa_enrollment_failed');
-      setError('Enrollment could not be started. No administrator access was granted.');
-    } else {
-      await recordAdminSecurityEvent('admin_mfa_enrollment_started');
+    try {
+      await runAdminSecurityOperation({ operation: 'prepare_enrollment' });
+      const supabase = createClient();
+      const { data, error: enrollmentError } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'FixMy.Money administrator',
+      });
+      if (enrollmentError || !data) {
+        await runAdminSecurityOperation({
+          operation: 'record_event',
+          action: 'admin_mfa_enrollment_failed',
+        }).catch(() => undefined);
+        setError('Enrollment could not be started. No administrator access was granted.');
+        return;
+      }
+
+      // Preserve the one-time enrollment material even if audit recording is
+      // temporarily unavailable. Administrator access still remains locked
+      // until the separate server-side confirmation succeeds.
       setFactorId(data.id);
       setQrCode(data.totp.qr_code);
+      await runAdminSecurityOperation({
+        operation: 'record_event',
+        action: 'admin_mfa_enrollment_started',
+      }).catch(() => {
+        setError('Enrollment started, but its audit event is delayed. Access remains locked until verification succeeds.');
+      });
+    } catch {
+      setError('Enrollment could not be started safely. No administrator access was granted.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function verify() {
@@ -72,14 +105,19 @@ export default function AdminMfaPanel({ reason, active }: { reason?: string; act
       code,
     });
     if (verificationError) {
-      await recordAdminSecurityEvent('admin_mfa_challenge_failed');
+      await runAdminSecurityOperation({
+        operation: 'record_event',
+        action: 'admin_mfa_challenge_failed',
+      }).catch(() => undefined);
       setError('The code could not be verified. Administrator access remains locked.');
       setBusy(false);
       return;
     }
 
     try {
-      const result = await confirmAdminStepUp();
+      const result = await runAdminSecurityOperation<{ ok: true; activationPending: boolean }>({
+        operation: 'confirm_step_up',
+      });
       if (result.activationPending) {
         setActivationPending(true);
         setQrCode('');
@@ -103,12 +141,13 @@ export default function AdminMfaPanel({ reason, active }: { reason?: string; act
       const supabase = createClient();
       const { error: verificationError } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
       if (verificationError) throw verificationError;
-      await authorizeDestructiveAdminAction(
-        'administrator_factor_removal',
-        factorId,
-        { factorId }
-      );
-      await removeAdminFactor(factorId);
+      await runAdminSecurityOperation({
+        operation: 'authorize_destructive',
+        action: 'administrator_factor_removal',
+        targetId: factorId,
+        material: { factorId },
+      });
+      await runAdminSecurityOperation({ operation: 'remove_factor', factorId });
       router.push('/login');
       router.refresh();
     } catch {
@@ -125,12 +164,13 @@ export default function AdminMfaPanel({ reason, active }: { reason?: string; act
       const supabase = createClient();
       const { error: verificationError } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
       if (verificationError) throw verificationError;
-      await authorizeDestructiveAdminAction(
-        'administrator_session_revocation',
-        'self',
-        { scope: 'global' }
-      );
-      await revokeAdminSessions();
+      await runAdminSecurityOperation({
+        operation: 'authorize_destructive',
+        action: 'administrator_session_revocation',
+        targetId: 'self',
+        material: { scope: 'global' },
+      });
+      await runAdminSecurityOperation({ operation: 'revoke_sessions' });
       router.push('/login');
       router.refresh();
     } catch {

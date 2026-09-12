@@ -146,8 +146,13 @@ describe('FMM-015 administrator assurance', () => {
   it('revokes sessions globally after factor removal and keeps audit metadata secret-free', () => {
     const panel = read('src/app/admin/security/AdminMfaPanel.tsx');
     const actions = read('src/app/admin/security/actions.ts');
+    const route = read('src/app/api/admin/security/route.ts');
     expect(panel).not.toContain('mfa.unenroll');
-    expect(panel.indexOf('authorizeDestructiveAdminAction(')).toBeLessThan(panel.indexOf('removeAdminFactor('));
+    expect(panel.indexOf("operation: 'authorize_destructive'")).toBeLessThan(panel.indexOf("operation: 'remove_factor'"));
+    expect(route).toContain('authorizeDestructiveAdminAction(');
+    expect(route).toContain('removeAdminFactor(');
+    expect(route).toContain("request.headers.get('origin')");
+    expect(route).toContain("request.headers.get('x-fixmymoney-admin-security')");
     expect(actions).toContain('supabase.auth.mfa.unenroll');
     expect(actions).toContain('requireOneTimePlatformAdmin(');
     expect(actions).toContain("signOut({ scope: 'global' })");
