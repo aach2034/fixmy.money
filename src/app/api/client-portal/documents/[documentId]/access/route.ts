@@ -6,6 +6,8 @@ import {
   CLIENT_DOCUMENT_SIGNED_URL_TTL_SECONDS,
   resolveClientDocumentStoragePath,
 } from '@/lib/clientPortal/documentStorage';
+import { authorizeWorkspacePlanOperation } from '@/lib/subscription/planServer';
+import { PlanAuthorizationError } from '@/lib/subscription/planEnforcement';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -33,6 +35,18 @@ export async function GET(
 
   if (!document) {
     return NextResponse.json({ error: 'Document not found or access denied.' }, { status: 404 });
+  }
+
+  try {
+    await authorizeWorkspacePlanOperation({
+      workspaceId: document.workspace_id,
+      feature: 'client_portal',
+    });
+  } catch (error) {
+    if (error instanceof PlanAuthorizationError) {
+      return NextResponse.json({ error: error.code, code: error.code }, { status: error.status });
+    }
+    throw error;
   }
 
   const storagePath = resolveClientDocumentStoragePath({

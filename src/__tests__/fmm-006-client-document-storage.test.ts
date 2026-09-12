@@ -3,8 +3,10 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildClientDocumentPath,
+  deleteClientDocument,
   isOwnedClientDocumentPath,
   persistClientDocumentUpload,
+  replaceClientDocument,
   resolveClientDocumentStoragePath,
   validateClientDocumentContent,
   validateClientDocumentMetadata,
@@ -128,6 +130,30 @@ describe('FMM-006 durable upload workflow', () => {
     expect(deps.deleteRecord).toHaveBeenCalledWith(uploadId, relationshipId);
   });
 
+  it('retains pending metadata when an uncertain failed upload cannot be removed', async () => {
+    const deps = dependencies({
+      uploadObject: vi.fn(async () => false),
+      removeObject: vi.fn(async () => false),
+    });
+    await expect(persistClientDocumentUpload(workflowInput(), deps)).resolves.toEqual({
+      ok: false,
+      code: 'STORAGE_WRITE_FAILED',
+      cleanupComplete: false,
+    });
+    expect(deps.deleteRecord).not.toHaveBeenCalled();
+  });
+
+  it('never attempts an object write when pending metadata creation fails', async () => {
+    const deps = dependencies({ createPending: vi.fn(async () => false) });
+    await expect(persistClientDocumentUpload(workflowInput(), deps)).resolves.toEqual({
+      ok: false,
+      code: 'METADATA_CREATE_FAILED',
+      cleanupComplete: true,
+    });
+    expect(deps.uploadObject).not.toHaveBeenCalled();
+    expect(deps.removeObject).not.toHaveBeenCalled();
+  });
+
   it('removes the object and pending row when metadata finalization fails', async () => {
     const deps = dependencies({ markUploaded: vi.fn(async () => false) });
     await expect(persistClientDocumentUpload(workflowInput(), deps)).resolves.toMatchObject({
@@ -137,6 +163,19 @@ describe('FMM-006 durable upload workflow', () => {
     });
     expect(deps.removeObject).toHaveBeenCalledWith(storagePath);
     expect(deps.deleteRecord).toHaveBeenCalledWith(uploadId, relationshipId);
+  });
+
+  it('retains pending metadata when finalization cleanup cannot remove the object', async () => {
+    const deps = dependencies({
+      markUploaded: vi.fn(async () => false),
+      removeObject: vi.fn(async () => false),
+    });
+    await expect(persistClientDocumentUpload(workflowInput(), deps)).resolves.toEqual({
+      ok: false,
+      code: 'METADATA_FINALIZE_FAILED',
+      cleanupComplete: false,
+    });
+    expect(deps.deleteRecord).not.toHaveBeenCalled();
   });
 
   it('returns an idempotent success for the same completed upload without writing again', async () => {
@@ -180,41 +219,166 @@ describe('FMM-006 durable upload workflow', () => {
       cleanupComplete: false,
     });
     expect(blocked.uploadObject).not.toHaveBeenCalled();
+    expect(blocked.deleteRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe('FMM-006 server-mediated replacement and deletion', () => {
+  const previous: StoredClientDocument = {
+    id: uploadId,
+    workspace_client_id: relationshipId,
+    file_name: 'original.pdf',
+    file_url: `${workspaceId}/${relationshipId}/${uploadId}/original.pdf`,
+    file_size: 100,
+    mime_type: 'application/pdf',
+    doc_status: 'approved',
+    uploaded_at: '2026-09-01T00:00:00.000Z',
+  };
+  const replacement: StoredClientDocument = {
+    ...previous,
+    file_name: 'replacement.pdf',
+    file_url: `${workspaceId}/${relationshipId}/44444444-4444-4444-8444-444444444444/replacement.pdf`,
+    file_size: 120,
+    doc_status: 'uploaded',
+    uploaded_at: '2026-09-12T00:00:00.000Z',
+  };
+  const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
+
+  it('replaces through a fresh object before removing the prior object', async () => {
+    const order: string[] = [];
+    const deps = {
+      uploadObject: vi.fn(async () => { order.push('upload-new'); return true; }),
+      updateRecord: vi.fn(async () => { order.push('update-row'); return true; }),
+      removeObject: vi.fn(async path => { order.push(path === previous.file_url ? 'remove-old' : 'remove-new'); return true; }),
+      restoreRecord: vi.fn(async () => true),
+    };
+    await expect(replaceClientDocument({ previous, replacement, bytes }, deps)).resolves.toEqual({
+      ok: true,
+      storagePath: replacement.file_url,
+    });
+    expect(order).toEqual(['upload-new', 'update-row', 'remove-old']);
+    expect(deps.restoreRecord).not.toHaveBeenCalled();
+  });
+
+  it('removes the replacement and preserves the old row/object when its database update fails', async () => {
+    const deps = {
+      uploadObject: vi.fn(async () => true),
+      updateRecord: vi.fn(async () => false),
+      removeObject: vi.fn(async () => true),
+      restoreRecord: vi.fn(async () => true),
+    };
+    await expect(replaceClientDocument({ previous, replacement, bytes }, deps)).resolves.toEqual({
+      ok: false,
+      code: 'METADATA_UPDATE_FAILED',
+      cleanupComplete: true,
+    });
+    expect(deps.removeObject).toHaveBeenCalledWith(replacement.file_url);
+    expect(deps.removeObject).not.toHaveBeenCalledWith(previous.file_url);
+    expect(deps.restoreRecord).not.toHaveBeenCalled();
+  });
+
+  it('restores the prior row and removes the replacement when old-object cleanup fails', async () => {
+    const deps = {
+      uploadObject: vi.fn(async () => true),
+      updateRecord: vi.fn(async () => true),
+      removeObject: vi.fn(async path => path !== previous.file_url),
+      restoreRecord: vi.fn(async () => true),
+    };
+    await expect(replaceClientDocument({ previous, replacement, bytes }, deps)).resolves.toEqual({
+      ok: false,
+      code: 'OLD_OBJECT_DELETE_FAILED',
+      cleanupComplete: true,
+    });
+    expect(deps.restoreRecord).toHaveBeenCalledWith(
+      previous.id,
+      relationshipId,
+      replacement.file_url,
+      previous,
+    );
+    expect(deps.removeObject).toHaveBeenLastCalledWith(replacement.file_url);
+  });
+
+  it('deletes the private object before deleting its exact metadata row', async () => {
+    const order: string[] = [];
+    const deps = {
+      removeObject: vi.fn(async () => { order.push('storage'); return true; }),
+      deleteRecord: vi.fn(async () => { order.push('metadata'); return true; }),
+    };
+    await expect(deleteClientDocument({
+      documentId: uploadId,
+      relationshipId,
+      storagePath: previous.file_url,
+    }, deps)).resolves.toEqual({ ok: true });
+    expect(order).toEqual(['storage', 'metadata']);
+    expect(deps.deleteRecord).toHaveBeenCalledWith(uploadId, relationshipId, previous.file_url);
+  });
+
+  it('leaves metadata intact if object deletion fails and reports a later metadata failure', async () => {
+    const storageFailure = {
+      removeObject: vi.fn(async () => false),
+      deleteRecord: vi.fn(async () => true),
+    };
+    await expect(deleteClientDocument({ documentId: uploadId, relationshipId, storagePath }, storageFailure))
+      .resolves.toEqual({ ok: false, code: 'STORAGE_DELETE_FAILED', objectRemoved: false });
+    expect(storageFailure.deleteRecord).not.toHaveBeenCalled();
+
+    const metadataFailure = {
+      removeObject: vi.fn(async () => true),
+      deleteRecord: vi.fn(async () => false),
+    };
+    await expect(deleteClientDocument({ documentId: uploadId, relationshipId, storagePath }, metadataFailure))
+      .resolves.toEqual({ ok: false, code: 'METADATA_DELETE_FAILED', objectRemoved: true });
   });
 });
 
 describe('FMM-006 private authorization contract', () => {
   const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
-  it('creates a private size/type-limited bucket with workspace and relationship scoped policies', () => {
-    const migration = read('supabase/migrations/20260903190954_fmm_006_private_client_documents.sql');
-    expect(migration).toContain("'client-documents'");
-    expect(migration).toContain('false,');
-    expect(migration).toContain('file_size_limit');
-    expect(migration).toContain('allowed_mime_types');
-    expect(migration).toContain("private.safe_uuid((storage.foldername(name))[1])");
-    expect(migration).toContain("private.safe_uuid((storage.foldername(name))[2])");
-    expect(migration).toContain('private.portal_owns_workspace_client(relationship.id)');
-    expect(migration).toContain('private.can_read_workspace_client(relationship.id)');
-    expect(migration).toContain('FOR SELECT TO authenticated');
-    expect(migration).toContain('FOR INSERT TO authenticated');
-    expect(migration).toContain('FOR UPDATE TO authenticated');
-    expect(migration).toContain('FOR DELETE TO authenticated');
+  it('keeps the bucket private while denying every direct authenticated Storage operation', () => {
+    const original = read('supabase/migrations/20260903190954_fmm_006_private_client_documents.sql');
+    const boundary = read('supabase/migrations/20260912105022_fmm_006_009_server_only_client_document_storage.sql');
+    expect(original).toContain("'client-documents'");
+    expect(original).toContain('file_size_limit');
+    expect(original).toContain('allowed_mime_types');
+    for (const operation of ['select', 'insert', 'update', 'delete']) {
+      expect(boundary).toContain(`DROP POLICY IF EXISTS client_documents_storage_${operation}`);
+    }
+    expect(boundary).toContain('client_documents_storage_authenticated_route_only');
+    expect(boundary).toContain('AS RESTRICTIVE');
+    expect(boundary).toContain("USING (bucket_id <> 'client-documents')");
+    expect(boundary).toContain("WITH CHECK (bucket_id <> 'client-documents')");
+    expect(boundary).not.toMatch(/\b(DELETE|TRUNCATE)\s+FROM\s+(?:storage\.objects|public\.client_documents)/i);
   });
 
-  it('uses an authenticated same-origin server route and never creates a public URL', () => {
+  it('uses authenticated server routes and never exposes a browser Storage mutation path', () => {
     const uploadRoute = read('src/app/api/client-portal/documents/route.ts');
     const accessRoute = read('src/app/api/client-portal/documents/[documentId]/access/route.ts');
+    const mutationRoute = read('src/app/api/client-portal/documents/[documentId]/route.ts');
     const portal = read('src/app/client-portal/components/ClientPortalDashboardContent.tsx');
     expect(uploadRoute).toContain("request.headers.get('origin')");
     expect(uploadRoute).toContain('supabase.auth.getUser()');
     expect(uploadRoute).toContain(".eq('auth_user_id', user.id)");
     expect(uploadRoute).toContain(".eq('client_account_id', account.id)");
     expect(uploadRoute).toContain('persistClientDocumentUpload');
+    expect(uploadRoute).toContain('const admin = getAdminClient()');
+    expect(uploadRoute).toContain('admin.storage.from(CLIENT_DOCUMENT_BUCKET).upload');
+    expect(uploadRoute).not.toContain('supabase.storage');
     expect(accessRoute).toContain('.createSignedUrl(');
     expect(accessRoute).toContain('getAdminClient().storage');
+    expect(accessRoute).toContain('authorizeWorkspacePlanOperation');
     expect(accessRoute).toContain(".select('id, client_id, workspace_id, workspace_client_id, file_name, file_url, doc_status')");
     expect(accessRoute).toContain("'Cache-Control': 'private, no-store'");
+    expect(mutationRoute).toContain('export async function PUT');
+    expect(mutationRoute).toContain('export async function DELETE');
+    expect(mutationRoute).toContain('supabase.auth.getUser()');
+    expect(mutationRoute).toContain("request.headers.get('origin')");
+    expect(mutationRoute).toContain('authorizeWorkspacePlanOperation');
+    expect(mutationRoute).toContain('getAdminClient()');
+    expect(mutationRoute).toContain('replaceClientDocument');
+    expect(mutationRoute).toContain('deleteClientDocument');
     expect(portal).not.toContain('getPublicUrl');
+    expect(portal).not.toContain('.storage');
+    expect(portal).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+    expect(portal).not.toContain('@/lib/supabase/admin');
   });
 });
