@@ -5,19 +5,19 @@ import {
 } from 'vinext/server/image-optimization';
 import handler from 'vinext/server/app-router-entry';
 import { contentSecurityPolicyFor, immutableAssetCacheControl } from './security-controls';
-import { cleanupExpiredRateLimits } from './lead-abuse';
+import { cleanupExpiredRateLimits, emitLeadSecurityEvent } from './lead-abuse';
 import {
   captureMarketingLead,
   captureReopeningWaitlist,
   type LeadCaptureEnv,
 } from './lead-capture';
 import {
-  addSupabasePublicAttributesToHtml,
-  getSupabasePublicAttributes,
-  type SupabasePublicEnv,
+  addRuntimePublicAttributesToHtml,
+  getRuntimePublicAttributes,
+  type RuntimePublicEnv,
 } from './runtime-public-config';
 
-interface Env extends LeadCaptureEnv, SupabasePublicEnv {
+interface Env extends LeadCaptureEnv, RuntimePublicEnv {
   ASSETS?: { fetch(request: Request): Promise<Response> };
   IMAGES?: {
     input(stream: ReadableStream): {
@@ -50,7 +50,7 @@ function createCspNonce(): string {
 async function withSecurityHeaders(
   response: Response,
   request?: Request,
-  env?: SupabasePublicEnv,
+  env?: RuntimePublicEnv,
 ): Promise<Response> {
   let secured = new Response(response.body, response);
   const isHtml = secured.headers.get('Content-Type')?.toLowerCase().includes('text/html') ?? false;
@@ -67,11 +67,11 @@ async function withSecurityHeaders(
   const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
   if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
   if (nonce) {
-    const publicAttributes = getSupabasePublicAttributes(env);
+    const publicAttributes = getRuntimePublicAttributes(env);
     if (typeof HTMLRewriter === 'undefined') {
       const html = await secured.text();
       secured = new Response(
-        addSupabasePublicAttributesToHtml(html, publicAttributes)
+        addRuntimePublicAttributesToHtml(html, publicAttributes)
           .replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`),
         {
           status: secured.status,
@@ -139,7 +139,7 @@ export default {
           console.info(JSON.stringify({ event: 'lead_rate_limit_cleanup', deleted }));
         })
         .catch(() => {
-          console.error(JSON.stringify({ event: 'lead_rate_limit_cleanup_failed' }));
+          emitLeadSecurityEvent({ event: 'lead_rate_limit_cleanup_failed' });
         }),
     );
   },

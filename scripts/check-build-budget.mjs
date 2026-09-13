@@ -1,4 +1,4 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 const root = process.cwd();
@@ -22,6 +22,19 @@ for (const [path, limit] of Object.entries(limits)) {
   const actual = await size(join(root, path));
   console.log(`${relative(root, join(root, path))}: ${actual} / ${limit} bytes`);
   if (actual > limit) failed = true;
+}
+
+const workerConfig = JSON.parse(
+  await readFile(join(root, 'dist/server/wrangler.json'), 'utf8'),
+);
+const cronSchedule = workerConfig?.triggers?.crons;
+if (
+  !Array.isArray(cronSchedule) ||
+  cronSchedule.length !== 1 ||
+  cronSchedule[0] !== '0 * * * *'
+) {
+  console.error('FMM-023 hourly rate-limit cleanup trigger is missing from the Worker build.');
+  failed = true;
 }
 if (failed) {
   console.error('Build-size budget exceeded. Investigate or explicitly review the budget change.');

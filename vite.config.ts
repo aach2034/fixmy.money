@@ -16,6 +16,9 @@ export default defineConfig(async () => {
         config: {
           main: "./worker/index.ts",
           compatibility_flags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
+          triggers: {
+            crons: ["0 * * * *"],
+          },
         },
       }),
     ],
