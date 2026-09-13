@@ -1,4 +1,9 @@
 import { leadRateDecision } from './security-controls';
+import {
+  deliverOperationalAlert,
+  type AlertDeliveryResult,
+  type MonitoringAlertEnvironment,
+} from '../src/lib/observability/alerts';
 
 export interface D1RunResult {
   meta?: { changes?: number };
@@ -14,7 +19,7 @@ export interface D1Binding {
   prepare(query: string): D1PreparedStatement;
 }
 
-export interface LeadAbuseEnv {
+export interface LeadAbuseEnv extends MonitoringAlertEnvironment {
   DB?: D1Binding;
   LEAD_RATE_LIMIT_SALT?: string;
   NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string;
@@ -37,11 +42,23 @@ export type LeadSecurityEvent =
     window: number;
   };
 
-export function emitLeadSecurityEvent(event: LeadSecurityEvent): void {
+export async function emitLeadSecurityEvent(
+  event: LeadSecurityEvent,
+  env: MonitoringAlertEnvironment,
+): Promise<AlertDeliveryResult> {
   const severity = event.event === 'lead_rate_limited' ? 'warning' : 'error';
   const message = JSON.stringify({ schema_version: 1, severity, ...event });
   if (event.event === 'lead_rate_limited') console.warn(message);
   else console.error(message);
+
+  const { event: eventName, ...metadata } = event;
+  return deliverOperationalAlert({
+    event: eventName,
+    severity: severity === 'warning' ? 'warning' : 'critical',
+    state: 'triggered',
+    requestId: crypto.randomUUID(),
+    metadata,
+  }, env);
 }
 
 function hasTurnstileConfiguration(env: LeadAbuseEnv): boolean {
@@ -118,7 +135,7 @@ export async function enforceLeadRateLimit(
     return leadResponse({ error: 'Email signup is temporarily unavailable.' }, 503);
   }
   if (!hasTurnstileConfiguration(env)) {
-    emitLeadSecurityEvent({ event: 'lead_turnstile_configuration_failure' });
+    await emitLeadSecurityEvent({ event: 'lead_turnstile_configuration_failure' }, env);
     return leadResponse({ error: 'Security verification is temporarily unavailable.' }, 503);
   }
 
@@ -141,12 +158,12 @@ export async function enforceLeadRateLimit(
 
   if (leadRateDecision(count, false) === 'deny') {
     if (count === 21) {
-      emitLeadSecurityEvent({
+      await emitLeadSecurityEvent({
         event: 'lead_rate_limited',
         activity: 'sustained',
         threshold: 'hard',
         window: windowStart,
-      });
+      }, env);
     }
     return leadResponse(
       { error: 'Too many requests. Try again later.' },

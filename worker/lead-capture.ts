@@ -104,7 +104,7 @@ async function captureLead(request: Request, env: LeadCaptureEnv, options: { off
          request_count = marketing_leads.request_count + 1`
     ).bind(email, options.offer, source, options.consent).run();
   } catch {
-    emitLeadSecurityEvent({ event: 'lead_capture_persistence_failed' });
+    await emitLeadSecurityEvent({ event: 'lead_capture_persistence_failed' }, env);
     return leadResponse({ error: 'We could not save your signup. Please try again.' }, 500);
   }
   return leadResponse({ ok: true, ...options.success });
