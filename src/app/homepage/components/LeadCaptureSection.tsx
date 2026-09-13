@@ -14,6 +14,7 @@ import {
 import { trackLeadMagnetSignup } from '@/lib/analytics';
 import TurnstileChallenge from '@/components/TurnstileChallenge';
 import {
+  getRuntimeTurnstileSiteKey,
   initialLeadChallengeState,
   leadChallengeReducer,
 } from '@/lib/marketing/leadChallenge';
@@ -39,7 +40,7 @@ export default function LeadCaptureSection() {
   const challengeRetryInFlight = useRef(false);
   const challengeGeneration = useRef(challenge.widgetGeneration);
   challengeGeneration.current = challenge.widgetGeneration;
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
+  const turnstileSiteKey = getRuntimeTurnstileSiteKey();
 
   const submitLead = useCallback(async (challengeToken?: string) => {
     setSubmissionState('submitting');

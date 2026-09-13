@@ -90,6 +90,8 @@ describe('temporary new-signup shutdown', () => {
     const response = await captureReopeningWaitlist(waitlistRequest(' Person@Example.com '), {
       DB: db,
       LEAD_RATE_LIMIT_SALT: 'test-salt-with-at-least-32-characters',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      TURNSTILE_SECRET_KEY: 'server-only-test-secret',
     } as never);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -111,7 +113,12 @@ describe('temporary new-signup shutdown', () => {
 
   it('deduplicates repeated waitlist submissions idempotently', async () => {
     const db = new FakeDatabase();
-    const env = { DB: db, LEAD_RATE_LIMIT_SALT: 'test-salt-with-at-least-32-characters' } as never;
+    const env = {
+      DB: db,
+      LEAD_RATE_LIMIT_SALT: 'test-salt-with-at-least-32-characters',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      TURNSTILE_SECRET_KEY: 'server-only-test-secret',
+    } as never;
     expect((await captureReopeningWaitlist(waitlistRequest('same@example.com'), env)).status).toBe(200);
     expect((await captureReopeningWaitlist(waitlistRequest('same@example.com'), env)).status).toBe(200);
     expect(db.statements.some(sql => sql.includes('ON CONFLICT(email, offer) DO UPDATE'))).toBe(true);
@@ -124,6 +131,8 @@ describe('temporary new-signup shutdown', () => {
     const response = await captureReopeningWaitlist(waitlistRequest('not-an-email'), {
       DB: db,
       LEAD_RATE_LIMIT_SALT: 'test-salt-with-at-least-32-characters',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      TURNSTILE_SECRET_KEY: 'server-only-test-secret',
     } as never);
     expect(response.status).toBe(400);
     expect(db.inserts).toHaveLength(0);
@@ -150,7 +159,7 @@ describe('temporary new-signup shutdown', () => {
     expect(form).toContain("result.code === 'CHALLENGE_REQUIRED'");
     expect(form).toContain("challenge.phase === 'required'");
     expect(form).toContain('<TurnstileChallenge');
-    expect(form).toContain('NEXT_PUBLIC_TURNSTILE_SITE_KEY');
+    expect(form).toContain('getRuntimeTurnstileSiteKey');
     expect(form).toContain('challengeRetryInFlight.current');
     expect(form).toContain('await submitWaitlist(token)');
     expect(form).not.toContain('TURNSTILE_SECRET_KEY');

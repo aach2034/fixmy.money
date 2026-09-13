@@ -7,6 +7,7 @@ import { trackEvent } from '@/lib/analytics';
 import { attributionEventParams, captureCurrentAttribution } from '@/lib/attribution';
 import TurnstileChallenge from '@/components/TurnstileChallenge';
 import {
+  getRuntimeTurnstileSiteKey,
   initialLeadChallengeState,
   leadChallengeReducer,
 } from '@/lib/marketing/leadChallenge';
@@ -25,7 +26,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
   const challengeRetryInFlight = useRef(false);
   const challengeGeneration = useRef(challenge.widgetGeneration);
   challengeGeneration.current = challenge.widgetGeneration;
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
+  const turnstileSiteKey = getRuntimeTurnstileSiteKey();
 
   const submitWaitlist = useCallback(async (challengeToken?: string) => {
     setState('submitting');

@@ -17,6 +17,23 @@ export const initialLeadChallengeState: LeadChallengeState = {
   retryCount: 0,
 };
 
+type RuntimeConfigRoot = {
+  getAttribute(name: string): string | null;
+};
+
+export function getRuntimeTurnstileSiteKey(
+  root?: RuntimeConfigRoot | null,
+): string {
+  const runtimeRoot = root === undefined && typeof document !== 'undefined'
+    ? document.documentElement
+    : root;
+  return (
+    runtimeRoot?.getAttribute('data-turnstile-site-key')?.trim() ||
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ||
+    ''
+  );
+}
+
 export function leadChallengeReducer(
   state: LeadChallengeState,
   action: LeadChallengeAction,
