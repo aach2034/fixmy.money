@@ -138,9 +138,10 @@ export default {
         .then((deleted) => {
           console.info(JSON.stringify({ event: 'lead_rate_limit_cleanup', deleted }));
         })
-        .catch(() => {
-          emitLeadSecurityEvent({ event: 'lead_rate_limit_cleanup_failed' });
-        }),
+        .catch(() => emitLeadSecurityEvent(
+          { event: 'lead_rate_limit_cleanup_failed' },
+          env,
+        )),
     );
   },
 };
