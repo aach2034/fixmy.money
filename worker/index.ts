@@ -5,14 +5,19 @@ import {
 } from 'vinext/server/image-optimization';
 import handler from 'vinext/server/app-router-entry';
 import { contentSecurityPolicyFor, immutableAssetCacheControl } from './security-controls';
-import { cleanupExpiredRateLimits } from './lead-abuse';
+import { cleanupExpiredRateLimits, emitLeadSecurityEvent } from './lead-abuse';
 import {
   captureMarketingLead,
   captureReopeningWaitlist,
   type LeadCaptureEnv,
 } from './lead-capture';
+import {
+  addRuntimePublicAttributesToHtml,
+  getRuntimePublicAttributes,
+  type RuntimePublicEnv,
+} from './runtime-public-config';
 
-interface Env extends LeadCaptureEnv {
+interface Env extends LeadCaptureEnv, RuntimePublicEnv {
   ASSETS?: { fetch(request: Request): Promise<Response> };
   IMAGES?: {
     input(stream: ReadableStream): {
@@ -29,12 +34,12 @@ interface ExecutionContext {
 }
 
 type HtmlElement = { setAttribute(name: string, value: string): void };
+type HtmlRewriterInstance = {
+  on(selector: string, handlers: { element(element: HtmlElement): void }): HtmlRewriterInstance;
+  transform(response: Response): Response;
+};
 declare const HTMLRewriter: {
-  new (): {
-    on(selector: string, handlers: { element(element: HtmlElement): void }): {
-      transform(response: Response): Response;
-    };
-  };
+  new (): HtmlRewriterInstance;
 };
 
 function createCspNonce(): string {
@@ -42,7 +47,11 @@ function createCspNonce(): string {
   return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
 }
 
-async function withSecurityHeaders(response: Response, request?: Request): Promise<Response> {
+async function withSecurityHeaders(
+  response: Response,
+  request?: Request,
+  env?: RuntimePublicEnv,
+): Promise<Response> {
   let secured = new Response(response.body, response);
   const isHtml = secured.headers.get('Content-Type')?.toLowerCase().includes('text/html') ?? false;
   const nonce = isHtml ? createCspNonce() : undefined;
@@ -58,10 +67,12 @@ async function withSecurityHeaders(response: Response, request?: Request): Promi
   const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
   if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
   if (nonce) {
+    const publicAttributes = getRuntimePublicAttributes(env);
     if (typeof HTMLRewriter === 'undefined') {
       const html = await secured.text();
       secured = new Response(
-        html.replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`),
+        addRuntimePublicAttributesToHtml(html, publicAttributes)
+          .replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`),
         {
           status: secured.status,
           statusText: secured.statusText,
@@ -70,7 +81,15 @@ async function withSecurityHeaders(response: Response, request?: Request): Promi
       );
       return secured;
     }
-    secured = new HTMLRewriter()
+    let rewriter = new HTMLRewriter();
+    if (publicAttributes) {
+      rewriter = rewriter.on('html', {
+        element: element => {
+          Object.entries(publicAttributes).forEach(([name, value]) => element.setAttribute(name, value));
+        },
+      });
+    }
+    secured = rewriter
       .on('script', { element: element => element.setAttribute('nonce', nonce) })
       .transform(secured);
   }
@@ -83,10 +102,10 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/api/marketing/lead') {
-      return await withSecurityHeaders(await captureMarketingLead(request, env), request);
+      return await withSecurityHeaders(await captureMarketingLead(request, env), request, env);
     }
     if (url.pathname === '/api/reopening-waitlist') {
-      return await withSecurityHeaders(await captureReopeningWaitlist(request, env), request);
+      return await withSecurityHeaders(await captureReopeningWaitlist(request, env), request, env);
     }
     if (url.pathname === '/_vinext/image') {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -105,9 +124,9 @@ export default {
           },
         },
         allowedWidths,
-      ), request);
+      ), request, env);
     }
-    return await withSecurityHeaders(await handler.fetch(request, env, ctx), request);
+    return await withSecurityHeaders(await handler.fetch(request, env, ctx), request, env);
   },
   async scheduled(_controller: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
     if (!env.DB) {
@@ -120,7 +139,7 @@ export default {
           console.info(JSON.stringify({ event: 'lead_rate_limit_cleanup', deleted }));
         })
         .catch(() => {
-          console.error(JSON.stringify({ event: 'lead_rate_limit_cleanup_failed' }));
+          emitLeadSecurityEvent({ event: 'lead_rate_limit_cleanup_failed' });
         }),
     );
   },

@@ -17,6 +17,7 @@ export interface D1Binding {
 export interface LeadAbuseEnv {
   DB?: D1Binding;
   LEAD_RATE_LIMIT_SALT?: string;
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
 }
 
@@ -24,6 +25,31 @@ export const LEAD_RATE_WINDOW_SECONDS = 600;
 export const LEAD_RATE_LIMIT_RETENTION_HOURS = 24;
 export const LEAD_RATE_LIMIT_CLEANUP_BATCH = 500;
 export const TURNSTILE_ACTION = 'marketing_lead';
+
+export type LeadSecurityEvent =
+  | { event: 'lead_turnstile_configuration_failure' }
+  | { event: 'lead_rate_limit_cleanup_failed' }
+  | { event: 'lead_capture_persistence_failed' }
+  | {
+    event: 'lead_rate_limited';
+    activity: 'sustained';
+    threshold: 'hard';
+    window: number;
+  };
+
+export function emitLeadSecurityEvent(event: LeadSecurityEvent): void {
+  const severity = event.event === 'lead_rate_limited' ? 'warning' : 'error';
+  const message = JSON.stringify({ schema_version: 1, severity, ...event });
+  if (event.event === 'lead_rate_limited') console.warn(message);
+  else console.error(message);
+}
+
+function hasTurnstileConfiguration(env: LeadAbuseEnv): boolean {
+  return Boolean(
+    env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() &&
+    env.TURNSTILE_SECRET_KEY?.trim(),
+  );
+}
 
 export function leadResponse(
   body: Record<string, unknown>,
@@ -91,6 +117,10 @@ export async function enforceLeadRateLimit(
     console.error(JSON.stringify({ event: 'lead_rate_limit_unavailable' }));
     return leadResponse({ error: 'Email signup is temporarily unavailable.' }, 503);
   }
+  if (!hasTurnstileConfiguration(env)) {
+    emitLeadSecurityEvent({ event: 'lead_turnstile_configuration_failure' });
+    return leadResponse({ error: 'Security verification is temporarily unavailable.' }, 503);
+  }
 
   const key = await privacySafeRateKey(request, env.LEAD_RATE_LIMIT_SALT);
   // Preserve the existing millisecond window keys so in-flight production
@@ -110,7 +140,14 @@ export async function enforceLeadRateLimit(
   const count = Number(row?.request_count || 1);
 
   if (leadRateDecision(count, false) === 'deny') {
-    console.warn(JSON.stringify({ event: 'lead_rate_limited', window: windowStart, threshold: 'hard' }));
+    if (count === 21) {
+      emitLeadSecurityEvent({
+        event: 'lead_rate_limited',
+        activity: 'sustained',
+        threshold: 'hard',
+        window: windowStart,
+      });
+    }
     return leadResponse(
       { error: 'Too many requests. Try again later.' },
       429,

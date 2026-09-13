@@ -1,4 +1,5 @@
 import {
+  emitLeadSecurityEvent,
   enforceLeadRateLimit,
   leadResponse,
   type D1Binding,
@@ -13,18 +14,75 @@ const LEAD_OFFER = 'evidence-first-agency-starter-kit';
 const LEAD_CONSENT = 'Send me the Evidence-First Agency Starter Kit and occasional FixMy.Money product and workflow emails. I can unsubscribe at any time.';
 const REOPENING_OFFER = 'reopening-one-month-free-2026-10-25';
 const REOPENING_CONSENT = 'Notify me when FixMy.Money reopens on October 25, 2026 and reserve my eligibility for one full month free when I activate after reopening.';
+export const LEAD_REQUEST_MAX_BYTES = 4096;
+
+type LeadPayload = {
+  email?: unknown;
+  source?: unknown;
+  website?: unknown;
+  challengeToken?: unknown;
+};
+
+type LeadPayloadResult =
+  | { payload: LeadPayload; response?: never }
+  | { payload?: never; response: Response };
+
+async function readLeadPayload(request: Request): Promise<LeadPayloadResult> {
+  const declaredLength = request.headers.get('content-length');
+  if (declaredLength !== null) {
+    if (!/^\d+$/.test(declaredLength)) {
+      return { response: leadResponse({ error: 'Invalid request.' }, 400) };
+    }
+    if (Number(declaredLength) > LEAD_REQUEST_MAX_BYTES) {
+      return { response: leadResponse({ error: 'Request is too large.' }, 413) };
+    }
+  }
+
+  if (!request.body) {
+    return { response: leadResponse({ error: 'Invalid request.' }, 400) };
+  }
+
+  const reader = request.body.getReader();
+  const bytes = new Uint8Array(LEAD_REQUEST_MAX_BYTES);
+  let bytesRead = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      if (value.byteLength > LEAD_REQUEST_MAX_BYTES - bytesRead) {
+        await reader.cancel().catch(() => undefined);
+        return { response: leadResponse({ error: 'Request is too large.' }, 413) };
+      }
+      bytes.set(value, bytesRead);
+      bytesRead += value.byteLength;
+    }
+  } catch {
+    return { response: leadResponse({ error: 'Invalid request.' }, 400) };
+  } finally {
+    reader.releaseLock();
+  }
+
+  try {
+    const parsed = JSON.parse(
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, bytesRead)),
+    ) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { response: leadResponse({ error: 'Invalid request.' }, 400) };
+    }
+    return { payload: parsed as LeadPayload };
+  } catch {
+    return { response: leadResponse({ error: 'Invalid request.' }, 400) };
+  }
+}
 
 async function captureLead(request: Request, env: LeadCaptureEnv, options: { offer: string; consent: string; defaultSource: string; success: Record<string, unknown> }): Promise<Response> {
   if (request.method !== 'POST') return leadResponse({ error: 'Method not allowed.' }, 405);
+  const body = await readLeadPayload(request);
+  if (body.response) return body.response;
   if (!env.DB) return leadResponse({ error: 'Email signup is temporarily unavailable.' }, 503);
-  if (Number(request.headers.get('content-length') || '0') > 4096) return leadResponse({ error: 'Request is too large.' }, 413);
-
-  let payload: { email?: unknown; source?: unknown; website?: unknown; challengeToken?: unknown };
-  try {
-    payload = await request.json() as typeof payload;
-  } catch {
-    return leadResponse({ error: 'Invalid request.' }, 400);
-  }
+  const payload = body.payload;
   // Honeypot fields are treated as successful so bots do not learn how to bypass them.
   if (typeof payload.website === 'string' && payload.website.trim()) return leadResponse({ ok: true });
 
@@ -45,8 +103,8 @@ async function captureLead(request: Request, env: LeadCaptureEnv, options: { off
          last_requested_at = CURRENT_TIMESTAMP,
          request_count = marketing_leads.request_count + 1`
     ).bind(email, options.offer, source, options.consent).run();
-  } catch (error) {
-    console.error('[LeadCapture] Failed to save signup.', error);
+  } catch {
+    emitLeadSecurityEvent({ event: 'lead_capture_persistence_failed' });
     return leadResponse({ error: 'We could not save your signup. Please try again.' }, 500);
   }
   return leadResponse({ ok: true, ...options.success });
