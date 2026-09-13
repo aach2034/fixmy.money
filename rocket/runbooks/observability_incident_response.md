@@ -14,10 +14,12 @@
 
 ## Production routing decision
 
-- No monitoring provider is currently selected. Production requires an external HTTPS health checker that can send `X-Healthcheck-Secret`, alert after two consecutive readiness failures, and resolve the alert after recovery.
-- The provider-agnostic alert adapter uses `MONITORING_ALERT_WEBHOOK_URL` and optional secret `MONITORING_ALERT_WEBHOOK_TOKEN`. The destination may be a platform-native webhook, an incident-routing webhook, or an operator-controlled alert receiver; the production owner must select the destination and recipients before deployment.
-- Verify trigger and recovery delivery with authenticated `POST /api/internal/monitoring/test-alert` requests whose JSON state is `triggered` and then `resolved`. Never include customer content in either request.
-- The least-infrastructure option is an existing hosting/platform monitor capable of authenticated health polling and HTTPS webhook delivery. If that capability is unavailable, select an external uptime/incident provider before production authorization.
+- Better Stack is the production uptime and readiness provider. Monitor `4898718` checks `https://fixmy.money/` every three minutes with a 30-second timeout, five-minute incident confirmation, three-minute recovery confirmation, TLS verification, and checks from Europe, North America, Asia, and Australia. TLS-certificate and domain-expiration warnings are set to 30 days.
+- Better Stack monitor `4898742` checks `GET https://fixmy.money/api/health?ready=1` every minute with a 30-second timeout, one-minute incident confirmation, immediate recovery, and the same four regions. It sends the protected `X-Healthcheck-Secret` header. The credential must never be copied into this runbook, a URL, logs, browser artifacts, or source control.
+- Adam Hamilton owns both monitors and is the primary responder through the existing Better Stack email notification path. Changes to ownership or escalation require an explicit operational handoff.
+- The protected readiness body contains only `status`, a content-free `request_id`, and fixed `database` and `stripe` dependency names with boolean health values. It must not expose URLs, credentials, latency, exception text, customer or account data, database details, or internal traces.
+- Sites Worker logs are the current source for application-error investigation. Correlate using the privacy-safe request ID; do not copy protected readiness credentials or customer content.
+- The provider-agnostic alert adapter uses the protected `MONITORING_ALERT_WEBHOOK_URL`. Live Worker-to-Better-Stack alert delivery remains deferred under the FMM-023 owner risk exception: verify the first organic structured event and reopen FMM-023 immediately if delivery fails. Do not manufacture production abuse traffic solely to close that evidence gap.
 
 ## Triage and recovery
 
