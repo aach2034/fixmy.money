@@ -65,8 +65,8 @@ describe('anomaly findings workflow', () => {
     expect(audit).toContain('item.findings.map');
     expect(audit).toContain('finding.disputeReason');
     expect(wizard).toContain('scoreDisputeStrength(negativeData).filter(belongsToSelectedBureau)');
-    expect(wizard).toContain('formatAnomalyFindingsForLetter(item.findings)');
+    expect(wizard).toContain('buildConsumerBureauLetter');
     expect(letterForm).toContain('scoreDisputeStrength(availableNegativeRows).filter(belongsToSelectedBureau)');
-    expect(letterForm).toContain('formatAnomalyFindingsForLetter(item.findings ?? [])');
+    expect(letterForm).toContain('buildConsumerBureauLetter');
   });
 });

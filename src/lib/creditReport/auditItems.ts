@@ -364,15 +364,16 @@ function emptyStrength(item: SavedAuditItem): DisputeStrengthResult {
 
 export function scoreDisputeStrength<T extends SavedAuditItem>(items: T[]): ScoredAuditItem<T>[] {
   const normalized = items.map(asNormalizedAccount);
-  const issueByRawId = new Map<string, DetectedIssueDraft[]>();
+  const issueByRawId = new Map<string, Array<{ issue: DetectedIssueDraft; sourceRowIds: string[] }>>();
 
   for (const account of normalizeCrossBureauAccounts(normalized)) {
     const issues = detectPotentialIssues(account);
+    const sourceRowIds = account.tradelines.map(row => row.rawAccountId).filter((id): id is string => Boolean(id));
     for (const issue of issues) {
       const affected = new Set(issue.affectedBureaus.map(String));
       for (const tradeline of account.tradelines) {
         if (affected.has(String(tradeline.bureau)) && tradeline.rawAccountId) {
-          issueByRawId.set(tradeline.rawAccountId, [...(issueByRawId.get(tradeline.rawAccountId) ?? []), issue]);
+          issueByRawId.set(tradeline.rawAccountId, [...(issueByRawId.get(tradeline.rawAccountId) ?? []), { issue, sourceRowIds }]);
         }
       }
     }
@@ -380,13 +381,13 @@ export function scoreDisputeStrength<T extends SavedAuditItem>(items: T[]): Scor
 
   return items.map((item, index) => {
     const id = item.id ?? `audit-${index}`;
-    const issues = [...(issueByRawId.get(id) ?? [])].sort((a, b) => scoreIssue(b) - scoreIssue(a));
-    const strongest = issues[0];
+    const issueEntries = [...(issueByRawId.get(id) ?? [])].sort((a, b) => scoreIssue(b.issue) - scoreIssue(a.issue));
+    const strongest = issueEntries[0]?.issue;
     if (!strongest) return { ...item, disputeStrength: emptyStrength(item) };
 
     const score = scoreIssue(strongest);
     const strengthLabel: DisputeStrengthLabel = score >= 80 ? 'Strong' : score >= 55 ? 'Moderate' : 'Weak';
-    const findings = issues.map(finding => {
+    const findings = issueEntries.map(({ issue: finding, sourceRowIds }) => {
       const findingScore = scoreIssue(finding);
       return {
         issueType: finding.issueType,
@@ -397,6 +398,10 @@ export function scoreDisputeStrength<T extends SavedAuditItem>(items: T[]): Scor
         disputeReason: finding.disputeReason,
         strengthLabel: (findingScore >= 80 ? 'Strong' : findingScore >= 55 ? 'Moderate' : 'Weak') as DisputeStrengthLabel,
         score: findingScore,
+        affectedBureaus: finding.affectedBureaus.map(String),
+        reportedDataByBureau: finding.reportedData,
+        sourceRowIds,
+        isAmbiguous: finding.affectedBureaus.length > 1,
       };
     });
 
