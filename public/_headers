@@ -1,9 +1,4 @@
-# Vinext emits generated JS, CSS, and font chunks as one-segment /assets files.
-# Stable public assets live below nested paths and retain Cloudflare's default
-# ETag-backed `public, max-age=0, must-revalidate` policy.
-/assets/:fingerprinted
-  Cache-Control: public, max-age=31536000, immutable
-
-# Vinext's generated font optimizer uses two content-addressed path segments.
-/assets/_vinext_fonts/:family/:fingerprinted
-  Cache-Control: public, max-age=31536000, immutable
+# Keep every static asset revalidating unless the application Worker verifies
+# the exact content fingerprint and overrides this safe default.
+/assets/*
+  Cache-Control: public, max-age=0, must-revalidate
