@@ -104,7 +104,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (
-      env.ASSETS &&
+      env?.ASSETS &&
       (request.method === 'GET' || request.method === 'HEAD') &&
       url.pathname.startsWith('/assets/')
     ) {

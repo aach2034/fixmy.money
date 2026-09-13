@@ -43,6 +43,7 @@ describe('FMM-017 immutable asset delivery', () => {
     const nextConfig = readFileSync('next.config.mjs', 'utf8');
     const staticHeaders = readFileSync('public/_headers', 'utf8');
     const viteConfig = readFileSync('vite.config.ts', 'utf8');
+    const workerEntry = readFileSync('worker/index.ts', 'utf8');
 
     expect(nextConfig).not.toMatch(/source:\s*['"]\/(?:_next\/static|assets)\//);
     expect(viteConfig).toContain('binding: "ASSETS"');
@@ -50,6 +51,7 @@ describe('FMM-017 immutable asset delivery', () => {
     expect(viteConfig).toContain('"/assets/*.js"');
     expect(viteConfig).toContain('"/assets/*.woff2"');
     expect(viteConfig).not.toContain('"/assets/*"');
+    expect(workerEntry).toContain('env?.ASSETS');
     expect(staticHeaders).toContain('/assets/*');
     expect(staticHeaders).toContain('public, max-age=0, must-revalidate');
     expect(staticHeaders).not.toContain('immutable');
