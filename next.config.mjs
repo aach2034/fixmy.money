@@ -18,36 +18,6 @@ const nextConfig = {
         source: '/:path(dashboard|admin|api|checkout|onboarding|workspace-setup|settings|client-portal/dashboard)/:rest*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }],
       },
-      {
-        // Long-lived immutable cache for all Next.js static chunks (JS, CSS, fonts)
-        source: '/_next/static/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        // Long-lived cache for public static assets (images, fonts, icons)
-        source: '/assets/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        // Cache favicon
-        source: '/favicon.ico',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=86400, stale-while-revalidate=604800',
-          },
-        ],
-      },
     ];
   },
   async redirects() {
