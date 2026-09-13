@@ -64,7 +64,9 @@ async function withSecurityHeaders(
   secured.headers.set('X-Frame-Options', 'DENY');
   secured.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   secured.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")');
-  const cacheControl = request ? immutableAssetCacheControl(new URL(request.url).pathname) : null;
+  const cacheControl = (secured.ok || secured.status === 304) && request
+    ? immutableAssetCacheControl(new URL(request.url).pathname)
+    : null;
   if (cacheControl) secured.headers.set('Cache-Control', cacheControl);
   if (nonce) {
     const publicAttributes = getRuntimePublicAttributes(env);
@@ -101,6 +103,13 @@ export { captureMarketingLead, captureReopeningWaitlist, withSecurityHeaders };
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    if (
+      env?.ASSETS &&
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      url.pathname.startsWith('/assets/')
+    ) {
+      return await withSecurityHeaders(await env.ASSETS.fetch(request), request, env);
+    }
     if (url.pathname === '/api/marketing/lead') {
       return await withSecurityHeaders(await captureMarketingLead(request, env), request, env);
     }

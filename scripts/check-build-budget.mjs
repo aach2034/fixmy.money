@@ -36,7 +36,23 @@ if (
   console.error('FMM-023 hourly rate-limit cleanup trigger is missing from the Worker build.');
   failed = true;
 }
+
+const expectedWorkerFirstAssetRoutes = [
+  '/assets/*.css',
+  '/assets/*.js',
+  '/assets/*.woff2',
+];
+if (
+  workerConfig?.assets?.binding !== 'ASSETS' ||
+  JSON.stringify(workerConfig?.assets?.run_worker_first) !==
+    JSON.stringify(expectedWorkerFirstAssetRoutes)
+) {
+  console.error(
+    'FMM-017 fingerprinted asset classes are not routed through the header-authoritative Worker.',
+  );
+  failed = true;
+}
 if (failed) {
-  console.error('Build-size budget exceeded. Investigate or explicitly review the budget change.');
+  console.error('Build release gate failed. Investigate or explicitly review the change.');
   process.exit(1);
 }
