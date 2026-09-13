@@ -339,9 +339,12 @@ describe('FMM-023 lead abuse controls', () => {
     expect(abortedDb.prepareCount).toBe(0);
   });
 
-  it('emits fixed privacy-safe cleanup alerts and packages the hourly trigger', () => {
+  it('emits fixed privacy-safe cleanup alerts and packages the hourly trigger', async () => {
     const failure = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    emitLeadSecurityEvent({ event: 'lead_rate_limit_cleanup_failed' });
+    await emitLeadSecurityEvent(
+      { event: 'lead_rate_limit_cleanup_failed' },
+      {},
+    );
     expect(JSON.parse(String(failure.mock.calls[0]?.[0]))).toEqual({
       schema_version: 1,
       severity: 'error',
@@ -349,8 +352,33 @@ describe('FMM-023 lead abuse controls', () => {
     });
     const worker = fs.readFileSync('worker/index.ts', 'utf8');
     const vite = fs.readFileSync('vite.config.ts', 'utf8');
-    expect(worker).toContain("emitLeadSecurityEvent({ event: 'lead_rate_limit_cleanup_failed' })");
+    expect(worker).toContain("event: 'lead_rate_limit_cleanup_failed'");
     expect(vite).toContain('crons: ["0 * * * *"]');
+  });
+
+  it('delivers FMM-023 events through the existing privacy-safe HTTPS adapter', async () => {
+    const delivery = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 202 }));
+
+    expect(await emitLeadSecurityEvent({
+      event: 'lead_rate_limited',
+      activity: 'sustained',
+      threshold: 'hard',
+      window: 1_789_280_000_000,
+    }, {
+      MONITORING_ALERT_WEBHOOK_URL: 'https://alerts.example.test/events',
+    })).toBe('delivered');
+
+    expect(delivery).toHaveBeenCalledTimes(1);
+    const [destination, request] = delivery.mock.calls[0] as [URL, RequestInit];
+    expect(destination.href).toBe('https://alerts.example.test/events');
+    const payload = JSON.parse(String(request.body)) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      schema_version: 1,
+      event: 'lead_rate_limited',
+      severity: 'warning',
+      state: 'triggered',
+    });
+    expect(JSON.stringify(payload)).not.toMatch(/email|ip|token|secret|turnstile|request_body/i);
   });
 
   it('removes only rows older than 24 hours and preserves boundary rows and leads', async () => {
