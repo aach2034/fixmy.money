@@ -56,7 +56,7 @@ describe('anomaly findings workflow', () => {
     expect(output).toContain('correct the date opened');
   });
 
-  it('renders additional Credit Audit findings and preserves them through both letter paths', () => {
+  it('renders findings for review while all letter paths use the canonical server boundary', () => {
     const read = (file: string) => readFileSync(path.join(process.cwd(), file), 'utf8');
     const audit = read('src/app/credit-audit/components/CreditAuditContent.tsx');
     const wizard = read('src/app/dispute-wizard/components/DisputeWizardContent.tsx');
@@ -65,8 +65,21 @@ describe('anomaly findings workflow', () => {
     expect(audit).toContain('item.findings.map');
     expect(audit).toContain('finding.disputeReason');
     expect(wizard).toContain('scoreDisputeStrength(negativeData).filter(belongsToSelectedBureau)');
-    expect(wizard).toContain('formatAnomalyFindingsForLetter(item.findings)');
+    expect(wizard).toContain("fetch('/api/dispute-letters/generate'");
     expect(letterForm).toContain('scoreDisputeStrength(availableNegativeRows).filter(belongsToSelectedBureau)');
-    expect(letterForm).toContain('formatAnomalyFindingsForLetter(item.findings ?? [])');
+    expect(letterForm).toContain("fetch('/api/dispute-letters/generate'");
+    expect(wizard).not.toContain('formatAnomalyFindingsForLetter');
+    expect(letterForm).not.toContain('formatAnomalyFindingsForLetter');
+  });
+
+  it('preserves the stored negative-item provenance identifier when normalizing bureau tradelines', () => {
+    const source = readFileSync(
+      path.join(process.cwd(), 'src/app/api/credit-report/evidence-engine/route.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain(".from('negative_items')");
+    expect(source).toContain(".eq('report_id', parsedReportId)");
+    expect(source).toContain('source_negative_item_id: row.rawAccountId');
   });
 });

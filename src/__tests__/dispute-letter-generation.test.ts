@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildFallbackLetter } from '../app/dispute-letter-management/components/GenerateLetterForm';
+import { buildCanonicalDisputeLetter, type StoredNegativeItem } from '../lib/disputes/canonicalLetter';
 import { deduplicateSupportingDocuments, requestedActionForIssueTypes } from '../lib/disputes/letterPresentation';
 import {
   buildConsumerSenderBlock,
@@ -23,26 +23,31 @@ const sender = getLetterSenderInfo({
   email: 'jordan@example.com',
 });
 
-const disputeItem = {
-  id: 'item-1',
-  label: '1ST DIGITAL/SYNOVUS/VT - Collection Account',
-  type: 'Collection Account',
-  amount: '$1,284',
-  bureau: 'Equifax',
-  disputeReason: 'Incorrect balance',
-  template: 'FCRA Section 611',
-  creditorName: '1ST DIGITAL/SYNOVUS/VT',
-  accountNumber: '****8812',
-  reportingStatus: 'Paid/Closed',
-  strongestAnomaly: 'A tradeline that appears paid, settled, or closed is also reporting a positive balance.',
-  reportedDataSummary: 'Status and Current Balance: Equifax: Status: Paid/Closed; Current Balance: $1,284.',
-  disputeBasis: 'The account is being reported with a paid, settled, or closed status while also carrying a positive outstanding balance.',
-  isRecommended: true,
-  dateOpened: '2022-02-01',
-  dateReported: '2026-08-01',
-  dateLastActivity: '',
-  source: 'negative_items' as const,
-};
+const storedRows: StoredNegativeItem[] = [
+  {
+    id: 'item-equifax', owner_id: 'owner-test', client_id: 'client-test', report_id: 'report-test', credit_account_id: 'account-test',
+    bureau: 'Equifax', creditor_name: '1ST DIGITAL/SYNOVUS/VT', furnisher_name: '1ST DIGITAL/SYNOVUS/VT',
+    account_number_masked: '****8812', account_type: 'Collection Account', status: 'Open',
+    balance: 1284, past_due: 0, date_opened: '2022-02-01', date_reported: '2026-08-01',
+    negative_category: 'collection', negative_reason: 'Stored report flag', is_negative: true, is_collection: true,
+    parser_confidence: 95,
+  },
+  {
+    id: 'item-experian', owner_id: 'owner-test', client_id: 'client-test', report_id: 'report-test', credit_account_id: 'account-test',
+    bureau: 'Experian', creditor_name: '1ST DIGITAL/SYNOVUS/VT', furnisher_name: '1ST DIGITAL/SYNOVUS/VT',
+    account_number_masked: '****8812', account_type: 'Collection Account', status: 'Open',
+    balance: 0, past_due: 0, date_opened: '2022-02-01', date_reported: '2026-08-01',
+    negative_category: 'collection', negative_reason: 'Stored report flag', is_negative: true, is_collection: true,
+    parser_confidence: 95,
+  },
+];
+
+function canonicalLetter() {
+  return buildCanonicalDisputeLetter({
+    sender: sender!, bureau: 'Equifax', letterReference: 'EQ-1001', generatedOn: new Date('2026-09-13T12:00:00Z'),
+    selectedEvidenceIds: ['item-equifax'], evidenceRows: storedRows,
+  });
+}
 
 function senderBlockFrom(letter: string): string {
   return letter.split(/\n\n/)[0];
@@ -51,15 +56,7 @@ function senderBlockFrom(letter: string): string {
 describe('dispute letter generation', () => {
   it('builds generated letters without the FixMy.Money disclaimer footer', () => {
     expect(sender).not.toBeNull();
-    const letter = buildFallbackLetter({
-      sender: sender!,
-      bureau: 'Equifax',
-      template: 'FCRA Section 611',
-      round: 1,
-      items: [disputeItem],
-      notes: '',
-      letterId: 'EQ-1001',
-    });
+    const letter = canonicalLetter().letterContent!;
 
     expect(letterContainsGeneratedDisclaimer(letter)).toBe(false);
     expect(letter).not.toContain('LETTER NOTICE');
@@ -77,23 +74,14 @@ describe('dispute letter generation', () => {
     ]);
   });
 
-  it('places one requested action after all findings at the account level', () => {
-    const letter = buildFallbackLetter({
-      sender: sender!, bureau: 'Equifax', template: 'FCRA Section 611', round: 1,
-      items: [{
-        ...disputeItem,
-        findings: [
-          { issueType: 'balance_discrepancy', title: 'Balance mismatch', discrepancy: 'Balances differ.', reportedData: 'Equifax: $100; Experian: $0', factualBasis: 'Balances conflict.', disputeReason: 'Correct the balance.', strengthLabel: 'Moderate', score: 70 },
-          { issueType: 'past_due_discrepancy', title: 'Past-due mismatch', discrepancy: 'Past-due amounts differ.', reportedData: 'Equifax: $100; Experian: $0', factualBasis: 'Past-due amounts conflict.', disputeReason: 'Correct the past-due amount.', strengthLabel: 'Moderate', score: 65 },
-        ],
-      }],
-      notes: '', letterId: 'EQ-1001',
-    });
-
-    expect(letter.indexOf('Requested Action:')).toBeGreaterThan(letter.indexOf('Finding 2: Past-due mismatch'));
-    expect(letter.match(/Requested Action:/g)).toHaveLength(1);
-    expect(letter).toContain('Finding 1: Balance mismatch');
-    expect(letter).toContain('Finding 2: Past-due mismatch');
+  it('maps each substantive paragraph to stored field-level provenance', () => {
+    const result = canonicalLetter();
+    expect(result.paragraphs).toHaveLength(1);
+    expect(result.letterContent?.match(/Requested action:/g)).toHaveLength(1);
+    expect(result.paragraphs[0]).toEqual(expect.objectContaining({
+      disputedField: 'Current balance',
+      sourceEvidenceIds: ['item-equifax', 'item-experian'],
+    }));
   });
 
   it('keeps ordinary findings correction-first and deletion limited to existing obsolete-reporting logic', () => {
@@ -105,16 +93,9 @@ describe('dispute letter generation', () => {
     expect(requestedActionForIssueTypes(['potentially_obsolete_reporting'])).toBe('Delete this item from my credit report');
   });
 
-  it('renders account enums and FCRA timing as cautious customer-facing language', () => {
-    const letter = buildFallbackLetter({
-      sender: sender!, bureau: 'Equifax', template: 'FCRA Section 611', round: 1,
-      items: [{ ...disputeItem, type: 'charge_off' }], notes: '', letterId: 'EQ-1001',
-    });
-
-    expect(letter).toContain('Item Type: Charge-off');
-    expect(letter).not.toContain('charge_off');
-    expect(letter).toContain('within the applicable period required by the FCRA');
-    expect(letter).not.toContain('within 30 days as required by law');
+  it('does not invent a legal deadline, violation, or template-specific allegation', () => {
+    const letter = canonicalLetter().letterContent!;
+    expect(letter).not.toMatch(/within 30 days|required by law|civil liability|legal violation|identity theft|fraud/i);
   });
 
   it('uses the selected client profile for the consumer sender identity', () => {
@@ -231,15 +212,7 @@ describe('dispute letter generation', () => {
 
   it('keeps creditor names and bureau addresses out of the consumer sender block', () => {
     expect(sender).not.toBeNull();
-    const letter = buildFallbackLetter({
-      sender: sender!,
-      bureau: 'Equifax',
-      template: 'FCRA Section 611',
-      round: 1,
-      items: [disputeItem],
-      notes: '',
-      letterId: 'EQ-1001',
-    });
+    const letter = canonicalLetter().letterContent!;
     const header = senderBlockFrom(letter);
 
     expect(header).not.toContain('1ST DIGITAL/SYNOVUS/VT');
@@ -250,19 +223,11 @@ describe('dispute letter generation', () => {
 
   it('keeps bureau and creditor information in their intended sections', () => {
     expect(sender).not.toBeNull();
-    const letter = buildFallbackLetter({
-      sender: sender!,
-      bureau: 'Equifax',
-      template: 'FCRA Section 611',
-      round: 1,
-      items: [disputeItem],
-      notes: '',
-      letterId: 'EQ-1001',
-    });
+    const letter = canonicalLetter().letterContent!;
 
     expect(letter).toContain('Equifax Information Services LLC');
     expect(letter).toContain('P.O. Box 740256');
-    expect(letter).toContain('Creditor / Furnisher: 1ST DIGITAL/SYNOVUS/VT');
+    expect(letter).toContain('1ST DIGITAL/SYNOVUS/VT — account ****8812');
   });
 
   it('does not keep hardcoded Adam Hamilton or disclaimer text in generator templates', () => {

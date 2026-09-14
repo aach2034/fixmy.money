@@ -191,29 +191,36 @@ describe('canonical client mailing address handoff', () => {
 
   it('loads the selected persisted client address instead of report personal information', () => {
     const wizard = read('src/app/dispute-wizard/components/DisputeWizardContent.tsx');
+    const generationRoute = read('src/app/api/dispute-letters/generate/route.ts');
     const audit = read('src/app/credit-audit/components/CreditAuditContent.tsx');
     const preparation = read('src/app/dispute-letter-management/components/GenerateLetterForm.tsx');
 
     expect(wizard).toContain(".select('id, name, email, phone, address, city, state, zip')");
-    expect(wizard).toContain("const sender = getLetterSenderInfo(persistedClient)");
     expect(wizard).toContain(".eq('id', selectedClient.id)");
+    expect(generationRoute).toContain(".select('id, owner_id, workspace_id, name, email, phone, address, city, state, zip')");
+    expect(generationRoute).toContain(".eq('id', context.authorization.clientId)");
+    expect(generationRoute).toContain('const sender = getLetterSenderInfo(client)');
     expect(audit).toContain(".select('id, name, email, address, city, state, zip')");
     expect(preparation).toContain(".select('id, name, email, phone, address, city, state, zip')");
     expect(wizard).not.toMatch(/personalInfo\.(?:address|addresses)/);
+    expect(generationRoute).not.toMatch(/personalInfo\.(?:address|addresses)/);
   });
 });
 
 describe('wizard draft persistence handoff', () => {
   const wizard = read('src/app/dispute-wizard/components/DisputeWizardContent.tsx');
+  const generationRoute = read('src/app/api/dispute-letters/generate/route.ts');
   const letters = read('src/app/dispute-letter-management/components/DisputeLetterContent.tsx');
 
   it('does not report success until the persisted draft row and its database id are returned', () => {
-    expect(wizard).toContain("from('dispute_letters').insert({");
-    expect(wizard).toContain("letter_status: 'draft'");
-    expect(wizard).toContain('letter_content: letterContent');
-    expect(wizard).toContain("}).select('id, letter_id').single()");
-    expect(wizard).toContain("if (insertError || !savedLetter?.id)");
-    expect(wizard.indexOf('setGeneratedLetter({ id: savedLetter.id')).toBeGreaterThan(wizard.indexOf("if (insertError || !savedLetter?.id)"));
+    expect(generationRoute).toContain("from('dispute_letters').insert(");
+    expect(generationRoute).toContain("letter_status: 'draft'");
+    expect(generationRoute).toContain('letter_content: value.result.letterContent');
+    expect(generationRoute).toContain('const letterError = insertion.error');
+    expect(generationRoute).toContain('if (letterError)');
+    expect(generationRoute.indexOf('return params.prepared.map')).toBeGreaterThan(generationRoute.indexOf('if (letterError)'));
+    expect(wizard).toContain('if (result?.status === \'review_required\' || !result?.letters?.[0])');
+    expect(wizard.indexOf('setGeneratedLetter({ id: savedLetter.id')).toBeGreaterThan(wizard.indexOf("if (result?.status === 'review_required' || !result?.letters?.[0])"));
   });
 
   it('opens the exact saved draft from the final CTA and after the Drafts query reloads', () => {
