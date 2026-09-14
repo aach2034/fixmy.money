@@ -5,6 +5,8 @@ import { FileText, Download, Send, Loader2, CheckCircle2, AlertTriangle, ArrowLe
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
+import { createRoundLetterRequest } from '@/lib/disputes/letterGenerationBoundary';
+import { markLettersMailed } from '@/lib/disputes/letterOperationsClient';
 
 interface RoundItem {
   id: string;
@@ -50,62 +52,6 @@ const BUREAU_COLORS: Record<string, string> = {
   Experian: 'bureau-ex',
   TransUnion: 'bureau-tu',
 };
-
-function generateLetterContent(
-  bureau: string,
-  clientName: string,
-  items: RoundItem[],
-  roundNumber: number
-): string {
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const bureauAddresses: Record<string, string> = {
-    Equifax: 'Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256',
-    Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
-    TransUnion: 'TransUnion LLC\nConsumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
-  };
-
-  const itemsList = items.map((item, i) => `
-${i + 1}. Creditor/Furnisher: ${item.creditorName}
-   Account Type: ${item.accountType}
-   Negative Reason: ${item.negativeReason}
-   Dispute Reason: ${item.disputeReason || 'Account information inaccurate'}
-   Requested Action: ${item.disputeInstruction || 'Verify all information'}
-   ${item.accountNumberMasked ? `Account Reference: ${item.accountNumberMasked}` : ''}
-`).join('\n');
-
-  return `${today}
-
-${bureauAddresses[bureau] ?? bureau + ' Credit Bureau'}
-
-Re: Formal Dispute of Inaccurate Credit Information — Round ${roundNumber}
-Consumer: ${clientName}
-
-To Whom It May Concern:
-
-I am writing to formally dispute the following item(s) appearing on my credit report maintained by ${bureau}. Pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i, I request that you investigate and correct or remove the following inaccurate information:
-
-DISPUTED ITEMS:
-${itemsList}
-
-Under the FCRA, you are required to:
-1. Conduct a reasonable investigation of the disputed information within 30 days of receipt of this dispute.
-2. Forward all relevant information to the furnisher of the disputed information.
-3. Provide me with written results of the investigation.
-4. Delete or correct any information that cannot be verified.
-
-Please provide me with written confirmation of the results of your investigation. If you are unable to verify the accuracy of the disputed information, please delete it from my credit report immediately.
-
-I am requesting that you:
-- Investigate each item listed above
-- Provide the method of verification used
-- Send me an updated copy of my credit report reflecting any corrections
-
-Sincerely,
-
-${clientName}
-
-Enclosures: [Attach supporting documentation as needed]`;
-}
 
 export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundContentProps) {
   const router = useRouter();
@@ -168,7 +114,7 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
         mailedAt: row.mailed_at,
         responseDueDate: row.response_due_date,
       })));
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to load dispute round');
     } finally {
       setLoading(false);
@@ -183,68 +129,29 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-
-      // Group items by bureau
-      const bureauGroups: Record<string, RoundItem[]> = {};
-      for (const item of items) {
-        if (!bureauGroups[item.bureau]) bureauGroups[item.bureau] = [];
-        bureauGroups[item.bureau].push(item);
+      const response = await fetch('/api/dispute-letters/generate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createRoundLetterRequest({ clientId, roundId })),
+      });
+      const result = await response.json().catch(() => null) as {
+        status?: 'ready' | 'review_required';
+        error?: string;
+        exclusions?: Array<{ reason: string }>;
+        letters?: GeneratedLetter[];
+      } | null;
+      if (!response.ok) throw new Error(result?.error ?? 'The evidence-specific letters could not be generated.');
+      if (result?.status === 'review_required' || !result?.letters?.length) {
+        throw new Error(result?.exclusions?.[0]?.reason ?? 'The round requires human review because it has no supported structured evidence.');
       }
-
-      const newLetters: GeneratedLetter[] = [];
-
-      for (const [bureau, bureauItems] of Object.entries(bureauGroups)) {
-        if (bureauItems.length === 0) continue;
-
-        if (!clientName.trim()) throw new Error('Selected client profile is missing a consumer name.');
-        const content = generateLetterContent(bureau, clientName, bureauItems, round.roundNumber);
-        const responseDue = new Date();
-        responseDue.setDate(responseDue.getDate() + 30);
-
-        const { data: letter, error } = await supabase.from('generated_dispute_letters').insert({
-          owner_id: user.id,
-          client_id: clientId,
-          round_id: roundId,
-          bureau,
-          letter_content: content,
-          items_count: bureauItems.length,
-          items_summary: bureauItems.map(i => ({ creditor: i.creditorName, reason: i.disputeReason })),
-          status: 'generated',
-          response_due_date: responseDue.toISOString().split('T')[0],
-          days_remaining: 30,
-        }).select().single();
-
-        if (error) throw error;
-        newLetters.push({
-          id: letter.id,
-          bureau,
-          letterContent: content,
-          itemsCount: bureauItems.length,
-          status: 'generated',
-          mailedAt: null,
-          responseDueDate: responseDue.toISOString().split('T')[0],
-        });
-      }
-
-      // Update round status and letter count
-      await supabase.from('dispute_rounds').update({
-        status: 'generated',
-        letters_generated: newLetters.length,
-        updated_at: new Date().toISOString(),
-      }).eq('id', roundId);
-
-      // Update round items status
-      await supabase.from('dispute_round_items').update({ status: 'generated' }).eq('round_id', roundId);
-
-      // Update negative items status
-      const negItemIds = items.map(i => i.negativeItemId).filter((id): id is string => Boolean(id));
-      if (negItemIds.length > 0) {
-        await supabase.from('negative_items').update({ dispute_status: 'generated' }).in('id', negItemIds);
-      }
-
+      const newLetters = result.letters;
       setLetters(newLetters);
       setRound(prev => prev ? { ...prev, status: 'generated', lettersGenerated: newLetters.length } : prev);
-      toast.success(`${newLetters.length} dispute letter${newLetters.length !== 1 ? 's' : ''} generated`);
+      if ((result.exclusions?.length ?? 0) > 0) {
+        toast.warning(`${result.exclusions!.length} unsupported item${result.exclusions!.length === 1 ? '' : 's'} excluded for human review.`);
+      }
+      toast.success(`${newLetters.length} evidence-specific dispute letter${newLetters.length !== 1 ? 's' : ''} generated`);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to generate letters');
     } finally {
@@ -255,19 +162,19 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
   const markAsMailed = async (letterId: string) => {
     setSavingStatus(letterId);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const mailedAt = new Date().toISOString();
-      const followUp = new Date();
-      followUp.setDate(followUp.getDate() + 30);
-
-      await supabase.from('generated_dispute_letters').update({ status: 'sent', mailed_at: mailedAt }).eq('id', letterId);
-      await supabase.from('dispute_rounds').update({ status: 'sent', mailed_at: mailedAt, follow_up_date: followUp.toISOString() }).eq('id', roundId);
-
-      setLetters(prev => prev.map(l => l.id === letterId ? { ...l, status: 'sent', mailedAt } : l));
+      const result = await markLettersMailed({
+        source: 'generated_dispute_letters',
+        clientId,
+        letterIds: [letterId],
+      });
+      const updated = result.letters?.find(letter => letter.id === letterId) as { mailed_at?: string | null } | undefined;
+      setLetters(prev => prev.map(letter => letter.id === letterId
+        ? { ...letter, status: 'sent', mailedAt: updated?.mailed_at ?? letter.mailedAt }
+        : letter));
+      setRound(prev => prev ? { ...prev, status: 'sent' } : prev);
       toast.success('Letter marked as mailed. Follow-up reminder set for 30 days.');
-    } catch {
-      toast.error('Failed to update status');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update status');
     } finally {
       setSavingStatus(null);
     }
@@ -466,13 +373,13 @@ export default function DisputeRoundContent({ clientId, roundId }: DisputeRoundC
                   <button onClick={() => printLetter(letter)} className="btn-secondary text-xs flex items-center gap-1">
                     <Printer size={12} /> Print
                   </button>
-                  {letter.status !== 'sent' && (
+                  {letter.status === 'generated' && (
                     <button onClick={() => mailCertified(letter)} disabled={certifiedMailingId === letter.id} className="btn-secondary text-xs flex items-center gap-1">
                       {certifiedMailingId === letter.id ? <Loader2 size={12} className="animate-spin" /> : <MailCheck size={12} />}
                       Mail Certified
                     </button>
                   )}
-                  {letter.status !== 'sent' && (
+                  {letter.status === 'generated' && (
                     <button onClick={() => markAsMailed(letter.id)} disabled={savingStatus === letter.id} className="btn-primary text-xs flex items-center gap-1">
                       {savingStatus === letter.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                       Mark Mailed

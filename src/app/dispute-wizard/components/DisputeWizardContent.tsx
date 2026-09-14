@@ -8,10 +8,11 @@ import { useSearchParams } from 'next/navigation';
 import { scoreDisputeStrength } from '@/lib/creditReport/auditItems';
 import { deduplicateDisputeRows, getDisputeItemDates } from '@/lib/creditReport/disputeItems';
 import { DISPUTE_REASON_OPTIONS, rankDisputeItem } from '@/lib/disputes/reasonRanking';
-import { buildConsumerSenderBlock, formatMissingMailingAddressError, getLetterSenderInfo, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
-import { formatAnomalyFindingsForLetter, prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
-import { CORRECTION_FIRST_REQUESTED_ACTION, deduplicateSupportingDocuments, formatAccountType } from '@/lib/disputes/letterPresentation';
+import { formatMissingMailingAddressError, normalizeClientMailingAddress, toCanonicalMailingAddressUpdate } from '@/lib/disputes/letterSender';
+import { prepareAnomalyFindings, type AnomalyFindingView } from '@/lib/disputes/anomalyFindings';
+import { CORRECTION_FIRST_REQUESTED_ACTION } from '@/lib/disputes/letterPresentation';
 import { trackEvent, trackOrganicConversionStep } from '@/lib/analytics';
+import { createEvidenceLetterRequest } from '@/lib/disputes/letterGenerationBoundary';
 
 
 interface WizardClient {
@@ -146,7 +147,8 @@ export default function DisputeWizardContent() {
   const [disputeReason, setDisputeReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [instruction, setInstruction] = useState(CORRECTION_FIRST_REQUESTED_ACTION);
-  const [attachedDocs, setAttachedDocs] = useState<string[]>([]);
+  const [availableDocuments, setAvailableDocuments] = useState<Array<{ id: string; label: string }>>([]);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [clientAddress, setClientAddress] = useState('');
   const [clientCity, setClientCity] = useState('');
   const [clientState, setClientState] = useState('');
@@ -177,6 +179,27 @@ export default function DisputeWizardContent() {
     setClientCity(normalized.city);
     setClientState(normalized.state);
     setClientZip(normalized.postalCode);
+  }, [selectedClient]);
+
+  useEffect(() => {
+    if (!selectedClient) {
+      setAvailableDocuments([]);
+      setSelectedDocumentIds([]);
+      return;
+    }
+    let cancelled = false;
+    const loadVerifiedDocuments = async () => {
+      const response = await fetch(`/api/dispute-letters/generate?clientId=${encodeURIComponent(selectedClient.id)}`, {
+        credentials: 'same-origin',
+      });
+      const result = await response.json().catch(() => null) as { documents?: Array<{ id: string; label: string }> } | null;
+      if (!cancelled) {
+        setAvailableDocuments(response.ok ? result?.documents ?? [] : []);
+        setSelectedDocumentIds([]);
+      }
+    };
+    void loadVerifiedDocuments();
+    return () => { cancelled = true; };
   }, [selectedClient]);
 
   useEffect(() => {
@@ -390,8 +413,7 @@ export default function DisputeWizardContent() {
         .single();
       if (clientError || !persistedClient) throw new Error('Selected client profile could not be refreshed.');
 
-      const sender = getLetterSenderInfo(persistedClient);
-      if (!sender) throw new Error(formatMissingMailingAddressError(persistedClient) ?? 'Client name is missing.');
+      if (formatMissingMailingAddressError(persistedClient)) throw new Error(formatMissingMailingAddressError(persistedClient)!);
       const normalizedAddress = normalizeClientMailingAddress(persistedClient);
       setSelectedClient(persistedClient);
       setClientAddress(normalizedAddress.street);
@@ -399,128 +421,32 @@ export default function DisputeWizardContent() {
       setClientState(normalizedAddress.state);
       setClientZip(normalizedAddress.postalCode);
 
-      const { data: workspace } = await supabase
-        .from('workspaces').select('id').single();
-
-      const bureauShort: Record<string, string> = { Equifax: 'EQ', Experian: 'EX', TransUnion: 'TU' };
-      const shortCode = bureauShort[selectedBureau] ?? 'DL';
-      const letterNum = Math.floor(Math.random() * 9000) + 1000;
-      const letterId = `${shortCode}-${letterNum}`;
-
       const selectedDisputeItems = disputeItems.filter(i => selectedItems.has(i.id));
-      const finalReason = disputeReason === 'Other (specify in notes)' ? customReason : disputeReason;
-
-      const bureauAddresses: Record<string, string> = {
-        Equifax: 'Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256',
-        Experian: 'Experian\nP.O. Box 4500\nAllen, TX 75013',
-        TransUnion: 'TransUnion LLC Consumer Dispute Center\nP.O. Box 2000\nChester, PA 19016',
-      };
-
-      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const clientAddr = buildConsumerSenderBlock(sender);
-
-      const itemsSection = selectedDisputeItems.map((item, i) => {
-        const dates = accountDateSummary(item);
-        const findings = formatAnomalyFindingsForLetter(item.findings);
-        const hasDetectedEvidence = Boolean(item.reportedDataSummary && item.disputeBasis);
-        const itemReason = hasDetectedEvidence ? item.disputeBasis : finalReason;
-        const reportedData = item.reportedDataSummary ? `   Reported Data: ${item.reportedDataSummary}\n` : '';
-        const factualBasis = hasDetectedEvidence ? item.disputeBasis : item.strongestAnomaly;
-        return `Item ${i + 1}: ${item.creditorName}${item.accountNumber ? ` (Account: ****${item.accountNumber.slice(-4)})` : ''}
-   Type: ${formatAccountType(item.type)} | Amount: ${item.amount}
-   ${dates ? `Report Dates: ${dates}\n` : ''}${findings || `   Dispute Strength: ${item.strengthLabel}
-   Discrepancy: ${item.strongestAnomaly}
-${reportedData}   Factual Basis: ${factualBasis}
-   Dispute Reason: ${itemReason}`}
-
-   Requested Action: ${instruction}`;
-      }).join('\n\n');
-
-      const supportingDocuments = deduplicateSupportingDocuments([
-        'Copy of government-issued photo ID',
-        'Copy of proof of current address',
-        ...attachedDocs,
-      ]);
-
-      const letterContent = `${clientAddr}
-
-${today}
-
-${bureauAddresses[selectedBureau] ?? selectedBureau}
-
-Re: Formal Credit Dispute — Round ${round}
-    Letter Reference: ${letterId}
-
-To Whom It May Concern:
-
-I am writing to formally dispute the following item(s) on my credit report pursuant to the Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681i. I request that you investigate each item listed below within the applicable period required by the FCRA and correct or delete information that is unverifiable or otherwise required to be corrected or removed.
-
-DISPUTED ITEM(S):
-
-${itemsSection}
-
-${notes ? `ADDITIONAL INFORMATION:\n${notes}\n` : ''}
-SUPPORTING DOCUMENTS ENCLOSED:
-${supportingDocuments.map(document => `• ${document}`).join('\n')}
-
-Please send written confirmation of your investigation results to the address above. If you cannot verify the accuracy of the disputed information, you must promptly delete or correct it.
-
-Sincerely,
-
-
-_________________________________
-${sender.name}
-Date: ${today}`;
-
-      const responseDueDate = new Date();
-      responseDueDate.setDate(responseDueDate.getDate() + 30);
-
-      const { data: savedLetter, error: insertError } = await supabase.from('dispute_letters').insert({
-        owner_id: user.id,
-        client_id: selectedClient.id,
-        workspace_id: workspace?.id ?? null,
-        letter_id: letterId,
-        client_name: sender.name,
-        bureau: selectedBureau,
-        items_count: selectedItems.size,
-        round,
-        sent_date: null,
-        response_due_date: null,
-        days_remaining: 0,
-        letter_status: 'draft',
-        template: 'FCRA Section 611',
-        auto_generated: false,
-        letter_content: letterContent,
-        generated_at: new Date().toISOString(),
-      }).select('id, letter_id').single();
-
-      if (insertError || !savedLetter?.id) throw new Error('We could not save the generated letter. Please try again.');
-
-      const negativeItemIds = selectedDisputeItems
-        .filter(item => item.source === 'negative_items')
-        .map(item => item.id);
-      if (negativeItemIds.length > 0) {
-        const { error: statusError } = await supabase
-          .from('negative_items')
-          .update({ dispute_status: 'generated' })
-          .in('id', negativeItemIds)
-          ;
-        if (statusError) throw new Error('The letter was saved, but the selected items could not be marked as generated.');
+      const response = await fetch('/api/dispute-letters/generate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createEvidenceLetterRequest({
+          entryPoint: 'wizard',
+          clientId: selectedClient.id,
+          bureau: selectedBureau as 'Equifax' | 'Experian' | 'TransUnion',
+          roundNumber: round,
+          evidenceSelections: selectedDisputeItems.map(item => ({ id: item.id, source: item.source })),
+          enclosureIds: selectedDocumentIds,
+        })),
+      });
+      const result = await response.json().catch(() => null) as {
+        status?: 'ready' | 'review_required';
+        error?: string;
+        exclusions?: Array<{ reason: string }>;
+        letters?: Array<{ id: string; reference: string }>;
+      } | null;
+      if (!response.ok) throw new Error(result?.error ?? 'The evidence-specific letter could not be generated.');
+      if (result?.status === 'review_required' || !result?.letters?.[0]) {
+        throw new Error(result?.exclusions?.[0]?.reason ?? 'The selected evidence requires human review before a letter can be generated.');
       }
-
-      // Auto-create follow-up task
-      await supabase.from('workflow_tasks').insert({
-        owner_id: user.id,
-        client_id: selectedClient.id,
-        title: `Follow up on ${selectedBureau} dispute — ${letterId}`,
-        description: `Check bureau response for dispute letter ${letterId}. Response due: ${responseDueDate.toLocaleDateString()}.`,
-        due_date: responseDueDate.toISOString(),
-        status: 'pending',
-        priority: 'medium',
-        task_type: 'dispute_followup',
-      }); // non-fatal: task creation does not block the generated letter
-
-      setGeneratedLetter({ id: savedLetter.id, reference: savedLetter.letter_id ?? letterId });
+      const savedLetter = result.letters[0];
+      setGeneratedLetter({ id: savedLetter.id, reference: savedLetter.reference });
       trackOrganicConversionStep('dispute_wizard_letter_generated', {
         bureau: selectedBureau,
         items_count: selectedItems.size,
@@ -530,7 +456,10 @@ Date: ${today}`;
         items_count: selectedItems.size,
         authenticated: true,
       });
-      toast.success(`Letter ${letterId} generated and ready to use`);
+      if ((result.exclusions?.length ?? 0) > 0) {
+        toast.warning(`${result.exclusions!.length} unsupported selection${result.exclusions!.length === 1 ? '' : 's'} excluded for human review.`);
+      }
+      toast.success(`Letter ${savedLetter.reference} generated and ready to review`);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to generate the letter. Please try again.');
     } finally {
@@ -558,13 +487,11 @@ Date: ${today}`;
           </div>
           <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg text-left">
             <Clock size={14} className="text-primary shrink-0 mt-0.5" />
-            <p className="text-xs text-primary">
-              A follow-up task has been automatically created for 30 days from today to track the bureau response deadline.
-            </p>
+            <p className="text-xs text-primary">Review the evidence provenance and choose any follow-up date based on the actual mailing and response.</p>
           </div>
           <div className="flex gap-3 justify-center pt-2">
             <a href={`/dispute-letter-management?draftId=${encodeURIComponent(generatedLetter.id)}`} className="btn-primary">View Draft Letter</a>
-            <button onClick={() => { setStep(1); setGeneratedLetter(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setDisputeReason(''); setInstruction(CORRECTION_FIRST_REQUESTED_ACTION); }} className="btn-secondary">Start New Dispute</button>
+            <button onClick={() => { setStep(1); setGeneratedLetter(null); setSelectedClient(null); setSelectedBureau(''); setSelectedItems(new Set()); setSelectedDocumentIds([]); setDisputeReason(''); setInstruction(CORRECTION_FIRST_REQUESTED_ACTION); }} className="btn-secondary">Start New Dispute</button>
           </div>
         </div>
       </div>
@@ -821,22 +748,28 @@ Date: ${today}`;
         {step === 6 && (
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-foreground">Attach Supporting Documents</h2>
-            <p className="text-sm text-muted-foreground">List documents you will include with this dispute letter</p>
-            <div className="space-y-2">
-              {['Government-issued photo ID', 'Proof of current address', 'Social Security card (last 4 only)', 'Copy of credit report', 'Account statements', 'Payment receipts', 'Previous dispute letters and responses'].map(doc => {
-                const checked = attachedDocs.includes(doc);
-                return (
-                  <button key={doc} type="button" onClick={() => setAttachedDocs(prev => checked ? prev.filter(d => d !== doc) : [...prev, doc])}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
-                    {checked ? <CheckCircle2 size={14} className="text-primary shrink-0" /> : <div className="w-3.5 h-3.5 rounded border-2 border-muted-foreground shrink-0" />}
-                    <p className="text-sm text-foreground">{doc}</p>
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-sm text-muted-foreground">Only uploaded documents with confirmed evidence can be selected and listed as enclosures.</p>
+            {availableDocuments.length === 0 ? (
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+                No verified supporting documents are available. The draft will not claim any enclosures.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {availableDocuments.map(document => {
+                  const checked = selectedDocumentIds.includes(document.id);
+                  return (
+                    <button key={document.id} type="button" onClick={() => setSelectedDocumentIds(previous => checked ? previous.filter(id => id !== document.id) : [...previous, document.id])}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
+                      {checked ? <CheckCircle2 size={14} className="text-primary shrink-0" /> : <div className="w-3.5 h-3.5 rounded border-2 border-muted-foreground shrink-0" />}
+                      <p className="text-sm text-foreground">{document.label}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <Info size={14} className="text-blue-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-700">Document uploads are managed in the client&apos;s document storage. This step records which documents will be included with the letter.</p>
+              <p className="text-xs text-blue-700">The server re-verifies the selected document, confirmed evidence, and client ownership before listing it.</p>
             </div>
           </div>
         )}
@@ -872,7 +805,7 @@ Date: ${today}`;
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground">Documents</span>
-                <span className="font-medium text-foreground">{attachedDocs.length} listed</span>
+                <span className="font-medium text-foreground">{selectedDocumentIds.length} verified selection{selectedDocumentIds.length === 1 ? '' : 's'}</span>
               </div>
               <div className="flex justify-between gap-4 py-2">
                 <span className="text-muted-foreground">Mailing Address</span>
@@ -886,7 +819,7 @@ Date: ${today}`;
             <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <CheckCircle2 size={14} className="text-primary shrink-0 mt-0.5" />
               <p className="text-xs text-foreground">
-                <strong>No FixMy.Money approval is required.</strong> You remain responsible for reviewing the draft and confirming consumer authorization before use. A follow-up task will be created for 30 days from today.
+                <strong>No FixMy.Money approval is required.</strong> You remain responsible for reviewing the draft, its evidence provenance, and consumer authorization before use.
               </p>
             </div>
           </div>

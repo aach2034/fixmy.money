@@ -1,21 +1,7 @@
 export function immutableAssetCacheControl(pathname: string): string | null {
-  if (/^\/assets\/(?:[^/]+\/)*[^/]+-[A-Za-z0-9_-]{8}\.(?:js|css|woff2)$/.test(pathname)) {
-    return 'public, max-age=31536000, immutable';
-  }
-
-  if (/^\/_next\/static\/.+[.-][a-f0-9]{8,}\.(?:js|css|woff2)$/i.test(pathname)) {
-    return 'public, max-age=31536000, immutable';
-  }
-
-  if (
-    pathname.startsWith('/assets/') ||
-    pathname.startsWith('/ocr/') ||
-    pathname === '/_vinext/image'
-  ) {
-    return 'public, max-age=0, must-revalidate';
-  }
-
-  return null;
+  return /\/(?:assets|_next|ocr)\/.*(?:[.-][a-f0-9]{8,}|worker\.min)\.[a-z0-9]+$/i.test(pathname)
+    ? 'public, max-age=31536000, immutable'
+    : null;
 }
 
 export function contentSecurityPolicyFor(requestUrl: string, nonce?: string): string {

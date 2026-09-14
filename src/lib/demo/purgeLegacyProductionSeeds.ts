@@ -13,11 +13,6 @@ export const LEGACY_SEED_CLIENTS = [
   { name: 'Tyler Nguyen', email: 'tyler.n@outlook.com' },
 ] as const;
 
-export const LEGACY_SEED_LETTER_IDS = [
-  'EQ-2847', 'TU-1923', 'EX-3341', 'EQ-2901', 'EX-3190', 'TU-1887',
-  'EQ-2756', 'EX-3055', 'TU-2011', 'EQ-2799', 'EX-3280', 'TU-1955',
-] as const;
-
 const LEGACY_CLIENT_EMAILS = new Set<string>(LEGACY_SEED_CLIENTS.map(client => client.email));
 
 export function isLegacySeedClient(client: { name?: string | null; email?: string | null }): boolean {
@@ -33,12 +28,6 @@ export function isLegacySeedClient(client: { name?: string | null; email?: strin
  */
 export async function purgeLegacyProductionSeeds(supabase: any, ownerId: string): Promise<void> {
   const seededEmails = LEGACY_SEED_CLIENTS.map(client => client.email);
-
-  await supabase
-    .from('dispute_letters')
-    .delete()
-    .eq('owner_id', ownerId)
-    .in('letter_id', [...LEGACY_SEED_LETTER_IDS]);
 
   await supabase
     .from('staff_clients')

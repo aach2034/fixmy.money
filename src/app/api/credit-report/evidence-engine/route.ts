@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     const { data: report, error: reportError } = await supabase
       .from('parsed_credit_reports')
-      .select('id, owner_id, client_id, provider, report_date, all_accounts')
+      .select('id, owner_id, client_id, provider, report_date')
       .eq('id', parsedReportId)
       .eq('owner_id', ownerId)
       .single();
@@ -96,9 +96,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Report/client mismatch' }, { status: 403 });
     }
 
-    const accounts = Array.isArray(report.all_accounts)
-      ? report.all_accounts.map(asNormalizedAccount).filter((account: NormalizedAccount) => account.creditorName || account.furnisherName)
-      : [];
+    const { data: storedAccountRows, error: storedAccountError } = await supabase
+      .from('negative_items')
+      .select('*')
+      .eq('report_id', parsedReportId)
+      .eq('owner_id', ownerId)
+      .eq('client_id', clientId)
+      .neq('negative_category', 'hard_inquiry');
+    if (storedAccountError) throw storedAccountError;
+    const accounts = (storedAccountRows ?? [])
+      .map(asNormalizedAccount)
+      .filter((account: NormalizedAccount) => account.creditorName || account.furnisherName);
 
     if (accounts.length === 0) {
       return NextResponse.json({ success: true, accounts: 0, issues: 0, cases: 0 });
@@ -169,6 +177,7 @@ export async function POST(request: NextRequest) {
         client_id: clientId,
         credit_account_id: creditAccount.id,
         parsed_report_id: parsedReportId,
+        source_negative_item_id: row.rawAccountId,
         bureau: row.bureau,
         creditor_name: row.creditorName,
         furnisher_name: row.furnisherName,

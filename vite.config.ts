@@ -19,14 +19,6 @@ export default defineConfig(async () => {
           triggers: {
             crons: ["0 * * * *"],
           },
-          assets: {
-            binding: "ASSETS",
-            run_worker_first: [
-              "/assets/*.css",
-              "/assets/*.js",
-              "/assets/*.woff2",
-            ],
-          },
         },
       }),
     ],
