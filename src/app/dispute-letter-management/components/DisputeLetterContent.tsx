@@ -1,15 +1,14 @@
 'use client';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, Plus, Filter, Download, Eye, Send, Copy, Trash2,
-  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X, Printer, MailCheck
+  Search, Plus, Filter, Download, Eye, Send, Trash2,
+  ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, X, Printer, MailCheck, FileText
 } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import GenerateLetterForm from './GenerateLetterForm';
 import { toast } from 'sonner';
-import { FileText } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/client';
@@ -21,6 +20,10 @@ import {
   type DraftDateItem,
 } from '@/lib/creditReport/staleDrafts';
 import { calendarDaysUntil } from '@/lib/disputes/letterDeadlines';
+import {
+  deleteDraftLetters as requestDraftLetterDeletion,
+  markLettersMailed as requestLettersMailed,
+} from '@/lib/disputes/letterOperationsClient';
 
 type Bureau = 'Equifax' | 'Experian' | 'TransUnion';
 type LetterStatus = 'draft' | 'sent' | 'awaiting' | 'received' | 'escalated' | 'closed';
@@ -95,6 +98,15 @@ function mapRow(row: any): DisputeLetter {
   };
 }
 
+function groupLettersByClient(letters: DisputeLetter[]) {
+  const grouped = new Map<string, string[]>();
+  for (const letter of letters) {
+    if (!letter.clientId) throw new Error('This historical letter is not linked to a client and requires review.');
+    grouped.set(letter.clientId, [...(grouped.get(letter.clientId) ?? []), letter.id]);
+  }
+  return [...grouped.entries()].map(([clientId, letterIds]) => ({ clientId, letterIds }));
+}
+
 export default function DisputeLetterContent() {
   const [letters, setLetters] = useState<DisputeLetter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,19 +169,9 @@ export default function DisputeLetterContent() {
       const repairedRows = await Promise.all((data ?? []).map(async row => {
         const repaired = repairUnsupportedMissingReportingDateDraft(row)
           ?? repairUnsupportedFutureDateDraft(row, (dateItems ?? []) as DraftDateItem[]);
-        if (!repaired) return row;
-
-        const { error: repairError } = await supabase
-          .from('dispute_letters')
-          .update({
-            generation_error: repaired.generation_error ?? INVALID_DATE_GENERATION_ERROR,
-          })
-          .eq('id', row.id)
-
-          .eq('letter_status', 'draft')
-          .eq('auto_generated', true);
-        if (repairError) throw repairError;
-        return { ...row, generation_error: repaired.generation_error ?? INVALID_DATE_GENERATION_ERROR };
+        return repaired
+          ? { ...row, generation_error: repaired.generation_error ?? INVALID_DATE_GENERATION_ERROR }
+          : row;
       }));
 
       setLetters(repairedRows.map(mapRow));
@@ -188,20 +190,15 @@ export default function DisputeLetterContent() {
     if (requestedDraft) setPreviewLetter(requestedDraft);
   }, [letters, loading, requestedDraftId]);
 
-  const handleDeleteLetter = async (id: string, letterId: string) => {
+  const handleDeleteLetter = async (letter: DisputeLetter) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const { error: delError } = await supabase
-        .from('dispute_letters')
-        .delete()
-        .eq('id', id)
-        ;
-      if (delError) throw delError;
-      setLetters(prev => prev.filter(l => l.id !== id));
-      toast.error(`Letter ${letterId} deleted`);
-    } catch (err: any) {
-      toast.error('Failed to delete letter');
+      if (letter.status !== 'draft') throw new Error('Only a draft letter may be deleted.');
+      if (!letter.clientId) throw new Error('This historical letter is not linked to a client.');
+      await requestDraftLetterDeletion({ clientId: letter.clientId, letterIds: [letter.id] });
+      setLetters(prev => prev.filter(value => value.id !== letter.id));
+      toast.error(`Letter ${letter.letterId} deleted`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete letter');
     }
   };
 
@@ -225,71 +222,30 @@ export default function DisputeLetterContent() {
     toast.success(`Exported ${filtered.length} letter${filtered.length === 1 ? '' : 's'}`);
   };
 
-  const handleDuplicateLetter = async (letter: DisputeLetter) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const suffix = Math.floor(Math.random() * 9000) + 1000;
-      const { data, error: insertError } = await supabase
-        .from('dispute_letters')
-        .insert({
-          owner_id: user.id,
-          client_id: letter.clientId || null,
-          letter_id: `${letter.letterId}-COPY-${suffix}`,
-          client_name: letter.clientName,
-          bureau: letter.bureau,
-          items_count: letter.itemsCount,
-          round: letter.round,
-          sent_date: null,
-          response_due_date: null,
-          days_remaining: 0,
-          letter_status: 'draft',
-          assigned_staff: letter.assignedStaff,
-          template: letter.template,
-          letter_content: letter.letterContent,
-          dispute_reason: letter.aiRationale,
-          auto_generated: false,
-          generated_at: new Date().toISOString(),
-        })
-        .select('*')
-        .single();
-      if (insertError) throw insertError;
-      setLetters(prev => [mapRow(data), ...prev]);
-      toast.success(`Letter ${letter.letterId} duplicated as a draft`);
-    } catch {
-      toast.error('Could not duplicate this letter. Please try again.');
-    }
-  };
-
   const handleSendLetter = async (id: string, letterId: string, bureau: string) => {
-    if (letters.find(letter => letter.id === id)?.needsRegeneration) {
+    const letter = letters.find(value => value.id === id);
+    if (letter?.needsRegeneration) {
       toast.error('Regenerate and review this draft before marking it mailed.');
       return;
     }
     try {
-      const mailedDate = new Date();
-      const responseDue = new Date(mailedDate);
-      responseDue.setDate(responseDue.getDate() + 30);
-      const { error: updError } = await supabase
-        .from('dispute_letters')
-        .update({
-          letter_status: 'sent',
-          sent_date: mailedDate.toISOString().split('T')[0],
-          response_due_date: responseDue.toISOString().split('T')[0],
-          days_remaining: 30,
-        })
-        .eq('id', id);
-      if (updError) throw updError;
+      if (!letter?.clientId) throw new Error('This historical letter is not linked to a client.');
+      const result = await requestLettersMailed({
+        source: 'dispute_letters',
+        clientId: letter.clientId,
+        letterIds: [id],
+      });
+      const updated = result.letters?.find(value => value.id === id) as any;
       setLetters(prev => prev.map(l => l.id === id ? {
         ...l,
         status: 'sent' as LetterStatus,
-        sentDate: mailedDate.toLocaleDateString('en-US'),
-        responseDueDate: responseDue.toLocaleDateString('en-US'),
-        daysRemaining: 30,
+        sentDate: updated?.sent_date ? new Date(updated.sent_date).toLocaleDateString('en-US') : l.sentDate,
+        responseDueDate: updated?.response_due_date ? new Date(updated.response_due_date).toLocaleDateString('en-US') : l.responseDueDate,
+        daysRemaining: typeof updated?.days_remaining === 'number' ? updated.days_remaining : l.daysRemaining,
       } : l));
       toast.success(`Letter ${letterId} marked as mailed to ${bureau}`);
-    } catch (err: any) {
-      toast.error('Failed to send letter');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send letter');
     }
   };
 
@@ -330,24 +286,29 @@ export default function DisputeLetterContent() {
   };
 
   const markSelectedMailed = async () => {
-    const ids = Array.from(selectedRows).filter(id => !letters.find(letter => letter.id === id)?.needsRegeneration);
-    if (!ids.length) return;
-    const mailedDate = new Date();
-    const responseDue = new Date(mailedDate);
-    responseDue.setDate(responseDue.getDate() + 30);
-    const { error: updateError } = await supabase.from('dispute_letters').update({
-      letter_status: 'sent',
-      sent_date: mailedDate.toISOString().split('T')[0],
-      response_due_date: responseDue.toISOString().split('T')[0],
-      days_remaining: 30,
-    }).in('id', ids);
-    if (updateError) { toast.error('Could not update the selected letters.'); return; }
-    setLetters(prev => prev.map(letter => ids.includes(letter.id) ? {
-      ...letter, status: 'sent', sentDate: mailedDate.toLocaleDateString('en-US'),
-      responseDueDate: responseDue.toLocaleDateString('en-US'), daysRemaining: 30,
-    } : letter));
-    setSelectedRows(new Set());
-    toast.success(`${ids.length} paper letter${ids.length === 1 ? '' : 's'} marked as mailed`);
+    const selected = letters.filter(letter => selectedRows.has(letter.id) && letter.status === 'draft' && !letter.needsRegeneration);
+    if (!selected.length) return;
+    try {
+      const responses = await Promise.all(groupLettersByClient(selected).map(group => requestLettersMailed({
+        source: 'dispute_letters',
+        ...group,
+      })));
+      const updated = new Map(responses.flatMap(response => response.letters ?? []).map(row => [row.id, row as any]));
+      setLetters(prev => prev.map(letter => {
+        const row = updated.get(letter.id);
+        return row ? {
+          ...letter,
+          status: 'sent',
+          sentDate: row.sent_date ? new Date(row.sent_date).toLocaleDateString('en-US') : letter.sentDate,
+          responseDueDate: row.response_due_date ? new Date(row.response_due_date).toLocaleDateString('en-US') : letter.responseDueDate,
+          daysRemaining: typeof row.days_remaining === 'number' ? row.days_remaining : letter.daysRemaining,
+        } : letter;
+      }));
+      setSelectedRows(new Set());
+      toast.success(`${selected.length} paper letter${selected.length === 1 ? '' : 's'} marked as mailed`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update the selected letters.');
+    }
   };
 
   const handleCertifiedMail = async (letter: DisputeLetter) => {
@@ -404,29 +365,20 @@ export default function DisputeLetterContent() {
   };
 
   const deleteSelectedDrafts = async () => {
-    const draftIds = Array.from(selectedRows).filter(id => letters.find(letter => letter.id === id)?.status === 'draft');
-    if (!draftIds.length) {
+    const drafts = letters.filter(letter => selectedRows.has(letter.id) && letter.status === 'draft');
+    if (!drafts.length) {
       toast.error('Only draft letters can be deleted in bulk.');
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error('Please sign in again before deleting letters.');
-      return;
+    try {
+      const responses = await Promise.all(groupLettersByClient(drafts).map(requestDraftLetterDeletion));
+      const deletedIds = new Set(responses.flatMap(response => response.deletedIds ?? []));
+      setLetters(prev => prev.filter(letter => !deletedIds.has(letter.id)));
+      setSelectedRows(new Set());
+      toast.success(`${deletedIds.size} draft letter${deletedIds.size === 1 ? '' : 's'} deleted`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete the selected drafts.');
     }
-    const { error: deleteError } = await supabase
-      .from('dispute_letters')
-      .delete()
-      .in('id', draftIds)
-
-      .eq('letter_status', 'draft');
-    if (deleteError) {
-      toast.error('Could not delete the selected drafts.');
-      return;
-    }
-    setLetters(prev => prev.filter(letter => !draftIds.includes(letter.id)));
-    setSelectedRows(new Set());
-    toast.success(`${draftIds.length} draft letter${draftIds.length === 1 ? '' : 's'} deleted`);
   };
 
   const SortIcon = ({ field }: { field: SortField }) => (
@@ -718,20 +670,15 @@ export default function DisputeLetterContent() {
                               <Send size={14} className="text-primary" />
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDuplicateLetter(letter)}
-                            className="p-1.5 hover:bg-muted rounded-lg transition-colors"
-                            title="Duplicate letter"
-                          >
-                            <Copy size={14} className="text-muted-foreground" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLetter(letter.id, letter.letterId)}
-                            className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors"
-                            title="Delete letter — this cannot be undone"
-                          >
-                            <Trash2 size={14} className="text-muted-foreground hover:text-danger" />
-                          </button>
+                          {letter.status === 'draft' && (
+                            <button
+                              onClick={() => handleDeleteLetter(letter)}
+                              className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors"
+                              title="Delete draft — this cannot be undone"
+                            >
+                              <Trash2 size={14} className="text-muted-foreground hover:text-danger" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

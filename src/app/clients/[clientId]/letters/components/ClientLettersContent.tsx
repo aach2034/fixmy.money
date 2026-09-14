@@ -5,6 +5,7 @@ import { FileText, Download, Send, Loader2, Printer, ArrowLeft, RefreshCw, MailC
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { renderLetterForPrint } from '@/lib/disputes/letterPrint';
+import { markLettersMailed } from '@/lib/disputes/letterOperationsClient';
 
 interface Letter {
   id: string;
@@ -88,13 +89,14 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
 
   const markMailed = async (id: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      await supabase.from('generated_dispute_letters').update({ status: 'sent', mailed_at: new Date().toISOString() }).eq('id', id);
-      setLetters(prev => prev.map(l => l.id === id ? { ...l, status: 'sent', mailedAt: new Date().toISOString() } : l));
+      const result = await markLettersMailed({ source: 'generated_dispute_letters', clientId, letterIds: [id] });
+      const updated = result.letters?.find(letter => letter.id === id) as { mailed_at?: string | null } | undefined;
+      setLetters(prev => prev.map(letter => letter.id === id
+        ? { ...letter, status: 'sent', mailedAt: updated?.mailed_at ?? letter.mailedAt }
+        : letter));
       toast.success('Letter marked as mailed');
-    } catch {
-      toast.error('Failed to update');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update');
     }
   };
 
@@ -199,13 +201,13 @@ export default function ClientLettersContent({ clientId }: ClientLettersContentP
                   <button onClick={() => setPreviewId(previewId === letter.id ? null : letter.id)} className="btn-secondary text-xs flex items-center gap-1"><FileText size={12} /> Preview</button>
                   <button onClick={() => downloadLetter(letter)} className="btn-secondary text-xs flex items-center gap-1"><Download size={12} /> Download</button>
                   <button onClick={() => printLetter(letter)} className="btn-secondary text-xs flex items-center gap-1"><Printer size={12} /> Print</button>
-                  {letter.status !== 'sent' && (
+                  {letter.status === 'generated' && (
                     <button onClick={() => mailCertified(letter)} disabled={certifiedMailingId === letter.id} className="btn-secondary text-xs flex items-center gap-1">
                       {certifiedMailingId === letter.id ? <Loader2 size={12} className="animate-spin" /> : <MailCheck size={12} />}
                       Mail Certified
                     </button>
                   )}
-                  {letter.status !== 'sent' && (
+                  {letter.status === 'generated' && (
                     <button onClick={() => markMailed(letter.id)} className="btn-primary text-xs flex items-center gap-1"><Send size={12} /> Mark Mailed</button>
                   )}
                 </div>
