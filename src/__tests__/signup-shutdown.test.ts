@@ -79,10 +79,22 @@ describe('temporary new-signup shutdown', () => {
     expect(callback).toContain("type === 'recovery'");
     expect(callback).toContain("from('platform_admins')");
     expect(callback).toContain('!isAdministratorRecovery');
-    expect(callback).toContain("destination = '/reset-password'");
+    expect(callback).toContain("'/reset-password'");
+    expect(callback).toContain('issuePasswordRecoveryState');
+    expect(callback).toContain("type: type === 'recovery' ? 'recovery' : 'email'");
     expect(callback).not.toContain('user_metadata');
     expect(fs.readFileSync('src/contexts/AuthContext.tsx', 'utf8')).not.toContain('.auth.signUp(');
     expect(fs.readFileSync('src/app/client-portal/components/ClientPortalLoginContent.tsx', 'utf8')).not.toContain('.auth.signUp(');
+  });
+
+  it('keeps recovery email links on the server-verified token-hash callback', () => {
+    const template = fs.readFileSync('supabase/templates/recovery.html', 'utf8');
+    const config = fs.readFileSync('supabase/config.toml', 'utf8');
+
+    expect(template).toContain('/auth/callback?token_hash={{ .TokenHash }}&type=recovery');
+    expect(template).not.toContain('{{ .ConfirmationURL }}');
+    expect(config).toContain('[auth.email.template.recovery]');
+    expect(config).toContain('content_path = "./supabase/templates/recovery.html"');
   });
 
   it('stores a valid reopening submission without creating auth or Stripe records', async () => {
@@ -150,7 +162,9 @@ describe('temporary new-signup shutdown', () => {
     const proxy = fs.readFileSync('src/proxy.ts', 'utf8');
     expect(auth).toContain('signInWithPassword');
     expect(auth).toContain('getSession()');
-    expect(form).toContain("router.push(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding')");
+    expect(form).toContain('resolvePostLoginDestination');
+    expect(form).toContain('getAdministratorDestination');
+    expect(form).not.toContain('user_metadata');
     expect(proxy).toContain('getWorkspaceEntitlementDecision');
   });
 
