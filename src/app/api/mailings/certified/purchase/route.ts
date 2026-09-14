@@ -8,6 +8,12 @@ import {
   quoteCertifiedMailing,
 } from '@/lib/mailing/certifiedMailing';
 import { loadCertifiedMailingContext, parseLetterSource } from '@/lib/mailing/certifiedMailingRecords';
+import { getAdminClient } from '@/lib/supabase/admin';
+import {
+  assertLettersMailable,
+  authorizeLetterClient,
+  markLettersMailed,
+} from '@/lib/disputes/serverLetterOperations';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +36,21 @@ export async function POST(request: NextRequest) {
       returnReceiptElectronic: body?.returnReceiptElectronic === true,
     });
     if (!context) return NextResponse.json({ error }, { status });
+    if (!context.letter.client_id) {
+      return NextResponse.json({ error: 'This letter is not linked to a client profile.' }, { status: 422 });
+    }
+    const admin = getAdminClient();
+    const authorization = await authorizeLetterClient({
+      admin,
+      actorUserId: user.id,
+      clientId: context.letter.client_id,
+    });
+    await assertLettersMailable({
+      admin,
+      authorization,
+      source: letterSource,
+      letterIds: [letterId],
+    });
 
     const column = letterSource === 'generated_dispute_letters' ? 'generated_dispute_letter_id' : 'dispute_letter_id';
     const { data: existing } = await supabase
@@ -81,23 +102,24 @@ export async function POST(request: NextRequest) {
       .single();
     if (insertError) throw insertError;
 
-    const mailedAt = insertPayload.mailed_at;
-    if (letterSource === 'generated_dispute_letters') {
-      await supabase.from('generated_dispute_letters').update({ status: 'sent', mailed_at: mailedAt }).eq('id', letterId);
-      if (context.letter.round_id) {
-        const followUp = new Date();
-        followUp.setDate(followUp.getDate() + 30);
-        await supabase.from('dispute_rounds').update({ status: 'sent', mailed_at: mailedAt, follow_up_date: followUp.toISOString() }).eq('id', context.letter.round_id);
+    try {
+      await markLettersMailed({
+        admin,
+        authorization,
+        source: letterSource,
+        letterIds: [letterId],
+      });
+    } catch (statusError) {
+      const { error: cleanupError } = await admin
+        .from('certified_mailings')
+        .delete()
+        .eq('id', mailing.id)
+        .eq('owner_id', authorization.workspaceOwnerId)
+        .eq('client_id', authorization.clientId);
+      if (cleanupError) {
+        console.error('[CertifiedMailing] Status failure compensation failed', { mailingId: mailing.id });
       }
-    } else {
-      const responseDue = new Date();
-      responseDue.setDate(responseDue.getDate() + 30);
-      await supabase.from('dispute_letters').update({
-        letter_status: 'sent',
-        sent_date: mailedAt.split('T')[0],
-        response_due_date: responseDue.toISOString().split('T')[0],
-        days_remaining: 30,
-      }).eq('id', letterId);
+      throw statusError;
     }
 
     return NextResponse.json({ mailing });
