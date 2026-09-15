@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, Clock, User, ChevronRight } from 'lucide-react';
 import { getArticleBySlug, getRelatedArticles, getAllSlugs } from '@/lib/blog/articles';
 import { articleSeo } from '@/lib/seo/article';
+import TrackedLink from '@/components/marketing/TrackedLink';
 
 function machineDate(date: string) {
   return new Date(date).toISOString().slice(0, 10);
@@ -60,6 +61,7 @@ export default async function BlogArticlePage({ params }: Props) {
   const relatedArticles = getRelatedArticles(article.relatedSlugs);
   const primaryCtaHref = '/#reopening-list';
   const primaryCtaLabel = 'Reserve One Month Free';
+  const primaryCtaBody = 'Join the reopening list and reserve one full month free when you activate after reopening.';
 
   const articleStructuredData = {
     '@context': 'https://schema.org',
@@ -128,9 +130,14 @@ export default async function BlogArticlePage({ params }: Props) {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Blog</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+            <TrackedLink
+              href={primaryCtaHref}
+              eventLabel={primaryCtaLabel}
+              eventLocation={`blog_article_nav:${article.slug}`}
+              className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors"
+            >
               Reserve One Month Free
-            </Link>
+            </TrackedLink>
           </div>
         </div>
       </nav>
@@ -199,9 +206,14 @@ export default async function BlogArticlePage({ params }: Props) {
               <div className="mt-4 bg-blue-700 rounded-2xl p-5 text-white">
                 <p className="text-sm font-bold mb-2">Ready to get started?</p>
                 <p className="text-xs text-white mb-3">One full month free when you activate after reopening.</p>
-                <Link href="/#reopening-list" className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
+                <TrackedLink
+                  href={primaryCtaHref}
+                  eventLabel={primaryCtaLabel}
+                  eventLocation={`blog_article_sidebar:${article.slug}`}
+                  className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors"
+                >
                   Reserve One Month Free
-                </Link>
+                </TrackedLink>
               </div>
             </div>
           </aside>
@@ -304,12 +316,17 @@ export default async function BlogArticlePage({ params }: Props) {
 
             {/* CTA */}
             <div className="a11y-dark mt-8 bg-gradient-to-br from-slate-900 to-blue-950 rounded-2xl p-6 text-white">
-              <h3 className="text-lg font-extrabold mb-2">{article.cta.heading}</h3>
-              <p className="text-slate-300 text-sm mb-4">{article.cta.body}</p>
+              <h3 className="text-lg font-extrabold mb-2">Get FixMy.Money reopening updates</h3>
+              <p className="text-slate-300 text-sm mb-4">{primaryCtaBody}</p>
               <div className="flex flex-wrap gap-3">
-                <Link href={primaryCtaHref} className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+                <TrackedLink
+                  href={primaryCtaHref}
+                  eventLabel={primaryCtaLabel}
+                  eventLocation={`blog_article_body:${article.slug}`}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors"
+                >
                   {primaryCtaLabel} <ArrowRight size={14} />
-                </Link>
+                </TrackedLink>
                 <Link href="/product-tour" className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   Explore Demo
                 </Link>

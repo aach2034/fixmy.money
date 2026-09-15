@@ -4,6 +4,7 @@ import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
 import { ARTICLES } from '@/lib/blog/articles';
+import TrackedLink from '@/components/marketing/TrackedLink';
 
 export const metadata: Metadata = createSeoMetadata("/blog");
 
@@ -18,9 +19,14 @@ export default function BlogPage() {
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+            <TrackedLink
+              href="/#reopening-list"
+              eventLabel="Reserve One Month Free"
+              eventLocation="blog_index_nav"
+              className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors"
+            >
               Reserve One Month Free
-            </Link>
+            </TrackedLink>
           </div>
         </div>
       </nav>
@@ -118,12 +124,14 @@ export default function BlogPage() {
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-extrabold text-white mb-3">Ready to run your agency from one platform?</h2>
           <p className="text-slate-400 mb-6 text-sm">One full month free when you activate after reopening.</p>
-          <Link
+          <TrackedLink
             href="/#reopening-list"
+            eventLabel="Reserve One Month Free"
+            eventLocation="blog_index_footer"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
           >
             Reserve One Month Free <ArrowRight size={16} />
-          </Link>
+          </TrackedLink>
         </div>
       </section>
     </div>
