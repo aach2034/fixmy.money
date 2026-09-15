@@ -102,6 +102,17 @@ test.describe('production homepage smoke', () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test('blog is available from desktop and mobile navigation', async ({ page }) => {
+    for (const width of [375, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      await expect(page.getByRole('link', { name: 'Blog', exact: true }).first()).toBeVisible();
+      await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
+      await expect(page).toHaveURL(/\/blog$/);
+      await expect(page.getByRole('heading', { name: 'Credit Repair Agency Resources' })).toBeVisible();
+    }
+  });
+
   test('homepage feature routes load or redirect appropriately while logged out', async ({ page }) => {
     for (const route of protectedRoutes) {
       const response = await page.goto(route);
