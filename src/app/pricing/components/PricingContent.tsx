@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { trackPricingPlanSelect, trackCtaClick } from '@/lib/analytics';
 import { PLANS_LIST } from '@/lib/stripe/plans';
 import DemoVideoPlayer from '@/app/homepage/components/DemoVideoPlayer';
+import PublicBrandLink from '@/components/marketing/PublicBrandLink';
+import PublicFooter from '@/components/marketing/PublicFooter';
 import {
   Check,
   X,
@@ -68,7 +70,6 @@ const BILLING_FAQS = [
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
   { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
-  { q: 'What is the annual discount?', a: 'Annual billing saves approximately 20% compared to monthly billing. Annual plans are billed once per year.' },
   { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
   { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
 ];
@@ -81,7 +82,6 @@ function CellValue({ value }: { value: string | boolean }) {
 
 export default function PricingContent() {
   const router = useRouter();
-  const [annual, setAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const handleStartTrial = (planId: string, planName: string, price: number | null) => {
@@ -96,15 +96,15 @@ export default function PricingContent() {
   };
 
   return (
-    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light premium-public min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* Nav */}
-      <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+      <nav aria-label="Primary" className="sticky top-0 z-40 border-b border-[#d8e3de] bg-white/90 px-4 py-3 backdrop-blur-xl sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <PublicBrandLink compact />
           <div className="flex items-center gap-3">
-            <Link href="/product-tour" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Product Tour</Link>
-            <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+            <Link href="/product-tour" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Product Tour</Link>
+            <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#52636d] transition-colors hover:bg-[#f1f5f3] hover:text-[#267a31] sm:block">Sign in</Link>
+            <Link href="/#reopening-list" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
               Reserve One Month Free
             </Link>
           </div>
@@ -112,30 +112,17 @@ export default function PricingContent() {
       </nav>
 
       {/* Hero */}
-      <section className="a11y-dark py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
+      <section className="a11y-dark brand-grid bg-[#07153d] px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#75d0a4]/30 bg-[#75d0a4]/10 px-4 py-2 text-xs font-bold text-[#98dfbc]">
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
           <p className="text-xl text-slate-300 mb-3">New accounts reopen October 25, 2026. Join now to reserve one full month free.</p>
           <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
 
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 bg-slate-800/60 border border-slate-700/60 rounded-2xl px-4 py-3">
-            <button
-              onClick={() => setAnnual(false)}
-              className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${!annual ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setAnnual(true)}
-              className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${annual ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            >
-              Annual
-              <span className="ml-2 text-xs font-bold text-emerald-400">Save ~20%</span>
-            </button>
+          <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-5 py-3 text-sm font-semibold text-white">
+            Monthly billing
           </div>
         </div>
       </section>
@@ -145,23 +132,16 @@ export default function PricingContent() {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PLANS.map((plan) => {
-              const price = annual ? plan.annualPrice : plan.monthlyPrice;
+              const price = plan.monthlyPrice;
               return (
                 <div
                   key={plan.id}
                   className={`relative rounded-2xl border-2 p-6 flex flex-col ${
                     plan.highlight
-                      ? 'border-blue-600 shadow-xl shadow-blue-100'
+                      ? 'border-[#79aa94] shadow-xl shadow-emerald-100/70'
                       : 'border-slate-200'
                   }`}
                 >
-                  {plan.badge && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                        {plan.badge}
-                      </span>
-                    </div>
-                  )}
                   <div className="mb-4">
                     <h3 className="text-lg font-extrabold text-slate-900 mb-1">{plan.name}</h3>
                     <p className="text-xs text-slate-500 leading-relaxed">{plan.description}</p>
@@ -170,12 +150,7 @@ export default function PricingContent() {
                     {price !== null ? (
                       <>
                         <span className="text-4xl font-extrabold text-slate-900">${price}</span>
-                        <span className="text-slate-500 text-sm">/mo</span>
-                        {annual && (
-                          <p className="text-xs text-emerald-600 font-semibold mt-1">
-                            Billed annually (${price * 12}/yr)
-                          </p>
-                        )}
+                        <span className="text-slate-500 text-sm"> per month</span>
                       </>
                     ) : (
                       <span className="text-2xl font-extrabold text-slate-900">Custom</span>
@@ -193,7 +168,7 @@ export default function PricingContent() {
                     onClick={() => handleStartTrial(plan.id, plan.name, price)}
                     className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
                       plan.highlight
-                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                        ? 'bg-[#267a31] hover:bg-[#1f6729] text-white'
                         : plan.id === 'enterprise' ?'bg-slate-900 hover:bg-slate-800 text-white' :'bg-slate-100 hover:bg-slate-200 text-slate-900'
                     }`}
                   >
@@ -285,7 +260,6 @@ export default function PricingContent() {
               { label: 'Paid trial', value: '$1 today for 14 days, with full access to your selected plan' },
               { label: 'Credit card required for trial', value: 'Yes' },
               { label: 'Monthly billing', value: 'Charged on the same date each month' },
-              { label: 'Annual billing', value: 'Charged once per year, ~20% discount' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
               { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
               { label: 'Downgrades', value: 'Take effect at next billing cycle' },
@@ -375,6 +349,7 @@ export default function PricingContent() {
           </div>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 }

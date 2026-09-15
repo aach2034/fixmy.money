@@ -20,10 +20,10 @@ export const metadata: Metadata = {
 };
 
 const faqs = [
-{ q: 'What plan is best for small agencies?', a: `Starter ($${PLANS.starter.monthlyPrice}/mo) for individual workflows and Pro ($${PLANS.professional.monthlyPrice}/mo) for growing agencies.` },
+{ q: 'What plan is best for small agencies?', a: `${PLANS.starter.name} ($${PLANS.starter.monthlyPrice}/mo) for individual workflows and ${PLANS.professional.name} ($${PLANS.professional.monthlyPrice}/mo) for growing agencies.` },
 { q: 'Can I upgrade later?', a: 'Yes. Upgrade anytime. You\'ll only pay the difference for the remainder of your billing cycle.' },
-{ q: 'What if I outgrow my plan?', a: 'Upgrade to Professional or Agency plan as you grow. No penalties or long-term contracts.' },
-{ q: 'Is there a discount for annual billing?', a: 'Yes. Save 20% with annual billing on all plans.' }];
+{ q: 'What if I outgrow my plan?', a: `Upgrade to ${PLANS.professional.name} or ${PLANS.agency.name} as you grow. No penalties or long-term contracts.` },
+{ q: 'Is annual billing available?', a: 'The currently approved published prices are monthly. Annual billing is not listed until matching Stripe prices are configured.' }];
 
 
 export default function SmallAgencySoftwarePage() {

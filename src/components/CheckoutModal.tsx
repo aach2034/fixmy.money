@@ -11,8 +11,8 @@ interface CheckoutModalProps {
 
 const PLAN_FEATURES: Record<string, string[]> = {
   starter: ['Core CRM', 'Client portal', 'Dispute management', 'Credit report import', 'Email support'],
-  professional: ['Everything in Starter', 'Structured report review', 'Workflow templates', 'Response tracking', 'Priority email support'],
-  agency: ['Everything in Pro', 'Data export', 'Onboarding assistance', 'Priority support'],
+  professional: ['Everything in Personal', 'Structured report review', 'Workflow templates', 'Response tracking', 'Priority email support'],
+  agency: ['Everything in Start', 'Data export', 'Onboarding assistance', 'Priority support'],
 };
 
 export default function CheckoutModal({ plan, planName, planPrice, onClose }: CheckoutModalProps) {

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { PLANS } from '@/lib/stripe/plans';
 
 const CreditRepairCloudAlternativeContent = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -110,16 +111,16 @@ const CreditRepairCloudAlternativeContent = () => {
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Fix My Money</h3>
               <div className="space-y-4 mb-8">
                 <div>
-                  <div className="text-3xl font-bold text-amber-600">$49</div>
-                  <div className="text-gray-600">Starter (25 clients)</div>
+                  <div className="text-3xl font-bold text-amber-600">${PLANS.starter.monthlyPrice}</div>
+                  <div className="text-gray-600">{PLANS.starter.name} ({PLANS.starter.maxClients} clients)</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-amber-600">$129</div>
-                  <div className="text-gray-600">Professional (100 clients)</div>
+                  <div className="text-3xl font-bold text-amber-600">${PLANS.professional.monthlyPrice}</div>
+                  <div className="text-gray-600">{PLANS.professional.name} ({PLANS.professional.maxClients} clients)</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-amber-600">$249</div>
-                  <div className="text-gray-600">Agency (Unlimited)</div>
+                  <div className="text-3xl font-bold text-amber-600">${PLANS.agency.monthlyPrice}</div>
+                  <div className="text-gray-600">{PLANS.agency.name} ({PLANS.agency.maxClients} clients)</div>
                 </div>
               </div>
               <Link href="/demo" className="block text-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition">

@@ -73,7 +73,7 @@ export function getPlanAmount(plan: string): string {
   const amounts: Record<string, string> = {
     starter: '39',
     professional: '99',
-    agency: '249',
+    agency: '199',
     // Legacy alias — kept for backward compatibility with existing Stripe subscriptions
     growth: '129',
   };

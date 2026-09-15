@@ -4,9 +4,9 @@ import { seoTopics } from '@/lib/marketing/acquisition';
 export const SEO_SITE = {
   name: 'FixMy.Money',
   url: 'https://fixmy.money',
-  description: 'Credit intelligence software for individuals and professionals to analyze reports, organize disputes, manage clients, and document follow-up workflows.',
+  description: 'Import your report, review organized bureau data, and investigate potential inconsistencies through a guided workflow.',
   logo: '/assets/images/fixmy-money-mark-v2.png',
-  ogImage: '/og-ai-analysis.jpg',
+  ogImage: '/og-organized-credit-report.png',
 } as const;
 
 export type SeoContentType = 'website' | 'product' | 'article' | 'tool' | 'legal';
@@ -30,7 +30,7 @@ export interface SeoPageConfig {
 const UPDATED_AT = '2026-08-13';
 
 const staticPages: SeoPageConfig[] = [
-  { path: '/', title: 'Structured Credit Report Review Software', description: 'Import credit reports, review potential reporting issues, organize dispute letters, and manage client workflows with FixMy.Money.', primaryKeyword: 'credit report review software', secondaryKeywords: ['credit intelligence software', 'credit repair software', 'credit repair business software'], type: 'product', updatedAt: '2026-09-01', priority: 1, changeFrequency: 'weekly' },
+  { path: '/', title: 'Structured Credit-Report Review Software', description: 'Import your report, review organized bureau data, and investigate potential inconsistencies through a guided workflow.', primaryKeyword: 'credit report review software', secondaryKeywords: ['credit intelligence software', 'credit repair software', 'credit repair business software'], type: 'product', updatedAt: '2026-09-15', priority: 1, changeFrequency: 'weekly' },
   { path: '/product-tour', title: 'Credit Repair Software Features', description: 'Explore FixMy.Money tools for credit report imports, client management, dispute workflows, editable letters, billing, and agency operations.', primaryKeyword: 'credit repair software features', secondaryKeywords: ['credit repair automation', 'credit repair client management'], type: 'product', updatedAt: UPDATED_AT, priority: .9 },
   { path: '/pricing', title: 'Credit Repair Software Pricing', description: 'Compare FixMy.Money plans using the current centralized pricing, with a $1 paid trial for 14 days.', primaryKeyword: 'credit repair software pricing', secondaryKeywords: ['credit repair business software pricing'], type: 'product', updatedAt: UPDATED_AT, priority: .9 },
   { path: '/individuals', title: 'Credit Report Software for Individuals', description: 'Understand your credit report, identify potential reporting issues, generate dispute correspondence, and track activity yourself.', primaryKeyword: 'credit report software for individuals', secondaryKeywords: ['credit report analyzer', 'dispute letter generator'], type: 'product', updatedAt: '2026-08-27', priority: .95, changeFrequency: 'weekly' },
@@ -114,7 +114,7 @@ export function createSeoMetadata(path: string, overrides: Partial<SeoPageConfig
     keywords: [page.primaryKeyword, ...(page.secondaryKeywords ?? [])],
     alternates: { canonical },
     robots: page.indexStatus === 'noindex' ? { index: false, follow: false } : { index: true, follow: true },
-    openGraph: { title, description: page.description, url: canonical, siteName: SEO_SITE.name, type: page.type === 'article' ? 'article' : 'website', images: [{ url: SEO_SITE.ogImage, width: 1731, height: 909, alt: `${SEO_SITE.name} credit repair business software` }] },
+    openGraph: { title, description: page.description, url: canonical, siteName: SEO_SITE.name, type: page.type === 'article' ? 'article' : 'website', images: [{ url: SEO_SITE.ogImage, width: 1200, height: 630, alt: `${SEO_SITE.name} organized credit-report review workflow` }] },
     twitter: { card: 'summary_large_image', title, description: page.description, images: [SEO_SITE.ogImage] },
   };
 }

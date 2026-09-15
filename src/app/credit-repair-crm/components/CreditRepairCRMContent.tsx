@@ -116,7 +116,7 @@ const CreditRepairCRMContent = () => {
               },
               {
                 q: 'How many clients can I manage?',
-                a: 'Unlimited. Starter plan supports 50 active clients, Professional supports 250, and Agency plan supports unlimited clients.',
+                a: 'Personal supports up to 3 active clients, Start supports 300, and Grow supports 600.',
               },
               {
                 q: 'Can my team collaborate?',

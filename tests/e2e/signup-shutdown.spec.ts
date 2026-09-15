@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 test.describe('temporary signup shutdown', () => {
   test('homepage announces the reopening and collects only an email', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'We’re Improving FixMy.Money' })).toBeVisible();
-    await expect(page.getByText('Grand Opening on October 25, 2026')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Reserve your first month free' })).toBeVisible();
+    await expect(page.getByText('Reopening · October 25, 2026')).toBeVisible();
     await expect(page.getByText(/one full month of FixMy\.Money free/i)).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Email address' })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
@@ -14,10 +14,10 @@ test.describe('temporary signup shutdown', () => {
   test('/signup is a reopening-list page rather than account creation', async ({ page }) => {
     const response = await page.goto('/signup');
     expect(response?.status()).toBeLessThan(400);
-    await expect(page.getByRole('heading', { name: 'We’re Improving FixMy.Money' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'GET MY FREE MONTH' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Reserve your first month free' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'RESERVE MY FREE MONTH' })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'SIGN IN' })).toHaveAttribute('href', '/login');
+    await expect(page.getByRole('link', { name: 'Existing customer sign in' })).toHaveAttribute('href', '/login');
   });
 
   test('existing-customer login and password reset remain available', async ({ page }) => {
@@ -81,7 +81,7 @@ test.describe('temporary signup shutdown', () => {
 
     await page.goto('/signup');
     await page.getByRole('textbox', { name: 'Email address' }).fill('shared-network@example.invalid');
-    await page.getByRole('button', { name: 'GET MY FREE MONTH' }).click();
+    await page.getByRole('button', { name: 'RESERVE MY FREE MONTH' }).click();
 
     await expect(page.getByText('Complete the security verification to continue.')).toBeVisible();
     await expect(page.getByLabel('Security verification')).toContainText('Test security verification');

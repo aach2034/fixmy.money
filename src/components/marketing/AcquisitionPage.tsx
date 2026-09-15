@@ -4,6 +4,8 @@ import TrackedLink from '@/components/marketing/TrackedLink';
 import StructuredData from '@/components/seo/StructuredData';
 import { pricingSummary } from '@/lib/marketing/acquisition';
 import { faqSchema } from '@/lib/seo/schema';
+import PublicBrandLink from '@/components/marketing/PublicBrandLink';
+import PublicFooter from '@/components/marketing/PublicFooter';
 
 interface AcquisitionPageProps {
   audience: 'consumer' | 'professional' | 'mortgage' | 'affiliate';
@@ -31,24 +33,24 @@ export default function AcquisitionPage({
   faqs,
 }: AcquisitionPageProps) {
   return (
-    <div className="min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="premium-public min-h-screen bg-white text-slate-950" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <StructuredData data={faqSchema(faqs)} />
-      <nav className="border-b border-slate-200 bg-white px-4 py-4">
+      <nav aria-label="Primary" className="sticky top-0 z-40 border-b border-[#d8e3de] bg-white/90 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/" className="text-lg font-black">FixMy<span className="text-emerald-700">.Money</span></Link>
+          <PublicBrandLink compact />
           <div className="hidden items-center gap-5 text-sm font-bold text-slate-700 md:flex">
-            <Link href="/individuals">Individuals</Link>
-            <Link href="/professionals">Professionals</Link>
-            <Link href="/tools">Free Tools</Link>
-            <Link href="/pricing">Pricing</Link>
+            <Link href="/individuals" className="transition-colors hover:text-[#267a31]">Individuals</Link>
+            <Link href="/professionals" className="transition-colors hover:text-[#267a31]">Professionals</Link>
+            <Link href="/tools" className="transition-colors hover:text-[#267a31]">Free Tools</Link>
+            <Link href="/pricing" className="transition-colors hover:text-[#267a31]">Pricing</Link>
           </div>
-          <TrackedLink href={primaryCta.href} eventLabel={primaryCta.label} eventLocation={`${audience}_nav`} className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-black text-white">
+          <TrackedLink href={primaryCta.href} eventLabel={primaryCta.label} eventLocation={`${audience}_nav`} className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-black text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
             {primaryCta.label}
           </TrackedLink>
         </div>
       </nav>
 
-      <section className="border-b border-slate-200 bg-[#f7fbfa] px-4 py-14 sm:py-20">
+      <section className="premium-hero border-b border-[#d8e4de] bg-[#f7fbfa] px-4 py-14 sm:py-20">
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[.95fr_1.05fr]">
           <div>
             <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">{eyebrow}</p>
@@ -68,12 +70,12 @@ export default function AcquisitionPage({
               FixMy.Money is software. Consumers and professionals remain responsible for reviewing facts, choosing actions, and complying with applicable rules.
             </p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-[#d3e1da] bg-white p-4 shadow-[0_24px_70px_rgba(12,43,34,.1)]">
             <div className="grid gap-3 sm:grid-cols-2">
               {features.map((feature, index) => {
                 const Icon = icons[index % icons.length];
                 return (
-                  <div key={feature} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div key={feature} className="rounded-2xl border border-[#dce7e2] bg-[#f7faf8] p-4">
                     <Icon size={22} className="text-emerald-700" />
                     <p className="mt-4 text-sm font-bold leading-6 text-slate-800">{feature}</p>
                   </div>
@@ -129,6 +131,7 @@ export default function AcquisitionPage({
           </div>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 }

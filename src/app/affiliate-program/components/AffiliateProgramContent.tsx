@@ -49,8 +49,8 @@ const tiers = [
 ];
 
 const earnings = [
-  { referrals: 5, plan: 'Professional ($129/mo)', monthly: '$194', annual: '$2,322' },
-  { referrals: 10, plan: 'Professional ($129/mo)', monthly: '$387', annual: '$4,644' },
+  { referrals: 5, plan: 'Start ($99/mo)', monthly: '$149', annual: '$1,782' },
+  { referrals: 10, plan: 'Start ($99/mo)', monthly: '$297', annual: '$3,564' },
   { referrals: 25, plan: 'Mixed plans (~$140 avg)', monthly: '$1,050', annual: '$12,600' },
   { referrals: 50, plan: 'Mixed plans (~$140 avg)', monthly: '$2,100', annual: '$25,200' },
 ];
