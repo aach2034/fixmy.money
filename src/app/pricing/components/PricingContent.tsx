@@ -68,7 +68,6 @@ const BILLING_FAQS = [
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
   { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
-  { q: 'What is the annual discount?', a: 'Annual billing saves approximately 20% compared to monthly billing. Annual plans are billed once per year.' },
   { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
   { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
 ];
@@ -81,7 +80,6 @@ function CellValue({ value }: { value: string | boolean }) {
 
 export default function PricingContent() {
   const router = useRouter();
-  const [annual, setAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const handleStartTrial = (planId: string, planName: string, price: number | null) => {
@@ -91,8 +89,8 @@ export default function PricingContent() {
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Reserve One Month Free ${planName}`, '/#reopening-list', 'pricing_page');
-    router.push(`/#reopening-list`);
+    trackCtaClick(`Reserve One Month Free ${planName}`, '/reopen', 'pricing_page');
+    router.push('/reopen');
   };
 
   return (
@@ -102,9 +100,9 @@ export default function PricingContent() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
           <div className="flex items-center gap-3">
-            <Link href="/product-tour" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Product Tour</Link>
-            <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+            <Link href="/product-tour" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Product Tour</Link>
+            <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#52636d] transition-colors hover:bg-[#f1f5f3] hover:text-[#267a31] sm:block">Sign in</Link>
+            <Link href="/reopen" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
               Reserve One Month Free
             </Link>
           </div>
@@ -118,24 +116,11 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">New accounts reopen October 25, 2026. Join now to reserve one full month free.</p>
+          <p className="text-xl text-slate-300 mb-3">New accounts reopen September 30, 2026. Join now to reserve one full month free.</p>
           <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
 
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 bg-slate-800/60 border border-slate-700/60 rounded-2xl px-4 py-3">
-            <button
-              onClick={() => setAnnual(false)}
-              className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${!annual ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setAnnual(true)}
-              className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${annual ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            >
-              Annual
-              <span className="ml-2 text-xs font-bold text-emerald-400">Save ~20%</span>
-            </button>
+          <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-6 py-3">
+            <span className="text-sm font-semibold text-white">Monthly billing</span>
           </div>
         </div>
       </section>
@@ -145,7 +130,7 @@ export default function PricingContent() {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PLANS.map((plan) => {
-              const price = annual ? plan.annualPrice : plan.monthlyPrice;
+              const price = plan.monthlyPrice;
               return (
                 <div
                   key={plan.id}
@@ -171,11 +156,6 @@ export default function PricingContent() {
                       <>
                         <span className="text-4xl font-extrabold text-slate-900">${price}</span>
                         <span className="text-slate-500 text-sm">/mo</span>
-                        {annual && (
-                          <p className="text-xs text-emerald-600 font-semibold mt-1">
-                            Billed annually (${price * 12}/yr)
-                          </p>
-                        )}
                       </>
                     ) : (
                       <span className="text-2xl font-extrabold text-slate-900">Custom</span>
@@ -223,7 +203,7 @@ export default function PricingContent() {
           <DemoVideoPlayer
             placement="pricing"
             showTrialCta
-            onTrialClick={() => router.push('/#reopening-list')}
+            onTrialClick={() => router.push('/reopen')}
           />
         </div>
       </section>
@@ -285,7 +265,6 @@ export default function PricingContent() {
               { label: 'Paid trial', value: '$1 today for 14 days, with full access to your selected plan' },
               { label: 'Credit card required for trial', value: 'Yes' },
               { label: 'Monthly billing', value: 'Charged on the same date each month' },
-              { label: 'Annual billing', value: 'Charged once per year, ~20% discount' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
               { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
               { label: 'Downgrades', value: 'Take effect at next billing cycle' },
@@ -358,10 +337,10 @@ export default function PricingContent() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after October 25, 2026.</p>
+          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after September 30, 2026.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/#reopening-list"
+              href="/reopen"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
               Reserve One Month Free <ArrowRight size={16} />

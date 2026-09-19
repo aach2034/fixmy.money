@@ -20,10 +20,10 @@ export const metadata: Metadata = {
 };
 
 const faqs = [
-{ q: 'What plan is best for small agencies?', a: `Starter ($${PLANS.starter.monthlyPrice}/mo) for individual workflows and Pro ($${PLANS.professional.monthlyPrice}/mo) for growing agencies.` },
+{ q: 'What plan is best for small agencies?', a: `${PLANS.starter.name} ($${PLANS.starter.monthlyPrice}/mo) for individual workflows and ${PLANS.professional.name} ($${PLANS.professional.monthlyPrice}/mo) for growing agencies.` },
 { q: 'Can I upgrade later?', a: 'Yes. Upgrade anytime. You\'ll only pay the difference for the remainder of your billing cycle.' },
-{ q: 'What if I outgrow my plan?', a: 'Upgrade to Professional or Agency plan as you grow. No penalties or long-term contracts.' },
-{ q: 'Is there a discount for annual billing?', a: 'Yes. Save 20% with annual billing on all plans.' }];
+{ q: 'What if I outgrow my plan?', a: `Upgrade to ${PLANS.professional.name} or ${PLANS.agency.name} as you grow. No penalties or long-term contracts.` },
+{ q: 'Do you offer annual billing?', a: 'No. The currently published plans use monthly billing.' }];
 
 
 export default function SmallAgencySoftwarePage() {
@@ -84,7 +84,7 @@ export default function SmallAgencySoftwarePage() {
                       </li>
                   )}
                   </ul>
-                  <Link href={`/#reopening-list`} className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">
+                  <Link href="/reopen" className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">
                     Reserve One Month Free
                   </Link>
                 </div>
@@ -127,7 +127,7 @@ export default function SmallAgencySoftwarePage() {
         <section className="py-20 bg-blue-600">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">Start your agency today</h2>
-            <p className="text-lg text-blue-50 mb-8">Join the reopening list and reserve one month free when we reopen October 25, 2026.</p>
+            <p className="text-lg text-blue-50 mb-8">Join the reopening list and reserve one month free when we reopen September 30, 2026.</p>
             <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
               Reserve One Month Free <ArrowRight size={18} />
             </Link>

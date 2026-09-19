@@ -1,5 +1,6 @@
-export const REOPENING_DATE_DISPLAY = 'October 25, 2026';
-export const REOPENING_DATE_ISO = '2026-10-25';
+export const REOPENING_DATE_DISPLAY = 'September 30, 2026';
+export const REOPENING_DATE_ISO = '2026-09-30';
+// Stable offer key for reservations made before the reopening date changed.
 export const REOPENING_OFFER = 'reopening-one-month-free-2026-10-25';
 export const SIGNUP_CLOSED_MESSAGE =
   `New account creation is temporarily unavailable while we improve FixMy.Money. ` +

@@ -1,4 +1,5 @@
 import { getAdminClient } from '@/lib/supabase/admin';
+import { sanitizeAnalyticsPayload } from './privacy';
 
 export const PRODUCT_ANALYTICS_EVENTS = [
   'signup_completed',
@@ -38,7 +39,7 @@ function sanitizeValue(value: unknown): string | number | boolean | null {
 export function sanitizeProductAnalyticsProperties(input: unknown): Record<string, string | number | boolean> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
   const sanitized: Record<string, string | number | boolean> = {};
-  for (const [key, rawValue] of Object.entries(input as Record<string, unknown>)) {
+  for (const [key, rawValue] of Object.entries(sanitizeAnalyticsPayload(input as Record<string, unknown>))) {
     if (!ALLOWED_PROPERTY_KEYS.has(key)) continue;
     const value = sanitizeValue(rawValue);
     if (value !== null && value !== '') sanitized[key] = value;

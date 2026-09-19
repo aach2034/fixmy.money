@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { attributionEventParams, captureCurrentAttribution } from './attribution';
+import { safeCampaignValue, safeReferrerHost, safeRoutePath, sanitizeAnalyticsPayload } from './analytics/privacy';
 
 declare global {
   interface Window {
@@ -17,7 +18,24 @@ function getStoredAttribution(): Record<string, unknown> {
   if (typeof window === 'undefined') return {};
   try {
     const stored = window.localStorage.getItem(ATTRIBUTION_KEY);
-    return stored ? JSON.parse(stored) as Record<string, unknown> : {};
+    if (!stored) return {};
+    const raw = JSON.parse(stored) as Record<string, unknown>;
+    if (raw.acquisition_channel !== 'organic') {
+      window.localStorage.removeItem(ATTRIBUTION_KEY);
+      return {};
+    }
+    const safe = sanitizeAnalyticsPayload({
+      acquisition_channel: 'organic',
+      organic_landing_page: raw.organic_landing_page,
+      organic_referrer: raw.organic_referrer,
+      organic_utm_source: raw.organic_utm_source,
+      organic_utm_medium: raw.organic_utm_medium,
+      organic_utm_campaign: raw.organic_utm_campaign,
+      organic_first_seen_at: typeof raw.organic_first_seen_at === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(raw.organic_first_seen_at)
+        ? raw.organic_first_seen_at : '',
+    });
+    if (stored !== JSON.stringify(safe)) window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(safe));
+    return safe;
   } catch {
     return {};
   }
@@ -27,7 +45,7 @@ function runtimeEventContext(): Record<string, unknown> {
   if (typeof window === 'undefined') return {};
   const width = window.innerWidth;
   return {
-    page_path: `${window.location.pathname}${window.location.search}`,
+    page_path: safeRoutePath(window.location.pathname),
     device_type: width < 768 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop',
   };
 }
@@ -59,15 +77,9 @@ function persistAuthenticatedEvent(eventName: string, eventParams: Record<string
 function persistOrganicAttribution(pagePath: string, searchParams: URLSearchParams) {
   if (typeof window === 'undefined') return {};
 
-  const referrer = document.referrer;
-  let referrerHost = '';
-  try {
-    referrerHost = referrer ? new URL(referrer).host.toLowerCase() : '';
-  } catch {
-    referrerHost = '';
-  }
-  const utmSource = searchParams.get('utm_source') ?? '';
-  const utmMedium = searchParams.get('utm_medium') ?? '';
+  const referrerHost = safeReferrerHost(document.referrer);
+  const utmSource = safeCampaignValue(searchParams.get('utm_source'));
+  const utmMedium = safeCampaignValue(searchParams.get('utm_medium'));
   const isSearchReferrer = SEARCH_REFERRERS.some(host => referrerHost.includes(host));
   const isOrganicUtm = utmMedium.toLowerCase() === 'organic' || utmSource.toLowerCase() === 'organic';
 
@@ -75,20 +87,26 @@ function persistOrganicAttribution(pagePath: string, searchParams: URLSearchPara
 
   const attribution = {
     acquisition_channel: 'organic',
-    organic_landing_page: pagePath,
-    organic_referrer: referrer,
+    organic_landing_page: safeRoutePath(pagePath),
+    organic_referrer: referrerHost,
     organic_utm_source: utmSource,
     organic_utm_medium: utmMedium,
-    organic_utm_campaign: searchParams.get('utm_campaign') ?? '',
+    organic_utm_campaign: safeCampaignValue(searchParams.get('utm_campaign')),
     organic_first_seen_at: new Date().toISOString(),
   };
 
   try {
-    window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(attribution));
+    window.localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(sanitizeAnalyticsPayload(attribution)));
   } catch {
     // Analytics attribution should never block the application.
   }
-  return attribution;
+  return sanitizeAnalyticsPayload(attribution);
+}
+
+function emitGoogleEvent(eventName: string, properties: Record<string, unknown>) {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', eventName, sanitizeAnalyticsPayload(properties));
+  }
 }
 
 export function useGoogleAnalytics() {
@@ -96,49 +114,46 @@ export function useGoogleAnalytics() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const url = pathname + (searchParams.toString() ? `?${searchParams}` : '');
+    const pagePath = safeRoutePath(pathname);
     const acquisitionAttribution = captureCurrentAttribution();
     const attribution = persistOrganicAttribution(pathname, searchParams);
-    if (window.gtag) {
-      window.gtag('event', 'page_view', {
-        page_location: window.location.href,
-        page_path: url,
-        page_title: document.title,
-        event_name: 'landing_page_view',
-        ...attribution,
+    if (typeof window.gtag !== 'function') return;
+    emitGoogleEvent('page_view', {
+      page_location: pagePath,
+      page_path: pagePath,
+      page_title: 'FixMy.Money',
+      event_name: 'landing_page_view',
+      ...attribution,
+      ...attributionEventParams(acquisitionAttribution),
+    });
+    emitGoogleEvent('landing_page_view', {
+      page_location: pagePath,
+      page_path: pagePath,
+      page_title: 'FixMy.Money',
+      ...attributionEventParams(acquisitionAttribution),
+    });
+    if (pathname === '/') {
+      trackEvent('homepage_view', { authenticated: false });
+    }
+    if (pathname === '/pricing') {
+      trackEvent('pricing_view', {
+        page_location: pagePath,
+        page_path: pagePath,
+        authenticated: false,
         ...attributionEventParams(acquisitionAttribution),
       });
-      window.gtag('event', 'landing_page_view', {
-        page_location: window.location.href,
-        page_path: url,
-        page_title: document.title,
-        ...attributionEventParams(acquisitionAttribution),
-      });
-      if (pathname === '/') {
-        trackEvent('homepage_view', { authenticated: false });
-      }
-      if (pathname === '/pricing') {
-        trackEvent('pricing_view', {
-          page_location: window.location.href,
-          page_path: url,
-          authenticated: false,
-          ...attributionEventParams(acquisitionAttribution),
-        });
-      }
     }
   }, [pathname, searchParams]);
 }
 
 export function trackEvent(eventName: string, eventParams: Record<string, unknown> = {}) {
-  const normalizedParams = {
+  const normalizedParams = sanitizeAnalyticsPayload({
     ...runtimeEventContext(),
     ...getStoredAttribution(),
     ...attributionEventParams(),
     ...eventParams,
-  };
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, normalizedParams);
-  }
+  });
+  emitGoogleEvent(eventName, normalizedParams);
   persistAuthenticatedEvent(eventName, normalizedParams);
 }
 

@@ -222,7 +222,7 @@ const CreditRepairCloudAlternativeContent = () => {
             Ready to Switch to Fix My Money?
           </h2>
           <p className="text-xl text-amber-100 mb-8">
-            Reserve one month free when FixMy.Money reopens October 25, 2026.
+            Reserve one month free when FixMy.Money reopens September 30, 2026.
           </p>
           <Link
             href="/demo"
