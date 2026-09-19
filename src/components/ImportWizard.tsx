@@ -1136,7 +1136,7 @@ export default function ImportWizard({
                 <button
                   onClick={() => {
                     onComplete(parsedReportId);
-                    router.push(`/dispute-wizard?clientId=${clientId}&clientName=${encodeURIComponent(clientName)}&reportId=${parsedReportId}&fromReport=true`);
+                    router.push(`/dispute-wizard?clientId=${clientId}&reportId=${parsedReportId}&fromReport=true`);
                   }}
                   className="btn-primary flex items-center gap-2 justify-center"
                 >

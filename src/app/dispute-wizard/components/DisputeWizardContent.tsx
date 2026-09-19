@@ -119,11 +119,8 @@ export default function DisputeWizardContent() {
   const searchParams = useSearchParams();
   const fromReport = searchParams.get('fromReport') === 'true';
   const preClientId = searchParams.get('clientId') ?? '';
-  const preClientName = searchParams.get('clientName') ?? '';
   const preReportId = searchParams.get('reportId') ?? '';
   const preFindingId = searchParams.get('findingId') ?? '';
-  const preFindingCreditor = searchParams.get('findingCreditor') ?? '';
-  const preFindingAccount = searchParams.get('findingAccount') ?? '';
   const preBureau = searchParams.get('bureau') ?? '';
 
   const [step, setStep] = useState(fromReport && preBureau ? 3 : fromReport ? 2 : 1);
@@ -140,7 +137,7 @@ export default function DisputeWizardContent() {
 
   // Wizard state
   const [selectedClient, setSelectedClient] = useState<WizardClient | null>(
-    fromReport && preClientId ? { id: preClientId, name: preClientName } : null
+    fromReport && preClientId ? { id: preClientId, name: '' } : null
   );
   const [selectedBureau, setSelectedBureau] = useState(preBureau);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -321,12 +318,7 @@ export default function DisputeWizardContent() {
             source: 'negative_items',
           }));
           setDisputeItems(mappedItems);
-          const requestedFinding = preFindingId && mappedItems.find(item =>
-            item.id === preFindingId || (
-              preFindingCreditor && item.creditorName === preFindingCreditor &&
-              (!preFindingAccount || item.accountNumber === preFindingAccount)
-            )
-          );
+          const requestedFinding = preFindingId && mappedItems.find(item => item.id === preFindingId);
           const selected = requestedFinding ? [requestedFinding] : mappedItems.filter(item => item.isRecommended);
           setSelectedItems(new Set(selected.map(item => item.id)));
           if (requestedFinding) {
