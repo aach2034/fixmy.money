@@ -63,7 +63,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
       trackEvent('reopening_waitlist_joined', {
         event_category: 'conversion',
         offer: 'one_month_free',
-        reopening_date: '2026-10-25',
+        reopening_date: '2026-09-30',
         source: 'reopening_list',
         attribution: attributionEventParams(captureCurrentAttribution()),
       });

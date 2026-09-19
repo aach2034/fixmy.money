@@ -14,9 +14,9 @@ describe('Google Analytics funnel tracking', () => {
 
   it('tracks SPA page views with useful page context', () => {
     const analytics = read('src/lib/analytics.ts');
-    expect(analytics).toContain("window.gtag('event', 'page_view'");
-    expect(analytics).toContain("window.gtag('event', 'landing_page_view'");
-    expect(analytics).toContain('page_location: window.location.href');
+    expect(analytics).toContain("emitGoogleEvent('page_view'");
+    expect(analytics).toContain("emitGoogleEvent('landing_page_view'");
+    expect(analytics).toContain('page_location: pagePath');
     expect(analytics).toContain('organic_landing_page');
     expect(analytics).toContain('attributionEventParams');
     expect(analytics).not.toContain("document.createElement('script')");
@@ -41,7 +41,7 @@ describe('Google Analytics funnel tracking', () => {
 
     expect(waitlist).toContain("trackEvent('reopening_waitlist_joined'");
     expect(waitlist).toContain("offer: 'one_month_free'");
-    expect(waitlist).toContain("reopening_date: '2026-10-25'");
+    expect(waitlist).toContain("reopening_date: '2026-09-30'");
     expect(checkout).toContain("trackEvent('email_verified'");
     expect(checkout).toContain("searchParams.get('cancelled') === '1'");
     expect(checkout).toContain("trackEvent('checkout_cancelled'");

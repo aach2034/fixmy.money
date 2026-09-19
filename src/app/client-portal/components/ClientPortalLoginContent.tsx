@@ -166,7 +166,7 @@ export default function ClientPortalLoginContent() {
             </button>
           </form>
 
-          {invitationToken && <p className="mt-4 text-center text-sm text-muted-foreground">New client access creation is paused until October 25, 2026. Existing portal users can still sign in and accept an invitation.</p>}
+          {invitationToken && <p className="mt-4 text-center text-sm text-muted-foreground">New client access creation is paused until September 30, 2026. Existing portal users can still sign in and accept an invitation.</p>}
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             This portal is for clients only.{' '}

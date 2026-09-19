@@ -57,7 +57,7 @@ describe('temporary new-signup shutdown', () => {
     await expect(response.json()).resolves.toMatchObject({
       code: 'SIGNUPS_CLOSED',
       waitlistUrl: '/#reopening-list',
-      reopeningDate: '2026-10-25',
+      reopeningDate: '2026-09-30',
     });
     expect(SIGNUP_CLOSED_MESSAGE).toContain('one month free');
   });
@@ -108,7 +108,7 @@ describe('temporary new-signup shutdown', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
-      reopeningDate: '2026-10-25',
+      reopeningDate: '2026-09-30',
       offer: 'one_month_free',
     });
     expect(db.inserts).toHaveLength(1);
@@ -150,10 +150,11 @@ describe('temporary new-signup shutdown', () => {
     expect(db.inserts).toHaveLength(0);
 
     const notice = fs.readFileSync('src/components/ReopeningNotice.tsx', 'utf8');
-    expect(REOPENING_DATE_DISPLAY).toBe('October 25, 2026');
-    expect(notice).toContain('October 25, 2026');
-    expect(notice).toContain('one full month of FixMy.Money free');
-    expect(notice).toContain('SIGN IN');
+    expect(REOPENING_DATE_DISPLAY).toBe('September 30, 2026');
+    expect(notice).toContain('September 30, 2026');
+    expect(notice).toContain('receive your first month free');
+    expect(notice).toContain('Already have access?');
+    expect(REOPENING_OFFER).toBe('reopening-one-month-free-2026-10-25');
   });
 
   it('preserves existing-customer login, sessions, and authorized account routing', () => {
