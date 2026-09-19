@@ -127,7 +127,7 @@ export default function SmallAgencySoftwarePage() {
         <section className="py-20 bg-blue-600">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">Start your agency today</h2>
-            <p className="text-lg text-blue-50 mb-8">Join the reopening list and reserve one month free when we reopen October 25, 2026.</p>
+            <p className="text-lg text-blue-50 mb-8">Join the reopening list and reserve one month free when we reopen September 30, 2026.</p>
             <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-blue-600 font-bold px-8 py-4 rounded-xl transition-colors">
               Reserve One Month Free <ArrowRight size={18} />
             </Link>

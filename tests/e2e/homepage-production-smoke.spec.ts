@@ -33,17 +33,6 @@ async function gotoReady(page: Page, path: string) {
   return response;
 }
 
-async function clickReopeningLink(page: Page, link: ReturnType<Page['getByRole']>) {
-  await Promise.all([
-    page.waitForURL(/\/#reopening-list$/),
-    link.click(),
-  ]);
-  await page.locator('#reopening-list').waitFor({ state: 'visible' });
-  await page.evaluate(() => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  }));
-}
-
 async function expectCleanHomepage(page: Page) {
   const failedAssets: string[] = [];
   const consoleErrors: string[] = [];
@@ -75,8 +64,8 @@ async function expectCleanHomepage(page: Page) {
   await expect(page.getByRole('heading', {
     name: /Your credit report, organized\. See what matters\. You take action\./i,
   })).toBeVisible();
-  await expect(page.getByRole('link', { name: /RESERVE MY FREE MONTH/i }).first()).toBeVisible();
-  await expect(page.getByText('Secure workspace')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Review My Own Credit/i })).toBeVisible();
+  await expect(page.getByText('Three-Bureau Comparison')).toBeVisible();
   await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(failedAssets).toEqual([]);
@@ -133,31 +122,38 @@ test.describe('production homepage smoke', () => {
     await page.getByRole('link', { name: /FixMy\.Money home/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
-    await page.locator('header').getByRole('link', { name: 'Sign in' }).click();
+    await page.locator('header').getByRole('link', { name: 'Sign In' }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     await gotoReady(page, '/');
-    await clickReopeningLink(page, page.getByRole('link', { name: /RESERVE MY FREE MONTH/i }).first());
+    await page.getByRole('link', { name: /Reserve My Free Month/i }).first().click();
+    await expect(page).toHaveURL(/\/reopen$/);
 
     await gotoReady(page, '/');
-    await page.getByRole('link', { name: /See business software/i }).click();
+    await page.getByRole('link', { name: /Review My Own Credit/i }).click();
+    await expect(page).toHaveURL(/\/individuals$/);
+    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
+    await expect(page).toHaveURL(/\/reopen$/);
+
+    await gotoReady(page, '/');
+    await page.getByRole('link', { name: /Run My Credit Business/i }).click();
     await expect(page).toHaveURL(/\/professionals$/);
+    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
+    await expect(page).toHaveURL(/\/reopen$/);
 
     const planExpectations = ['Personal', 'Start', 'Grow'] as const;
 
     for (const planName of planExpectations) {
       await gotoReady(page, '/');
-      await clickReopeningLink(
-        page,
-        page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Reserve one month free' }),
-      );
+      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Reserve one month free' }).click();
+      await expect(page).toHaveURL(/\/reopen$/);
     }
   });
 
   test('mobile navigation works', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await gotoReady(page, '/');
-    const signIn = page.locator('header').getByRole('link', { name: 'Sign in' });
+    const signIn = page.locator('header').getByRole('link', { name: 'Sign In' });
     await expect(signIn).toBeVisible();
     await signIn.click();
     await expect(page).toHaveURL(/\/login$/);
@@ -168,6 +164,7 @@ test.describe('production homepage smoke', () => {
     for (const width of [375, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await gotoReady(page, '/');
+      if (width === 375) await page.locator('header summary').click();
       await expect(page.getByRole('link', { name: 'Blog', exact: true }).first()).toBeVisible();
       await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
       await expect(page).toHaveURL(/\/blog$/);

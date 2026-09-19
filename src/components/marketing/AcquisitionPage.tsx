@@ -109,7 +109,7 @@ export default function AcquisitionPage({
                 <h3 className="text-lg font-black">{plan.name}</h3>
                 <p className="mt-2 text-sm text-slate-600">{plan.description}</p>
                 <p className="mt-5 text-3xl font-black">{plan.price ? `$${plan.price}` : 'Custom'}<span className="text-sm font-bold text-slate-500"> /mo</span></p>
-                <TrackedLink href={`/#reopening-list`} eventLabel={`Start ${plan.name}`} eventLocation={`${audience}_pricing`} className="mt-5 block rounded-md bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
+                <TrackedLink href="/reopen" eventLabel={`Start ${plan.name}`} eventLocation={`${audience}_pricing`} className="mt-5 block rounded-md bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">
                   Reserve One Month Free
                 </TrackedLink>
               </article>

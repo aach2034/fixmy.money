@@ -12,17 +12,21 @@ test.describe('organized credit-report homepage experience', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(exactHeadline);
     await expect(page.getByText(exactSupportingText, { exact: true })).toBeVisible();
 
-    const preview = page.locator('#platform');
-    await expect(preview.getByText('Illustrative data — not a customer report', { exact: true })).toBeVisible();
-    await expect(preview.getByText('Equifax', { exact: true })).toBeVisible();
-    await expect(preview.getByText('Experian', { exact: true })).toBeVisible();
-    await expect(preview.getByText('TransUnion', { exact: true })).toBeVisible();
-    await expect(preview.getByText('01 · Scattered', { exact: true })).toBeVisible();
-    await expect(preview.getByText('02 · Organized', { exact: true })).toBeVisible();
-    await expect(preview.getByText('03 · Review', { exact: true })).toBeVisible();
-    await expect(preview.getByText('Potential differences need investigation and do not automatically establish an error.', { exact: true })).toBeVisible();
+    const preview = page.locator('[aria-label="Illustrative three-bureau credit report comparison"]');
+    await expect(preview.getByText('Illustrative example').first()).toBeVisible();
+    await expect(preview.getByText('Needs review', { exact: true }).first()).toBeVisible();
+    await expect(preview).toContainText('Equifax');
+    await expect(preview).toContainText('Experian');
+    await expect(preview).toContainText('TransUnion');
+    await expect(preview).toContainText('Imported');
+    await expect(preview).toContainText('Organized');
+    await expect(preview).toContainText('Ready to review');
+    const mobileTextSizes = await preview.locator('.sm\\:hidden *').evaluateAll(elements => elements
+      .filter(element => element.textContent?.trim() && getComputedStyle(element).display !== 'none')
+      .map(element => Number.parseFloat(getComputedStyle(element).fontSize)));
+    expect(Math.min(...mobileTextSizes)).toBeGreaterThanOrEqual(12);
 
-    await expect(page.getByText('Software plans · Reopening October 25, 2026', { exact: true })).toBeVisible();
+    await expect(page.getByText('Software plans · Reopening September 30, 2026', { exact: true })).toBeVisible();
     await expect(page.getByText('per month', { exact: true })).toHaveCount(3);
     await expect(page.getByText(/most popular/i)).toHaveCount(0);
 
@@ -62,7 +66,7 @@ test.describe('organized credit-report homepage experience', () => {
     expect(JSON.stringify(evidence)).not.toMatch(/report_contents|account_number|email|token/i);
   });
 
-  test('prefers native sharing and tracks the primary hero CTA without changing destinations', async ({ page }) => {
+  test('prefers native sharing and routes the personal hero CTA', async ({ page }) => {
     await page.addInitScript(() => {
       const state = window as Window & { __nativeShareData?: ShareData };
       Object.defineProperty(navigator, 'share', {
@@ -81,13 +85,8 @@ test.describe('organized credit-report homepage experience', () => {
     await expect(page.getByRole('button', { name: 'Shared' })).toBeVisible();
 
     const hero = page.getByRole('heading', { level: 1 }).locator('xpath=ancestor::section[1]');
-    const primaryCta = hero.getByRole('link', { name: 'RESERVE MY FREE MONTH' });
-    await expect(primaryCta).toHaveAttribute('href', '#reopening-list');
-    await Promise.all([
-      page.waitForURL(/#reopening-list$/),
-      primaryCta.click(),
-    ]);
-    await expect(page.locator('#reopening-list')).toBeVisible();
+    const primaryCta = hero.getByRole('link', { name: /Review My Own Credit/ });
+    await expect(primaryCta).toHaveAttribute('href', '/individuals');
 
     const evidence = await page.evaluate(() => {
       const state = window as Window & { __capturedEvents?: unknown[][]; __nativeShareData?: ShareData };
@@ -102,7 +101,8 @@ test.describe('organized credit-report homepage experience', () => {
     }));
     expect(evidence.events).toEqual(expect.arrayContaining([
       expect.arrayContaining(['event', 'education_share_completed', expect.objectContaining({ share_method: 'native_share' })]),
-      expect.arrayContaining(['event', 'cta_click', expect.objectContaining({ cta_location: 'homepage_hero' })]),
     ]));
+    await primaryCta.click();
+    await expect(page).toHaveURL(/\/individuals$/);
   });
 });

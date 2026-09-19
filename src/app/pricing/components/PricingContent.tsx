@@ -91,8 +91,8 @@ export default function PricingContent() {
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Reserve One Month Free ${planName}`, '/#reopening-list', 'pricing_page');
-    router.push(`/#reopening-list`);
+    trackCtaClick(`Reserve One Month Free ${planName}`, '/reopen', 'pricing_page');
+    router.push('/reopen');
   };
 
   return (
@@ -104,7 +104,7 @@ export default function PricingContent() {
           <div className="flex items-center gap-3">
             <Link href="/product-tour" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Product Tour</Link>
             <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#52636d] transition-colors hover:bg-[#f1f5f3] hover:text-[#267a31] sm:block">Sign in</Link>
-            <Link href="/#reopening-list" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
+            <Link href="/reopen" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
               Reserve One Month Free
             </Link>
           </div>
@@ -118,7 +118,7 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">New accounts reopen October 25, 2026. Join now to reserve one full month free.</p>
+          <p className="text-xl text-slate-300 mb-3">New accounts reopen September 30, 2026. Join now to reserve one full month free.</p>
           <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
 
           <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-5 py-3 text-sm font-semibold text-white">
@@ -198,7 +198,7 @@ export default function PricingContent() {
           <DemoVideoPlayer
             placement="pricing"
             showTrialCta
-            onTrialClick={() => router.push('/#reopening-list')}
+            onTrialClick={() => router.push('/reopen')}
           />
         </div>
       </section>
@@ -332,10 +332,10 @@ export default function PricingContent() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after October 25, 2026.</p>
+          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after September 30, 2026.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/#reopening-list"
+              href="/reopen"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
               Reserve One Month Free <ArrowRight size={16} />

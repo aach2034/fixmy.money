@@ -304,7 +304,7 @@ export default function ProductTourPage() {
             Run your credit repair agency from one platform
           </h2>
           <p className="text-slate-400 mb-8">
-            Reserve one month free when FixMy.Money reopens October 25, 2026.
+            Reserve one month free when FixMy.Money reopens September 30, 2026.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
