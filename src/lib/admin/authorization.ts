@@ -45,11 +45,20 @@ export type PlatformAdminSession = {
   accessToken: string;
 };
 
+export type PlatformAdminEnrollmentSession = PlatformAdminSession & {
+  active: boolean;
+};
+
 export type VerifiedPlatformAdminSession = PlatformAdminSession & {
   verifiedFactorIds: string[];
 };
 
 type AdminAuthClient = Awaited<ReturnType<typeof createClient>>;
+
+type PlatformAdminEnrollment = {
+  role: PlatformAdminRole;
+  active: boolean;
+};
 
 export async function getPlatformAdminRole(userId: string): Promise<PlatformAdminRole | null> {
   const { data, error } = await getAdminClient()
@@ -61,6 +70,46 @@ export async function getPlatformAdminRole(userId: string): Promise<PlatformAdmi
 
   if (error || !data) return null;
   return data.role === 'platform_admin' || data.role === 'platform_superadmin' ? data.role : null;
+}
+
+/**
+ * Resolve only whether a verified Auth user has been pre-provisioned for the
+ * administrator MFA enrollment screen. This result must never authorize an
+ * administrator page or mutation.
+ */
+export async function getPlatformAdminEnrollment(
+  userId: string
+): Promise<PlatformAdminEnrollment | null> {
+  const { data, error } = await getAdminClient()
+    .from('platform_admins')
+    .select('role, active')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (data.role !== 'platform_admin' && data.role !== 'platform_superadmin') return null;
+  return { role: data.role, active: data.active === true };
+}
+
+/**
+ * Resolve an active administrator through the caller's authenticated database
+ * session. FMM-015 RLS is the final authority for role, AAL2, app-owned factor
+ * state, and session revocation.
+ */
+export async function getAuthenticatedPlatformAdminRole(
+  supabase: AdminAuthClient,
+  userId: string
+): Promise<PlatformAdminRole | null> {
+  const { data, error } = await supabase
+    .from('platform_admins')
+    .select('role, active')
+    .eq('user_id', userId)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (data.role === 'platform_superadmin') return 'platform_superadmin';
+  return data.role === 'platform_admin' ? 'platform_admin' : null;
 }
 
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
@@ -81,7 +130,9 @@ async function writeSecurityAudit(
   if (error) throw new Error('Administrator security audit recording failed.');
 }
 
-async function getAdminIdentity(): Promise<PlatformAdminSession & { supabase: AdminAuthClient }> {
+async function getAdminIdentity(
+  allowInactive = false
+): Promise<PlatformAdminEnrollmentSession & { supabase: AdminAuthClient }> {
   const supabase = await createClient();
   const {
     data: { user }, error: userError,
@@ -101,12 +152,12 @@ async function getAdminIdentity(): Promise<PlatformAdminSession & { supabase: Ad
     .from('platform_admins')
     .select('role, active, sessions_revoked_after, revoked_session_ids')
     .eq('user_id', user.id)
-    .eq('active', true)
     .maybeSingle();
   const role = adminRecord?.role;
   if (
     adminError ||
     !adminRecord ||
+    (!allowInactive && adminRecord.active !== true) ||
     (role !== 'platform_admin' && role !== 'platform_superadmin')
   ) {
     redirect('/dashboard');
@@ -123,7 +174,7 @@ async function getAdminIdentity(): Promise<PlatformAdminSession & { supabase: Ad
     redirect('/login');
   }
 
-  return { user, role, sessionId, accessToken, supabase };
+  return { user, role, active: adminRecord.active === true, sessionId, accessToken, supabase };
 }
 
 export async function requirePlatformAdminIdentity(): Promise<PlatformAdminSession> {
@@ -131,8 +182,15 @@ export async function requirePlatformAdminIdentity(): Promise<PlatformAdminSessi
   return { user, role, sessionId, accessToken };
 }
 
-export async function requirePlatformAdmin(): Promise<VerifiedPlatformAdminSession> {
-  const { user, role, sessionId, accessToken, supabase } = await getAdminIdentity();
+export async function requirePlatformAdminEnrollmentIdentity(): Promise<PlatformAdminEnrollmentSession> {
+  const { user, role, active, sessionId, accessToken } = await getAdminIdentity(true);
+  return { user, role, active, sessionId, accessToken };
+}
+
+async function requireVerifiedPlatformAdminMfa(
+  allowInactive = false
+): Promise<VerifiedPlatformAdminSession & { active: boolean; supabase: AdminAuthClient }> {
+  const { user, role, active, sessionId, accessToken, supabase } = await getAdminIdentity(allowInactive);
   const [{ data: assurance, error: assuranceError }, { data: factors, error: factorsError }] =
     await Promise.all([
       supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
@@ -157,6 +215,34 @@ export async function requirePlatformAdmin(): Promise<VerifiedPlatformAdminSessi
     redirect('/admin/security?reason=challenge');
   }
 
+  return { user, role, active, sessionId, accessToken, verifiedFactorIds, supabase };
+}
+
+/**
+ * Enrollment bootstrap requires a real verified TOTP/AAL2 session but does not
+ * itself grant administrator access. Inactive pre-provisioned administrators
+ * remain inactive and receive no step-up cookie.
+ */
+export async function requirePlatformAdminMfaBootstrap(): Promise<
+  VerifiedPlatformAdminSession & { active: boolean; supabase: AdminAuthClient }
+> {
+  return requireVerifiedPlatformAdminMfa(true);
+}
+
+export async function requirePlatformAdmin(): Promise<VerifiedPlatformAdminSession> {
+  const session = await requireVerifiedPlatformAdminMfa();
+  const authenticatedRole = await getAuthenticatedPlatformAdminRole(
+    session.supabase,
+    session.user.id
+  );
+  if (authenticatedRole !== session.role) {
+    await writeSecurityAudit(session.user.id, 'admin_mfa_denied', {
+      reason: 'database_eligibility_denied',
+    });
+    redirect('/admin/security?reason=eligibility');
+  }
+
+  const { user, role, sessionId, accessToken, verifiedFactorIds } = session;
   return { user, role, sessionId, accessToken, verifiedFactorIds };
 }
 

@@ -248,7 +248,8 @@ describe('FMM-023 lead abuse controls', () => {
     expect(client).not.toContain('TURNSTILE_SECRET_KEY');
     expect(waitlist).not.toContain('TURNSTILE_SECRET_KEY');
     expect(widget).not.toContain('TURNSTILE_SECRET_KEY');
-    expect(widget).toContain("action: 'marketing_lead'");
+    expect(widget).toContain("action = 'marketing_lead'");
+    expect(widget).toContain('action,');
   });
 
   it('injects only the public Turnstile key into runtime browser configuration', () => {

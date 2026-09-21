@@ -1,10 +1,13 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { NextRequest } from 'next/server';
 import { POST as blockedSignup } from '@/app/api/auth/signup/route';
 import {
   REOPENING_DATE_DISPLAY,
   REOPENING_OFFER,
   SIGNUP_CLOSED_MESSAGE,
+  canUseCustomerAcquisition,
+  isPublicSignupOpen,
   isPreShutdownUser,
 } from '@/lib/signup/closure';
 import { captureReopeningWaitlist } from '../../worker/lead-capture';
@@ -52,12 +55,12 @@ function waitlistRequest(email: string) {
 
 describe('temporary new-signup shutdown', () => {
   it('blocks the direct email/password signup API with a controlled waitlist response', async () => {
-    const response = await blockedSignup();
+    const response = await blockedSignup(new NextRequest('https://fixmy.money/api/auth/signup', { method: 'POST' }));
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
       code: 'SIGNUPS_CLOSED',
       waitlistUrl: '/#reopening-list',
-      reopeningDate: '2026-10-25',
+      reopeningDate: '2026-09-30',
     });
     expect(SIGNUP_CLOSED_MESSAGE).toContain('one month free');
   });
@@ -70,8 +73,18 @@ describe('temporary new-signup shutdown', () => {
     delete process.env.SIGNUP_SHUTDOWN_STARTED_AT;
 
     const checkout = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
-    expect(checkout.indexOf('if (!isPreShutdownUser(user.created_at))')).toBeGreaterThan(-1);
-    expect(checkout.indexOf('if (!isPreShutdownUser(user.created_at))')).toBeLessThan(checkout.indexOf('stripe.customers.create'));
+    expect(checkout.indexOf('if (!canUseCustomerAcquisition(user.created_at))')).toBeGreaterThan(-1);
+    expect(checkout.indexOf('if (!canUseCustomerAcquisition(user.created_at))')).toBeLessThan(checkout.indexOf('stripe.customers.create'));
+  });
+
+  it('opens acquisition only after the launch instant and explicit server-side enablement', () => {
+    process.env.PUBLIC_SIGNUP_ENABLED = 'true';
+    expect(isPublicSignupOpen(new Date('2026-09-29T23:59:59-04:00'))).toBe(false);
+    expect(isPublicSignupOpen(new Date('2026-09-30T00:00:00-04:00'))).toBe(true);
+    expect(canUseCustomerAcquisition('2026-09-30T04:00:01.000Z', new Date('2026-09-30T00:00:01-04:00'))).toBe(true);
+    process.env.PUBLIC_SIGNUP_ENABLED = 'false';
+    expect(isPublicSignupOpen(new Date('2026-10-01T00:00:00-04:00'))).toBe(false);
+    delete process.env.PUBLIC_SIGNUP_ENABLED;
   });
 
   it('blocks newly-created OAuth/callback identities while preserving recovery routing', () => {
@@ -79,10 +92,23 @@ describe('temporary new-signup shutdown', () => {
     expect(callback).toContain("type === 'recovery'");
     expect(callback).toContain("from('platform_admins')");
     expect(callback).toContain('!isAdministratorRecovery');
-    expect(callback).toContain("destination = '/reset-password'");
+    expect(callback).toContain("'/reset-password'");
+    expect(callback).toContain('issuePasswordRecoveryState');
+    expect(callback).toContain("type: type === 'recovery' ? 'recovery' : 'email'");
     expect(callback).not.toContain('user_metadata');
     expect(fs.readFileSync('src/contexts/AuthContext.tsx', 'utf8')).not.toContain('.auth.signUp(');
     expect(fs.readFileSync('src/app/client-portal/components/ClientPortalLoginContent.tsx', 'utf8')).not.toContain('.auth.signUp(');
+    expect(fs.readFileSync('src/app/api/auth/signup/route.ts', 'utf8')).toContain('isPublicSignupOpen()');
+  });
+
+  it('keeps recovery email links on the server-verified token-hash callback', () => {
+    const template = fs.readFileSync('supabase/templates/recovery.html', 'utf8');
+    const config = fs.readFileSync('supabase/config.toml', 'utf8');
+
+    expect(template).toContain('/auth/callback?token_hash={{ .TokenHash }}&type=recovery');
+    expect(template).not.toContain('{{ .ConfirmationURL }}');
+    expect(config).toContain('[auth.email.template.recovery]');
+    expect(config).toContain('content_path = "./supabase/templates/recovery.html"');
   });
 
   it('stores a valid reopening submission without creating auth or Stripe records', async () => {
@@ -96,7 +122,7 @@ describe('temporary new-signup shutdown', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
-      reopeningDate: '2026-10-25',
+      reopeningDate: '2026-09-30',
       offer: 'one_month_free',
     });
     expect(db.inserts).toHaveLength(1);
@@ -138,10 +164,11 @@ describe('temporary new-signup shutdown', () => {
     expect(db.inserts).toHaveLength(0);
 
     const notice = fs.readFileSync('src/components/ReopeningNotice.tsx', 'utf8');
-    expect(REOPENING_DATE_DISPLAY).toBe('October 25, 2026');
-    expect(notice).toContain('October 25, 2026');
-    expect(notice).toContain('one full month of FixMy.Money free');
-    expect(notice).toContain('SIGN IN');
+    expect(REOPENING_DATE_DISPLAY).toBe('September 30, 2026');
+    expect(notice).toContain('September 30, 2026');
+    expect(notice).toContain('receive your first month free');
+    expect(notice).toContain('Already have access?');
+    expect(REOPENING_OFFER).toBe('reopening-one-month-free-2026-10-25');
   });
 
   it('preserves existing-customer login, sessions, and authorized account routing', () => {
@@ -150,7 +177,9 @@ describe('temporary new-signup shutdown', () => {
     const proxy = fs.readFileSync('src/proxy.ts', 'utf8');
     expect(auth).toContain('signInWithPassword');
     expect(auth).toContain('getSession()');
-    expect(form).toContain("router.push(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding')");
+    expect(form).toContain('resolvePostLoginDestination');
+    expect(form).toContain('getAdministratorDestination');
+    expect(form).not.toContain('user_metadata');
     expect(proxy).toContain('getWorkspaceEntitlementDecision');
   });
 

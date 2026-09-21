@@ -3,13 +3,14 @@ import Stripe from 'stripe';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { PLANS, CHECKOUT_PLANS, getStripePriceId, TRIAL_CONFIG, type PlanId } from '@/lib/stripe/plans';
+import { validateCheckoutPrice } from '@/lib/stripe/priceValidation';
 import { getStripeServerClient } from '@/lib/stripe/server';
 import {
   bindStripeCustomerToWorkspace,
   getSelectedWorkspaceContext,
   getWorkspaceEntitlementDecision,
 } from '@/lib/subscription/server';
-import { isPreShutdownUser, signupClosedPayload } from '@/lib/signup/closure';
+import { canUseCustomerAcquisition, signupClosedPayload } from '@/lib/signup/closure';
 const INTEGRATION_ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
 const ATTRIBUTION_FIELDS = [
   'anonymous_id',
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Please sign in before starting checkout.' }, { status: 401 });
     }
-    if (!isPreShutdownUser(user.created_at)) {
+    if (!canUseCustomerAcquisition(user.created_at)) {
       return NextResponse.json(signupClosedPayload(), { status: 403 });
     }
 
@@ -84,6 +85,40 @@ export async function POST(req: NextRequest) {
 
     const planConfig = PLANS[plan as PlanId];
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money';
+
+    // Production checkout must use an owner-approved recurring Stripe Price.
+    // Never synthesize a replacement recurring price from application copy.
+    const priceId = getStripePriceId(plan as PlanId);
+    if (!priceId) {
+      console.error('[Stripe] Checkout price is not configured for plan:', plan);
+      return NextResponse.json(
+        { error: 'This plan is temporarily unavailable. Please contact support.' },
+        { status: 503 },
+      );
+    }
+
+    let configuredPrice: Stripe.Price;
+    try {
+      configuredPrice = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+    } catch {
+      console.error('[Stripe] Configured checkout price could not be retrieved for plan:', plan);
+      return NextResponse.json(
+        { error: 'This plan is temporarily unavailable. Please contact support.' },
+        { status: 503 },
+      );
+    }
+
+    const priceConfigurationError = validateCheckoutPrice(configuredPrice, planConfig);
+    if (priceConfigurationError) {
+      console.error('[Stripe] Configured checkout price failed validation:', {
+        plan,
+        reason: priceConfigurationError,
+      });
+      return NextResponse.json(
+        { error: 'This plan is temporarily unavailable. Please contact support.' },
+        { status: 503 },
+      );
+    }
 
     const workspace = await getSelectedWorkspaceContext(supabase);
     if (!workspace || workspace.workspace_owner_id !== userId || workspace.member_role !== 'owner') {
@@ -167,31 +202,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const priceId = getStripePriceId(plan as PlanId);
     const monthlyAmount = planConfig.stripeAmountCents!;
-
-    // Build line items — use Stripe price ID if configured, otherwise use price_data
-    const subscriptionLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
-      ? [{ price: priceId, quantity: 1 }]
-      : [
-          {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: `${planConfig.name} Plan`,
-                description: `${planConfig.name} — ${planConfig.description}`,
-              },
-              unit_amount: monthlyAmount,
-              recurring: { interval: 'month' },
-            },
-            quantity: 1,
-          },
-        ];
 
     // A one-time $1 trial charge is invoiced immediately. The recurring plan
     // remains at $0 until the 14-day trial ends, then renews at its normal rate.
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      ...subscriptionLineItems,
+      { price: priceId, quantity: 1 },
       {
         price_data: {
           currency: 'usd',

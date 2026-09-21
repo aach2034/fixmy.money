@@ -1,5 +1,7 @@
-export const REOPENING_DATE_DISPLAY = 'October 25, 2026';
-export const REOPENING_DATE_ISO = '2026-10-25';
+export const REOPENING_DATE_DISPLAY = 'September 30, 2026';
+export const REOPENING_DATE_ISO = '2026-09-30';
+export const PUBLIC_SIGNUP_OPENS_AT = '2026-09-30T00:00:00-04:00';
+// Stable offer key for reservations made before the reopening date changed.
 export const REOPENING_OFFER = 'reopening-one-month-free-2026-10-25';
 export const SIGNUP_CLOSED_MESSAGE =
   `New account creation is temporarily unavailable while we improve FixMy.Money. ` +
@@ -17,6 +19,18 @@ export function isPreShutdownUser(createdAt: string | undefined | null): boolean
   if (!createdAt) return false;
   const created = new Date(createdAt);
   return !Number.isNaN(created.getTime()) && created < getSignupShutdownStartedAt();
+}
+
+export function isPublicSignupOpen(now = new Date()): boolean {
+  return (
+    process.env.PUBLIC_SIGNUP_ENABLED === 'true' &&
+    !Number.isNaN(now.getTime()) &&
+    now >= new Date(PUBLIC_SIGNUP_OPENS_AT)
+  );
+}
+
+export function canUseCustomerAcquisition(createdAt: string | undefined | null, now = new Date()): boolean {
+  return isPreShutdownUser(createdAt) || isPublicSignupOpen(now);
 }
 
 export function signupClosedPayload() {

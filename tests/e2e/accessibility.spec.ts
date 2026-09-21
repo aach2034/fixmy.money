@@ -16,6 +16,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 const PUBLIC_ROUTES = [
   '/',
+  '/reopen',
   '/homepage',
   '/about',
   '/pricing',
@@ -134,7 +135,7 @@ test?.describe('Mobile 375px', () => {
 test?.describe('Mobile 390px', () => {
   test?.use({ viewport: { width: 390, height: 844 } });
 
-  for (const route of ['/pricing', '/blog', '/demo-mode', '/login']) {
+  for (const route of ['/reopen', '/pricing', '/blog', '/demo-mode', '/login']) {
     test(`${route} — no horizontal overflow at 390px`, async ({ page }) => {
       await page?.goto(route, { waitUntil: 'domcontentloaded' });
       await page?.locator('body')?.waitFor({ state: 'visible' });
@@ -150,7 +151,7 @@ test?.describe('Mobile 390px', () => {
 test?.describe('Tablet 768px', () => {
   test?.use({ viewport: { width: 768, height: 1024 } });
 
-  for (const route of ['/', '/pricing', '/blog']) {
+  for (const route of ['/', '/reopen', '/pricing', '/blog']) {
     test(`${route} — renders correctly at 768px`, async ({ page }) => {
       const response = await page?.goto(route);
       expect(response?.status())?.toBeLessThan(400);

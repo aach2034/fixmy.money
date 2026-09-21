@@ -5,6 +5,9 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, Clock, User, ChevronRight } from 'lucide-react';
 import { getArticleBySlug, getRelatedArticles, getAllSlugs } from '@/lib/blog/articles';
 import { articleSeo } from '@/lib/seo/article';
+import TrackedLink from '@/components/marketing/TrackedLink';
+import PublicBrandLink from '@/components/marketing/PublicBrandLink';
+import PublicFooter from '@/components/marketing/PublicFooter';
 
 function machineDate(date: string) {
   return new Date(date).toISOString().slice(0, 10);
@@ -60,6 +63,7 @@ export default async function BlogArticlePage({ params }: Props) {
   const relatedArticles = getRelatedArticles(article.relatedSlugs);
   const primaryCtaHref = '/#reopening-list';
   const primaryCtaLabel = 'Reserve One Month Free';
+  const primaryCtaBody = 'Join the reopening list and reserve one full month free when you activate after reopening.';
 
   const articleStructuredData = {
     '@context': 'https://schema.org',
@@ -106,7 +110,7 @@ export default async function BlogArticlePage({ params }: Props) {
   };
 
   return (
-    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light premium-public min-h-screen bg-[#f8fbf9]" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleStructuredData) }}
@@ -123,20 +127,26 @@ export default async function BlogArticlePage({ params }: Props) {
       />
 
       {/* Nav */}
-      <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+      <nav aria-label="Primary" className="sticky top-0 z-40 border-b border-[#d8e3de] bg-white/90 px-4 py-3 backdrop-blur-xl sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <PublicBrandLink compact />
           <div className="flex items-center gap-3">
-            <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Blog</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+            <Link href="/blog" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Resources</Link>
+            <Link href="/login" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Sign in</Link>
+            <TrackedLink
+              href={primaryCtaHref}
+              eventLabel={primaryCtaLabel}
+              eventLocation={`blog_article_nav:${article.slug}`}
+              className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]"
+            >
               Reserve One Month Free
-            </Link>
+            </TrackedLink>
           </div>
         </div>
       </nav>
 
       {/* Breadcrumb */}
-      <div className="px-4 sm:px-8 py-3 bg-slate-50 border-b border-slate-100">
+      <div className="border-b border-[#dfe8e3] bg-white px-4 py-3 sm:px-8">
         <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-700">Home</Link>
           <ChevronRight size={12} />
@@ -147,17 +157,17 @@ export default async function BlogArticlePage({ params }: Props) {
       </div>
 
       {/* Article Header */}
-      <header className="a11y-dark py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
+      <header className="a11y-dark brand-grid bg-[#07153d] px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full">
+            <span className="rounded-full border border-[#75d0a4]/30 bg-[#75d0a4]/10 px-3 py-1 text-xs font-bold text-[#98dfbc]">
               {article.category}
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-4 leading-tight">
+          <h1 className="mb-4 max-w-3xl text-3xl font-extrabold leading-tight tracking-[-.035em] text-white sm:text-5xl">
             {article.title}
           </h1>
-          <p className="text-lg text-slate-300 mb-6 max-w-2xl">{article.excerpt}</p>
+          <p className="mb-6 max-w-2xl text-lg leading-8 text-[#c8d6e5]">{article.excerpt}</p>
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
             <span className="flex items-center gap-1.5">
               <User size={14} />
@@ -180,42 +190,47 @@ export default async function BlogArticlePage({ params }: Props) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Table of Contents — Sidebar */}
           <aside className="lg:col-span-1 order-2 lg:order-1">
             <div className="sticky top-24">
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+              <div className="rounded-2xl border border-[#d8e4de] bg-white p-5 shadow-[0_8px_28px_rgba(12,43,34,.04)]">
                 <h2 className="text-sm font-bold text-slate-900 mb-3">Table of Contents</h2>
                 <ol className="space-y-2">
                   {article.tableOfContents.map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <span className="text-xs font-bold text-blue-600 mt-0.5 shrink-0">{i + 1}.</span>
+                      <span className="mt-0.5 shrink-0 text-xs font-bold text-[#267a31]">{i + 1}.</span>
                       <span className="text-xs text-slate-600 leading-relaxed">{item}</span>
                     </li>
                   ))}
                 </ol>
               </div>
-              <div className="mt-4 bg-blue-700 rounded-2xl p-5 text-white">
+              <div className="mt-4 rounded-2xl bg-[#07153d] p-5 text-white shadow-[0_14px_34px_rgba(7,21,61,.14)]">
                 <p className="text-sm font-bold mb-2">Ready to get started?</p>
                 <p className="text-xs text-white mb-3">One full month free when you activate after reopening.</p>
-                <Link href="/#reopening-list" className="block text-center text-xs font-bold bg-white text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
+                <TrackedLink
+                  href={primaryCtaHref}
+                  eventLabel={primaryCtaLabel}
+                  eventLocation={`blog_article_sidebar:${article.slug}`}
+                  className="block rounded-xl bg-white px-4 py-2.5 text-center text-xs font-bold text-[#236b2e] transition hover:-translate-y-0.5 hover:bg-[#f2f9f5]"
+                >
                   Reserve One Month Free
-                </Link>
+                </TrackedLink>
               </div>
             </div>
           </aside>
 
           {/* Article Body */}
           <article className="lg:col-span-3 order-1 lg:order-2">
-            <div className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="mb-8 rounded-2xl border border-[#d8e4de] bg-white p-5 shadow-[0_8px_28px_rgba(12,43,34,.04)]">
               <p className="text-sm font-bold text-slate-900">Written and reviewed by {article.author}</p>
               <p className="mt-1 text-sm leading-relaxed text-slate-600">
                 {article.authorTitle}. FixMy.Money publishes operational guidance for credit-repair professionals using primary regulatory sources and practical agency workflows. Content is educational and is not legal advice.
               </p>
               <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
-                <Link href="/about" className="text-blue-700 hover:text-blue-800">About the publisher</Link>
-                <Link href="/compliance" className="text-blue-700 hover:text-blue-800">Compliance approach</Link>
+                <Link href="/about" className="text-[#267a31] hover:text-[#1f6729]">About the publisher</Link>
+                <Link href="/compliance" className="text-[#267a31] hover:text-[#1f6729]">Compliance approach</Link>
               </div>
             </div>
             <div className="prose prose-slate max-w-none">
@@ -303,13 +318,18 @@ export default async function BlogArticlePage({ params }: Props) {
             </div>
 
             {/* CTA */}
-            <div className="a11y-dark mt-8 bg-gradient-to-br from-slate-900 to-blue-950 rounded-2xl p-6 text-white">
-              <h3 className="text-lg font-extrabold mb-2">{article.cta.heading}</h3>
-              <p className="text-slate-300 text-sm mb-4">{article.cta.body}</p>
+            <div className="a11y-dark brand-grid mt-8 rounded-2xl bg-[#07153d] p-6 text-white shadow-[0_18px_44px_rgba(7,21,61,.14)]">
+              <h3 className="text-lg font-extrabold mb-2">Get FixMy.Money reopening updates</h3>
+              <p className="text-slate-300 text-sm mb-4">{primaryCtaBody}</p>
               <div className="flex flex-wrap gap-3">
-                <Link href={primaryCtaHref} className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+                <TrackedLink
+                  href={primaryCtaHref}
+                  eventLabel={primaryCtaLabel}
+                  eventLocation={`blog_article_body:${article.slug}`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#267a31] px-5 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#2f8d3b]"
+                >
                   {primaryCtaLabel} <ArrowRight size={14} />
-                </Link>
+                </TrackedLink>
                 <Link href="/product-tour" className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   Explore Demo
                 </Link>
@@ -325,10 +345,10 @@ export default async function BlogArticlePage({ params }: Props) {
                     <Link
                       key={related.slug}
                       href={`/blog/${related.slug}`}
-                      className="bg-slate-50 border border-slate-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all group"
+                      className="group rounded-xl border border-[#d8e4de] bg-white p-4 transition hover:-translate-y-0.5 hover:border-[#b7d1c4] hover:shadow-sm"
                     >
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{related.category}</span>
-                      <p className="text-sm font-bold text-slate-900 mt-2 group-hover:text-blue-600 transition-colors leading-snug">{related.title}</p>
+                      <span className="rounded-full bg-[#eef7f2] px-2 py-0.5 text-xs font-bold text-[#267a31]">{related.category}</span>
+                      <p className="mt-2 text-sm font-bold leading-snug text-slate-900 transition-colors group-hover:text-[#267a31]">{related.title}</p>
                       <p className="text-xs text-slate-400 mt-1">{related.readingTime}</p>
                     </Link>
                   ))}
@@ -345,6 +365,7 @@ export default async function BlogArticlePage({ params }: Props) {
           </article>
         </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }

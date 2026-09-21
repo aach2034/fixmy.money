@@ -14,7 +14,7 @@
  * - Confirmation emails
  *
  * Trial: $1 today for 14 days, then the selected monthly plan. Cancel anytime.
- * Annual: ~20% discount (exact prices below).
+ * Annual billing is not published until matching Stripe prices are configured.
  */
 
 export const PLAN_IDS = ['starter', 'professional', 'agency', 'enterprise'] as const;
@@ -37,8 +37,8 @@ export interface PlanConfig {
   id: PlanId;
   name: string;
   monthlyPrice: number | null; // null = custom/contact sales
-  annualPrice: number | null;  // null = custom/contact sales
-  annualTotal: number | null;  // monthlyPrice * 12 * 0.80, rounded
+  annualPrice: number | null;  // null = no approved annual Stripe price
+  annualTotal: number | null;
   maxClients: number | null;   // null = unlimited
   maxTeamMembers: number | null; // null = unlimited
   storageGb: number | null;    // null = custom
@@ -57,15 +57,15 @@ export interface PlanConfig {
 export const PLANS: Record<PlanId, PlanConfig> = {
   starter: {
     id: 'starter',
-    name: 'Starter',
+    name: 'Personal',
     monthlyPrice: 39,
-    annualPrice: 31,
-    annualTotal: 372,
+    annualPrice: null,
+    annualTotal: null,
     maxClients: 3,
     maxTeamMembers: 1,
     storageGb: 5,
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant'],
-    description: 'For learning the core credit-review workflow.',
+    description: 'For reviewing your own profile and up to three friends or family members.',
     features: [
       'Core CRM',
       'Client portal',
@@ -83,17 +83,17 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   },
   professional: {
     id: 'professional',
-    name: 'Pro',
+    name: 'Start',
     monthlyPrice: 99,
-    annualPrice: 79,
-    annualTotal: 948,
+    annualPrice: null,
+    annualTotal: null,
     maxClients: 300,
     maxTeamMembers: 3,
     storageGb: 25,
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access'],
-    description: 'For credit professionals using the structured review workflow.',
+    description: 'For credit professionals managing up to 300 active clients.',
     features: [
-      'Everything in Starter',
+      'Everything in Personal',
       'Lead and affiliate tools',
       'Structured report review',
       'Named verification and approval',
@@ -102,7 +102,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       'Agency dashboard',
       'Priority email support',
     ],
-    badge: 'Most Popular',
+    badge: null,
     highlight: true,
     cta: 'Start $1 Trial',
     stripePriceIdEnvKey: 'STRIPE_PROFESSIONAL_PRICE_ID',
@@ -110,17 +110,17 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   },
   agency: {
     id: 'agency',
-    name: 'Agency',
-    monthlyPrice: 249,
-    annualPrice: 199,
-    annualTotal: 2388,
+    name: 'Grow',
+    monthlyPrice: 199,
+    annualPrice: null,
+    annualTotal: null,
     maxClients: 600,
     maxTeamMembers: 6,
     storageGb: 100,
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
-    description: 'For established credit-repair organizations.',
+    description: 'For growing agencies managing up to 600 active clients.',
     features: [
-      'Everything in Pro',
+      'Everything in Start',
       'Data export',
       'Onboarding assistance',
       'Priority support',
@@ -129,7 +129,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     highlight: false,
     cta: 'Start $1 Trial',
     stripePriceIdEnvKey: 'STRIPE_AGENCY_PRICE_ID',
-    stripeAmountCents: 24900,
+    stripeAmountCents: 19900,
   },
   enterprise: {
     id: 'enterprise',

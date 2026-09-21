@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  getAdministratorDestination,
+  resolvePostLoginDestination,
+} from '@/lib/auth/post-login';
 import { clearLocalAuthState, createClient } from '@/lib/supabase/client';
 
 type LoginFormData = { email: string; password: string; remember: boolean };
@@ -40,6 +44,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
   const router = useRouter();
   const searchParams = useSearchParams();
   const authTransitionFailed = searchParams.get('auth_transition') === 'verification_failed';
+  const passwordResetComplete = searchParams.get('password_reset') === '1';
   const forceReauth = searchParams.get('force_reauth') === '1';
   const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
   const [supabase] = useState(() => {
@@ -66,15 +71,20 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
       }
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled || !session) return;
-      const { data: profile } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
-      const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
-      const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
+      const destination = await resolvePostLoginDestination({
+        redirectTo,
+        getAdministratorDestination,
+        getProfile: async () => {
+          const { data } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
+          return data;
+        },
+        getEntitlement: async () => {
+          const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
+          return response.ok ? await response.json() : null;
+        },
+      });
       if (cancelled) return;
-      if (profile && entitlement?.canAccess) {
-        router.replace(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding');
-      } else {
-        router.replace('/billing-subscriptions');
-      }
+      router.replace(destination);
     }
     checkSession().catch(error => console.error('[AuthForm] checkSession error:', error));
     return () => { cancelled = true; };
@@ -92,14 +102,19 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
         router.push(redirectTo || '/dashboard');
         return;
       }
-      const { data: profile } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
-      const entitlementResponse = await fetch('/api/stripe/entitlement', { method: 'POST' });
-      const entitlement = entitlementResponse.ok ? await entitlementResponse.json() : null;
-      if (profile && entitlement?.canAccess) {
-        router.push(profile.onboarding_completed ? (redirectTo || '/dashboard') : '/onboarding');
-      } else {
-        router.push('/billing-subscriptions');
-      }
+      const destination = await resolvePostLoginDestination({
+        redirectTo,
+        getAdministratorDestination,
+        getProfile: async () => {
+          const { data } = await supabase.from('user_profiles').select('onboarding_completed').eq('id', session.user.id).single();
+          return data;
+        },
+        getEntitlement: async () => {
+          const response = await fetch('/api/stripe/entitlement', { method: 'POST' });
+          return response.ok ? await response.json() : null;
+        },
+      });
+      router.push(destination);
     } catch (error) {
       loginForm.setError('email', { message: error instanceof Error ? error.message : 'Invalid email or password. Please try again.' });
     } finally {
@@ -139,6 +154,7 @@ export default function AuthForm({ defaultTab }: { defaultTab?: 'login' | 'regis
               <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
               <p className="mt-1 mb-6 text-sm text-slate-500">Sign in to your existing FixMy.Money account</p>
               {authTransitionFailed && <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">The previous verification link could not safely establish its account. Sign in with your existing account.</div>}
+              {passwordResetComplete && <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">Your password was updated. Sign in with your new password.</div>}
               {forceReauth && <div role="status" className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">Sign in again to confirm this security-sensitive action. Your billing account has not been changed.</div>}
               <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
                 <div><label htmlFor="login-email" className="label-text">Email address</label><input id="login-email" {...loginForm.register('email', { required: 'Email is required' })} type="email" className="input-field" autoComplete="email" required />{loginForm.formState.errors.email && <p className="error-text">{loginForm.formState.errors.email.message}</p>}</div>

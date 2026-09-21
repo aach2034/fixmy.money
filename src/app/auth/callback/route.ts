@@ -7,7 +7,12 @@ import {
   includeCookieInVary,
   isSupabaseAuthCookie,
 } from '@/lib/auth/session-isolation';
-import { isPreShutdownUser } from '@/lib/signup/closure';
+import {
+  issuePasswordRecoveryState,
+  PASSWORD_RECOVERY_COOKIE,
+  PASSWORD_RECOVERY_TTL_SECONDS,
+} from '@/lib/auth/password-recovery-state';
+import { canUseCustomerAcquisition } from '@/lib/signup/closure';
 import { getAdminClient } from '@/lib/supabase/admin';
 
 const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
@@ -24,7 +29,16 @@ function createAuthRedirect(
   pendingCookies: PendingCookie[] = [],
   pendingHeaders: Record<string, string> = {}
 ): NextResponse {
-  const response = NextResponse.redirect(new URL(path, request.url));
+  let redirectOrigin = request.nextUrl.origin;
+  try {
+    const configuredOrigin = new URL(process.env.NEXT_PUBLIC_SITE_URL || '').origin;
+    if (configuredOrigin.startsWith('https://') || configuredOrigin.startsWith('http://')) {
+      redirectOrigin = configuredOrigin;
+    }
+  } catch {
+    // Use the request origin only when the configured canonical origin is absent or invalid.
+  }
+  const response = NextResponse.redirect(new URL(path, `${redirectOrigin}/`));
 
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options);
@@ -51,6 +65,14 @@ function createFailedAuthRedirect(request: NextRequest): NextResponse {
       partitioned: true,
     });
   });
+  response.cookies.set(PASSWORD_RECOVERY_COOKIE, '', {
+    path: '/',
+    expires: new Date(0),
+    maxAge: 0,
+    sameSite: 'lax',
+    secure: request.nextUrl.protocol === 'https:',
+    httpOnly: true,
+  });
 
   return response;
 }
@@ -59,6 +81,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const tokenHash = searchParams.get('token_hash');
+  const type = searchParams.get('type');
 
   if (!code && !tokenHash) {
     return createFailedAuthRedirect(request);
@@ -90,7 +113,10 @@ export async function GET(request: NextRequest) {
     });
 
     const { data: exchangeData, error: exchangeError } = tokenHash
-      ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'email' })
+      ? await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: type === 'recovery' ? 'recovery' : 'email',
+        })
       : await supabase.auth.exchangeCodeForSession(code!);
     const exchangedUserId = exchangeData.session?.user?.id;
 
@@ -117,7 +143,6 @@ export async function GET(request: NextRequest) {
       return createFailedAuthRedirect(request);
     }
 
-    const type = searchParams.get('type');
     let isAdministratorRecovery = false;
 
     if (type === 'recovery') {
@@ -131,8 +156,11 @@ export async function GET(request: NextRequest) {
         isAdministratorRecovery =
           !administratorError &&
           (administrator?.role === 'platform_admin' || administrator?.role === 'platform_superadmin');
-      } catch {
-        console.error('[Auth Callback] Administrator recovery eligibility could not be verified.');
+      } catch (error) {
+        console.error(
+          '[Auth Callback] Administrator recovery eligibility could not be verified:',
+          error instanceof Error ? error.message : 'Unknown server error'
+        );
       }
     }
 
@@ -142,15 +170,41 @@ export async function GET(request: NextRequest) {
     // A verified, database-authorized administrator may recover an existing
     // invited account without reopening customer signups. The role lookup is
     // server-only and deliberately ignores user-editable metadata.
-    if (!isPreShutdownUser(verifiedUser.created_at) && !isAdministratorRecovery) {
+    if (!canUseCustomerAcquisition(verifiedUser.created_at) && !isAdministratorRecovery) {
       return createAuthRedirect(request, '/signup?blocked=1');
+    }
+
+    if (type === 'recovery') {
+      const signingSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!signingSecret) {
+        console.error('[Auth Callback] Recovery-state signing is not configured.');
+        return createFailedAuthRedirect(request);
+      }
+
+      const recoveryState = await issuePasswordRecoveryState({
+        accessToken: exchangeData.session.access_token,
+        userId: verifiedUser.id,
+        secret: signingSecret,
+      });
+      const response = createAuthRedirect(
+        request,
+        '/reset-password',
+        pendingCookies,
+        pendingHeaders
+      );
+      response.cookies.set(PASSWORD_RECOVERY_COOKIE, recoveryState, {
+        path: '/',
+        maxAge: PASSWORD_RECOVERY_TTL_SECONDS,
+        sameSite: 'lax',
+        secure: request.nextUrl.protocol === 'https:',
+        httpOnly: true,
+      });
+      return response;
     }
 
     let destination: string;
 
-    if (type === 'recovery') {
-      destination = '/reset-password';
-    } else if (type === 'signup') {
+    if (type === 'signup') {
       const requestedPlan = searchParams.get('plan') || 'professional';
       const plan = ALLOWED_PLANS.has(requestedPlan) ? requestedPlan : 'professional';
       destination = `/checkout?plan=${encodeURIComponent(plan)}&verified=1`;

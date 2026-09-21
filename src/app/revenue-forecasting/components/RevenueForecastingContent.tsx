@@ -7,9 +7,9 @@ import { createClient } from '@/lib/supabase/client';
 type ClientRow = { plan: string | null; subscription_status: string | null };
 
 const planMonthlyValue: Record<string, number> = {
-  starter: 49,
-  professional: 129,
-  agency: 249,
+  starter: 39,
+  professional: 99,
+  agency: 199,
 };
 
 export default function RevenueForecastingContent() {

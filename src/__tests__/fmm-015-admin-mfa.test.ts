@@ -146,8 +146,13 @@ describe('FMM-015 administrator assurance', () => {
   it('revokes sessions globally after factor removal and keeps audit metadata secret-free', () => {
     const panel = read('src/app/admin/security/AdminMfaPanel.tsx');
     const actions = read('src/app/admin/security/actions.ts');
+    const route = read('src/app/api/admin/security/route.ts');
     expect(panel).not.toContain('mfa.unenroll');
-    expect(panel.indexOf('authorizeDestructiveAdminAction(')).toBeLessThan(panel.indexOf('removeAdminFactor('));
+    expect(panel.indexOf("operation: 'authorize_destructive'")).toBeLessThan(panel.indexOf("operation: 'remove_factor'"));
+    expect(route).toContain('authorizeDestructiveAdminAction(');
+    expect(route).toContain('removeAdminFactor(');
+    expect(route).toContain("request.headers.get('origin')");
+    expect(route).toContain("request.headers.get('x-fixmymoney-admin-security')");
     expect(actions).toContain('supabase.auth.mfa.unenroll');
     expect(actions).toContain('requireOneTimePlatformAdmin(');
     expect(actions).toContain("signOut({ scope: 'global' })");
@@ -184,8 +189,38 @@ describe('FMM-015 administrator assurance', () => {
     ]) {
       expect(read(path), path).toContain('requirePlatformAdmin');
     }
-    expect(read('src/app/admin/security/page.tsx')).toContain('requirePlatformAdminIdentity');
-    expect(read('src/app/admin/security/actions.ts')).toContain('requirePlatformAdminIdentity');
+    expect(read('src/app/admin/security/page.tsx')).toContain('requirePlatformAdminEnrollmentIdentity');
+    expect(read('src/app/admin/security/actions.ts')).toContain('requirePlatformAdminEnrollmentIdentity');
+  });
+
+  it('keeps inactive administrator bootstrap confined to MFA enrollment', () => {
+    const authorization = read('src/lib/admin/authorization.ts');
+    const destination = read('src/app/api/auth/administrator-destination/route.ts');
+    const actions = read('src/app/admin/security/actions.ts');
+    const panel = read('src/app/admin/security/AdminMfaPanel.tsx');
+    const proxy = read('src/proxy.ts');
+
+    expect(authorization).toContain('requirePlatformAdminEnrollmentIdentity');
+    expect(authorization).toContain('requirePlatformAdminMfaBootstrap');
+    expect(authorization).toContain('getAuthenticatedPlatformAdminRole');
+    expect(destination).toContain("{ destination: enrollment ? '/admin/security' : null }");
+    expect(actions).toContain('if (!active)');
+    expect(actions).toContain('activationPending: true');
+    expect(panel).toContain('Administrator access remains inactive');
+    expect(proxy.slice(proxy.indexOf('const ONBOARDING_GATED_PATHS'), proxy.indexOf('const SUBSCRIPTION_GATED_PATHS'))).not.toContain("'/admin'");
+    expect(authorization).not.toContain('user_metadata');
+  });
+
+  it('cannot leave administrator verification permanently busy after Auth settles', () => {
+    const panel = read('src/app/admin/security/AdminMfaPanel.tsx');
+    const verifyBody = panel.slice(panel.indexOf('async function verify()'), panel.indexOf('\n  async function removeFactor()'));
+
+    expect(verifyBody.indexOf('try {')).toBeLessThan(verifyBody.indexOf('challengeAndVerify'));
+    expect(verifyBody).toContain('withVerificationTimeout(');
+    expect(verifyBody).toContain('finally {');
+    expect(verifyBody).toContain('setBusy(false);');
+    expect(verifyBody).toContain("window.location.assign('/admin')");
+    expect(verifyBody).not.toContain("router.push('/admin')");
   });
 
   it('adds database tenant, role, MFA-bypass, and revoked-session denial tests', () => {

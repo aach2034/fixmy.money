@@ -2,28 +2,30 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LockKeyhole } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
-import { createClient } from '@/lib/supabase/client';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [hasSession, setHasSession] = useState(false);
+  const [hasRecoverySession, setHasRecoverySession] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [complete, setComplete] = useState(false);
   const [error, setError] = useState('');
-  const supabase = createClient();
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setHasSession(Boolean(data.session));
-      setCheckingSession(false);
-    });
+    fetch('/api/auth/password-recovery', { cache: 'no-store' })
+      .then(response => {
+        if (active) setHasRecoverySession(response.ok);
+      })
+      .catch(() => {
+        if (active) setHasRecoverySession(false);
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
     return () => { active = false; };
   }, []);
 
@@ -41,17 +43,22 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      console.error('[ResetPassword] Password update error:', updateError);
+    try {
+      const response = await fetch('/api/auth/password-recovery', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password, confirmation }),
+      });
+      if (!response.ok) {
+        setError('This reset link is invalid or expired. Request a new link and try again.');
+        setLoading(false);
+        return;
+      }
+      window.location.assign('/login?password_reset=1');
+    } catch {
       setError('This reset link is invalid or expired. Request a new link and try again.');
       setLoading(false);
-      return;
     }
-
-    await supabase.auth.signOut();
-    setComplete(true);
-    setLoading(false);
   };
 
   return (
@@ -66,16 +73,7 @@ export default function ResetPasswordPage() {
           <div className="flex justify-center py-12" aria-label="Checking reset link">
             <Loader2 className="animate-spin text-primary" size={28} />
           </div>
-        ) : complete ? (
-          <div className="text-center">
-            <CheckCircle2 className="mx-auto mb-4 text-emerald-600" size={44} />
-            <h1 className="text-2xl font-bold text-slate-900">Password updated</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Your password has been changed securely. You can now sign in with the new password.</p>
-            <Link href="/login" className="btn-primary mt-7 inline-flex w-full items-center justify-center rounded-xl py-3 font-semibold">
-              Sign in
-            </Link>
-          </div>
-        ) : !hasSession ? (
+        ) : !hasRecoverySession ? (
           <div className="text-center">
             <LockKeyhole className="mx-auto mb-4 text-amber-600" size={44} />
             <h1 className="text-2xl font-bold text-slate-900">Reset link expired</h1>

@@ -64,6 +64,14 @@ const deleteCookie = (name: string) => {
   });
 };
 
+export const replaceBrowserCookie = (name: string, value: string, options?: any) => {
+  // Server-rendered auth cookies are unpartitioned while the browser client
+  // uses CHIPS. Expire both variants before token rotation so Safari cannot
+  // keep an older AAL1 cookie alongside the new AAL2 session.
+  deleteCookie(name);
+  setCookie(name, value, options);
+};
+
 export function isSupabaseAuthStorageKey(name: string): boolean {
   const normalized = name.startsWith(PFX) ? name.slice(PFX.length) : name;
   return isSupabaseAuthCookie(normalized);
@@ -118,7 +126,7 @@ export function createClient() {
           if (typeof document === 'undefined') return;
           if (canUseCookies()) {
             cookiesToSet.forEach(({ name, value, options }) =>
-              value ? setCookie(name, value, options) : deleteCookie(name)
+              value ? replaceBrowserCookie(name, value, options) : deleteCookie(name)
             );
           } else {
             cookiesToSet.forEach(({ name, value, options }) => {

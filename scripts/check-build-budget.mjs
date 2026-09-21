@@ -36,7 +36,6 @@ if (
   console.error('FMM-023 hourly rate-limit cleanup trigger is missing from the Worker build.');
   failed = true;
 }
-
 const expectedWorkerFirstAssetRoutes = [
   '/assets/*.css',
   '/assets/*.js',

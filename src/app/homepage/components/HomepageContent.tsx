@@ -1,67 +1,143 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Check, ChevronRight, FileCheck2, FileSearch, Menu, ShieldCheck, TrendingUp } from 'lucide-react';
+import { ArrowRight, Check, Menu, Search, ShieldCheck, Upload } from 'lucide-react';
 import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
 import ReopeningNotice from '@/components/ReopeningNotice';
+import PublicBrandLink from '@/components/marketing/PublicBrandLink';
+import PublicFooter from '@/components/marketing/PublicFooter';
+import HomepageShareButton from '@/components/marketing/HomepageShareButton';
+import TrackedLink from '@/components/marketing/TrackedLink';
+import ProductPreview from './ProductPreview';
 
-const findings = [
-  { label: 'Cross-bureau mismatches', value: '8', color: 'bg-[#7c3aed]' },
-  { label: 'High-impact negatives', value: '5', color: 'bg-[#e45858]' },
-  { label: 'Action-ready disputes', value: '11', color: 'bg-[#3fa447]' },
+const comparisonDetails = [
+  {
+    number: '01',
+    title: 'Balances and account status',
+    body: 'Write down each bureau’s exact balance and status wording. A difference is a reason to investigate, not proof that one value is wrong.',
+  },
+  {
+    number: '02',
+    title: 'Important dates and payment history',
+    body: 'Compare dates opened, last-reported dates, and payment-status details. Do not fill in information a report does not provide.',
+  },
+  {
+    number: '03',
+    title: 'Account identifiers',
+    body: 'Check the furnisher name, account type, and masked account ending before treating rows from different bureaus as the same account.',
+  },
 ];
 
 export default function Home() {
   return (
-    <section className="approved-homepage min-h-screen overflow-hidden bg-[#fbfcfe] text-[#0b1742]">
+    <div className="approved-homepage premium-public min-h-screen overflow-x-clip bg-white text-[#132440]">
       <header>
-        <nav className="fixed inset-x-0 top-0 z-50 border-b border-[#dfe4ec] bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 lg:px-8">
-            <Link href="/" className="flex items-center gap-2.5" aria-label="FixMy.Money home">
-              <span className="grid size-9 place-items-center rounded-xl bg-[#063e35] text-sm font-bold text-white">F</span>
-              <span className="text-[17px] font-semibold tracking-[-.03em]">FixMy<span className="text-[#3fa447]">.Money</span></span>
-            </Link>
-            <div className="hidden items-center gap-8 text-sm font-medium text-[#52636d] md:flex">
-              <a className="hover:text-[#0b1742]" href="#platform">Platform</a><a className="hover:text-[#0b1742]" href="#solutions">Solutions</a><a className="hover:text-[#0b1742]" href="#security">Security</a><a className="hover:text-[#0b1742]" href="#pricing">Pricing</a>
-            </div>
-            <div className="hidden items-center gap-3 md:flex"><Link href="/login" className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#30434e] hover:bg-[#f1f5f3]">Sign in</Link><a href="#reopening-list" className="rounded-xl bg-[#3fa447] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(11,147,111,.22)] transition hover:-translate-y-0.5 hover:bg-[#338a3b]">GET MY FREE MONTH</a></div>
-            <Link href="/login" className="rounded-lg border border-[#dfe4ec] p-2 md:hidden" aria-label="Sign in"><Menu className="size-5" /></Link>
+        <nav aria-label="Primary" className="mx-auto flex min-h-[84px] max-w-[1440px] items-center justify-between gap-4 border-b border-[#e9eef3] bg-white px-5 lg:px-12">
+          <PublicBrandLink />
+          <div className="hidden items-center gap-7 text-sm font-medium lg:flex">
+            <Link href="/individuals" className="hover:text-[#008958]">For Individuals</Link>
+            <Link href="/professionals" className="hover:text-[#008958]">For Professionals</Link>
+            <a href="#solutions" className="hover:text-[#008958]">How It Works</a>
+            <a href="#pricing" className="hover:text-[#008958]">Pricing</a>
+            <Link href="/resources" className="hover:text-[#008958]">Resources</Link>
+            <Link href="/blog" className="hover:text-[#008958]">Blog</Link>
+          </div>
+          <div className="hidden items-center gap-5 lg:flex">
+            <Link href="/login" className="rounded-md px-3 py-3 text-sm font-medium hover:text-[#008958] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Sign In</Link>
+            <TrackedLink href="/reopen" eventLabel="Reserve My Free Month" eventLocation="homepage_nav" className="inline-flex min-h-12 items-center rounded-lg bg-[#007f51] px-5 text-sm font-bold text-white hover:bg-[#006e46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008958]">Reserve My Free Month</TrackedLink>
+          </div>
+          <div className="flex items-center gap-2 lg:hidden">
+            <Link href="/login" className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-[#132440] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Sign In</Link>
+            <details className="relative">
+              <summary className="flex size-11 cursor-pointer list-none items-center justify-center rounded-md border border-[#dce5ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]" aria-label="Open navigation menu"><Menu className="size-5" aria-hidden="true" /></summary>
+              <div className="absolute right-0 top-12 z-30 flex w-56 flex-col rounded-xl border border-[#dce5ee] bg-white p-2 shadow-lg">
+                <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/individuals">For Individuals</Link>
+                <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/professionals">For Professionals</Link>
+                <a className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="#solutions">How It Works</a>
+                <a className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="#pricing">Pricing</a>
+                <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/resources">Resources</Link>
+                <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/blog">Blog</Link>
+                <Link className="rounded-md bg-[#007f51] px-3 py-3 font-bold text-white" href="/reopen">Reserve My Free Month</Link>
+              </div>
+            </details>
           </div>
         </nav>
       </header>
-
-      <section className="px-5 pb-8 pt-28 lg:px-8 lg:pt-32"><div className="mx-auto max-w-[1180px]"><ReopeningNotice /></div></section>
-
-      <section className="relative px-5 pb-20 pt-12 lg:px-8 lg:pb-24 lg:pt-16">
-        <div className="hero-glow absolute inset-x-0 top-0 -z-0 h-[760px]" />
-        <div className="relative z-10 mx-auto grid max-w-[1240px] items-center gap-12 lg:grid-cols-[.9fr_1.1fr]">
-          <div className="max-w-xl text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#bfe5d8] bg-[#effaf6] px-3.5 py-2 text-xs font-semibold text-[#338a3b] shadow-sm"><FileSearch className="size-3.5" /> Structured credit-report review</div>
-            <h1 className="text-balance text-[47px] font-bold leading-[.98] tracking-[-.055em] text-[#0b1742] sm:text-[60px]">Your credit report, organized. See what matters. <span className="text-[#3fa447]">You take action.</span></h1>
-            <p className="mt-6 max-w-xl text-[16px] leading-7 text-[#536078]">Import your report, review organized bureau data, and investigate potential inconsistencies through a guided workflow.</p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2"><a href="#reopening-list" className="group flex h-[52px] items-center justify-center gap-2 rounded-lg bg-[#3fa447] px-6 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(63,164,71,.2)] transition hover:-translate-y-0.5 hover:bg-[#338a3b]">GET MY FREE MONTH <ArrowRight className="size-4 transition group-hover:translate-x-0.5" /></a><Link href="/professionals" className="flex h-[52px] items-center justify-center rounded-lg bg-[#0b1742] px-6 text-[14px] font-bold text-white shadow-sm hover:bg-[#142458]">See business software</Link></div>
-            <div className="mt-6 grid grid-cols-3 gap-3 text-[11px] font-semibold leading-4 text-[#4f5d75]"><span className="flex items-start gap-1.5"><FileSearch className="mt-0.5 size-3.5 shrink-0 text-[#3fa447]" /> Structured report review</span><span className="flex items-start gap-1.5"><ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[#3fa447]" /> Review and prioritize</span><span className="flex items-start gap-1.5"><Check className="mt-0.5 size-3.5 shrink-0 text-[#3fa447]" /> Guided disputes</span></div>
+      <section className="mx-auto grid max-w-[1440px] items-center gap-10 px-5 pb-12 pt-16 lg:grid-cols-[.95fr_1.05fr] lg:gap-12 lg:px-12 lg:pb-14 lg:pt-20">
+        <div className="max-w-[680px]">
+          <p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#007f51]">Structured credit-report review</p>
+          <h1 className="mt-4 text-[clamp(2.35rem,3.3vw,3rem)] font-extrabold leading-[1.13] tracking-[-.055em] text-[#121f3a]">
+            Your credit report, organized.{' '}<br />See what matters.{' '}<br />You take action.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-[#586984]">Import your report, review organized bureau data, and investigate potential inconsistencies through a guided workflow.</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <TrackedLink href="/individuals" eventLabel="Review My Own Credit" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg bg-[#007f51] px-6 text-center text-base font-bold text-white hover:bg-[#006e46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008958]">Review My Own Credit <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
+            <TrackedLink href="/professionals" eventLabel="Run My Credit Business" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg border border-[#aebfd2] bg-white px-6 text-center text-base font-bold text-[#263754] hover:border-[#007f51] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Run My Credit Business <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
           </div>
-
-          <div id="platform" className="relative mx-auto w-full max-w-[700px]">
-            <div className="absolute -inset-5 -z-10 rounded-[38px] bg-gradient-to-b from-[#d7eee6]/60 to-transparent blur-2xl" />
-            <div className="overflow-hidden rounded-[14px] border border-[#d9dfea] bg-white shadow-[0_22px_55px_rgba(16,28,67,.14)]">
-              <div className="flex h-12 items-center justify-between border-b border-[#e4ebe7] bg-[#fbfcfb] px-4"><div className="flex gap-1.5"><i className="size-2.5 rounded-full bg-[#d7dfdb]"/><i className="size-2.5 rounded-full bg-[#d7dfdb]"/><i className="size-2.5 rounded-full bg-[#d7dfdb]"/></div><div className="flex items-center gap-2 text-[11px] font-medium text-[#72817a]"><ShieldCheck className="size-3.5 text-[#3fa447]" /> Secure workspace</div></div>
-              <div className="grid min-h-[500px] grid-cols-1">
-                <div className="bg-[#f8fafc] p-5 sm:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold tracking-[.1em] text-[#6d7890]">OVERVIEW</p><h2 className="mt-1 text-xl font-bold tracking-[-.035em] text-[#0b1742]">Your credit review</h2><p className="mt-1 text-xs text-[#69758a]">Illustrative workspace preview</p></div><Link href="/credit-report-import" className="hidden rounded-md bg-[#3fa447] px-3.5 py-2 text-[11px] font-bold text-white sm:block">Review all items</Link></div>
-                  <div className="mt-7 grid gap-4 md:grid-cols-[1.35fr_1fr]"><div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 shadow-[0_5px_18px_rgba(12,43,34,.04)]"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold text-[#687972]">CREDIT HEALTH</p><div className="mt-2 flex items-baseline gap-2"><strong className="text-4xl tracking-[-.05em]">672</strong><span className="text-sm font-semibold text-[#3fa447]">+18 pts</span></div><p className="mt-1 text-xs text-[#6c7c75]">Fair · illustrative score view</p></div><div className="score-ring grid size-20 place-items-center rounded-full"><div className="grid size-16 place-items-center rounded-full bg-white"><TrendingUp className="size-6 text-[#3fa447]"/></div></div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[#e9efec]"><div className="h-full w-[68%] rounded-full bg-gradient-to-r from-[#56c8a2] to-[#3fa447]"/></div></div><div className="rounded-2xl bg-[#0b1742] p-5 text-white shadow-[0_8px_24px_rgba(9,52,46,.16)]"><div className="flex items-center gap-2 text-xs font-semibold text-[#9cdfc7]"><FileSearch className="size-4"/> REVIEW PRIORITY</div><h3 className="mt-4 text-lg font-semibold leading-6">Review 3 inconsistent balances first.</h3><p className="mt-2 text-xs leading-5 text-[#afc8c1]">These items show cross-bureau differences that need human verification.</p><Link href="/credit-audit" className="mt-5 flex items-center gap-1 text-xs font-semibold text-white">Review findings <ChevronRight className="size-3.5"/></Link></div></div>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-3">{findings.map((item)=><div key={item.label} className="rounded-2xl border border-[#dfe8e3] bg-white p-4"><div className="flex items-center gap-2"><span className={`size-2 rounded-full ${item.color}`}/><p className="text-[11px] font-medium text-[#697972]">{item.label}</p></div><p className="mt-3 text-2xl font-semibold tracking-[-.04em]">{item.value}</p></div>)}</div>
-                  <div className="mt-4 rounded-2xl border border-[#dfe8e3] bg-white p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold">Your next best action</p><p className="mt-1 text-xs text-[#6f7f78]">Review and approve the 3 high-confidence findings</p></div><span className="rounded-full bg-[#eaf8f3] px-2.5 py-1 text-[10px] font-bold text-[#338a3b]">12 MIN</span></div><div className="mt-4 h-1.5 rounded-full bg-[#e9efec]"><div className="h-full w-[72%] rounded-full bg-[#3fa447]"/></div></div>
-                </div>
-              </div>
-            </div>
+          <p className="mt-6 text-xs font-bold uppercase tracking-[.17em] text-[#53647e]">Grand reopening · September 30, 2026</p>
+          <p className="mt-2 text-base text-[#586984]">No payment today.</p>
+        </div>
+        <ProductPreview />
+      </section>
+      <section id="solutions" className="bg-[#f2fcf8] px-5 py-14 lg:px-12">
+        <div className="mx-auto max-w-[1300px] text-center">
+          <h2 className="text-3xl font-extrabold tracking-[-.04em] text-[#121f3a] sm:text-4xl">From report to clear next steps.</h2>
+          <p className="mt-2 text-lg text-[#586984]">A simpler way to move from complex credit reports to confident action.</p>
+          <div className="mt-9 grid gap-5 text-left md:grid-cols-3">
+            {[[Upload, 'Import', 'Bring in your credit report and we’ll organize the bureau data for you.'], [Search, 'Understand', 'Compare details across Equifax, Experian and TransUnion, and spot potential inconsistencies.'], [Check, 'Take action', 'Follow a guided workflow to investigate and take the next steps that make sense for you.']].map(([Icon, title, body]) => { const I = Icon as typeof Upload; return <article key={title as string} className="flex gap-5 rounded-xl border border-[#dfe7ef] bg-white p-6 shadow-sm"><span className="grid size-14 shrink-0 place-items-center rounded-xl border border-[#bcecd8] bg-[#effdf7] text-[#007f51]"><I className="size-7" aria-hidden="true" /></span><div><h3 className="mt-1 text-xl font-bold text-[#121f3a]">{title as string}</h3><p className="mt-2 text-base leading-6 text-[#586984]">{body as string}</p></div></article>; })}
           </div>
         </div>
       </section>
-      <section id="solutions" className="border-y border-[#dfe4ec] bg-white px-5 py-24 lg:px-8"><div className="mx-auto max-w-[1180px]"><div className="mx-auto max-w-2xl text-center"><p className="text-xs font-bold uppercase tracking-[.16em] text-[#3fa447]">From report to resolution</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Review that turns into action.</h2><p className="mt-5 text-lg leading-8 text-[#60716a]">One connected workspace organizes report data, records review decisions, and guides the next step.</p></div><div className="mt-14 grid gap-5 md:grid-cols-3">{[[FileSearch,'Find potential inconsistencies','Compare account data across the three bureaus and surface differences for human review.'],[ShieldCheck,'Know what needs review','Structured evidence checks help organize findings without replacing human judgment.'],[FileCheck2,'Move from review to action','Build editable, evidence-linked disputes through one guided workflow.']].map(([Icon,t,d])=>{const I=Icon as typeof FileSearch;return <article key={t as string} className="rounded-2xl border border-[#dfe4ec] bg-[#fafcfb] p-7"><span className="grid size-11 place-items-center rounded-xl bg-[#e2f5ee] text-[#3fa447]"><I className="size-5"/></span><h3 className="mt-6 text-xl font-semibold">{t as string}</h3><p className="mt-3 text-sm leading-6 text-[#687871]">{d as string}</p></article>})}</div></div></section>
+      <section className="px-5 py-20 lg:px-12"><div className="mx-auto max-w-[1180px]"><ReopeningNotice /></div></section>
+      <section id="three-details-to-compare" className="bg-[#f4f8f6] px-5 py-24 lg:px-8">
+        <div className="mx-auto max-w-[1180px]">
+          <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#267a31]">A useful five-minute review</p>
+              <h2 className="mt-4 text-4xl font-extrabold tracking-[-.05em] text-[#151a18] sm:text-5xl">Three details to compare across your credit reports.</h2>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-[#596761]">Potential differences deserve careful investigation. They do not automatically establish that information is inaccurate or that a dispute is appropriate.</p>
+            </div>
+            <HomepageShareButton />
+          </div>
+
+          <ol className="mt-12 grid gap-5 md:grid-cols-3">
+            {comparisonDetails.map(detail => (
+              <li key={detail.number} className="rounded-2xl border border-[#d4e1db] bg-white p-7 shadow-[0_10px_34px_rgba(12,43,34,.05)]">
+                <span className="text-sm font-black tracking-[.12em] text-[#267a31]">{detail.number}</span>
+                <h3 className="mt-5 text-xl font-extrabold tracking-[-.025em] text-[#17211e]">{detail.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-[#5e6d67]">{detail.body}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-6 rounded-2xl border border-[#c8dcd2] bg-white px-5 py-4 text-sm leading-6 text-[#52615b]">
+            Keep the comparison factual: record what each bureau actually reports, preserve masked identifiers, and investigate before drawing a conclusion.
+          </div>
+        </div>
+      </section>
       <section id="security" className="bg-[#0b1742] px-5 py-24 text-white lg:px-8"><div className="mx-auto grid max-w-[1180px] gap-12 lg:grid-cols-2 lg:items-center"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#71dcb9]">Protection first</p><h2 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Sensitive report data requires careful controls.</h2><p className="mt-6 max-w-xl text-lg leading-8 text-[#abc3bc]">FixMy.Money uses data minimization and signed-in workflows, and temporarily disables features when their safeguards are incomplete.</p><div className="mt-8 grid gap-4 sm:grid-cols-2">{['Data minimization','Signed-in workflows','Human verification','Clear availability notices'].map(x=><div key={x} className="flex items-center gap-3 text-sm font-semibold"><span className="grid size-7 place-items-center rounded-full bg-white/10 text-[#71dcb9]"><Check className="size-4"/></span>{x}</div>)}</div></div><div className="rounded-[28px] border border-white/10 bg-white/[.06] p-8"><ShieldCheck className="size-12 text-[#71dcb9]"/><h3 className="mt-8 text-2xl font-semibold">Containment-aware design</h3><p className="mt-3 leading-7 text-[#abc3bc]">Risky integrations remain unavailable until their privacy and authorization controls are verified.</p><div className="mt-8 space-y-3">{['No raw report transmission to external AI','Human review before letter use','Fail-closed feature controls'].map(x=><div key={x} className="rounded-xl border border-white/10 bg-white/[.05] p-4 text-sm">{x}</div>)}</div></div></div></section>
-      <section id="pricing" className="bg-[#fbfcfe] px-5 py-24 lg:px-8"><div className="mx-auto max-w-[1050px]"><div className="text-center"><p className="text-xs font-bold uppercase tracking-[.16em] text-[#3fa447]">Plans reopen October 25, 2026</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Choose the workspace that fits.</h2></div><div className="mt-14 grid gap-5 lg:grid-cols-3">{CHECKOUT_PLANS.map(plan=><article key={plan.id} className={`relative rounded-2xl border p-7 ${plan.highlight?'border-[#3fa447] bg-white shadow-[0_18px_50px_rgba(16,61,48,.1)]':'border-[#dfe4ec] bg-white'}`}>{plan.highlight&&<span className="absolute right-5 top-5 rounded-full bg-[#eef8ef] px-2.5 py-1 text-[10px] font-bold text-[#338a3b]">MOST POPULAR</span>}<h3 className="font-semibold">{plan.name}</h3><p className="mt-4 text-4xl font-semibold tracking-[-.05em]">${plan.monthlyPrice}</p><p className="mt-2 text-sm text-[#718079]">{plan.description}</p><a href="#reopening-list" className={`mt-7 block w-full rounded-xl py-3 text-center text-sm font-semibold ${plan.highlight?'bg-[#3fa447] text-white':'border border-[#dfe4ec] text-[#19322b]'}`}>Reserve one month free</a><div className="mt-6 space-y-3">{plan.features.slice(0,3).map(x=><p key={x} className="flex items-center gap-2 text-sm text-[#52655c]"><Check className="size-4 text-[#3fa447]"/>{x}</p>)}</div></article>)}</div></div></section>
-      <footer className="border-t border-[#dfe4ec] bg-white px-5 py-8"><div className="mx-auto flex max-w-[1180px] flex-col items-center justify-between gap-4 text-xs text-[#74837c] sm:flex-row"><div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-lg bg-[#083a32] font-bold text-white">F</span><strong className="text-[#18312a]">FixMy.Money</strong></div><p>Credit intelligence, made actionable.</p><p>© 2026 FixMy.Money</p></div></footer>
-    </section>
+      <section id="pricing" className="bg-[#fbfcfe] px-5 py-24 lg:px-8">
+        <div className="mx-auto max-w-[1050px]">
+          <div className="text-center">
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#267a31]">Software plans · Reopening September 30, 2026</p>
+            <h2 className="mt-4 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Choose the workspace that fits.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#60716a]">Monthly software access for personal review, professional client work, and growing agencies.</p>
+          </div>
+          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+            {CHECKOUT_PLANS.map(plan => (
+              <article key={plan.id} className={`relative rounded-2xl border p-7 ${plan.highlight ? 'border-[#79aa94] bg-white shadow-[0_18px_50px_rgba(16,61,48,.1)]' : 'border-[#dfe4ec] bg-white'}`}>
+                <p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#267a31]">{plan.id === 'starter' ? 'Personal use' : plan.id === 'professional' ? 'Professional teams' : 'Growing agencies'}</p>
+                <h3 className="mt-3 text-lg font-semibold">{plan.name}</h3>
+                <p className="mt-4 flex items-baseline gap-2"><span className="text-4xl font-semibold tracking-[-.05em]">${plan.monthlyPrice}</span><span className="text-sm font-semibold text-[#64736c]">per month</span></p>
+                <p className="mt-2 text-sm text-[#718079]">{plan.description}</p>
+                <a href="/reopen" className={`mt-7 block w-full rounded-xl py-3 text-center text-sm font-semibold ${plan.highlight ? 'bg-[#267a31] text-white' : 'border border-[#dfe4ec] text-[#19322b]'}`}>Reserve one month free</a>
+                <div className="mt-6 space-y-3">{plan.features.slice(0,3).map(x => <p key={x} className="flex items-center gap-2 text-sm text-[#52655c]"><Check className="size-4 text-[#267a31]" />{x}</p>)}</div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+      <PublicFooter />
+    </div>
   );
 }

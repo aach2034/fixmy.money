@@ -1,23 +1,46 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('temporary signup shutdown', () => {
-  test('homepage announces the reopening and collects only an email', async ({ page }) => {
+  test('homepage announces the reopening and routes to the reservation', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'We’re Improving FixMy.Money' })).toBeVisible();
-    await expect(page.getByText('Grand Opening on October 25, 2026')).toBeVisible();
-    await expect(page.getByText(/one full month of FixMy\.Money free/i)).toBeVisible();
+    await expect(page.getByText('Grand reopening · September 30, 2026')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Review My Own Credit/ })).toHaveAttribute('href', '/individuals');
+    await expect(page.getByRole('link', { name: /Run My Credit Business/ })).toHaveAttribute('href', '/professionals');
     await expect(page.getByRole('textbox', { name: 'Email address' })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
-    await expect(page.getByText(/No payment, trial, subscription, or account is created/i)).toBeVisible();
+    await expect(page.getByText('No payment today. No account will be created yet.')).toBeVisible();
   });
 
   test('/signup is a reopening-list page rather than account creation', async ({ page }) => {
     const response = await page.goto('/signup');
     expect(response?.status()).toBeLessThan(400);
-    await expect(page.getByRole('heading', { name: 'We’re Improving FixMy.Money' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'GET MY FREE MONTH' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Be first back in.' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'RESERVE MY FREE MONTH' })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'SIGN IN' })).toHaveAttribute('href', '/login');
+    await expect(page.getByRole('textbox', { name: /first name/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute('href', '/login');
+  });
+
+  test('reservation analytics omit URL secrets and the submitted email', async ({ page }) => {
+    const requests: Array<Record<string, unknown>> = [];
+    await page.route('**/api/reopening-waitlist', async route => {
+      requests.push(route.request().postDataJSON() as Record<string, unknown>);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, reopeningDate: '2026-09-30', offer: 'one_month_free' }) });
+    });
+    await page.goto('/reopen?email=person%40example.com&token=synthetic-secret#private');
+    await expect(page.getByRole('textbox', { name: /first name/i })).toHaveCount(0);
+    await page.getByRole('textbox', { name: 'Email address' }).fill('waitlist-test@example.invalid');
+    await page.getByRole('button', { name: 'RESERVE MY FREE MONTH' }).click();
+    await expect(page.getByRole('status')).toContainText('You’re on the reopening list.');
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ email: 'waitlist-test@example.invalid', source: 'reopening_list' });
+    expect(requests[0]).not.toHaveProperty('firstName');
+    const events = await page.evaluate(() => (window.dataLayer ?? []).map(entry => Array.from(entry as ArrayLike<unknown>)).filter(entry => entry[0] === 'event'));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.arrayContaining(['event', 'page_view', expect.objectContaining({ page_path: '/reopen' })]),
+      expect.arrayContaining(['event', 'reopening_waitlist_joined', expect.objectContaining({ page_path: '/reopen' })]),
+    ]));
+    expect(JSON.stringify(events)).not.toMatch(/person(?:%40|@)example\.com|waitlist-test@example\.invalid|synthetic-secret|#private|firstName/i);
   });
 
   test('existing-customer login and password reset remain available', async ({ page }) => {
@@ -38,7 +61,7 @@ test.describe('temporary signup shutdown', () => {
     expect(response.status()).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
       code: 'SIGNUPS_CLOSED',
-      reopeningDate: '2026-10-25',
+      reopeningDate: '2026-09-30',
     });
   });
 
@@ -75,13 +98,16 @@ test.describe('temporary signup shutdown', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ok: true, reopeningDate: '2026-10-25', offer: 'one_month_free' }),
+        body: JSON.stringify({ ok: true, reopeningDate: '2026-09-30', offer: 'one_month_free' }),
       });
     });
 
     await page.goto('/signup');
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-turnstile-site-key', '1x00000000000000000000AA');
+    });
     await page.getByRole('textbox', { name: 'Email address' }).fill('shared-network@example.invalid');
-    await page.getByRole('button', { name: 'GET MY FREE MONTH' }).click();
+    await page.getByRole('button', { name: 'RESERVE MY FREE MONTH' }).click();
 
     await expect(page.getByText('Complete the security verification to continue.')).toBeVisible();
     await expect(page.getByLabel('Security verification')).toContainText('Test security verification');

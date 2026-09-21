@@ -52,7 +52,7 @@ export default function ContactPage() {
               </div>
               <h3 className="font-extrabold text-slate-900 mb-2">Email Support</h3>
               <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                Questions about the platform, your account, or billing. We respond within 1 business day.
+                Questions about the platform, your account, or billing.
               </p>
               <a href="mailto:support@fixmy.money" className="text-blue-600 font-semibold hover:text-blue-700 text-sm">
                 support@fixmy.money
@@ -66,7 +66,7 @@ export default function ContactPage() {
               </div>
               <h3 className="font-extrabold text-slate-900 mb-2">Book a Demo</h3>
               <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                See the full platform in a 30-minute personalized walkthrough with a platform specialist.
+                Request a personalized walkthrough of the platform and its agency workflow.
               </p>
               <Link
                 href="/demo"
@@ -105,31 +105,14 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Support Expectations */}
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
-            <h3 className="font-extrabold text-slate-900 mb-4">Support expectations</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Email response time', value: 'Within 1 business day' },
-                { label: 'Demo confirmation', value: 'Within 1 business hour' },
-                { label: 'Support hours', value: 'Monday – Friday, 9 AM – 6 PM EST' },
-              ].map((item) => (
-                <div key={item.label}>
-                  <p className="text-xs font-semibold text-slate-500 mb-1">{item.label}</p>
-                  <p className="text-sm font-semibold text-slate-800">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Founding Agency */}
+          {/* Reopening */}
           <div className="a11y-dark bg-slate-900 rounded-2xl p-6 text-center">
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-full mb-4">
-              Now Accepting Founding Agencies
+              Reopening September 30, 2026
             </div>
-            <h3 className="text-xl font-extrabold text-white mb-2">Interested in founding agency pricing?</h3>
+            <h3 className="text-xl font-extrabold text-white mb-2">Interested in FixMy.Money?</h3>
             <p className="text-slate-400 text-sm mb-5">
-              We&apos;re actively working with early customers to shape the platform. Founding customer pricing available for qualified agencies.
+              Join the reopening list to reserve the published one-month-free reopening offer.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link

@@ -4,52 +4,60 @@ import { createSeoMetadata } from "@/lib/seo/config";
 import Link from 'next/link';
 import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
 import { ARTICLES } from '@/lib/blog/articles';
+import TrackedLink from '@/components/marketing/TrackedLink';
+import PublicBrandLink from '@/components/marketing/PublicBrandLink';
+import PublicFooter from '@/components/marketing/PublicFooter';
 
 export const metadata: Metadata = createSeoMetadata("/blog");
 
-const CATEGORIES = ['All', 'Credit Report Errors', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
+const CATEGORIES = ['Credit Report Errors', 'Founder Story', 'Getting Started', 'Software', 'Compliance', 'Operations', 'Automation'];
 
 export default function BlogPage() {
   return (
-    <div className="a11y-light min-h-screen bg-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="a11y-light premium-public min-h-screen bg-[#f8fbf9]" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       {/* Nav */}
-      <nav className="border-b border-slate-100 px-4 sm:px-8 py-4 bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="font-bold text-slate-900 text-lg">FixMy.Money</Link>
+      <nav aria-label="Primary" className="sticky top-0 z-40 border-b border-[#d8e3de] bg-white/90 px-4 py-3 backdrop-blur-xl sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <PublicBrandLink compact />
           <div className="flex items-center gap-3">
-            <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+            <Link href="/pricing" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Pricing</Link>
+            <Link href="/login" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Sign in</Link>
+            <TrackedLink
+              href="/#reopening-list"
+              eventLabel="Reserve One Month Free"
+              eventLocation="blog_index_nav"
+              className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]"
+            >
               Reserve One Month Free
-            </Link>
+            </TrackedLink>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="a11y-dark py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 to-[#0d1f3c]">
-        <div className="mx-auto max-w-4xl">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
-            Resources
+      <section className="a11y-dark brand-grid relative overflow-hidden bg-[#07153d] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="relative mx-auto max-w-4xl">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#75d0a4]/30 bg-[#75d0a4]/10 px-4 py-2 text-xs font-bold text-[#98dfbc]">
+            Evidence-led resources
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">
+          <h1 className="max-w-3xl text-4xl font-extrabold tracking-[-.045em] text-white sm:text-6xl">
             Credit Repair Agency Resources
           </h1>
-          <p className="text-xl text-slate-300 max-w-2xl">
-            Guides, insights, and practical resources for credit repair professionals.
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-[#c8d6e5] sm:text-xl">
+            Practical guidance for building careful, evidence-led credit-repair workflows.
           </p>
         </div>
       </section>
 
-      {/* Category Filter */}
-      <section className="py-6 px-4 bg-slate-50 border-b border-slate-100">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-wrap gap-2">
+      {/* Topic index */}
+      <section className="border-b border-[#dfe8e3] bg-white px-4 py-6">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[.14em] text-[#65746e]">Explore by topic</p>
+          <div className="flex flex-wrap gap-2" aria-label="Available article topics">
             {CATEGORIES.map((cat) => (
               <span
                 key={cat}
-                className={`text-xs font-semibold px-4 py-2 rounded-full border cursor-pointer transition-colors ${
-                  cat === 'All' ?'bg-blue-600 text-white border-blue-600' :'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'
-                }`}
+                className="rounded-full border border-[#d5e2dc] bg-[#f7faf8] px-3.5 py-2 text-xs font-semibold text-[#53635c]"
               >
                 {cat}
               </span>
@@ -59,23 +67,23 @@ export default function BlogPage() {
       </section>
 
       {/* Articles */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="bg-[#f8fbf9] px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {ARTICLES.map((article) => (
               <article
                 key={article.slug}
-                className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md hover:border-blue-200 transition-all group"
+                className="group rounded-2xl border border-[#d8e4de] bg-white p-6 shadow-[0_8px_28px_rgba(12,43,34,.04)] transition duration-200 hover:-translate-y-1 hover:border-[#b7d1c4] hover:shadow-[0_18px_42px_rgba(12,43,34,.09)]"
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                  <span className="rounded-full bg-[#eef7f2] px-3 py-1 text-xs font-bold text-[#236b2e]">
                     {article.category}
                   </span>
                 </div>
-                <h2 className="text-lg font-extrabold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors leading-snug">
+                <h2 className="mb-2 text-lg font-extrabold leading-snug text-[#0b1742] transition-colors group-hover:text-[#267a31]">
                   <Link href={`/blog/${article.slug}`}>{article.title}</Link>
                 </h2>
-                <p className="text-sm text-slate-600 leading-relaxed mb-4">{article.excerpt}</p>
+                <p className="mb-4 text-sm leading-6 text-[#5c6b65]">{article.excerpt}</p>
                 <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
@@ -93,7 +101,7 @@ export default function BlogPage() {
                   </div>
                   <Link
                     href={`/blog/${article.slug}`}
-                    className="flex shrink-0 items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#267a31] hover:text-[#1f6729]"
                   >
                     Read <ArrowRight size={12} />
                   </Link>
@@ -105,27 +113,30 @@ export default function BlogPage() {
       </section>
 
       {/* Disclaimer */}
-      <section className="py-8 px-4 bg-slate-50 border-t border-slate-100">
+      <section className="border-t border-[#dfe8e3] bg-white px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs text-slate-400 text-center leading-relaxed">
+          <p className="text-center text-xs leading-relaxed text-[#66766e]">
             Articles on this blog are for informational purposes only and do not constitute legal advice. Credit repair agencies are responsible for their own compliance with CROA, FCRA, TSR, and applicable laws. Consult a qualified attorney for legal guidance.
           </p>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="a11y-dark py-12 px-4 bg-slate-900 text-center">
+      <section className="a11y-dark brand-grid bg-[#07153d] px-4 py-14 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-extrabold text-white mb-3">Ready to run your agency from one platform?</h2>
-          <p className="text-slate-400 mb-6 text-sm">One full month free when you activate after reopening.</p>
-          <Link
+          <p className="mb-6 text-sm text-[#c8d6e5]">One full month free when you activate after reopening.</p>
+          <TrackedLink
             href="/#reopening-list"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
+            eventLabel="Reserve One Month Free"
+            eventLocation="blog_index_footer"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#267a31] px-8 py-4 font-bold text-white shadow-[0_12px_28px_rgba(38,122,49,.25)] transition hover:-translate-y-0.5 hover:bg-[#2f8d3b]"
           >
             Reserve One Month Free <ArrowRight size={16} />
-          </Link>
+          </TrackedLink>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 }

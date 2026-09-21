@@ -195,7 +195,7 @@ export default function AboutPage() {
             <div className="border-t border-slate-100" />
             <div className="flex gap-4 items-start">
               <span className="text-sm font-semibold text-slate-500 w-32 shrink-0">Stage</span>
-              <span className="text-sm text-slate-700">Growing software company — actively onboarding founding agencies</span>
+              <span className="text-sm text-slate-700">Software for credit-repair business workflows</span>
             </div>
             <div className="border-t border-slate-100" />
             <div className="flex gap-4 items-start">
@@ -217,17 +217,17 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Founding Agency CTA */}
+      {/* Reopening CTA */}
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
-            Now Accepting Founding Agencies
+            Reopening September 30, 2026
           </div>
           <h2 className="text-3xl font-extrabold text-white mb-4">
-            Built with feedback from credit repair professionals
+            Built for credit repair professionals
           </h2>
           <p className="text-slate-400 mb-3">
-            Founding customer pricing available for qualified agencies. We&apos;re actively working with early customers to shape the platform.
+            Join the reopening list to reserve the published one-month-free reopening offer.
           </p>
           <p className="text-slate-500 text-sm mb-8">
             No fake testimonials. No inflated customer counts. Just a real product being built for real agencies.

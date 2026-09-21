@@ -37,7 +37,7 @@ const topics: AuditTopic[] = [
     whyItMatters: 'Bureau differences can affect the scope of a dispute. The consumer may need to contact one bureau, multiple bureaus, or a furnisher depending on where the inconsistency appears and what evidence supports it.',
     consumerChecks: ['Download or save all three bureau sections from the same report period when possible.', 'Match creditor names and masked account numbers before comparing values.', 'Keep bureau-specific screenshots or PDF pages.', 'Confirm whether the issue is missing data, conflicting data, or stale data.'],
     softwareAngle: 'FixMy.Money keeps bureau-specific tradeline fields visible so reviewers can decide whether a dispute should go to Experian, Equifax, TransUnion, or a furnisher.',
-    relatedSlugs: ['conflicting-bureau-balance-information', 'paid-closed-account-showing-balance', 'incorrect-credit-report-dates'],
+    relatedSlugs: ['dispute-letter-best-practices', 'conflicting-bureau-balance-information', 'paid-closed-account-showing-balance'],
   },
   {
     slug: 'paid-closed-account-showing-balance',
@@ -149,7 +149,7 @@ const topics: AuditTopic[] = [
     whyItMatters: 'Specific evidence helps the reviewer understand exactly what needs investigation. It also helps avoid unsupported, templated, or exaggerated claims that are disconnected from the consumer’s actual report.',
     consumerChecks: ['Save the original report page or export.', 'Write the bureau and exact field label next to each value.', 'Collect payment receipts, statements, letters, or identity documents tied to the disputed field.', 'Keep unrelated account data out of the explanation.'],
     softwareAngle: 'FixMy.Money’s letter generation is designed to carry structured evidence from the audit into the dispute draft so the factual basis names the values that triggered the issue.',
-    relatedSlugs: ['paid-closed-account-showing-balance', 'duplicate-credit-report-accounts', 'credit-report-review-workflow-for-agencies'],
+    relatedSlugs: ['dispute-letter-best-practices', 'paid-closed-account-showing-balance', 'duplicate-credit-report-accounts'],
   },
 ];
 

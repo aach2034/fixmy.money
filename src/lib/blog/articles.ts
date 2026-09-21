@@ -4,6 +4,7 @@
  */
 import { ADDITIONAL_SEO_ARTICLES } from './additionalSeoArticles';
 import { AUDIT_EDUCATION_ARTICLES } from './auditEducationArticles';
+import { PRIORITY_SEO_ARTICLES } from './prioritySeoArticles';
 
 export interface ArticleSection {
   heading: string;
@@ -52,6 +53,7 @@ export interface Article {
 const BASE_URL = 'https://fixmy.money';
 
 export const ARTICLES: Article[] = [
+  ...PRIORITY_SEO_ARTICLES,
   {
     slug: 'ai-credit-dispute-analysis-guide',
     title: 'AI Credit Dispute Analysis: A Practical Guide for Agencies',
@@ -1064,7 +1066,7 @@ FixMy.Money provides user-reviewed workflow records and billing documentation to
         answer: 'CROA violations can result in civil liability, including actual damages, punitive damages, and attorney fees. Consult an attorney to ensure your billing practices are compliant.',
       },
     ],
-    relatedSlugs: ['credit-repair-audit-logs-explained', 'credit-repair-client-onboarding-checklist', 'how-to-start-a-credit-repair-business-2026'],
+    relatedSlugs: ['croa-compliance-guide', 'credit-repair-audit-logs-explained', 'credit-repair-client-onboarding-checklist'],
     disclaimer: 'This article is for informational purposes only and does not constitute legal advice. CROA compliance requirements are complex and fact-specific. Consult a qualified attorney before structuring your billing model.',
     cta: {
       heading: 'Built for CROA-compliant billing',
@@ -1259,7 +1261,7 @@ FixMy.Money's CROA workflow feature tracks each onboarding step, records timesta
         answer: 'Failing to provide the required CROA disclosure before a client signs a contract is a CROA violation. This can result in civil liability. Consult an attorney to ensure your disclosure process is compliant.',
       },
     ],
-    relatedSlugs: ['how-croa-billing-workflows-work', 'how-to-start-a-credit-repair-business-2026', 'credit-repair-audit-logs-explained'],
+    relatedSlugs: ['croa-compliance-guide', 'how-croa-billing-workflows-work', 'credit-repair-audit-logs-explained'],
     disclaimer: 'This checklist is for informational purposes only and does not constitute legal advice. CROA requirements are complex and fact-specific. Consult a qualified attorney to ensure your onboarding process is compliant.',
     cta: {
       heading: 'Automate your onboarding workflow',
@@ -1867,7 +1869,7 @@ A platform that costs $129/month but saves your team 5 hours per week is a bette
 - You want flexibility to switch if a better option emerges
 - The annual discount is small
 
-FixMy.Money offers approximately 20% off for annual billing. Monthly billing is available with no long-term commitment.`,
+FixMy.Money currently publishes monthly plans only, with no annual billing option.`,
       },
       {
         heading: 'When to Upgrade',

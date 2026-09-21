@@ -58,12 +58,14 @@ function loadTurnstile(): Promise<TurnstileApi> {
 }
 
 export default function TurnstileChallenge({
+  action = 'marketing_lead',
   generation,
   siteKey,
   onToken,
   onExpired,
   onError,
 }: {
+  action?: string;
   generation: number;
   siteKey: string;
   onToken(token: string, generation: number): void;
@@ -81,7 +83,7 @@ export default function TurnstileChallenge({
         if (cancelled || !containerRef.current) return;
         widgetId = turnstile.render(containerRef.current, {
           sitekey: siteKey,
-          action: 'marketing_lead',
+          action,
           theme: 'auto',
           size: 'flexible',
           callback: (token) => onToken(token, generation),
@@ -97,7 +99,7 @@ export default function TurnstileChallenge({
       cancelled = true;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [generation, onError, onExpired, onToken, siteKey]);
+  }, [action, generation, onError, onExpired, onToken, siteKey]);
 
   return <div ref={containerRef} aria-label="Security verification" />;
 }

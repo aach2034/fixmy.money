@@ -12,8 +12,9 @@ export interface LeadCaptureEnv extends LeadAbuseEnv {
 
 const LEAD_OFFER = 'evidence-first-agency-starter-kit';
 const LEAD_CONSENT = 'Send me the Evidence-First Agency Starter Kit and occasional FixMy.Money product and workflow emails. I can unsubscribe at any time.';
+// Stable database key: changing it would split existing waitlist deduplication.
 const REOPENING_OFFER = 'reopening-one-month-free-2026-10-25';
-const REOPENING_CONSENT = 'Notify me when FixMy.Money reopens on October 25, 2026 and reserve my eligibility for one full month free when I activate after reopening.';
+const REOPENING_CONSENT = 'Notify me when FixMy.Money reopens on September 30, 2026 and reserve my eligibility for one full month free when I activate after reopening.';
 export const LEAD_REQUEST_MAX_BYTES = 4096;
 
 type LeadPayload = {
@@ -115,5 +116,5 @@ export function captureMarketingLead(request: Request, env: LeadCaptureEnv): Pro
 }
 
 export function captureReopeningWaitlist(request: Request, env: LeadCaptureEnv): Promise<Response> {
-  return captureLead(request, env, { offer: REOPENING_OFFER, consent: REOPENING_CONSENT, defaultSource: 'reopening_list', success: { reopeningDate: '2026-10-25', offer: 'one_month_free' } });
+  return captureLead(request, env, { offer: REOPENING_OFFER, consent: REOPENING_CONSENT, defaultSource: 'reopening_list', success: { reopeningDate: '2026-09-30', offer: 'one_month_free' } });
 }

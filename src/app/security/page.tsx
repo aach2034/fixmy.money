@@ -1,18 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Shield } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Shield } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Security Status | FixMy.Money',
-  description: 'Current FixMy.Money security-containment status and feature availability.',
+  title: 'Security | FixMy.Money',
+  description: 'How FixMy.Money protects authenticated, workspace-scoped customer data.',
 };
 
 const CONTAINMENT_CONTROLS = [
+  'Database row-level security and application authorization scope records to the selected workspace.',
+  'Client documents use private, workspace-scoped storage and server-authorized operations.',
+  'Administrative access requires a verified administrator role and step-up authentication.',
   'Raw credit-report files are not sent to external AI providers.',
   'The generic AI proxy is disabled and fails closed.',
   'Automatic purchase restoration is permanently removed and cannot change entitlement.',
-  'Client document uploads are disabled until private storage controls are complete.',
-  'Additional workspace creation and switching are disabled during authorization review.',
 ];
 
 export default function SecurityPage() {
@@ -33,25 +34,13 @@ export default function SecurityPage() {
         <div className="flex items-center gap-3">
           <Shield className="text-blue-600" size={34} />
           <div>
-            <h1 className="text-3xl font-extrabold">Security and feature-containment status</h1>
-            <p className="mt-1 text-sm text-slate-500">Current status as of September 1, 2026</p>
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={20} />
-            <div>
-              <h2 className="font-bold text-amber-900">Production-readiness remediation is in progress</h2>
-              <p className="mt-2 text-sm leading-6 text-amber-800">
-                Database row-level-security and workspace-isolation controls are undergoing a separate controlled reconciliation. This page does not claim that work is complete.
-              </p>
-            </div>
+            <h1 className="text-3xl font-extrabold">Security and data protection</h1>
+            <p className="mt-1 text-sm text-slate-500">Current status as of September 21, 2026</p>
           </div>
         </div>
 
         <section className="mt-8 rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-xl font-bold">Active containment controls</h2>
+          <h2 className="text-xl font-bold">Active controls</h2>
           <ul className="mt-5 space-y-3">
             {CONTAINMENT_CONTROLS.map(control => (
               <li key={control} className="flex items-start gap-3 text-sm leading-6 text-slate-700">

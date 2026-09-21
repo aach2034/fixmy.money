@@ -19,7 +19,7 @@ describe('central SEO system', () => {
 
   it('uses the visible paid trial and centralized live pricing in Product offers', () => {
     const schema = softwareSchema();
-    expect(schema.offers.map(offer => offer.price)).toEqual([39, 99, 249]);
+    expect(schema.offers.map(offer => offer.price)).toEqual([39, 99, 199]);
     expect(schema.offers.every(offer => offer.description.includes('$1 paid trial for 14 days'))).toBe(true);
   });
 

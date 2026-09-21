@@ -198,7 +198,7 @@ export default function ResourcesPage() {
               { label: 'Credit Repair Software', href: '/credit-repair-software' },
               { label: 'Pricing', href: '/pricing' },
               { label: 'Demo', href: '/demo' },
-              { label: 'Partners', href: '/partners' },
+              { label: 'Contact', href: '/contact' },
             ].map(link => (
               <Link key={link.href} href={link.href} className="text-sm text-blue-600 hover:text-blue-700 font-medium border border-blue-100 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
                 {link.label}

@@ -25,7 +25,7 @@ test.describe('Homepage (/)', () => {
 
   test('has page title', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/FixMy\.Money|Fix My Money/i);
+    await expect(page).toHaveTitle(/Structured Credit Report Review Software|FixMy\.Money|Fix My Money/i);
   });
 
   test('has main heading', async ({ page }) => {
@@ -43,8 +43,9 @@ test.describe('Homepage (/)', () => {
 
   test('has CTA button', async ({ page }) => {
     await page.goto('/');
-    const cta = page.getByRole('link', { name: /GET MY FREE MONTH/i }).filter({ visible: true }).first();
+    const cta = page.getByRole('link', { name: /Review My Own Credit/i });
     await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute('href', '/individuals');
   });
 });
 
@@ -88,9 +89,12 @@ test.describe('Pricing (/pricing)', () => {
 
   test('has plan options', async ({ page }) => {
     await page.goto('/pricing');
-    // Look for pricing cards or plan names
-    const planContent = page.locator('text=/starter|professional|agency|plan|month/i').first();
-    await expect(planContent).toBeVisible();
+    for (const [plan, price] of [['Personal', '$39'], ['Start', '$99'], ['Grow', '$199']] as const) {
+      const card = page.getByRole('heading', { name: plan, exact: true }).locator('xpath=../..');
+      await expect(card).toContainText(price);
+      await expect(card).toContainText('per month');
+    }
+    await expect(page.getByText('$249', { exact: true })).toHaveCount(0);
   });
 });
 
@@ -283,7 +287,7 @@ test.describe('Signup', () => {
   test('signup route shows the reopening list without account creation', async ({ page }) => {
     const response = await page.goto('/signup');
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole('heading', { name: /We.re Improving FixMy\.Money/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Be first back in.' })).toBeVisible();
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
   });
@@ -356,7 +360,7 @@ test.describe('Mobile Navigation', () => {
 
   test('mobile sign-in navigation is accessible on homepage', async ({ page }) => {
     await page.goto('/');
-    const signIn = page.locator('header').getByRole('link', { name: 'Sign in' });
+    const signIn = page.locator('header').getByRole('link', { name: 'Sign In' });
     await expect(signIn).toBeVisible();
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     const viewportWidth = 375;
