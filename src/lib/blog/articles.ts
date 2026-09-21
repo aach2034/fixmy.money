@@ -1869,7 +1869,7 @@ A platform that costs $129/month but saves your team 5 hours per week is a bette
 - You want flexibility to switch if a better option emerges
 - The annual discount is small
 
-FixMy.Money offers approximately 20% off for annual billing. Monthly billing is available with no long-term commitment.`,
+FixMy.Money currently publishes monthly plans only, with no annual billing option.`,
       },
       {
         heading: 'When to Upgrade',

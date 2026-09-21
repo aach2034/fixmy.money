@@ -3,8 +3,8 @@
  *
  * Verifies:
  * 1. Centralized pricing config is the only pricing source ($39/$99/$199)
- * 2. Trial is consistently 14 days and free (no credit card required)
- * 3. Checkout does NOT create a $1 invoice item
+ * 2. Trial is consistently a $1 paid trial for 14 days with a payment method
+ * 3. Checkout creates only the approved $1 one-time trial line item
  * 4. Checkout uses `professional`, not legacy `growth`
  * 5. Duplicate checkout attempts do not create duplicate subscriptions
  * 6. /demo-mode cannot access production tenant data
@@ -652,7 +652,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     }
   });
 
-  it('Checkout route falls back to price_data when price IDs are missing', async () => {
+  it('Checkout route fails closed when an approved recurring price is missing or mismatched', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -661,10 +661,11 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     );
     const source = fs.readFileSync(routePath, 'utf-8');
 
-    // Must have price_data fallback
-    expect(source).toContain('price_data');
-    // Must use getStripePriceId (which returns null for placeholders)
+    expect(source).toContain("status: 503");
     expect(source).toContain('getStripePriceId');
+    expect(source).toContain('validateCheckoutPrice');
+    expect(source).not.toContain('const subscriptionLineItems');
+    expect(source).not.toContain('recurring: { interval:');
   });
 
   it('Checkout route returns 503 when STRIPE_SECRET_KEY is not configured', async () => {

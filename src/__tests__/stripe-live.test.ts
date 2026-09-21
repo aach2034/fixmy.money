@@ -130,13 +130,12 @@ describe('Stripe Test-Mode API', () => {
 
     const session = await stripe?.checkout?.sessions?.create({
       mode: 'subscription',
-      payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
             currency: 'usd',
             product_data: { name: 'Test Plan' },
-            unit_amount: 4900,
+            unit_amount: 3900,
             recurring: { interval: 'month' },
           },
           quantity: 1,

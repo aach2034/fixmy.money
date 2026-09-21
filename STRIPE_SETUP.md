@@ -6,9 +6,9 @@ FixMy.Money uses Stripe Checkout for SaaS subscriptions, verified webhooks for s
 
 Create three monthly recurring prices:
 
-- Starter — $49 USD per month
-- Professional — $129 USD per month
-- Agency — $249 USD per month
+- Personal (`starter`) — $39 USD per month
+- Start (`professional`) — $99 USD per month
+- Grow (`agency`) — $199 USD per month
 
 Copy each `price_...` identifier.
 

@@ -65,7 +65,7 @@ async function expectCleanHomepage(page: Page) {
     name: /Your credit report, organized\. See what matters\. You take action\./i,
   })).toBeVisible();
   await expect(page.getByRole('link', { name: /Review My Own Credit/i })).toBeVisible();
-  await expect(page.getByText('Three-Bureau Comparison')).toBeVisible();
+  await expect(page.getByText('Three-Bureau Comparison').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(failedAssets).toEqual([]);

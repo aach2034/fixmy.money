@@ -89,7 +89,7 @@ const FEATURES = [
     icon: FolderOpen,
     title: 'Document Records',
     description:
-      'Review document metadata and case attachments already associated with client records. New client uploads are temporarily disabled.',
+      'Review document metadata and authorized case attachments stored in private, workspace-scoped storage.',
     highlights: ['Per-client document organization', 'Document status', 'Case association', 'Existing record review'],
     color: 'text-teal-600',
     bg: 'bg-teal-50',
@@ -298,7 +298,7 @@ export default function ProductTourPage() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
-            Now Accepting Founding Agencies
+            Reopening September 30, 2026
           </div>
           <h2 className="text-3xl font-extrabold text-white mb-4">
             Run your credit repair agency from one platform

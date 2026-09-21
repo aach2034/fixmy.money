@@ -12,7 +12,7 @@ import {
   PASSWORD_RECOVERY_COOKIE,
   PASSWORD_RECOVERY_TTL_SECONDS,
 } from '@/lib/auth/password-recovery-state';
-import { isPreShutdownUser } from '@/lib/signup/closure';
+import { canUseCustomerAcquisition } from '@/lib/signup/closure';
 import { getAdminClient } from '@/lib/supabase/admin';
 
 const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
     // A verified, database-authorized administrator may recover an existing
     // invited account without reopening customer signups. The role lookup is
     // server-only and deliberately ignores user-editable metadata.
-    if (!isPreShutdownUser(verifiedUser.created_at) && !isAdministratorRecovery) {
+    if (!canUseCustomerAcquisition(verifiedUser.created_at) && !isAdministratorRecovery) {
       return createAuthRedirect(request, '/signup?blocked=1');
     }
 
