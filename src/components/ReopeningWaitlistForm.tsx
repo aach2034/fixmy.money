@@ -118,6 +118,13 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
         <CheckCircle2 className="size-7 text-emerald-600" aria-hidden="true" />
         <h2 className="mt-3 text-xl font-bold">You’re on the reopening list.</h2>
         <p className="mt-2 text-sm leading-6">We’ll email you when FixMy.Money reopens on September 30, 2026. Your email is reserved for one full month free when you activate after reopening.</p>
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-white/80 p-4">
+          <p className="text-sm font-bold">Your next step</p>
+          <p className="mt-1 text-sm leading-6">Watch your inbox for the reopening email. No account or payment is needed today.</p>
+          <Link href="/pricing" className="mt-3 inline-flex min-h-11 items-center font-bold text-[#007f51] underline underline-offset-4 hover:text-[#006e46]">
+            Compare plans while you wait
+          </Link>
+        </div>
       </div>
     );
   }
