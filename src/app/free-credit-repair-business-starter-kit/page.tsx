@@ -95,7 +95,7 @@ export default function FreeStarterKitPage() {
       <section className="py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Start building your credit repair business today</h2>
-          <p className="text-slate-400 mb-8">Get the free starter kit plus full platform access with your trial.</p>
+          <p className="text-slate-400 mb-8">Get the free starter kit and join the reopening list. New paid activation is on hold.</p>
           <Link href="/#reopening-list" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all">
             Get Free Starter Kit <ArrowRight size={16} />
           </Link>

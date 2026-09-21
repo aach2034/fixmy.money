@@ -44,7 +44,6 @@ export default function BillingContent() {
   const [clients, setClients] = useState<ClientBilling[]>([]);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -86,29 +85,6 @@ export default function BillingContent() {
       toast.error(error.message || "Could not open billing management.");
     } finally {
       setPortalLoading(false);
-    }
-  };
-
-  const choosePlan = async (plan: string) => {
-    setCheckoutLoading(plan);
-    try {
-      const response = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      const data = await response.json();
-      if (data.alreadyActive) {
-        window.location.href = data.redirectTo || "/dashboard";
-        return;
-      }
-      if (!response.ok || !data.url)
-        throw new Error(data.error || "Checkout unavailable");
-      window.location.href = data.url;
-    } catch (error: any) {
-      toast.error(error.message || "Could not start checkout.");
-    } finally {
-      setCheckoutLoading(null);
     }
   };
 
@@ -195,7 +171,7 @@ export default function BillingContent() {
             </button>
           ) : (
             <Link href="#plans" className="btn-primary">
-              Choose a plan
+              View published plans
             </Link>
           )}
         </div>
@@ -207,10 +183,10 @@ export default function BillingContent() {
           className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6"
         >
           <h2 className="font-bold text-slate-900">
-            Choose your business plan
+            Published monthly plans
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Checkout and future billing are handled securely by Stripe.
+            New paid activation is on hold pending billing and legal review. No card or payment is collected here.
           </p>
           <div className="grid md:grid-cols-3 gap-4 mt-5">
             {Object.values(PLANS)
@@ -230,15 +206,7 @@ export default function BillingContent() {
                       /month
                     </span>
                   </p>
-                  <button
-                    onClick={() => choosePlan(plan.id)}
-                    disabled={checkoutLoading === plan.id}
-                    className="w-full mt-4 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-60"
-                  >
-                    {checkoutLoading === plan.id
-                      ? "Opening checkout…"
-                      : "Select plan"}
-                  </button>
+                  <p className="mt-4 text-xs font-semibold text-amber-800">Activation unavailable</p>
                 </div>
               ))}
           </div>

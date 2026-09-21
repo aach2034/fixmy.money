@@ -32,14 +32,14 @@ export default function CancellationPolicyPage() {
           <h2 className="text-lg font-bold text-slate-900">Data After Cancellation</h2>
           <p className="text-slate-600">Your data is retained for 30 days after cancellation. During this period, you may export your data or reactivate your subscription. After 30 days, your data may be permanently deleted. To request immediate data deletion, contact support@fixmy.money.</p>
 
-          <h2 className="text-lg font-bold text-slate-900">Trial Cancellation</h2>
-          <p className="text-slate-600">If you cancel during your trial period, you will not be charged the full subscription amount. The trial charge (if applicable) is non-refundable. See our <Link href="/refund-policy" className="text-blue-600 hover:underline">Refund Policy</Link> for details.</p>
+          <h2 className="text-lg font-bold text-slate-900">Existing trials</h2>
+          <p className="text-slate-600">If you already have a trial or subscription, use your billing settings or contact support for cancellation assistance. New paid activation is currently on hold. See our <Link href="/refund-policy" className="text-blue-600 hover:underline">Refund Policy</Link> for details.</p>
 
           <h2 className="text-lg font-bold text-slate-900">No Cancellation Fees</h2>
           <p className="text-slate-600">There are no cancellation fees or penalties. You can cancel at any time without additional charges beyond your current billing period.</p>
 
           <h2 className="text-lg font-bold text-slate-900">Reactivation</h2>
-          <p className="text-slate-600">You may reactivate your subscription at any time by logging in and selecting a plan. If your data has not been deleted, it will be restored upon reactivation.</p>
+          <p className="text-slate-600">Self-service paid reactivation is currently on hold. Contact support if you need help with an existing account.</p>
 
           <h2 className="text-lg font-bold text-slate-900">Contact</h2>
           <p className="text-slate-600">For cancellation assistance, contact <a href="mailto:support@fixmy.money" className="text-blue-600 hover:underline">support@fixmy.money</a>.</p>

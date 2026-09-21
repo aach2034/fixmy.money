@@ -76,7 +76,7 @@ export default function PublicSignupForm() {
       <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-7 text-emerald-950">
         <CheckCircle2 className="size-8 text-emerald-600" />
         <h1 className="mt-4 text-2xl font-bold">Check your email</h1>
-        <p className="mt-2 text-sm leading-6">If the address can be registered, you’ll receive a verification link. Verify it to continue to the selected monthly plan and the $1, 14-day trial.</p>
+        <p className="mt-2 text-sm leading-6">If the address can be registered, you’ll receive a verification link. No payment is collected at signup; new paid activation remains on hold pending legal review.</p>
       </div>
     );
   }

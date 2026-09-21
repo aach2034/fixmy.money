@@ -17,10 +17,11 @@ describe('central SEO system', () => {
     expect(SEO_PAGES['/demo-mode']).toBeUndefined();
   });
 
-  it('uses the visible paid trial and centralized live pricing in Product offers', () => {
+  it('uses published monthly pricing while marking new activation unavailable', () => {
     const schema = softwareSchema();
     expect(schema.offers.map(offer => offer.price)).toEqual([39, 99, 199]);
-    expect(schema.offers.every(offer => offer.description.includes('$1 paid trial for 14 days'))).toBe(true);
+    expect(schema.offers.every(offer => offer.description.includes('New paid activation is on hold'))).toBe(true);
+    expect(schema.offers.every(offer => offer.availability === 'https://schema.org/OutOfStock')).toBe(true);
   });
 
   it('has no blocking metadata registry issues', () => {

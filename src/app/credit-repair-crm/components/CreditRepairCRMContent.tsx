@@ -147,7 +147,7 @@ const CreditRepairCRMContent = () => {
             Ready to Upgrade Your Client Management?
           </h2>
           <p className="text-xl text-violet-100 mb-8">
-            Start your 14-day trial for $1. See how much time you can save.
+            Join the reopening list. New paid activation is on hold pending billing and legal review.
           </p>
           <Link
             href="/demo"

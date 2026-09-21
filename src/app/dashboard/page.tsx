@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { checkOnboardingStatus } from '@/lib/onboarding/onboardingGate';
 import { CheckCircle2, X, Loader2 } from 'lucide-react';
-import { trackEvent } from '@/lib/analytics';
 
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',
@@ -30,26 +29,8 @@ function DashboardSuccessBanner() {
     setShowBanner(true);
 
     if (sessionId) {
-      const storageKey = `ga_purchase_${sessionId}`;
+      const storageKey = `checkout_return_${sessionId}`;
       if (!window.sessionStorage.getItem(storageKey)) {
-        trackEvent('purchase', {
-          transaction_id: sessionId,
-          currency: 'USD',
-          value: 1,
-          plan_name: planParam,
-          items: [{
-            item_id: planParam || 'unknown',
-            item_name: planLabel ? `FixMy.Money ${planLabel}` : 'FixMy.Money paid trial',
-            price: 1,
-            quantity: 1,
-          }],
-        });
-        trackEvent('subscription_started', {
-          currency: 'USD',
-          value: 1,
-          plan_name: planParam,
-          authenticated: true,
-        });
         window.sessionStorage.setItem(storageKey, '1');
       }
     }
@@ -72,12 +53,10 @@ function DashboardSuccessBanner() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-emerald-800">
-          Payment received. Welcome to FixMy.Money.
+          Checkout completed. We’re verifying your access.
         </p>
         <p className="text-xs text-emerald-700 mt-0.5">
-          {planLabel
-            ? `You're on the ${planLabel} plan. Your $1, 14-day trial has started.`
-            : 'Your $1, 14-day trial has started.'}
+          {planLabel ? `${planLabel} plan selected. ` : ''}Access is granted only after verified billing confirmation.
         </p>
       </div>
       <button

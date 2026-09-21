@@ -203,7 +203,7 @@ Deno.serve(async (req: Request) => {
 
   switch (type) {
     case "trial_confirmation": {
-      subject = "Your Fix My Money 14-Day $1 Trial Is Active";
+      subject = "Your Fix My Money subscription update";
       html = template({
         heading: "Your 14-day trial is active",
         greeting: `Hi ${recipientName},`,
