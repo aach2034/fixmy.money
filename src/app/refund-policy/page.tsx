@@ -4,7 +4,7 @@ import { CreditCard, ArrowLeft } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Refund Policy | FixMy.Money',
-  description: 'Refund policy for FixMy.Money credit repair software. Learn about our trial terms, subscription refunds, and billing policies.',
+  description: 'Refund policy for existing FixMy.Money subscriptions and billing questions.',
   alternates: { canonical: 'https://fixmy.money/refund-policy' },
 };
 
@@ -23,8 +23,8 @@ export default function RefundPolicyPage() {
         </div>
         <p className="text-sm text-slate-500 mb-8">Last updated: June 2026</p>
         <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-6">
-          <h2 className="text-lg font-bold text-slate-900">Trial Period</h2>
-          <p className="text-slate-600">All plans include a trial period. You may cancel at any time during the trial and will not be charged the full subscription amount. Any trial charges are non-refundable.</p>
+          <h2 className="text-lg font-bold text-slate-900">New paid activation</h2>
+          <p className="text-slate-600">New paid activation is on hold. The reopening list does not collect a payment or card. Consumer billing terms are pending final legal approval.</p>
 
           <h2 className="text-lg font-bold text-slate-900">Subscription Refunds</h2>
           <p className="text-slate-600">Subscription fees are generally non-refundable. If you believe you were charged in error, contact us within 7 days at <a href="mailto:support@fixmy.money" className="text-blue-600 hover:underline">support@fixmy.money</a> and we will review your case.</p>

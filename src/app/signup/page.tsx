@@ -23,7 +23,7 @@ export default function SignupPage() {
         <Link href="/" className="mb-8 flex items-center justify-center gap-3"><AppLogo size={38} /><span className="text-xl font-semibold text-slate-900">FixMy<span className="text-emerald-700">.Money</span></span></Link>
         <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
           <h1 className="text-3xl font-bold text-slate-900">Create your business account</h1>
-          <p className="mb-7 mt-2 text-sm leading-6 text-slate-600">Verify your email, then select a monthly plan. The checkout shows the $1 charge, 14-day trial, and recurring monthly price before payment.</p>
+          <p className="mb-7 mt-2 text-sm leading-6 text-slate-600">Verify your email to create an account. No payment is collected at signup. New paid activation is on hold pending billing and legal review.</p>
           <Suspense fallback={<p className="text-sm text-slate-500">Loading secure signup…</p>}><PublicSignupForm /></Suspense>
         </section>
       </div>

@@ -65,7 +65,7 @@ describe('temporary new-signup shutdown', () => {
     expect(SIGNUP_CLOSED_MESSAGE).toContain('one month free');
   });
 
-  it('allows only pre-cutoff customers through the new-customer checkout gate', () => {
+  it('holds new paid checkout even for otherwise eligible customers', () => {
     process.env.SIGNUP_SHUTDOWN_STARTED_AT = '2026-09-05T12:00:00.000Z';
     expect(isPreShutdownUser('2026-09-05T11:59:59.999Z')).toBe(true);
     expect(isPreShutdownUser('2026-09-05T12:00:00.000Z')).toBe(false);
@@ -73,8 +73,8 @@ describe('temporary new-signup shutdown', () => {
     delete process.env.SIGNUP_SHUTDOWN_STARTED_AT;
 
     const checkout = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
-    expect(checkout.indexOf('if (!canUseCustomerAcquisition(user.created_at))')).toBeGreaterThan(-1);
-    expect(checkout.indexOf('if (!canUseCustomerAcquisition(user.created_at))')).toBeLessThan(checkout.indexOf('stripe.customers.create'));
+    expect(checkout).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
+    expect(checkout).not.toContain('stripe.customers.create');
   });
 
   it('opens acquisition only after the launch instant and explicit server-side enablement', () => {

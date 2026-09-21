@@ -1,5 +1,5 @@
 import { SEO_SITE, SEO_PAGES, breadcrumbItems, canonicalUrl } from './config';
-import { CHECKOUT_PLANS, TRIAL_CONFIG } from '@/lib/stripe/plans';
+import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
 
 export function organizationSchema() {
   return { '@type': 'Organization', '@id': `${SEO_SITE.url}/#organization`, name: SEO_SITE.name, url: `${SEO_SITE.url}/`, logo: { '@type': 'ImageObject', url: canonicalUrl(SEO_SITE.logo) }, description: SEO_SITE.description };
@@ -10,7 +10,7 @@ export function softwareSchema() {
     '@type': ['SoftwareApplication', 'Product'], '@id': `${SEO_SITE.url}/#software`, name: SEO_SITE.name,
     applicationCategory: 'BusinessApplication', operatingSystem: 'Web', url: `${SEO_SITE.url}/`, description: SEO_SITE.description,
     brand: { '@id': `${SEO_SITE.url}/#organization` },
-    offers: CHECKOUT_PLANS.map(plan => ({ '@type': 'Offer', name: plan.name, price: plan.monthlyPrice, priceCurrency: 'USD', url: canonicalUrl(`/checkout?plan=${plan.id}`), description: `$${TRIAL_CONFIG.chargeCents / 100} paid trial for ${TRIAL_CONFIG.durationDays} days, then $${plan.monthlyPrice} per month.` })),
+    offers: CHECKOUT_PLANS.map(plan => ({ '@type': 'Offer', name: plan.name, price: plan.monthlyPrice, priceCurrency: 'USD', availability: 'https://schema.org/OutOfStock', url: canonicalUrl('/pricing'), description: `Published monthly price: $${plan.monthlyPrice}. New paid activation is on hold pending billing and legal review.` })),
   };
 }
 

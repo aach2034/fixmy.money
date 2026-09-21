@@ -65,8 +65,8 @@ const COMPARISON_ROWS: {
 ];
 
 const BILLING_FAQS = [
-  { q: 'Is a credit card required to start a trial?', a: 'Yes. The paid trial costs $1 today and securely saves your card for the monthly subscription that begins after 14 days unless you cancel.' },
-  { q: 'How long is the trial?', a: 'The paid trial is 14 days. You get full access to the features included in your selected plan.' },
+  { q: 'Is a credit card required to join the reopening list?', a: 'No. The reopening list does not collect a card or charge you.' },
+  { q: 'When can I activate a paid plan?', a: 'New paid activation is on hold. Consumer billing requires final legal approval, and business checkout requires verified purchaser eligibility.' },
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
   { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
@@ -119,7 +119,7 @@ export default function PricingContent() {
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
           <p className="text-xl text-slate-300 mb-3">New accounts reopen September 30, 2026. Join now to reserve one full month free.</p>
-          <p className="text-sm text-slate-400 mb-8">Plans license business software access—not consumer credit-repair services or promised outcomes.</p>
+          <p className="text-sm text-slate-400 mb-8">Published monthly prices are shown for planning only. New paid activation is on hold pending billing and legal review.</p>
 
           <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-5 py-3 text-sm font-semibold text-white">
             Monthly billing
@@ -180,7 +180,7 @@ export default function PricingContent() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            For verified credit-repair businesses purchasing software access. FixMy.Money does not provide personal credit-repair services.
+            Personal is consumer-facing; Start and Grow are intended for credit-repair businesses. New paid checkout is unavailable until purchaser eligibility and consumer billing are reviewed.
           </p>
         </div>
       </section>
@@ -257,8 +257,8 @@ export default function PricingContent() {
           <h2 className="text-2xl font-extrabold text-slate-900 mb-6 text-center">Billing terms</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: 'Paid trial', value: '$1 today for 14 days, with full access to your selected plan' },
-              { label: 'Credit card required for trial', value: 'Yes' },
+              { label: 'New paid activation', value: 'On hold pending billing and legal review' },
+              { label: 'Reopening list', value: 'No payment or card collected' },
               { label: 'Monthly billing', value: 'Charged on the same date each month' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
               { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
@@ -286,7 +286,7 @@ export default function PricingContent() {
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">Software Access Only</p>
               <p className="text-sm text-amber-700 leading-relaxed">
-                FixMy.Money provides software tools for credit repair professionals. We do not provide personal credit repair services, legal advice, or guarantees of any credit outcome. Each business using this platform is responsible for its own compliance with CROA, FCRA, TSR, and applicable laws.
+                Personal is designed for consumers; Start and Grow are intended for businesses. No credit outcome is guaranteed. The consumer billing flow is pending final legal approval, and new paid checkout is unavailable for all plans until purchaser eligibility is verified.
               </p>
             </div>
           </div>

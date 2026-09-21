@@ -22,29 +22,28 @@ describe('Google Analytics funnel tracking', () => {
     expect(analytics).not.toContain("document.createElement('script')");
   });
 
-  it('tracks actual checkout starts and deduplicated purchases', () => {
+  it('does not report a purchase or checkout start while activation is held', () => {
     const analytics = read('src/lib/analytics.ts');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
     const dashboard = read('src/app/dashboard/page.tsx');
     const checkoutRoute = read('src/app/api/stripe/create-checkout/route.ts');
     const trialSignupBody = analytics.split('export function trackTrialSignup')[1].split('export function trackToolStarted')[0];
     expect(trialSignupBody).not.toContain("trackEvent('begin_checkout'");
-    expect(checkout).toContain("trackEvent('begin_checkout'");
-    expect(checkoutRoute).toContain('session_id={CHECKOUT_SESSION_ID}');
-    expect(dashboard).toContain("trackEvent('purchase'");
-    expect(dashboard).toContain('ga_purchase_');
+    expect(checkout).not.toContain("trackEvent('begin_checkout'");
+    expect(checkoutRoute).not.toContain('session_id={CHECKOUT_SESSION_ID}');
+    expect(dashboard).not.toContain("trackEvent('purchase'");
+    expect(dashboard).toContain('checkout_return_');
   });
 
-  it('tracks the reopening-list conversion and checkout-return milestones', () => {
+  it('tracks the reopening-list conversion without implying checkout', () => {
     const waitlist = read('src/components/ReopeningWaitlistForm.tsx');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
 
     expect(waitlist).toContain("trackEvent('reopening_waitlist_joined'");
     expect(waitlist).toContain("offer: 'one_month_free'");
     expect(waitlist).toContain("reopening_date: '2026-09-30'");
-    expect(checkout).toContain("trackEvent('email_verified'");
-    expect(checkout).toContain("searchParams.get('cancelled') === '1'");
-    expect(checkout).toContain("trackEvent('checkout_cancelled'");
+    expect(checkout).not.toContain("trackEvent('email_verified'");
+    expect(checkout).not.toContain("trackEvent('checkout_cancelled'");
   });
 
   it('keeps homepage CTA properties distinct and free of signup completion events', () => {
@@ -60,7 +59,7 @@ describe('Google Analytics funnel tracking', () => {
     expect(trialSignupBody).not.toContain("trackEvent('sign_up'");
   });
 
-  it('preserves acquisition attribution through the reopening list and checkout', () => {
+  it('preserves acquisition attribution through the reopening list while checkout is held', () => {
     const attribution = read('src/lib/attribution.ts');
     const waitlist = read('src/components/ReopeningWaitlistForm.tsx');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
@@ -71,8 +70,8 @@ describe('Google Analytics funnel tracking', () => {
     expect(attribution).toContain('firstTouch');
     expect(attribution).toContain('lastTouch');
     expect(waitlist).toContain('attribution: attributionEventParams');
-    expect(checkout).toContain('attribution: attributionEventParams');
-    expect(checkoutRoute).toContain('...attribution');
+    expect(checkout).not.toContain('attribution: attributionEventParams');
+    expect(checkoutRoute).not.toContain('...attribution');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS referral_code');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS last_utm_campaign');
     expect(migration).toContain('INSERT INTO public.workspaces');

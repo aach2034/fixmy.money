@@ -6,7 +6,7 @@ import { PLANS } from '@/lib/stripe/plans';
 
 export const metadata: Metadata = {
   title: 'Credit Repair Software for Small Agencies | FixMy.Money',
-  description: 'Affordable credit repair software for small agencies and solo operators. Manage clients, disputes, and billing. 14-day trial for $1.',
+  description: 'Credit repair software for small agencies and solo operators. Published monthly prices; new paid activation is on hold.',
   keywords: ['small agency software', 'solo operator software', 'affordable credit repair software', 'small business software'],
   openGraph: {
     title: 'Credit Repair Software for Small Agencies | FixMy.Money',

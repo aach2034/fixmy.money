@@ -70,7 +70,7 @@ const SUBMISSION_COPY = {
   tagline_50: 'AI credit repair software for modern agencies',
   tagline_one_line: 'FixMy.Money — AI-powered credit repair software for professionals and agencies.',
   meta_description: 'FixMy.Money is AI-powered credit repair software for professionals and agencies. Manage clients, generate dispute workflows, organize documents, automate billing, and grow your credit repair business.',
-  social_280: 'We built FixMy.Money — AI-powered credit repair software for professionals and agencies. Manage clients, generate dispute workflows, automate billing, and scale your business from one dashboard. Start your $1 trial: https://fixmy.money',
+  social_280: 'FixMy.Money brings client workflows and evidence review into one workspace. Published monthly plans are available to review; new paid activation is on hold. Join the reopening list: https://fixmy.money',
   short: 'FixMy.Money is AI-powered credit repair software for professionals and agencies. Manage clients, generate dispute workflows, organize documents, automate billing, and grow your credit repair business from one clean workspace.',
   medium: 'FixMy.Money helps credit repair professionals and agencies run a more organized, modern business. The platform combines client intake, AI-assisted dispute workflows, CRM tools, document storage, billing, task automation, and agency dashboards in one place. It is designed for entrepreneurs who want a cleaner alternative to outdated credit repair software.',
   long: 'FixMy.Money is an AI-powered credit repair software platform built for credit repair professionals, agencies, and entrepreneurs. It helps teams manage clients, organize documents, generate dispute workflows, track progress, automate billing, and operate from one centralized dashboard. The platform is designed to help credit repair businesses move faster, stay organized, and create a more professional client experience. FixMy.Money provides software tools only. Users are responsible for following CROA, FCRA, TSR, state laws, and all applicable regulations.',
@@ -97,8 +97,8 @@ The credit repair software market is dominated by outdated tools. We wanted to b
 **Compliance note:**
 FixMy.Money provides software tools only. Users are responsible for CROA, FCRA, TSR, and all applicable regulations.
 
-Try it for $1 → https://fixmy.money`,
-  betalist: `FixMy.Money is AI-powered credit repair software for professionals and agencies. Manage clients, generate dispute workflows, organize documents, automate billing, and grow your credit repair business from one clean workspace. Built for modern agencies that want a compliant, organized alternative to outdated credit repair software. Start your $1 trial at fixmy.money.`,
+Join the reopening list → https://fixmy.money`,
+  betalist: `FixMy.Money is credit-repair workflow software with published monthly plan prices. New paid activation is on hold pending billing and legal review. Join the reopening list at fixmy.money.`,
   g2_capterra: `FixMy.Money is an AI-powered credit repair software platform designed for credit repair professionals, agencies, and entrepreneurs. The platform provides client CRM, AI-assisted dispute workflow generation, document storage, Stripe-native billing, task automation, and an agency dashboard — all in one workspace. It is built for teams that want to move faster, stay organized, and deliver a more professional client experience. FixMy.Money provides software tools only. Users are responsible for compliance with CROA, FCRA, TSR, and applicable state laws.`,
   crunchbase: `FixMy.Money is an AI-powered credit repair software platform for credit repair professionals, agencies, and entrepreneurs. The platform combines client management, AI-assisted dispute workflows, document storage, billing automation, and agency dashboards in one workspace. FixMy.Money is designed as a modern alternative to legacy credit repair software, helping businesses operate more efficiently and professionally.`,
   linkedin_announcement: `Excited to announce the launch of FixMy.Money — AI-powered credit repair software for professionals and agencies.
@@ -112,7 +112,7 @@ After seeing how outdated most credit repair software is, we built a platform th
 
 If you work in credit repair or know someone who does, we'd love your feedback.
 
-Start your $1 trial: https://fixmy.money
+Join the reopening list: https://fixmy.money
 
 #creditrepair #fintech #saas #AI #smallbusiness`,
   reddit_launch: `**Show r/SaaS: FixMy.Money — AI credit repair software for agencies (built after seeing how bad existing tools are)**
@@ -130,7 +130,7 @@ I built FixMy.Money after spending time in the credit repair industry and being 
 
 **Tech stack:** Next.js, Supabase, OpenAI, Stripe
 
-**Business model:** $99/$199/$399/month with a $1 trial
+**Published monthly prices:** Personal $39, Start $99, Grow $199. New paid activation is on hold.
 
 **Compliance:** Software tools only — users handle their own CROA/FCRA compliance
 
@@ -147,12 +147,12 @@ We are not trying to do credit repair for anyone. We build the tools. The profes
 
 FixMy.Money is for the credit repair entrepreneur who wants to run a real business, not just manage chaos.
 
-Start your $1 trial at https://fixmy.money`,
+Join the reopening list at https://fixmy.money`,
   compliance_disclaimer: `FixMy.Money provides software tools for credit repair professionals. FixMy.Money does not provide legal advice, credit counseling, or credit repair services. Users are solely responsible for complying with the Credit Repair Organizations Act (CROA), Fair Credit Reporting Act (FCRA), Telemarketing Sales Rule (TSR), FTC regulations, applicable state laws, client disclosure requirements, and all other applicable regulations. FixMy.Money makes no guarantees regarding credit score improvements, dispute outcomes, or the removal of negative items from credit reports.`,
 };
 
 const SOCIAL_CALENDAR = [
-  { day: 1, theme: 'Launch Announcement', platform: 'All', content: 'We launched FixMy.Money — AI-powered credit repair software for professionals and agencies. One workspace for client management, dispute workflows, billing, and growth. Start your $1 trial: https://fixmy.money #creditrepair #saas #fintech' },
+  { day: 1, theme: 'Launch Announcement', platform: 'All', content: 'FixMy.Money brings credit-repair workflows into one workspace. New paid activation is on hold pending review. Join the reopening list: https://fixmy.money #creditrepair #saas' },
   { day: 2, theme: 'Problem: Outdated Software', platform: 'LinkedIn/Twitter', content: 'Most credit repair software looks like it was built in 2008. Spreadsheets. Manual processes. Disconnected tools. Credit repair professionals deserve better. That is why we built FixMy.Money. https://fixmy.money #creditrepair #smallbusiness' },
   { day: 3, theme: 'Client Organization', platform: 'LinkedIn', content: 'When you are managing 50+ credit repair clients, organization is not optional — it is your business. FixMy.Money gives every client a complete profile: intake forms, documents, dispute history, notes, and billing. All in one place. https://fixmy.money' },
   { day: 4, theme: 'AI Dispute Workflows', platform: 'Twitter/LinkedIn', content: 'AI does not repair credit. But it can help you generate dispute workflows faster, organize your process, and reduce manual work. FixMy.Money uses AI to assist — not replace — the professional. https://fixmy.money #AI #creditrepair' },
@@ -165,7 +165,7 @@ const SOCIAL_CALENDAR = [
   { day: 11, theme: 'Billing and Automation', platform: 'Twitter/LinkedIn', content: 'Chasing payments is not a business strategy. FixMy.Money integrates with Stripe so you can set up recurring billing, send invoices, and track revenue — without the manual work. https://fixmy.money #billing #automation' },
   { day: 12, theme: 'How Agencies Scale', platform: 'LinkedIn', content: 'Scaling a credit repair agency means: more clients, more staff, more processes. FixMy.Money gives you the dashboard, team management, and workflow tools to grow without losing control. https://fixmy.money #creditrepairagency' },
   { day: 13, theme: 'Product Demo', platform: 'All', content: 'Want to see FixMy.Money in action? We have a live demo at https://fixmy.money/demo — no signup required. See the client dashboard, dispute workflow, and billing tools for yourself. #creditrepair #saas' },
-  { day: 14, theme: 'Trial CTA', platform: 'All', content: 'If you run a credit repair business and want better software, try FixMy.Money for $1. No long-term contracts. Cancel anytime. 7-day risk-$1 trial. https://fixmy.money #creditrepair #trial' },
+  { day: 14, theme: 'Reopening list', platform: 'All', content: 'Explore FixMy.Money and join the reopening list. No payment or card is collected; new paid activation remains on hold. https://fixmy.money #creditrepair' },
 ];
 
 const OUTREACH_TEMPLATES = {
