@@ -89,9 +89,12 @@ test.describe('Pricing (/pricing)', () => {
 
   test('has plan options', async ({ page }) => {
     await page.goto('/pricing');
-    // Look for pricing cards or plan names
-    const planContent = page.locator('text=/starter|professional|agency|plan|month/i').first();
-    await expect(planContent).toBeVisible();
+    for (const [plan, price] of [['Personal', '$39'], ['Start', '$99'], ['Grow', '$199']] as const) {
+      const card = page.getByRole('heading', { name: plan, exact: true }).locator('xpath=../..');
+      await expect(card).toContainText(price);
+      await expect(card).toContainText('per month');
+    }
+    await expect(page.getByText('$249', { exact: true })).toHaveCount(0);
   });
 });
 

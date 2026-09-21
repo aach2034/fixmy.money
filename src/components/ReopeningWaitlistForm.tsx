@@ -114,10 +114,17 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
 
   if (state === 'success') {
     return (
-      <div role="status" aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-left text-emerald-950">
+      <div role="status" aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-left text-emerald-950 shadow-sm">
         <CheckCircle2 className="size-7 text-emerald-600" aria-hidden="true" />
         <h2 className="mt-3 text-xl font-bold">You’re on the reopening list.</h2>
         <p className="mt-2 text-sm leading-6">We’ll email you when FixMy.Money reopens on September 30, 2026. Your email is reserved for one full month free when you activate after reopening.</p>
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-white/80 p-4">
+          <p className="text-sm font-bold">Your next step</p>
+          <p className="mt-1 text-sm leading-6">Watch your inbox for the reopening email. No account or payment is needed today.</p>
+          <Link href="/pricing" className="mt-3 inline-flex min-h-11 items-center font-bold text-[#007f51] underline underline-offset-4 hover:text-[#006e46]">
+            Compare plans while you wait
+          </Link>
+        </div>
       </div>
     );
   }
@@ -138,6 +145,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
         value={email}
         onChange={event => setEmail(event.target.value)}
         placeholder="you@example.com"
+        aria-invalid={Boolean(error)}
         aria-describedby={error ? 'reopening-error' : undefined}
         className="min-h-[52px] w-full rounded-lg border border-[#cbd8e8] bg-white px-4 py-3.5 text-base text-[#0b1742] shadow-[0_1px_2px_rgba(7,60,52,.04)] outline-none transition placeholder:text-slate-400 hover:border-[#9eb7ac] focus:border-[#267a31] focus:ring-4 focus:ring-[#267a31]/12"
       />
@@ -145,7 +153,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
         <label htmlFor={compact ? 'reopening-website-compact' : 'reopening-website'}>Website</label>
         <input id={compact ? 'reopening-website-compact' : 'reopening-website'} name="website" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} />
       </div>
-      {error && <p id="reopening-error" role="alert" className="text-sm font-semibold text-rose-700">{error}</p>}
+      {error && <p id="reopening-error" role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold leading-5 text-rose-800">{error}</p>}
       {challenge.phase === 'required' && (
         <div aria-live="polite">
           {turnstileSiteKey ? (

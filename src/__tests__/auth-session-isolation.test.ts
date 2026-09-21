@@ -22,10 +22,20 @@ import {
   includeCookieInVary,
   isSupabaseAuthCookie,
 } from '@/lib/auth/session-isolation';
-import { isSupabaseAuthStorageKey } from '@/lib/supabase/client';
+import { PASSWORD_RECOVERY_COOKIE } from '@/lib/auth/password-recovery-state';
+import { isSupabaseAuthStorageKey, replaceBrowserCookie } from '@/lib/supabase/client';
 import { proxy } from '@/proxy';
 
 const oldAuthCookie = 'sb-testproject-auth-token';
+
+function createAccessToken(userId: string, sessionId = 'session-for-recovery-tests') {
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({
+    sub: userId,
+    session_id: sessionId,
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  })}.test-signature`;
+}
 
 function request(path: string, withOldSession = true) {
   return new NextRequest(`https://fixmy.money${path}`, {
@@ -48,6 +58,7 @@ function createMockClient({
 }) {
   const exchangeCodeForSession = vi.fn();
   const verifyOtp = vi.fn();
+  const accessToken = exchangeUserId ? createAccessToken(exchangeUserId) : '';
   const getUser = vi.fn().mockResolvedValue({
     data: { user: verifiedUserId ? { id: verifiedUserId, created_at: verifiedCreatedAt } : null },
     error: null,
@@ -84,7 +95,7 @@ function createMockClient({
         data: exchangeUserId
           ? {
               session: {
-                access_token: 'new-access-token',
+                access_token: accessToken,
                 user: { id: exchangeUserId },
               },
             }
@@ -101,7 +112,7 @@ function createMockClient({
     };
   });
 
-  return { exchangeCodeForSession, verifyOtp, getUser };
+  return { exchangeCodeForSession, verifyOtp, getUser, accessToken };
 }
 
 function createAdministratorRecoveryMock(
@@ -124,6 +135,8 @@ describe('signup callback session isolation', () => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://testproject.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key-with-sufficient-entropy';
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://fixmy.money';
   });
 
   it('fails closed and clears an unrelated local session when the PKCE code is missing', async () => {
@@ -155,7 +168,7 @@ describe('signup callback session isolation', () => {
       request('/auth/callback?type=signup&code=valid-looking-code')
     );
 
-    expect(client.getUser).toHaveBeenCalledWith('new-access-token');
+    expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toContain('auth_transition=verification_failed');
     expect(response.headers.get('set-cookie')).not.toContain('new-session-value');
   });
@@ -166,7 +179,7 @@ describe('signup callback session isolation', () => {
       request('/auth/callback?type=signup&plan=starter&code=valid-code')
     );
 
-    expect(client.getUser).toHaveBeenCalledWith('new-access-token');
+    expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toBe(
       'https://fixmy.money/checkout?plan=starter&verified=1'
     );
@@ -186,7 +199,7 @@ describe('signup callback session isolation', () => {
       type: 'email',
     });
     expect(client.exchangeCodeForSession).not.toHaveBeenCalled();
-    expect(client.getUser).toHaveBeenCalledWith('new-access-token');
+    expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toBe(
       'https://fixmy.money/checkout?plan=starter&verified=1'
     );
@@ -209,6 +222,52 @@ describe('signup callback session isolation', () => {
     expect(administrator.eq).toHaveBeenCalledWith('user_id', 'invited-admin');
     expect(response.headers.get('location')).toBe('https://fixmy.money/reset-password');
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
+    expect(response.headers.get('set-cookie')).toContain(PASSWORD_RECOVERY_COOKIE);
+    expect(administrator.select).toHaveBeenCalledWith('role');
+  });
+
+  it('allows an existing superadministrator to complete password recovery', async () => {
+    createMockClient({
+      exchangeUserId: 'existing-superadministrator',
+      verifiedCreatedAt: '2026-09-01T12:00:00.000Z',
+    });
+    createAdministratorRecoveryMock('platform_superadmin');
+
+    const response = await authCallback(
+      request('/auth/callback?type=recovery&code=valid-recovery-code')
+    );
+
+    expect(response.headers.get('location')).toBe('https://fixmy.money/reset-password');
+    expect(response.headers.get('set-cookie')).toContain(PASSWORD_RECOVERY_COOKIE);
+  });
+
+  it('uses the recovery OTP type for a cross-browser recovery token hash', async () => {
+    const client = createMockClient({
+      exchangeUserId: 'invited-admin',
+      verifiedCreatedAt: '2026-09-11T12:00:00.000Z',
+    });
+    createAdministratorRecoveryMock('platform_admin');
+
+    const response = await authCallback(
+      request('/auth/callback?type=recovery&token_hash=single-use-recovery-hash')
+    );
+
+    expect(client.verifyOtp).toHaveBeenCalledWith({
+      token_hash: 'single-use-recovery-hash',
+      type: 'recovery',
+    });
+    expect(client.exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(response.headers.get('location')).toBe('https://fixmy.money/reset-password');
+  });
+
+  it.each(['expired', 'reused', 'invalid'])('fails closed for a %s recovery code', async reason => {
+    createMockClient({ exchangeError: new Error(`${reason} recovery code`) });
+    const response = await authCallback(
+      request(`/auth/callback?type=recovery&code=${reason}-recovery-code`)
+    );
+
+    expect(response.headers.get('location')).toContain('auth_transition=verification_failed');
+    expect(response.headers.get('set-cookie')).toContain(`${PASSWORD_RECOVERY_COOKIE}=;`);
   });
 
   it('does not let an ordinary post-shutdown identity spoof a recovery callback', async () => {
@@ -223,6 +282,7 @@ describe('signup callback session isolation', () => {
     );
 
     expect(response.headers.get('location')).toBe('https://fixmy.money/signup?blocked=1');
+    expect(response.headers.get('set-cookie') ?? '').not.toContain(PASSWORD_RECOVERY_COOKIE);
   });
 
   it('fails closed when administrator recovery eligibility is unavailable', async () => {
@@ -327,5 +387,39 @@ describe('proxy auth response isolation', () => {
     expect(response.headers.get('cache-control')).toContain('private');
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(response.headers.get('vary')).toBe('Cookie');
+  });
+});
+
+describe('browser auth-cookie rotation', () => {
+  it('expires unpartitioned and partitioned variants before writing the new session', () => {
+    const writes: string[] = [];
+    const documentStub = {
+      get cookie() {
+        return '';
+      },
+      set cookie(value: string) {
+        writes.push(value);
+      },
+    };
+    vi.stubGlobal('document', documentStub);
+    vi.stubGlobal('window', {
+      location: { protocol: 'https:', hostname: 'fixmy.money' },
+    });
+
+    try {
+      replaceBrowserCookie(oldAuthCookie, 'fresh-aal2-session', { path: '/', maxAge: 3600 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const replacementIndex = writes.findIndex((value) =>
+      value.startsWith(`${oldAuthCookie}=fresh-aal2-session`)
+    );
+    expect(replacementIndex).toBeGreaterThan(0);
+    expect(writes.slice(0, replacementIndex)).toEqual(expect.arrayContaining([
+      expect.stringContaining(`${oldAuthCookie}=; Max-Age=0; Path=/; SameSite=None; Secure`),
+      expect.stringContaining(`${oldAuthCookie}=; Max-Age=0; Path=/; SameSite=None; Secure; Partitioned`),
+    ]));
+    expect(writes[replacementIndex]).toContain('SameSite=None; Secure; Partitioned');
   });
 });
