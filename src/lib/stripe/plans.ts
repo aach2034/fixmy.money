@@ -13,7 +13,8 @@
  * - Schema.org structured data
  * - Confirmation emails
  *
- * Trial: $1 today for 14 days, then the selected monthly plan. Cancel anytime.
+ * New paid activation is on hold pending consumer billing legal review and
+ * server-verified separation of business purchasers from consumers.
  * Annual billing is not published until matching Stripe prices are configured.
  */
 
@@ -77,7 +78,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: false,
-    cta: 'Start $1 Trial',
+    cta: 'Join reopening list',
     stripePriceIdEnvKey: 'STRIPE_STARTER_PRICE_ID',
     stripeAmountCents: 3900,
   },
@@ -104,7 +105,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: true,
-    cta: 'Start $1 Trial',
+    cta: 'Join reopening list',
     stripePriceIdEnvKey: 'STRIPE_PROFESSIONAL_PRICE_ID',
     stripeAmountCents: 9900,
   },
@@ -127,7 +128,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: false,
-    cta: 'Start $1 Trial',
+    cta: 'Join reopening list',
     stripePriceIdEnvKey: 'STRIPE_AGENCY_PRICE_ID',
     stripeAmountCents: 19900,
   },
@@ -166,7 +167,7 @@ export const PLANS_LIST: PlanConfig[] = [
   PLANS.agency,
 ];
 
-/** Plans available for self-serve checkout (excludes enterprise) */
+/** Published plan catalog; no new self-serve paid checkout is currently enabled. */
 export const CHECKOUT_PLANS: PlanConfig[] = [
   PLANS.starter,
   PLANS.professional,
@@ -184,16 +185,3 @@ export function getStripePriceId(planId: PlanId): string | null {
   if (!val || val.startsWith('your-') || val.trim() === '') return null;
   return val;
 }
-
-/**
- * Trial configuration — one definition used everywhere.
- */
-export const TRIAL_CONFIG = {
-  durationDays: 14,
-  chargeCents: 100,
-  requiresCreditCard: true,
-  gracePeriodDays: 3,
-  retryPeriodDays: 7,
-  label: '$1 today for 14 days, then your selected monthly plan. Cancel anytime.',
-  shortLabel: '$1 for 14 days',
-} as const;

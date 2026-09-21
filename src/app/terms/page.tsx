@@ -38,7 +38,7 @@ export default function TermsPage() {
           <p className="text-slate-600">FixMy.Money does not guarantee credit score improvements, item removals, or any specific credit outcomes. Results depend on individual circumstances, bureau responses, and the accuracy of information on credit reports. Users must not make such guarantees to their own clients.</p>
 
           <h2 className="text-lg font-bold text-slate-900">5. Subscriptions and Billing</h2>
-          <p className="text-slate-600">Subscriptions are billed monthly. You may cancel at any time from your billing settings. Trial periods are subject to the terms presented at signup. Payments are processed securely by Stripe. Subscription fees are generally non-refundable except as described in our Refund Policy.</p>
+          <p className="text-slate-600">Existing subscriptions are billed monthly and may be canceled from billing settings. New paid activation is on hold. No card or payment is collected for joining the reopening list. Consumer billing is pending final legal approval. Existing subscription payments are processed by Stripe; see our Refund Policy for billing questions.</p>
 
           <h2 className="text-lg font-bold text-slate-900">6. Acceptable Use</h2>
           <p className="text-slate-600">You agree not to use FixMy.Money for any unlawful purpose, to violate any regulations, to misrepresent your services to clients, or to make false or misleading claims about credit repair outcomes. Violation of these terms may result in account termination without refund.</p>

@@ -309,14 +309,11 @@ describe('FMM-004 workspace entitlement authority', () => {
     expect(reconciliation).toContain("mode: apply ? 'apply' : 'dry-run'");
   });
 
-  it('keeps billing changes owner-only at both checkout and portal boundaries', () => {
-    for (const relativePath of [
-      'src/app/api/stripe/create-checkout/route.ts',
-      'src/app/api/stripe/billing-portal/route.ts',
-    ]) {
-      const source = fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
-      expect(source).toMatch(/workspace\.workspace_owner_id !== user(?:\.id|Id)/);
-      expect(source).toContain("workspace.member_role !== 'owner'");
-    }
+  it('holds new checkout and keeps existing billing portal owner-only', () => {
+    const checkout = fs.readFileSync(path.resolve(process.cwd(), 'src/app/api/stripe/create-checkout/route.ts'), 'utf8');
+    const portal = fs.readFileSync(path.resolve(process.cwd(), 'src/app/api/stripe/billing-portal/route.ts'), 'utf8');
+    expect(checkout).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
+    expect(portal).toMatch(/workspace\.workspace_owner_id !== user(?:\.id|Id)/);
+    expect(portal).toContain("workspace.member_role !== 'owner'");
   });
 });

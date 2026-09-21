@@ -3,8 +3,8 @@
  *
  * Verifies:
  * 1. Centralized pricing config is the only pricing source ($39/$99/$199)
- * 2. Trial is consistently a $1 paid trial for 14 days with a payment method
- * 3. Checkout creates only the approved $1 one-time trial line item
+ * 2. New paid checkout is held without creating a charge or collecting a card
+ * 3. Personal cannot fall through to a B2B checkout path
  * 4. Checkout uses `professional`, not legacy `growth`
  * 5. Duplicate checkout attempts do not create duplicate subscriptions
  * 6. /demo-mode cannot access production tenant data
@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { PLANS, PLANS_LIST, CHECKOUT_PLANS, TRIAL_CONFIG, getStripePriceId } from '../lib/stripe/plans';
+import { PLANS, PLANS_LIST, CHECKOUT_PLANS, getStripePriceId } from '../lib/stripe/plans';
 
 // ─── 1. Centralized Pricing Config ───────────────────────────────────────────
 
@@ -114,130 +114,27 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
   });
 });
 
-// ─── 2. Trial Consistency ─────────────────────────────────────────────────────
+// ─── 2. Checkout hold ────────────────────────────────────────────────────────
 
-describe('Trial Configuration — $1 paid trial with retry policy', () => {
-  it('Trial duration is exactly 14 days', () => {
-    expect(TRIAL_CONFIG.durationDays).toBe(14);
-  });
-
-  it('Trial charges $1 and requires a credit card', () => {
-    expect(TRIAL_CONFIG.chargeCents).toBe(100);
-    expect(TRIAL_CONFIG.requiresCreditCard).toBe(true);
-  });
-
-  it('Trial label clearly discloses the $1 charge and duration', () => {
-    expect(TRIAL_CONFIG.label).toContain('$1');
-    expect(TRIAL_CONFIG.label).toContain('14 days');
-  });
-
-  it('Defines the agreed grace and retry periods', () => {
-    expect(TRIAL_CONFIG.gracePeriodDays).toBe(3);
-    expect(TRIAL_CONFIG.retryPeriodDays).toBe(7);
-  });
-
-  it('Trial label does not say "7-day"', () => {
-    expect(TRIAL_CONFIG.label.toLowerCase()).not.toContain('7-day');
-    expect(TRIAL_CONFIG.label.toLowerCase()).not.toContain('7 day');
-  });
-
-  it('Trial short label states the paid offer', () => {
-    expect(TRIAL_CONFIG.shortLabel).toBe('$1 for 14 days');
-  });
-});
-
-// ─── 3. Checkout Route Safety ─────────────────────────────────────────────────
-
-describe('Checkout Route — Paid Trial Safety', () => {
-  it('create-checkout route source does not contain invoiceItems.create', async () => {
-    // Read the route source and verify no $1 invoice item is created
+describe('New paid checkout hold', () => {
+  it('publishes monthly prices without a paid-trial configuration', async () => {
     const fs = await import('fs');
-    const path = await import('path');
-    const routePath = path.resolve(
-      process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
-    );
-    const source = fs.readFileSync(routePath, 'utf-8');
-
-    expect(source).not.toContain('invoiceItems.create');
-    expect(source).not.toContain('invoice_items');
-    expect(source).not.toContain('amount: 100'); // $1 = 100 cents
-    expect(source).not.toContain('unit_amount: 100');
+    const source = fs.readFileSync('src/lib/stripe/plans.ts', 'utf8');
+    expect(source).not.toContain('TRIAL_CONFIG');
+    expect(PLANS.starter.cta).toBe('Join reopening list');
   });
 
-  it('create-checkout route uses TRIAL_CONFIG.durationDays for trial period', async () => {
+  it('never creates a Stripe session or upfront charge for any plan', async () => {
+    const { POST } = await import('../app/api/stripe/create-checkout/route');
+    for (const plan of ['starter', 'professional', 'agency']) {
+      const response = await POST();
+      expect(response.status, plan).toBe(503);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      await expect(response.json()).resolves.toMatchObject({ code: 'NEW_PAID_CHECKOUT_ON_HOLD' });
+    }
     const fs = await import('fs');
-    const path = await import('path');
-    const routePath = path.resolve(
-      process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
-    );
-    const source = fs.readFileSync(routePath, 'utf-8');
-
-    expect(source).toContain('TRIAL_CONFIG.durationDays');
-    expect(source).not.toContain('trial_period_days: 7');
-    expect(source).not.toContain('trial_period_days: 1');
-  });
-
-  it('create-checkout route imports from plans.ts (single source of truth)', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const routePath = path.resolve(
-      process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
-    );
-    const source = fs.readFileSync(routePath, 'utf-8');
-
-    expect(source).toContain("from '@/lib/stripe/plans'");
-    expect(source).toContain('TRIAL_CONFIG');
-    expect(source).toContain('CHECKOUT_PLANS');
-    expect(source).toContain('getStripePriceId');
-  });
-
-  it('create-checkout route uses professional plan ID, not growth', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const routePath = path.resolve(
-      process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
-    );
-    const source = fs.readFileSync(routePath, 'utf-8');
-
-    // Should not hardcode 'growth' as a valid plan
-    // (growth may appear as a legacy alias comment, but not as a valid checkout plan)
-    expect(source).not.toContain("plan: 'growth'");
-    expect(source).not.toContain('plan === "growth"');
-    expect(source).not.toContain("isValidCheckoutPlan('growth')");
-  });
-
-  it('create-checkout route has duplicate subscription guard', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const routePath = path.resolve(
-      process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
-    );
-    const source = fs.readFileSync(routePath, 'utf-8');
-
-    expect(source).toContain('alreadyActive');
-    expect(source).toContain('getWorkspaceEntitlementDecision');
-    expect(source).toContain('entitlement.decision.canAccess');
-    expect(source).not.toContain('ACTIVE_STATUSES');
-    expect(source).not.toContain(".select('subscription_status");
-  });
-
-  it('uses dynamic payment methods and tags the checkout integration', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const routePath = path.resolve(
-      process.cwd(),
-      'src/app/api/stripe/create-checkout/route.ts'
-    );
-    const source = fs.readFileSync(routePath, 'utf-8');
-
-    expect(source).not.toContain('payment_method_types');
-    expect(source).toContain('integration_identifier');
-    expect(source).toContain('createIntegrationIdentifier');
+    const source = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
+    expect(source).not.toMatch(/checkout\.sessions\.create|payment_method_collection|trial_period_days|price_data|customers\.create/);
   });
 });
 
@@ -321,7 +218,7 @@ describe('Duplicate Checkout Prevention', () => {
     expect(source).toContain('evaluateWorkspaceEntitlement');
   });
 
-  it('Checkout returns alreadyActive:true when user has active subscription', async () => {
+  it('existing access is resolved separately from the held new-checkout route', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -330,8 +227,9 @@ describe('Duplicate Checkout Prevention', () => {
     );
     const source = fs.readFileSync(routePath, 'utf-8');
 
-    expect(source).toContain('alreadyActive: true');
-    expect(source).toContain("redirectTo: '/dashboard'");
+    expect(source).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
+    const entitlement = fs.readFileSync(path.resolve(process.cwd(), 'src/app/api/stripe/entitlement/route.ts'), 'utf8');
+    expect(entitlement).toContain('getWorkspaceEntitlementDecision');
   });
 
   it('Webhook handler has unique constraint on stripe_event_id (migration verified)', async () => {
@@ -652,7 +550,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     }
   });
 
-  it('Checkout route fails closed when an approved recurring price is missing or mismatched', async () => {
+  it('Checkout route fails closed independently of configured prices', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -662,13 +560,12 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     const source = fs.readFileSync(routePath, 'utf-8');
 
     expect(source).toContain("status: 503");
-    expect(source).toContain('getStripePriceId');
-    expect(source).toContain('validateCheckoutPrice');
-    expect(source).not.toContain('const subscriptionLineItems');
-    expect(source).not.toContain('recurring: { interval:');
+    expect(source).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
+    expect(source).not.toContain('getStripePriceId');
+    expect(source).not.toContain('checkout.sessions.create');
   });
 
-  it('Checkout route returns 503 when STRIPE_SECRET_KEY is not configured', async () => {
+  it('Checkout route returns 503 without loading a Stripe secret', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -682,7 +579,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     );
 
     expect(source).toContain('503');
-    expect(source).toContain('getStripeServerClient');
+    expect(source).not.toContain('getStripeServerClient');
     expect(stripeServer).toContain('STRIPE_SECRET_KEY');
   });
 
@@ -802,7 +699,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     }
   });
 
-  it('Stripe checkout route uses the server-only Stripe client', async () => {
+  it('Held checkout route cannot expose or load a Stripe secret', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -815,7 +712,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
       'utf-8'
     );
 
-    expect(source).toContain('getStripeServerClient');
+    expect(source).not.toContain('getStripeServerClient');
     expect(stripeServer).toContain('STRIPE_SECRET_KEY');
     expect(source).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');
     expect(stripeServer).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');

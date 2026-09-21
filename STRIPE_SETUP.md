@@ -1,6 +1,6 @@
 # FixMy.Money Stripe setup
 
-FixMy.Money uses Stripe Checkout for SaaS subscriptions, verified webhooks for subscription state, and Stripe's hosted customer portal.
+Existing FixMy.Money subscriptions use verified Stripe webhooks and the hosted customer portal. New paid Checkout is held for all plans pending consumer-billing legal approval and verified business-purchaser separation; see `docs/release/CONSUMER_BILLING_HOLD_2026-09-21.md`.
 
 ## 1. Create recurring products in Stripe test mode
 
@@ -63,10 +63,10 @@ Set the business name, support email, privacy policy URL, and terms URL.
 
 ## 5. Test before live mode
 
-Use a Stripe test card, complete Checkout, and confirm:
+Before any future paid-checkout re-enablement, verify in test mode that:
 
-- The account receives `trial_active` status.
-- A duplicate checkout is blocked.
+- The present route returns `503 NEW_PAID_CHECKOUT_ON_HOLD` for Personal, Start, and Grow without making a Stripe call.
+- Any future approved route preserves duplicate-checkout protection and never lets Personal fall through to B2B billing.
 - Billing management opens only for the signed-in account.
 - Subscription cancellation updates the account through the webhook.
 - A failed payment changes the account to `past_due`.
@@ -74,6 +74,6 @@ Use a Stripe test card, complete Checkout, and confirm:
 
 ## 6. Switch to live mode
 
-Create live-mode products and prices, replace every test key and price ID with its live equivalent, create a separate live webhook endpoint, and use that endpoint's live signing secret. Test a low-risk real transaction and refund before announcing billing as live.
+The existing live-mode account already has monthly products, Prices, and a webhook. Do not create replacement live objects, run a live transaction, or enable new checkout under this hold. Verify existing customer lifecycle and obtain the required legal and product approvals first.
 
-FixMy.Money subscription charges are for access to business software, not for consumer credit-repair results.
+This documentation is not a determination that any consumer billing flow complies with credit-repair law.

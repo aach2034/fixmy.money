@@ -109,7 +109,7 @@ export default function FinanceContent() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
             >
               <Sparkles size={18} />
-              Try FixMy.Money — $1 Trial
+              Join the reopening list
             </Link>
             <a
               href="#articles"
@@ -160,7 +160,7 @@ export default function FinanceContent() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-2">Free Tools</p>
-            <h2 className="text-3xl font-extrabold text-slate-900">Professional credit repair tools — try for $1</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900">Professional credit repair tools — join the reopening list</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TOOLS.map(tool => {
