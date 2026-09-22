@@ -293,6 +293,7 @@ revoke all on public.consumer_service_cycles, public.consumer_service_audit_even
 grant select, insert, update, delete on public.consumer_service_cycles,
   public.consumer_billing_approvals, public.completed_service_invoices,
   public.business_purchaser_verifications to service_role;
+revoke all on public.consumer_service_audit_events from service_role;
 grant select, insert on public.consumer_service_audit_events to service_role;
 revoke all on function public.prevent_consumer_service_audit_mutation(),
   public.audit_consumer_service_cycle(),
