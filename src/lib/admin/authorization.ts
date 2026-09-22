@@ -22,7 +22,8 @@ export type PlatformAdminRole = 'platform_admin' | 'platform_superadmin';
 export type ReusableSensitiveAdminAction =
   | 'customer_classification_update'
   | 'customer_retention_update'
-  | 'business_verification_review';
+  | 'business_verification_review'
+  | 'personal_packet_generation';
 
 export type DestructiveAdminAction =
   | 'administrator_factor_removal'

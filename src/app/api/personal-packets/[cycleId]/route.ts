@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
@@ -23,8 +24,13 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ cy
     return json({ id: cycle.id, state: cycle.state, packetAvailable: false });
   }
   if (!cycle.packet_storage_path.startsWith(`${user.id}/${cycleId}/`)) return json({ error: 'packet_unavailable' }, 503);
+  const { data: packet, error: downloadError } = await admin.storage
+    .from('personal-review-packets').download(cycle.packet_storage_path);
+  if (downloadError || !packet || packet.size === 0) return json({ error: 'packet_unavailable' }, 503);
+  const verifiedHash = createHash('sha256').update(Buffer.from(await packet.arrayBuffer())).digest('hex');
+  if (verifiedHash !== cycle.packet_sha256) return json({ error: 'packet_unavailable' }, 503);
   const { data: signed, error: storageError } = await admin.storage
-    .from('personal-review-packets').createSignedUrl(cycle.packet_storage_path, 60);
+    .from('personal-review-packets').createSignedUrl(cycle.packet_storage_path, 60, { download: 'personal-review-packet.txt' });
   if (storageError || !signed?.signedUrl) return json({ error: 'packet_unavailable' }, 503);
   const { error: auditError } = await admin.from('consumer_service_audit_events').insert({
     cycle_id: cycleId,

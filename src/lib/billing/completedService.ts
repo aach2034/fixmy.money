@@ -5,7 +5,7 @@ export type ApprovalStatus = typeof COUNSEL_PENDING | 'COUNSEL_APPROVED_WITH_CON
   'COUNSEL_APPROVED' | 'COUNSEL_REJECTED' | 'EXPIRED' | 'REVOKED';
 
 export type ConsumerCycleState = 'cancellation_period' | 'active_unbilled_service' |
-  'service_completion_pending' | 'invoice_eligible' | 'invoice_due' |
+  'service_completion_pending' | 'completed_unbilled' | 'invoice_eligible' | 'invoice_due' |
   'suspended_nonpayment' | 'paid_completed_cycle' | 'compliance_hold' | 'closed';
 
 export interface CounselApproval {

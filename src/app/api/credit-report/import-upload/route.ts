@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { authorizeStaffClient } from '@/lib/workspaces/authorization';
+import { PersonalCapabilityError, requirePersonalWorkspaceCapability } from '@/lib/personalPacket/capabilities';
 import {
   validateCreditReportFileContent,
   validateCreditReportFileMetadata,
@@ -46,6 +47,11 @@ export async function POST(request: NextRequest) {
     if (!authorization) {
       return NextResponse.json({ error: 'Client not found or access denied' }, { status: 403 });
     }
+    await requirePersonalWorkspaceCapability({
+      workspaceId: authorization.workspaceId,
+      consumerId: authorization.workspaceOwnerId,
+      capability: 'new_analysis',
+    });
 
     const metadataValidation = validateCreditReportFileMetadata({
       fileName: file.name,
@@ -127,6 +133,9 @@ export async function POST(request: NextRequest) {
       fileType: metadataValidation.mimeType,
     });
   } catch (err: any) {
+    if (err instanceof PersonalCapabilityError) {
+      return NextResponse.json({ error: err.code }, { status: err.status });
+    }
     console.error('[ImportUpload] Unexpected error:', err?.message);
     return NextResponse.json({ error: err?.message ?? 'Upload failed' }, { status: 500 });
   }

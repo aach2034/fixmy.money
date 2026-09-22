@@ -58,8 +58,8 @@ values ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-22222222
 select throws_ok($$
   update public.consumer_service_cycles set completed_at=now()
   where id='11111111-1111-4111-8111-111111111111'
-$$, 'Review-only cycle completion and billing are disabled',
-  'service-role update cannot claim completion in the review migration');
+$$, 'Completion requires the completed_unbilled state',
+  'a same-state service-role update cannot claim completion');
 select throws_ok($$
   update public.consumer_service_cycles set state='invoice_eligible'
   where id='11111111-1111-4111-8111-111111111111'
