@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { PLANS } from "@/lib/stripe/plans";
+import { trialEndForDisplay } from "@/lib/subscription/display";
 
 type Subscription = {
   canAccess: boolean;
@@ -90,6 +91,7 @@ export default function BillingContent() {
 
   const status = subscription?.state || "expired";
   const isActive = Boolean(subscription?.canAccess);
+  const displayedTrialEnd = trialEndForDisplay(subscription);
   const paid = clients.filter((c) => c.subscription_status === "paid").length;
   const overdue = clients.filter(
     (c) => c.subscription_status === "overdue",
@@ -138,10 +140,10 @@ export default function BillingContent() {
               <span className="text-sm font-semibold text-slate-700 capitalize">
                 {status.replace("_", " ")}
               </span>
-              {subscription?.trialEndsAt && (
+              {displayedTrialEnd && (
                 <span className="text-xs text-slate-500">
                   · Trial ends{" "}
-                  {new Date(subscription.trialEndsAt).toLocaleDateString()}
+                  {new Date(displayedTrialEnd).toLocaleDateString()}
                 </span>
               )}
               {subscription?.graceEndsAt && status === "grace" && (
