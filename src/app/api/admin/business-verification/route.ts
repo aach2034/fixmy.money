@@ -41,10 +41,12 @@ export async function POST(request: NextRequest) {
       !Number.isFinite(expires) || expires <= Date.now() || expires > Date.now() + 366 * 86_400_000)) {
     return json({ error: 'verification_evidence_required' }, 400);
   }
+  // Store only the five reviewed booleans, never arbitrary caller-supplied fields.
+  const reviewedChecks = Object.fromEntries(CHECKS.map(key => [key, (checks as Record<string, unknown> | null)?.[key] === true]));
   const { data: updated, error: updateError } = await admin.from('business_purchaser_verifications').update({
     status,
     business_evidence_ref: status === 'verified' ? evidenceRef : null,
-    verification_checks: status === 'verified' ? checks : {},
+    verification_checks: status === 'verified' ? reviewedChecks : {},
     reviewer_id: session.user.id,
     review_reason: input.reason.trim(),
     reviewed_at: new Date().toISOString(),
