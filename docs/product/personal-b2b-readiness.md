@@ -18,7 +18,7 @@ A signed-in Safari session was available and used without entering or resetting 
 
 - PR #27's required GitHub workflow run `35723508016` succeeded: quality, integration, migration replay, Firefox, Chromium, WebKit, mobile WebKit, and release-gate jobs all concluded successfully. The PR author also recorded a local Playwright Chromium-download failure; it does not negate the successful CI browser jobs, and no local Playwright run is claimed here.
 - On the v198-based Sites release tree, focused display/Checkout tests passed 14/14; full unit suite passed 1,363/1,363; TypeScript passed; changed-file lint passed; Vinext production build passed. The release-to-v198 source diff is only the three PR #27 files. A `pnpm build` wrapper attempt failed while trying to fetch pnpm from the blocked registry; invoking the already-installed Node/Vinext build directly succeeded. No application runtime setting was changed.
-- No Stripe catalog, customer, subscription, invoice, payment method, charge, payment link, tax setting, Supabase object, or enrollment state was intentionally changed by this display release. The 20-to-20 Checkout Session check is evidence only for Sessions; it is not a full before/after audit of every Stripe object.
+- No Stripe catalog, customer, subscription, invoice, payment method, charge, payment link, tax setting, or enrollment configuration was intentionally changed by this display release. The existing entitlement-check POST can persist a reconciliation timestamp or state in Supabase; this browser check was therefore not a zero-write database audit. The 20-to-20 Checkout Session check is evidence only for Sessions; it is not a full before/after audit of every Stripe object.
 
 ## Live Stripe catalog — read-only at 2026-09-22 16:00 UTC
 
