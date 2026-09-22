@@ -86,6 +86,8 @@ export function buildPersonalPacket(input: {
 }): PacketContents {
   const accounts = normalizePacketAccounts(input.source);
   const accountById = new Map(accounts.map(account => [account.id, account]));
+  const accountIdCount = new Map<string, number>();
+  for (const account of accounts) accountIdCount.set(account.id, (accountIdCount.get(account.id) ?? 0) + 1);
   const summarizeRows = (source: unknown, label: string): string[] => {
     if (source === null || source === undefined) return [];
     if (!Array.isArray(source) || source.length > 200) throw new PacketInputError('PARSER_FAILURE');
@@ -144,6 +146,7 @@ export function buildPersonalPacket(input: {
   ].join('\n');
   const supported = input.claims.filter(claim =>
     claim.confirmedByConsumer === true && accountById.has(claim.accountId) &&
+    accountIdCount.get(claim.accountId) === 1 &&
     field(claim.assertion, 300).length >= 10 && /^[0-9a-f-]{36}$/i.test(claim.evidenceDocumentId));
   const disputeDocuments = supported.length ? [
     'CONSUMER-DIRECTED DISPUTE DRAFTS — NOT SENT',

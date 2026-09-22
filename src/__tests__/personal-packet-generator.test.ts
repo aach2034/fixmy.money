@@ -65,4 +65,14 @@ describe('Personal packet generation', () => {
     expect(a.sourceSha256).toBe(b.sourceSha256);
     expect(a.hashes.packet).toMatch(/^[0-9a-f]{64}$/);
   });
+
+  it('refuses a dispute draft when an account reference is ambiguous', () => {
+    const packet = buildPersonalPacket({ ...base,
+      source: [{ ...base.source[0] }, { ...base.source[1], id: 'acct-1' }],
+      claims: [{ accountId: 'acct-1', assertion: 'My statement shows the balance was paid.',
+        evidenceDocumentId: documentId, confirmedByConsumer: true }],
+    });
+    expect(packet.disputeDocuments).toBeNull();
+    expect(packet.noSupportedDispute).not.toBeNull();
+  });
 });
