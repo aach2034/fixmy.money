@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePlatformAdmin } from '@/lib/admin/authorization';
+import { requireRecentPlatformAdmin } from '@/lib/admin/authorization';
 import { getAdminClient } from '@/lib/supabase/admin';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -11,7 +11,7 @@ const json = (body: Record<string, unknown>, status = 200) => NextResponse.json(
 export async function POST(request: NextRequest) {
   if (request.headers.get('origin') !== request.nextUrl.origin) return json({ error: 'forbidden' }, 403);
   if (Number(request.headers.get('content-length') || 0) > 4096) return json({ error: 'invalid_request' }, 400);
-  const session = await requirePlatformAdmin(); // Active, current-session AAL2 and enrolled factor.
+  const session = await requireRecentPlatformAdmin('business_verification_review');
   let input: Record<string, unknown>;
   try {
     const raw = await request.text();

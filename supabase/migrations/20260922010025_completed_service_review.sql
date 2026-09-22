@@ -24,12 +24,27 @@ create table public.consumer_service_cycles (
   updated_at timestamptz not null default now(),
   check (cycle_ends_at >= cycle_started_at + interval '30 days'),
   check (cycle_started_at >= cancellation_expires_at),
-  check (packet_storage_path is null or packet_storage_path like consumer_id::text || '/%'),
+  check (packet_storage_path is null or packet_storage_path like consumer_id::text || '/' || id::text || '/%'),
   check (state not in ('invoice_eligible','invoice_due','suspended_nonpayment','paid_completed_cycle')
     or (completed_at is not null and invoice_eligible_at is not null and
         packet_storage_path is not null and packet_sha256 is not null)),
   unique (consumer_id, cycle_started_at)
 );
+-- This review migration cannot seed a billable state, even through service_role.
+create or replace function public.enforce_review_only_cycle_insert()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.state <> 'cancellation_period' or new.completed_at is not null
+    or new.invoice_eligible_at is not null or new.packet_storage_path is not null
+    or new.packet_sha256 is not null or new.packet_evidence <> '{}'::jsonb then
+    raise exception 'Review-only cycle must start empty in cancellation_period';
+  end if;
+  return new;
+end;
+$$;
+create trigger consumer_service_cycle_insert_hold
+before insert on public.consumer_service_cycles
+for each row execute function public.enforce_review_only_cycle_insert();
 create unique index consumer_cycle_distinct_source on public.consumer_service_cycles
   (consumer_id, (packet_evidence ->> 'sourceSha256'))
   where invoice_eligible_at is not null;
@@ -107,6 +122,15 @@ create table public.consumer_billing_approvals (
   check (status <> 'COUNSEL_APPROVED_WITH_CONDITIONS' or conditions_satisfied_at is not null)
 );
 insert into public.consumer_billing_approvals(id) values (1);
+create or replace function public.prevent_review_only_approval_mutation()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  raise exception 'COUNSEL_APPROVAL_REQUIRED: review-only approval is immutable';
+end;
+$$;
+create trigger consumer_billing_approval_hold
+before update or delete on public.consumer_billing_approvals
+for each row execute function public.prevent_review_only_approval_mutation();
 
 create table public.completed_service_invoices (
   id uuid primary key default gen_random_uuid(),
@@ -185,7 +209,8 @@ create table public.business_purchaser_verifications (
 -- Private packet objects are served only through an owner-checked server route.
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('personal-review-packets','personal-review-packets',false,10485760,array['application/pdf'])
-on conflict (id) do nothing;
+on conflict (id) do update set public = false, file_size_limit = 10485760,
+  allowed_mime_types = array['application/pdf'];
 create policy personal_review_packets_no_direct_client_access on storage.objects
 as restrictive for all to anon, authenticated
 using (bucket_id <> 'personal-review-packets')
@@ -202,6 +227,9 @@ declare
   ];
   evidence_key text;
 begin
+  if new.completed_at is not null or new.invoice_eligible_at is not null then
+    raise exception 'Review-only cycle completion and billing are disabled';
+  end if;
   if old.completed_at is not null and (old.packet_evidence is distinct from new.packet_evidence
     or old.packet_storage_path is distinct from new.packet_storage_path
     or old.packet_sha256 is distinct from new.packet_sha256) then
@@ -210,6 +238,11 @@ begin
   if new.state = old.state then
     new.updated_at := now();
     return new;
+  end if;
+  -- Stage 1 is a non-billing scaffold. A separate, counsel-authorized migration
+  -- must deliberately replace this hold before eligibility can exist.
+  if new.state = 'invoice_eligible' then
+    raise exception 'COUNSEL_APPROVAL_REQUIRED: invoice eligibility is disabled';
   end if;
   if new.state = 'active_unbilled_service' and
      (old.state <> 'cancellation_period' or now() < new.cancellation_expires_at) then
@@ -291,11 +324,15 @@ revoke all on public.consumer_service_cycles, public.consumer_service_audit_even
   public.consumer_billing_approvals, public.completed_service_invoices,
   public.business_purchaser_verifications from anon, authenticated;
 grant select, insert, update, delete on public.consumer_service_cycles,
-  public.consumer_billing_approvals, public.completed_service_invoices,
+  public.completed_service_invoices,
   public.business_purchaser_verifications to service_role;
+revoke all on public.consumer_billing_approvals from service_role;
+grant select on public.consumer_billing_approvals to service_role;
 revoke all on public.consumer_service_audit_events from service_role;
 grant select, insert on public.consumer_service_audit_events to service_role;
 revoke all on function public.prevent_consumer_service_audit_mutation(),
   public.audit_consumer_service_cycle(),
+  public.enforce_review_only_cycle_insert(),
+  public.prevent_review_only_approval_mutation(),
   public.enforce_consumer_service_cycle_state(),
   public.enforce_review_only_invoice() from public, anon, authenticated;

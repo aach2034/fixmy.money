@@ -31,9 +31,40 @@ select ok(not has_table_privilege('service_role','public.consumer_service_audit_
   'service role cannot edit audit events');
 select ok(not has_table_privilege('service_role','public.consumer_service_audit_events','DELETE'),
   'service role cannot delete audit events');
+select ok(not has_table_privilege('service_role','public.consumer_billing_approvals','UPDATE'),
+  'review-only counsel approval cannot be changed by service role');
+select throws_ok($$
+  update public.consumer_billing_approvals set status='COUNSEL_REJECTED' where id=1
+$$, 'COUNSEL_APPROVAL_REQUIRED: review-only approval is immutable',
+  'even the migration owner cannot alter review-only approval');
 
 select ok((select not public from storage.buckets where id='personal-review-packets'),
   'completed packets use a private bucket');
+
+select throws_ok($$
+  insert into public.consumer_service_cycles
+    (id,consumer_id,state,cycle_started_at,cycle_ends_at,cancellation_expires_at,
+     contract_version,disclosure_version,completed_at,invoice_eligible_at,packet_storage_path,packet_sha256)
+  values ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222',
+    'invoice_eligible',now()-interval '32 days',now()-interval '2 days',now()-interval '33 days',
+    'test','test',now(),now(),'22222222-2222-4222-8222-222222222222/11111111-1111-4111-8111-111111111111/packet.pdf',repeat('a',64))
+$$, 'Review-only cycle must start empty in cancellation_period',
+  'direct insert cannot seed invoice eligibility');
+
+insert into public.consumer_service_cycles
+  (id,consumer_id,cycle_started_at,cycle_ends_at,cancellation_expires_at,contract_version,disclosure_version)
+values ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222',
+  now()-interval '32 days',now()-interval '2 days',now()-interval '33 days','test','test');
+select throws_ok($$
+  update public.consumer_service_cycles set completed_at=now()
+  where id='11111111-1111-4111-8111-111111111111'
+$$, 'Review-only cycle completion and billing are disabled',
+  'service-role update cannot claim completion in the review migration');
+select throws_ok($$
+  update public.consumer_service_cycles set state='invoice_eligible'
+  where id='11111111-1111-4111-8111-111111111111'
+$$, 'COUNSEL_APPROVAL_REQUIRED: invoice eligibility is disabled',
+  'elapsed time alone never grants invoice eligibility');
 
 select * from finish();
 rollback;

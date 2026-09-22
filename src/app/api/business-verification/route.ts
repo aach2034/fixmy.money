@@ -37,13 +37,14 @@ export async function POST(request: NextRequest) {
   const identifierType = textField(input.identifierType, 40);
   const identifierLastFour = typeof input.identifierLastFour === 'string' && /^\d{4}$/.test(input.identifierLastFour)
     ? input.identifierLastFour : null;
-  const website = input.website === '' || input.website === null || input.website === undefined
+  const websiteProvided = input.website !== '' && input.website !== null && input.website !== undefined;
+  const website = !websiteProvided
     ? null : textField(input.website, 250);
   const plan = input.planId;
   if (!legalName || !businessType || !jurisdiction || !address || !representative || !intendedUse ||
     !identifierType || !identifierLastFour || input.attestedForBusiness !== true ||
     (plan !== 'professional' && plan !== 'agency') ||
-    (website && !/^https:\/\//i.test(website))) return json({ error: 'invalid_request' }, 400);
+    (websiteProvided && (!website || !/^https:\/\//i.test(website)))) return json({ error: 'invalid_request' }, 400);
   const admin = getAdminClient();
   const { error } = await admin.from('business_purchaser_verifications').upsert({
     workspace_id: workspace.workspace_id,
