@@ -112,12 +112,12 @@ async function seed() {
 
   // Seed clients for each workspace
   const clientsA = [
-    { first_name: 'Test', last_name: 'Client_A1', email: 'client-a1@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
-    { first_name: 'Test', last_name: 'Client_A2', email: 'client-a2@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
+    { name: 'Test Client_A1', email: 'client-a1@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
+    { name: 'Test Client_A2', email: 'client-a2@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
   ];
   const clientsB = [
-    { first_name: 'Test', last_name: 'Client_B1', email: 'client-b1@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
-    { first_name: 'Test', last_name: 'Client_B2', email: 'client-b2@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
+    { name: 'Test Client_B1', email: 'client-b1@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
+    { name: 'Test Client_B2', email: 'client-b2@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
   ];
 
   for (const client of [...clientsA, ...clientsB]) {
@@ -132,15 +132,17 @@ async function seed() {
   }
 
   // Seed audit log entries
-  for (const wsId of [workspaceAId, workspaceBId]) {
+  for (const ownerId of [userIds.ownerA, userIds.ownerB]) {
     const { error } = await adminClient.from('audit_logs').insert({
-      workspace_id: wsId,
+      owner_id: ownerId,
       action: 'test_fixture_event',
-      user_id: wsId === workspaceAId ? userIds.ownerA : userIds.ownerB,
-      details: { test: true },
+      actor_name: 'Integration fixture',
+      actor_email: 'fixture@test.invalid',
+      description: 'Deterministic local security-test fixture',
+      metadata: { test: true },
     });
     if (error) {
-      console.warn(`  ⚠ Could not seed audit log for workspace ${wsId}: ${error.message}`);
+      console.warn(`  ⚠ Could not seed audit log for owner ${ownerId}: ${error.message}`);
     }
   }
 

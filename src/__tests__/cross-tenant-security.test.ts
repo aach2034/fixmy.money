@@ -150,7 +150,7 @@ describe('Cross-Tenant Security Tests', () => {
 
       const { error } = await client
         .from('staff_clients')
-        .update({ first_name: 'SECURITY_TEST_TAMPERED' })
+        .update({ name: 'SECURITY_TEST_TAMPERED' })
         .eq('workspace_id', FIXTURES.workspaceBId);
 
       // RLS must block this update — error or 0 rows affected
@@ -158,11 +158,11 @@ describe('Cross-Tenant Security Tests', () => {
       // We verify by checking that no Workspace B client was actually changed
       const { data: checkData } = await client
         .from('staff_clients')
-        .select('first_name')
+        .select('name')
         .eq('workspace_id', FIXTURES.workspaceBId);
 
       const tampered = (checkData || []).some(
-        (row) => row.first_name === 'SECURITY_TEST_TAMPERED'
+        (row) => row.name === 'SECURITY_TEST_TAMPERED'
       );
       expect(tampered).toBe(false);
 
