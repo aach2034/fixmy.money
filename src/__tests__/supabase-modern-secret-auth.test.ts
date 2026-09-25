@@ -65,4 +65,11 @@ describe('Supabase admin authentication', () => {
       expect(source, route).not.toContain('process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
     }
   });
+
+  it('treats the publishable key as required and the legacy anon key as optional', () => {
+    const source = readFileSync('src/app/admin/health/components/AdminHealthContent.tsx', 'utf8');
+    const requiredVariables = source.match(/const required = \[([^\]]+)\]/)?.[1] ?? '';
+    expect(requiredVariables).toContain('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+    expect(requiredVariables).not.toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  });
 });
