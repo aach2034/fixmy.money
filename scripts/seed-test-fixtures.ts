@@ -110,6 +110,28 @@ async function seed() {
   console.log(`  ✓ Reusing automatically created Workspace A: ${workspaceAId}`);
   console.log(`  ✓ Reusing automatically created Workspace B: ${workspaceBId}`);
 
+  // Local-only active entitlements are required by the same allocation trigger
+  // that protects production client creation. These identifiers never reach Stripe.
+  for (const [index, workspaceId] of [workspaceAId, workspaceBId].entries()) {
+    const { error } = await adminClient
+      .from('workspace_entitlements')
+      .update({
+        stripe_customer_id: `cus_test_fixture_${index + 1}`,
+        stripe_subscription_id: `sub_test_fixture_${index + 1}`,
+        stripe_status: 'active',
+        access_state: 'active',
+        plan_id: 'professional',
+        current_period_ends_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        last_verified_at: new Date().toISOString(),
+        last_reconciliation_error: null,
+      })
+      .eq('workspace_id', workspaceId);
+    if (error) {
+      console.error(`  ✗ Failed to activate local fixture entitlement: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
   // Seed clients for each workspace
   const clientsA = [
     { name: 'Test Client_A1', email: 'client-a1@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
