@@ -148,6 +148,13 @@ describe('Google Analytics funnel tracking', () => {
     expect(analytics).not.toContain('segment');
   });
 
+  it('guards onboarding_started against effect replays', () => {
+    const onboarding = read('src/app/onboarding/components/OnboardingContent.tsx');
+    expect(onboarding).toContain('const onboardingStartedTracked = useRef(false)');
+    expect(onboarding).toContain('if (!user || onboardingStartedTracked.current) return');
+    expect(onboarding).toContain('onboardingStartedTracked.current = true');
+  });
+
   it('adds page and device context without tracking client identifiers', () => {
     const analytics = read('src/lib/analytics.ts');
     const directFunnelSources = [
