@@ -56,6 +56,7 @@ export class EntitlementReconciliationError extends Error {
     readonly code:
       | 'ENTITLEMENT_NOT_CONFIGURED'
       | 'STRIPE_SUBSCRIPTION_NOT_FOUND'
+      | 'STRIPE_CUSTOMER_NOT_FOUND'
       | 'STRIPE_CUSTOMER_MISMATCH'
       | 'AMBIGUOUS_STRIPE_SUBSCRIPTIONS'
       | 'STRIPE_RECONCILIATION_UNAVAILABLE',
@@ -82,6 +83,17 @@ function currentPeriodEnd(subscription: StripeSubscriptionLike): string | null {
     .map(item => item.current_period_end)
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   return ends.length > 0 ? isoFromUnix(Math.max(...ends)) : null;
+}
+
+function isMissingStripeCustomer(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as {
+    code?: unknown;
+    param?: unknown;
+    raw?: { code?: unknown; param?: unknown };
+  };
+  return (candidate.code ?? candidate.raw?.code) === 'resource_missing'
+    && (candidate.param ?? candidate.raw?.param) === 'customer';
 }
 
 function normalizeStripeStatus(status: string): StripeSubscriptionStatus {
@@ -327,6 +339,12 @@ async function loadSubscriptionForRow(
     return selected;
   } catch (error) {
     if (error instanceof EntitlementReconciliationError) throw error;
+    if (isMissingStripeCustomer(error)) {
+      throw new EntitlementReconciliationError(
+        'STRIPE_CUSTOMER_NOT_FOUND',
+        'The workspace billing customer does not exist in the configured Stripe account and mode.'
+      );
+    }
     throw new EntitlementReconciliationError(
       'STRIPE_RECONCILIATION_UNAVAILABLE',
       'Stripe subscription verification is temporarily unavailable.'
@@ -355,7 +373,11 @@ export async function reconcileWorkspaceEntitlement(input: {
   } catch (error) {
     if (
       error instanceof EntitlementReconciliationError
-      && ['STRIPE_CUSTOMER_MISMATCH', 'AMBIGUOUS_STRIPE_SUBSCRIPTIONS'].includes(error.code)
+      && [
+        'STRIPE_CUSTOMER_NOT_FOUND',
+        'STRIPE_CUSTOMER_MISMATCH',
+        'AMBIGUOUS_STRIPE_SUBSCRIPTIONS',
+      ].includes(error.code)
     ) {
       await input.store.save({
         ...existing,
