@@ -121,9 +121,14 @@ async function seed() {
   ];
 
   for (const client of [...clientsA, ...clientsB]) {
-    const { error } = await adminClient
+    const existing = await adminClient
       .from('staff_clients')
-      .upsert(client, { onConflict: 'email' });
+      .select('id')
+      .eq('email', client.email)
+      .maybeSingle();
+    const { error } = existing.data
+      ? await adminClient.from('staff_clients').update(client).eq('id', existing.data.id)
+      : await adminClient.from('staff_clients').insert(client);
     if (error) {
       console.warn(`  ⚠ Could not seed client ${client.email}: ${error.message}`);
     } else {
@@ -133,12 +138,23 @@ async function seed() {
 
   // Seed audit log entries
   for (const ownerId of [userIds.ownerA, userIds.ownerB]) {
+    const description = 'Deterministic local security-test fixture';
+    const existing = await adminClient
+      .from('audit_logs')
+      .select('id')
+      .eq('owner_id', ownerId)
+      .eq('description', description)
+      .maybeSingle();
+    if (existing.data) {
+      console.log(`  ✓ Audit log exists for owner: ${ownerId}`);
+      continue;
+    }
     const { error } = await adminClient.from('audit_logs').insert({
       owner_id: ownerId,
-      action: 'test_fixture_event',
+      action: 'client_note_added',
       actor_name: 'Integration fixture',
       actor_email: 'fixture@test.invalid',
-      description: 'Deterministic local security-test fixture',
+      description,
       metadata: { test: true },
     });
     if (error) {
