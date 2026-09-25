@@ -388,7 +388,8 @@ test.describe('Mobile Navigation', () => {
 // ─── Keyboard Navigation ──────────────────────────────────────────────────────
 
 test.describe('Keyboard Navigation', () => {
-  test('homepage is keyboard navigable', async ({ page }) => {
+  test('homepage is keyboard navigable', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Desktop Tab traversal is not modeled by touch-only mobile browser profiles.');
     await page.goto('/');
     // Tab through interactive elements
     await page.keyboard.press('Tab');
