@@ -75,7 +75,7 @@ async function seed() {
       email_confirm: true,
     });
 
-    if (error && error.message.includes('already registered')) {
+    if (error && /already(?: been)? registered/i.test(error.message)) {
       // User exists — look up their ID
       const { data: listData } = await adminClient.auth.admin.listUsers();
       const existing = listData?.users?.find((u) => u.email === fixture.email);
