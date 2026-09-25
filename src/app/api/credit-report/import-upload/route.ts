@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { authorizeStaffClient } from '@/lib/workspaces/authorization';
 import {
   validateCreditReportFileContent,
@@ -15,10 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {

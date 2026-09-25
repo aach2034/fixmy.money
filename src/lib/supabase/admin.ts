@@ -89,7 +89,6 @@ export function getAdminClient(): SupabaseClient {
 export function validateRequiredEnvVars(): { valid: boolean; missing: string[] } {
   const required = [
     'NEXT_PUBLIC_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
@@ -102,6 +101,11 @@ export function validateRequiredEnvVars(): { valid: boolean; missing: string[] }
     return !val || val.trim() === '' || val.startsWith('your-');
   });
 
+  if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+      && !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()) {
+    missing.push('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  }
+
   return { valid: missing.length === 0, missing };
 }
 
@@ -112,6 +116,7 @@ export function validateRequiredEnvVars(): { valid: boolean; missing: string[] }
 export function getEnvHealth(): Record<string, 'configured' | 'missing'> {
   const vars = [
     'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',

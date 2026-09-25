@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { createSupabaseAdminFetch } from '@/lib/supabase/admin';
 
 describe('Supabase admin authentication', () => {
@@ -35,5 +36,33 @@ describe('Supabase admin authentication', () => {
     expect(new Headers(baseFetch.mock.calls[1][1]?.headers).get('Authorization')).toBe(
       'Bearer legacy-service-role-jwt'
     );
+  });
+
+  it('routes every privileged API through the modern-key-aware admin client', () => {
+    const routes = [
+      'src/app/api/credit-report/evidence-engine/route.ts',
+      'src/app/api/credit-report/import-upload/route.ts',
+      'src/app/api/credit-report/parse-report/route.ts',
+      'src/app/api/credit-report/save-atomic/route.ts',
+      'src/app/api/credit-report/tag-and-save/route.ts',
+      'src/app/api/workspaces/client-invitations/route.ts',
+    ];
+
+    for (const route of routes) {
+      const source = readFileSync(route, 'utf8');
+      expect(source, route).toContain('getAdminClient()');
+      expect(source, route).not.toContain("createClient(");
+    }
+  });
+
+  it('prefers the publishable key for server-side auth flows', () => {
+    for (const route of [
+      'src/app/auth/callback/route.ts',
+      'src/app/api/auth/password-recovery/route.ts',
+    ]) {
+      const source = readFileSync(route, 'utf8');
+      expect(source, route).toContain('getSupabasePublicConfig()');
+      expect(source, route).not.toContain('process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    }
   });
 });
