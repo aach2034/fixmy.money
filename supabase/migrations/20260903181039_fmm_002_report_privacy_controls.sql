@@ -93,6 +93,25 @@ REVOKE ALL ON FUNCTION private.fmm002_strip_raw_report_artifacts(jsonb) FROM PUB
 GRANT EXECUTE ON FUNCTION private.fmm002_contains_raw_report_artifact(jsonb) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.fmm002_strip_raw_report_artifacts(jsonb) TO service_role;
 
+-- Raw OCR cache and transport objects are retired. Keep this guard restrictive
+-- so no present or future permissive authenticated policy can reopen either
+-- exact namespace. Other evidence paths remain governed by the workspace-bound
+-- policies, while service_role retains its RLS bypass for the audited purge.
+DROP POLICY IF EXISTS fmm002_ocr_artifacts_authenticated_deny ON storage.objects;
+CREATE POLICY fmm002_ocr_artifacts_authenticated_deny
+ON storage.objects
+AS RESTRICTIVE
+FOR ALL
+TO authenticated
+USING (
+  bucket_id <> 'evidence-documents'
+  OR pg_catalog.split_part(name, '/', 2) NOT IN ('ocr-cache', 'ocr-temp')
+)
+WITH CHECK (
+  bucket_id <> 'evidence-documents'
+  OR pg_catalog.split_part(name, '/', 2) NOT IN ('ocr-cache', 'ocr-temp')
+);
+
 UPDATE public.parsed_credit_reports
 SET raw_text = '',
     all_accounts = private.fmm002_strip_raw_report_artifacts(all_accounts),

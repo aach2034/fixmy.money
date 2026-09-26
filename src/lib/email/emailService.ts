@@ -1,5 +1,7 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_PUBLIC_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export interface SendEmailOptions {
   type:
@@ -33,20 +35,22 @@ export async function sendTransactionalEmail(
   accessToken?: string
 ): Promise<boolean> {
   const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/send-email`;
-  const authorizationToken = accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!authorizationToken) {
+  if ((!accessToken && !serviceKey) || (accessToken && !SUPABASE_PUBLIC_KEY)) {
     console.error(`[EmailService] Cannot send ${options.type}: no authenticated token is available.`);
     return false;
   }
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    apikey: accessToken ? SUPABASE_PUBLIC_KEY : serviceKey!,
+  };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
   const response = await fetch(edgeFunctionUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${authorizationToken}`,
-    },
+    headers,
     body: JSON.stringify(options),
   });
 

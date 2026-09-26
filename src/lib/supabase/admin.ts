@@ -18,6 +18,29 @@ import { validateNotPartixDatabase } from './partix-guard';
 let _adminClient: SupabaseClient | null = null;
 
 /**
+ * Opaque `sb_secret_` keys authenticate through the `apikey` header. Supabase's
+ * gateway then supplies the internal service-role JWT. Sending the opaque key
+ * as a Bearer token as well makes the gateway try to validate it as a JWT.
+ */
+export function createSupabaseAdminFetch(
+  serviceRoleKey: string,
+  baseFetch: typeof fetch = fetch
+): typeof fetch {
+  return async (input, init) => {
+    if (!serviceRoleKey.startsWith('sb_secret_') || !init?.headers) {
+      return baseFetch(input, init);
+    }
+
+    const headers = new Headers(init.headers);
+    if (headers.get('Authorization') === `Bearer ${serviceRoleKey}`) {
+      headers.delete('Authorization');
+    }
+
+    return baseFetch(input, { ...init, headers });
+  };
+}
+
+/**
  * Returns a singleton Supabase admin client using the service role key.
  * Throws if required environment variables are not configured.
  * Throws if NEXT_PUBLIC_SUPABASE_URL points to the Partix production database.
@@ -51,6 +74,9 @@ export function getAdminClient(): SupabaseClient {
       autoRefreshToken: false,
       persistSession: false,
     },
+    global: {
+      fetch: createSupabaseAdminFetch(serviceRoleKey),
+    },
   });
 
   return _adminClient;
@@ -63,7 +89,6 @@ export function getAdminClient(): SupabaseClient {
 export function validateRequiredEnvVars(): { valid: boolean; missing: string[] } {
   const required = [
     'NEXT_PUBLIC_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
@@ -76,6 +101,11 @@ export function validateRequiredEnvVars(): { valid: boolean; missing: string[] }
     return !val || val.trim() === '' || val.startsWith('your-');
   });
 
+  if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+      && !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()) {
+    missing.push('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  }
+
   return { valid: missing.length === 0, missing };
 }
 
@@ -86,6 +116,7 @@ export function validateRequiredEnvVars(): { valid: boolean; missing: string[] }
 export function getEnvHealth(): Record<string, 'configured' | 'missing'> {
   const vars = [
     'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',

@@ -177,7 +177,7 @@ export default function AdminHealthContent({ userEmail, webhookHealth }: AdminHe
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {envEntries.map(([key, status]) => {
-                    const required = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_WORKER_SECRET', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'].includes(key);
+                    const required = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_WORKER_SECRET', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'].includes(key);
                     return (
                       <tr key={key} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-mono text-xs text-slate-700">{key}</td>

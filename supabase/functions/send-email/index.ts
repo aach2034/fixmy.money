@@ -44,6 +44,34 @@ function number(value: unknown, min = 0, max = 100000) {
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : 0;
 }
 
+function managedKeys(name: string) {
+  const encoded = Deno.env.get(name) || "";
+  if (!encoded) return [] as string[];
+
+  try {
+    const parsed = JSON.parse(encoded);
+    if (!parsed || typeof parsed !== "object") return [] as string[];
+    return Object.values(parsed).filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    );
+  } catch {
+    return [] as string[];
+  }
+}
+
+function secureEqual(left: string, right: string) {
+  if (!left || left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function includesKey(keys: string[], candidate: string) {
+  return keys.some((key) => secureEqual(key, candidate));
+}
+
 function escapeHtml(value: unknown) {
   return text(value, 500)
     .replaceAll("&", "&amp;")
@@ -154,22 +182,34 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json(req, 405, { error: "Method not allowed" });
 
   const authHeader = req.headers.get("authorization") || "";
-  if (!authHeader.startsWith("Bearer ")) return json(req, 401, { error: "Authentication required" });
+  const apiKey = req.headers.get("apikey") || "";
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
   const resendKey = Deno.env.get("RESEND_API_KEY") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  if (!supabaseUrl || !anonKey || !resendKey || !serviceRoleKey) {
+  const publishableKeys = managedKeys("SUPABASE_PUBLISHABLE_KEYS");
+  const secretKeys = managedKeys("SUPABASE_SECRET_KEYS");
+  if (!supabaseUrl || !resendKey || secretKeys.length === 0 || publishableKeys.length === 0) {
     console.error("Required function secrets are missing");
     return json(req, 503, { error: "Email service is unavailable" });
   }
 
-  const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-  const currentUser = isServiceRole
+  const isModernService = includesKey(secretKeys, apiKey);
+  // Temporary compatibility path: remove after every caller has proven modern-key use.
+  const isLegacyService = Boolean(serviceRoleKey) &&
+    secureEqual(authHeader, `Bearer ${serviceRoleKey}`);
+  const isServiceRequest = isModernService || isLegacyService;
+  const isAcceptedPublicKey = includesKey(publishableKeys, apiKey) || secureEqual(apiKey, anonKey);
+
+  if (!isServiceRequest && (!isAcceptedPublicKey || !authHeader.startsWith("Bearer "))) {
+    return json(req, 401, { error: "Authentication required" });
+  }
+
+  const currentUser = isServiceRequest
     ? null
-    : await getAuthenticatedUser(authHeader, supabaseUrl, anonKey);
-  if (!isServiceRole && !currentUser) {
+    : await getAuthenticatedUser(authHeader, supabaseUrl, apiKey);
+  if (!isServiceRequest && !currentUser) {
     return json(req, 401, { error: "Invalid or expired session" });
   }
 
@@ -184,15 +224,15 @@ Deno.serve(async (req: Request) => {
   const to = email(body.to);
   if (!ALLOWED_TYPES.has(type) || !to) return json(req, 400, { error: "Invalid email request" });
 
-  if (!isServiceRole && type === "client_notification") {
+  if (!isServiceRequest && type === "client_notification") {
     const requestedClientEmail = email(body.clientEmail);
     if (
       requestedClientEmail !== to ||
-      !(await ownsClientEmail(authHeader, supabaseUrl, anonKey, to))
+      !(await ownsClientEmail(authHeader, supabaseUrl, apiKey, to))
     ) {
       return json(req, 403, { error: "Recipient is not one of your clients" });
     }
-  } else if (!isServiceRole && to !== currentUser!.email) {
+  } else if (!isServiceRequest && to !== currentUser!.email) {
     return json(req, 403, { error: "Account notifications can only be sent to the signed-in user" });
   }
 
