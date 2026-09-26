@@ -59,6 +59,7 @@ describe('Supabase admin authentication', () => {
     for (const route of [
       'src/app/auth/callback/route.ts',
       'src/app/api/auth/password-recovery/route.ts',
+      'src/app/api/auth/signup/route.ts',
     ]) {
       const source = readFileSync(route, 'utf8');
       expect(source, route).toContain('getSupabasePublicConfig()');

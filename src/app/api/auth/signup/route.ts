@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isPublicSignupOpen, signupClosedPayload } from '@/lib/signup/closure';
+import { getSupabasePublicConfig } from '@/lib/supabase/public-config';
 
 const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -57,15 +58,16 @@ export async function POST(request: NextRequest) {
     return noStoreJson({ error: 'Enter your name and company name.' }, 400);
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fixmy.money';
-  if (!supabaseUrl || !supabaseAnonKey) {
+  let publicConfig: ReturnType<typeof getSupabasePublicConfig>;
+  try {
+    publicConfig = getSupabasePublicConfig();
+  } catch {
     console.error('[Signup] Supabase authentication is not configured.');
     return noStoreJson({ error: 'Account creation is temporarily unavailable.' }, 503);
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createClient(publicConfig.url, publicConfig.publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { error } = await supabase.auth.signUp({
