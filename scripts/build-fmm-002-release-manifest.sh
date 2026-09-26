@@ -37,7 +37,7 @@ verify_hash \
   "c31bd213800a0ea474eda5908f078229b5cec5ff6fc461bef181995bde809d59" \
   "${certified_migration}"
 verify_hash \
-  "4843b4ed3f6ae6aa3db96f787e44f4b4b24d160c2f83c71c4fc53b972a7bb227" \
+  "e5f07d3485cdcc38bb7b2e9a83510c7ddb2f2f6bafaae9625822b4aefd5419a0" \
   "${privacy_migration}"
 
 # Exact production ledger restored from the verified 2026-09-25 dump. These
