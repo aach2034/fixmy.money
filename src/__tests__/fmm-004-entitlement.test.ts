@@ -257,6 +257,47 @@ describe('FMM-004 workspace entitlement authority', () => {
     expect(store.saves).toHaveLength(0);
   });
 
+  it('classifies a missing Stripe customer as a binding error and preserves the reference for repair', async () => {
+    const store = memoryStore([row({
+      stripe_status: 'active',
+      access_state: 'active',
+      current_period_ends_at: '2026-10-03T18:00:00.000Z',
+      last_verified_at: '2026-09-03T16:00:00.000Z',
+    })]);
+    await expect(getWorkspaceEntitlementDecision({
+      workspaceId: 'workspace-a',
+      store,
+      gateway: {
+        async list() {
+          throw { type: 'invalid_request_error', code: 'resource_missing', param: 'customer' };
+        },
+      },
+      now: NOW,
+    })).rejects.toMatchObject({ code: 'STRIPE_CUSTOMER_NOT_FOUND' });
+    expect(store.rows.get('workspace-a')).toMatchObject({
+      stripe_customer_id: 'cus_a',
+      stripe_subscription_id: 'sub_a',
+      access_state: 'expired',
+      last_verified_at: null,
+      last_reconciliation_error: 'STRIPE_CUSTOMER_NOT_FOUND',
+    });
+  });
+
+  it('does not classify unrelated Stripe resource errors as a missing customer', async () => {
+    const store = memoryStore([row()]);
+    await expect(getWorkspaceEntitlementDecision({
+      workspaceId: 'workspace-a',
+      store,
+      gateway: {
+        async list() {
+          throw { type: 'invalid_request_error', code: 'resource_missing', param: 'subscription' };
+        },
+      },
+      now: NOW,
+    })).rejects.toMatchObject({ code: 'STRIPE_RECONCILIATION_UNAVAILABLE' });
+    expect(store.saves).toHaveLength(0);
+  });
+
   it('prevents one Stripe customer from being bound to two workspaces', async () => {
     const store = memoryStore([
       row(),

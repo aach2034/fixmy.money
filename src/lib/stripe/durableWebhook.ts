@@ -18,7 +18,7 @@ export interface BillingEmailOutboxItem {
   email_type: SendEmailOptions['type'];
   recipient: string;
   payload: SendEmailOptions;
-  status: 'pending' | 'processing' | 'retry' | 'sent' | 'dead_letter';
+  status: 'pending' | 'processing' | 'retry' | 'sent' | 'dead_letter' | 'cancelled';
   attempt_count: number;
   max_attempts: number;
 }

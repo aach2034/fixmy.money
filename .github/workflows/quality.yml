@@ -47,6 +47,8 @@ jobs:
       - name: Repeat migration replay
         run: supabase db reset --local --no-seed
       - run: supabase test db
+      - name: Production-order certified-mailings replay
+        run: supabase test db supabase/certified_mailings_late_replay.pg
       - run: supabase db lint --local --level error --fail-on error
 
   integration:

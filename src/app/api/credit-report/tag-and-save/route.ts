@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from '@/lib/supabase/admin';
 import type { NormalizedReport } from '@/lib/creditReport/adapters';
 import { stripRawReportArtifacts } from '@/lib/creditReport/aiPrivacy';
 import { authorizeStaffClient, sameAuthorizedClient } from '@/lib/workspaces/authorization';
@@ -59,10 +59,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

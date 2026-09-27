@@ -45,7 +45,11 @@ async function entitlementResponse(forceReconcile: boolean) {
     });
   } catch (error) {
     const code = error instanceof EntitlementReconciliationError ? error.code : 'ENTITLEMENT_CHECK_FAILED';
-    const status = code === 'AMBIGUOUS_STRIPE_SUBSCRIPTIONS' || code === 'STRIPE_CUSTOMER_MISMATCH'
+    const status = [
+      'AMBIGUOUS_STRIPE_SUBSCRIPTIONS',
+      'STRIPE_CUSTOMER_MISMATCH',
+      'STRIPE_CUSTOMER_NOT_FOUND',
+    ].includes(code)
       ? 409
       : 503;
     console.error('[Entitlement] Verification failed:', code);

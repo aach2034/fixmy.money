@@ -733,17 +733,18 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     }
   });
 
-  it('email calls require a user session or server credential', async () => {
+  it('email calls send modern keys in apikey and user sessions in Authorization', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const emailPath = path.resolve(process.cwd(), 'src/lib/email/emailService.ts');
     const source = fs.readFileSync(emailPath, 'utf-8');
 
-    expect(source).toContain('accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY');
-    expect(source).not.toContain('Authorization: `Bearer ${SUPABASE_ANON_KEY}`');
+    expect(source).toContain('apikey: accessToken ? SUPABASE_PUBLIC_KEY : serviceKey!');
+    expect(source).toContain('if (accessToken) headers.Authorization = `Bearer ${accessToken}`');
+    expect(source).not.toContain('Authorization: `Bearer ${serviceKey}`');
   });
 
-  it('email edge function preserves JWT verification and restricts service calls', async () => {
+  it('email edge function explicitly authorizes modern keys and user JWTs', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const functionPath = path.resolve(
@@ -752,7 +753,10 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     );
     const source = fs.readFileSync(functionPath, 'utf-8');
 
-    expect(source).toContain('const isServiceRole = authHeader ===');
+    expect(source).toContain('managedKeys("SUPABASE_SECRET_KEYS")');
+    expect(source).toContain('managedKeys("SUPABASE_PUBLISHABLE_KEYS")');
+    expect(source).toContain('const isModernService = includesKey(secretKeys, apiKey)');
+    expect(source).toContain('await getAuthenticatedUser(authHeader, supabaseUrl, apiKey)');
     expect(source).toContain('Invalid or expired session');
     expect(source).toContain('Recipient is not one of your clients');
     expect(source).toContain('/rest/v1/rpc/current_workspace_context');

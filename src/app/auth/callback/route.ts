@@ -14,6 +14,7 @@ import {
 } from '@/lib/auth/password-recovery-state';
 import { canUseCustomerAcquisition } from '@/lib/signup/closure';
 import { getAdminClient } from '@/lib/supabase/admin';
+import { getSupabasePublicConfig } from '@/lib/supabase/public-config';
 
 const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
 
@@ -91,14 +92,15 @@ export async function GET(request: NextRequest) {
   let pendingHeaders: Record<string, string> = {};
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
+    let publicConfig;
+    try {
+      publicConfig = getSupabasePublicConfig();
+    } catch {
       console.error('[Auth Callback] Supabase authentication is not configured.');
       return createFailedAuthRedirect(request);
     }
 
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createServerClient(publicConfig.url, publicConfig.publishableKey, {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {

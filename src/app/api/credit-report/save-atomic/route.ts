@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { authorizeStaffClient } from '@/lib/workspaces/authorization';
 
 const MAX_ITEMS = 500;
@@ -24,10 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid report payload' }, { status: 400 });
     }
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    const admin = getAdminClient();
     const { data: { user }, error: authError } = await admin.auth.getUser(token);
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const authorization = await authorizeStaffClient(admin, user.id, clientId, 'write');

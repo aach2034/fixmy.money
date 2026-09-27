@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendTransactionalEmail } from '@/lib/email/emailService';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { authorizeStaffClient } from '@/lib/workspaces/authorization';
 
 const INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
@@ -15,11 +15,7 @@ export async function POST(request: NextRequest) {
   const token = authHeader?.replace(/^Bearer\s+/i, '');
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const admin = getAdminClient();
   const { data: { user }, error: authError } = await admin.auth.getUser(token);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

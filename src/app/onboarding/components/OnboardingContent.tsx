@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
@@ -43,6 +43,7 @@ export default function OnboardingContent() {
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [providers] = useState<ReportProvider[]>(DEFAULT_PROVIDERS.filter(p => p.isVisible));
+  const onboardingStartedTracked = useRef(false);
 
   const [companyData, setCompanyData] = useState<CompanyFormData>({
     companyName: '',
@@ -76,7 +77,9 @@ export default function OnboardingContent() {
   }, [user, authLoading]);
 
   useEffect(() => {
-    if (user) trackEvent('onboarding_started', { authenticated: true });
+    if (!user || onboardingStartedTracked.current) return;
+    onboardingStartedTracked.current = true;
+    trackEvent('onboarding_started', { authenticated: true });
   }, [user]);
 
   // Resume from server-authoritative state; never infer completion from local UI.
