@@ -581,7 +581,8 @@ BEGIN
         v_unvalidated_constraints;
     END IF;
 
-    IF v_fingerprint <> '781d104fd91ed9aa993d79973c6f625b' THEN
+    IF v_fingerprint <> '6d1166ae8222e2e4f3c6de2bbe029e27'
+       OR v_fingerprint_lines <> 885 THEN
       RAISE EXCEPTION
         'FMM-002 preflight stopped: prerequisite fingerprint drifted (actual %, lines %)',
         v_fingerprint, v_fingerprint_lines;
@@ -659,7 +660,8 @@ BEGIN
         v_unvalidated_constraints;
     END IF;
 
-    IF v_fingerprint <> '9514c5c6ebaf3a18be9017eff212232c' THEN
+    IF v_fingerprint <> '0820896c904053fb826ee3c241e59a8a'
+       OR v_fingerprint_lines <> 974 THEN
       RAISE EXCEPTION
         'FMM-002 postflight stopped: hardened catalog fingerprint drifted (actual %, lines %)',
         v_fingerprint, v_fingerprint_lines;

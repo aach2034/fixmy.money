@@ -21,7 +21,7 @@ owner approval recorded by the launch tracker.
     - SHA-256:
       `e5f07d3485cdcc38bb7b2e9a83510c7ddb2f2f6bafaae9625822b4aefd5419a0`
 - Pre/postflight SQL SHA-256:
-  `753f01560abecf97cc547adfef734b8958208e0a7f23d1f933ba1f4923f749b8`
+  `6b3fbe1c55a9623d856b9f7877a13b324397e45714b890ef3b3dd7827ea0028b`
 - Guard wrapper SHA-256:
   `8740b0d22fe75be5f26bfffc38e6acbb0f21f313f3726e22b1e28f61b95f263d`
 
@@ -116,13 +116,13 @@ catalog reconciled exactly and preflight passed before any migration.
 Preflight:
 
 ```text
-FMM-002 preflight PASS: database=fmm_cli_replay, ledger=32, fingerprint=781d104fd91ed9aa993d79973c6f625b (lines=704), affected_rows=40/1149/1/14/167/244/0
+FMM-002 preflight PASS: database=fmm_live_acl_rehearsal_20260927, ledger=32, fingerprint=6d1166ae8222e2e4f3c6de2bbe029e27 (lines=885), affected_rows=40/1149/1/14/167/244/0
 ```
 
 Postflight after the exact CLI application:
 
 ```text
-FMM-002 postflight PASS: database=fmm_cli_replay, ledger=34, fingerprint=9514c5c6ebaf3a18be9017eff212232c (lines=793), affected_rows=40/1149/1/14/167/244/0
+FMM-002 postflight PASS: database=fmm_live_acl_rehearsal_20260927, ledger=34, fingerprint=0820896c904053fb826ee3c241e59a8a (lines=974), affected_rows=40/1149/1/14/167/244/0
 ```
 
 The postflight guard also proved zero raw text and forbidden nested artifacts,
