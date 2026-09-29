@@ -13,13 +13,20 @@
  * - Schema.org structured data
  * - Confirmation emails
  *
- * New paid activation is on hold pending consumer billing legal review and
- * server-verified separation of business purchasers from consumers.
+ * New acquisition is business-only. New paid activation remains on hold.
+ * Historical Personal identifiers and entitlements must remain resolvable.
  * Annual billing is not published until matching Stripe prices are configured.
  */
 
 export const PLAN_IDS = ['starter', 'professional', 'agency', 'enterprise'] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
+
+/** Plans offered to NEW business purchasers; never use PLAN_IDS for acquisition. */
+export const BUSINESS_PLAN_IDS = ['professional', 'agency'] as const;
+export type BusinessPlanId = (typeof BUSINESS_PLAN_IDS)[number];
+export function isBusinessPlan(value: unknown): value is BusinessPlanId {
+  return value === 'professional' || value === 'agency';
+}
 
 /** Immutable identifier persisted with entitlement decisions and usage records. */
 export const PLAN_CATALOG_VERSION = '2026-09-03.v1' as const;
@@ -66,7 +73,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxTeamMembers: 1,
     storageGb: 5,
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant'],
-    description: 'For reviewing your own profile and up to three friends or family members.',
+    description: 'Legacy Personal plan. Not available for new subscriptions.',
     features: [
       'Core CRM',
       'Client portal',
@@ -94,7 +101,9 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access'],
     description: 'For credit professionals managing up to 300 active clients.',
     features: [
-      'Everything in Personal',
+      'Client CRM and portal',
+      'Credit report import and dispute management',
+      'Editable letter drafts and audit log',
       'Lead and affiliate tools',
       'Structured report review',
       'Named verification and approval',
@@ -144,7 +153,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
     description: 'Custom pricing for large agencies and multi-location operations.',
     features: [
-      'Everything in Agency',
+      'Everything in Grow',
       'Custom integrations',
       'Dedicated success manager',
       'Custom SLA',
@@ -162,14 +171,12 @@ export const PLANS: Record<PlanId, PlanConfig> = {
 
 /** Ordered list for display (pricing cards, comparison tables, etc.) */
 export const PLANS_LIST: PlanConfig[] = [
-  PLANS.starter,
   PLANS.professional,
   PLANS.agency,
 ];
 
 /** Published plan catalog; no new self-serve paid checkout is currently enabled. */
 export const CHECKOUT_PLANS: PlanConfig[] = [
-  PLANS.starter,
   PLANS.professional,
   PLANS.agency,
 ];

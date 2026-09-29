@@ -31,9 +31,9 @@ export default function CheckoutContent() {
       <section className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900">New paid activation is on hold</h1>
         <p className="mt-4 leading-7 text-slate-700">
-          We are reviewing the consumer billing flow and business-purchaser eligibility.
-          No payment or card details are collected here. Consumer paid activation
-          remains unavailable pending final legal approval.
+          We are preparing business-only subscriptions for Start and Grow, including
+          purchaser eligibility review. No payment or card details are collected here.
+          Personal is no longer offered for new subscriptions.
         </p>
         <p className="mt-3 text-sm text-slate-600">Existing subscriptions and access are unchanged.</p>
         <div className="mt-7 flex flex-wrap gap-4 text-sm font-semibold">

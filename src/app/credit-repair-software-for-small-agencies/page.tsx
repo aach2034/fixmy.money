@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 const faqs = [
-{ q: 'What plan is best for small agencies?', a: `${PLANS.starter.name} ($${PLANS.starter.monthlyPrice}/mo) for individual workflows and ${PLANS.professional.name} ($${PLANS.professional.monthlyPrice}/mo) for growing agencies.` },
+{ q: 'What plans are available for businesses?', a: `${PLANS.professional.name} ($${PLANS.professional.monthlyPrice}/mo) supports up to 300 clients; ${PLANS.agency.name} ($${PLANS.agency.monthlyPrice}/mo) supports up to 600. Both are business software plans; new paid activation remains on hold.` },
 { q: 'Can I upgrade later?', a: 'Yes. Upgrade anytime. You\'ll only pay the difference for the remainder of your billing cycle.' },
 { q: 'What if I outgrow my plan?', a: `Upgrade to ${PLANS.professional.name} or ${PLANS.agency.name} as you grow. No penalties or long-term contracts.` },
 { q: 'Do you offer annual billing?', a: 'No. The currently published plans use monthly billing.' }];
@@ -51,7 +51,7 @@ export default function SmallAgencySoftwarePage() {
               Credit Repair Software for Small Agencies
             </h1>
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              Affordable, scalable software for solo operators and small agencies. Start at {PLANS.starter.monthlyPrice === null ? 'custom pricing' : `$${PLANS.starter.monthlyPrice}/month`}. No long-term contracts.
+              Business software for solo professionals and small agencies. Published plans start at ${PLANS.professional.monthlyPrice}/month. New paid activation remains on hold.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/#reopening-list" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-colors">
@@ -70,8 +70,8 @@ export default function SmallAgencySoftwarePage() {
             <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">Plans for Every Stage</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-              { name: PLANS.starter.name, id: PLANS.starter.id, price: `$${PLANS.starter.monthlyPrice}/mo`, features: PLANS.starter.features },
-              { name: PLANS.professional.name, id: PLANS.professional.id, price: `$${PLANS.professional.monthlyPrice}/mo`, features: PLANS.professional.features }].
+              { name: PLANS.professional.name, id: PLANS.professional.id, price: `$${PLANS.professional.monthlyPrice}/mo`, features: PLANS.professional.features },
+              { name: PLANS.agency.name, id: PLANS.agency.id, price: `$${PLANS.agency.monthlyPrice}/mo`, features: PLANS.agency.features }].
               map((plan, i) =>
               <div key={i} className="bg-white rounded-xl border border-slate-200 p-8">
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>

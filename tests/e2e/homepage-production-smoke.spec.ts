@@ -62,9 +62,9 @@ async function expectCleanHomepage(page: Page) {
   const response = await gotoReady(page, '/');
   expect(response?.status()).toBeLessThan(400);
   await expect(page.getByRole('heading', {
-    name: /Your credit report, organized\. See what matters\. You take action\./i,
+    name: /Your client work, organized\. Your team, in control\./i,
   })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Review My Own Credit/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Explore Business Software/i })).toBeVisible();
   await expect(page.getByText('Three-Bureau Comparison').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -130,18 +130,18 @@ test.describe('production homepage smoke', () => {
     await expect(page).toHaveURL(/\/reopen$/);
 
     await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Review My Own Credit/i }).click();
-    await expect(page).toHaveURL(/\/individuals$/);
-    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
-
-    await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Run My Credit Business/i }).click();
+    await page.getByRole('link', { name: /Explore Business Software/i }).click();
     await expect(page).toHaveURL(/\/professionals$/);
     await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
     await expect(page).toHaveURL(/\/reopen$/);
 
-    const planExpectations = ['Personal', 'Start', 'Grow'] as const;
+    await gotoReady(page, '/');
+    await page.getByRole('link', { name: /Compare Start and Grow/i }).click();
+    await expect(page).toHaveURL(/\/pricing$/);
+    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
+    await expect(page).toHaveURL(/\/reopen$/);
+
+    const planExpectations = ['Start', 'Grow'] as const;
 
     for (const planName of planExpectations) {
       await gotoReady(page, '/');

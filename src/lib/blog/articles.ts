@@ -539,17 +539,11 @@ Software like FixMy.Money can automate the tracking of each step, timestamp ever
       {
         heading: 'Pricing Your Services',
         level: 2,
-        content: `CROA's completed-service billing requirement means you cannot charge clients upfront for work you have not yet performed. This shapes how credit repair agencies structure their pricing.
+        content: `FixMy.Money prices describe business software access, not what your agency should charge consumers. We do not recommend a monthly consumer fee, setup fee, or a particular consumer billing schedule.
 
-**Common compliant pricing models:**
+Before offering paid consumer services, obtain advice about the restrictions applicable to your actual services, marketing channels, and jurisdictions. Documenting a task does not by itself establish that a fee is lawful. Telemarketing-related restrictions and state requirements can impose conditions beyond completed-service documentation.
 
-- **Monthly service fee after completed work** — Charge a monthly fee after demonstrating that services were performed during that period. This requires careful documentation of what was done each month.
-- **Per-item fee after deletion or update** — Charge only when a specific item is successfully addressed. This model requires clear documentation of what constitutes a completed service.
-- **Flat fee for completed service packages** — Charge after delivering a defined set of services (e.g., a complete dispute round).
-
-Typical monthly fees in 2026 range from $79 to $199 per month depending on the market, service level, and client complexity. Some agencies charge initial setup fees for work performed during onboarding.
-
-**Never charge fees before services are performed.** This is the most common CROA violation and the one most likely to result in legal action.`,
+Keep your software costs separate from decisions about consumer fees. Do not treat a template, calculator, subscription, or activity log as legal approval to collect a payment.`,
       },
       {
         heading: 'Marketing Your Agency',
@@ -992,21 +986,13 @@ This guide does not constitute legal advice. Consult a qualified attorney to str
 The key is that your service agreement must define what you are agreeing to do, and you must document that you did it before charging.`,
       },
       {
-        heading: 'Compliant Billing Models',
+        heading: 'Review Your Billing Model Before Use',
         level: 2,
-        content: `Several billing models can be structured to comply with CROA's completed-service requirement:
+        content: `There is no billing schedule that this software can declare lawful for every agency. We do not recommend monthly consumer charges, per-item charges, or dispute-round charges.
 
-**Monthly service fee (arrears billing)**
-Charge at the end of each month after documenting the services performed during that month. This is the most common model. Your documentation should show what was done — letters sent, responses reviewed, client communications — before the invoice is generated.
+Have qualified counsel assess the services promised, how customers are solicited, applicable federal and state rules, and the evidence and timing required before any payment. A calendar month ending, a letter being generated, or an internal task being marked complete is not automatic permission to bill.
 
-**Per-dispute-round billing**
-Charge after completing a full round of disputes — letters sent, responses received, and results documented. This model ties billing directly to a defined deliverable.
-
-**Per-item billing**
-Charge only when a specific item is successfully addressed. This model is straightforward from a compliance standpoint but can be unpredictable from a revenue standpoint.
-
-**Hybrid models**
-Some agencies use a combination — for example, a monthly service fee for ongoing monitoring and communication, plus a per-item fee for successful removals. These models require careful documentation to demonstrate that each component was earned.`,
+FixMy.Money's business software subscription is separate from the fees an agency charges consumers. Keep that distinction explicit in your contracts, records, and marketing.`,
       },
       {
         heading: 'Documenting Billing Eligibility',

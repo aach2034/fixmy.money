@@ -19,7 +19,7 @@ describe('central SEO system', () => {
 
   it('uses published monthly pricing while marking new activation unavailable', () => {
     const schema = softwareSchema();
-    expect(schema.offers.map(offer => offer.price)).toEqual([39, 99, 199]);
+    expect(schema.offers.map(offer => offer.price)).toEqual([99, 199]);
     expect(schema.offers.every(offer => offer.description.includes('New paid activation is on hold'))).toBe(true);
     expect(schema.offers.every(offer => offer.availability === 'https://schema.org/OutOfStock')).toBe(true);
   });
@@ -33,7 +33,8 @@ describe('central SEO system', () => {
     const urls = sitemap().map(entry => entry.url);
     expect(urls).toContain('https://fixmy.money/blog/paid-closed-account-showing-balance');
     expect(urls).toContain('https://fixmy.money/blog/equifax-experian-transunion-disputes');
-    expect(urls).toContain('https://fixmy.money/individuals');
+    expect(urls).not.toContain('https://fixmy.money/individuals');
+    expect(urls).toContain('https://fixmy.money/business-use');
     expect(urls).toContain('https://fixmy.money/professionals');
     expect(urls).toContain('https://fixmy.money/mortgage-partners');
     expect(urls).toContain('https://fixmy.money/affiliates');

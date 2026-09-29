@@ -36,7 +36,7 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     expect(homepage).not.toMatch(/const\s+PLANS\s*=\s*\[/);
   });
 
-  it('Personal plan costs $39/month', () => {
+  it('legacy Personal pricing remains $39/month', () => {
     expect(PLANS.starter.name).toBe('Personal');
     expect(PLANS.starter.monthlyPrice).toBe(39);
     expect(PLANS.starter.stripeAmountCents).toBe(3900);
@@ -75,9 +75,10 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     expect(planIds).not.toContain('growth');
   });
 
-  it('Checkout plans are starter, professional, agency only', () => {
+  it('New acquisition offers professional and agency only', () => {
     const checkoutIds = CHECKOUT_PLANS.map(p => p.id);
-    expect(checkoutIds).toEqual(['starter', 'professional', 'agency']);
+    expect(checkoutIds).toEqual(['professional', 'agency']);
+    expect(PLANS_LIST.map(p => p.id)).toEqual(checkoutIds);
     expect(checkoutIds).not.toContain('enterprise');
     expect(checkoutIds).not.toContain('growth');
   });

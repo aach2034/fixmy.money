@@ -43,9 +43,9 @@ test.describe('Homepage (/)', () => {
 
   test('has CTA button', async ({ page }) => {
     await page.goto('/');
-    const cta = page.getByRole('link', { name: /Review My Own Credit/i });
+    const cta = page.getByRole('link', { name: /Explore Business Software/i });
     await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute('href', '/individuals');
+    await expect(cta).toHaveAttribute('href', '/professionals');
   });
 });
 
@@ -89,12 +89,13 @@ test.describe('Pricing (/pricing)', () => {
 
   test('has plan options', async ({ page }) => {
     await page.goto('/pricing');
-    for (const [plan, price] of [['Personal', '$39'], ['Start', '$99'], ['Grow', '$199']] as const) {
+    for (const [plan, price] of [['Start', '$99'], ['Grow', '$199']] as const) {
       const card = page.getByRole('heading', { name: plan, exact: true }).locator('xpath=../..');
       await expect(card).toContainText(price);
       await expect(card).toContainText('per month');
     }
     await expect(page.getByText('$249', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Personal', exact: true })).toHaveCount(0);
   });
 });
 

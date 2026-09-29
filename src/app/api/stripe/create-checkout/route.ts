@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 /**
- * New paid checkout is held for every plan. Personal is consumer-facing and
- * Start/Grow do not yet have a server-verified business-purchaser boundary.
+ * New paid checkout is held for every plan. New acquisition is B2B-only;
+ * a signup declaration is not server-verified business-purchaser eligibility.
  * This route intentionally makes no Stripe call, collects no payment method,
  * and does not alter existing subscriptions or entitlements.
  */

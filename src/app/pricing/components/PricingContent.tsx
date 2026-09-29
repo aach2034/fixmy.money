@@ -66,7 +66,9 @@ const COMPARISON_ROWS: {
 
 const BILLING_FAQS = [
   { q: 'Is a credit card required to join the reopening list?', a: 'No. The reopening list does not collect a card or charge you.' },
-  { q: 'When can I activate a paid plan?', a: 'New paid activation is on hold. Consumer billing requires final legal approval, and business checkout requires verified purchaser eligibility.' },
+  { q: 'Who can purchase a plan?', a: 'Start and Grow are business software subscriptions for authorized representatives of businesses managing client workflows. New personal-use subscriptions are not offered.' },
+  { q: 'When can I activate a paid plan?', a: 'New paid activation remains on hold while the business-only release and purchaser review are prepared. Joining the list does not approve a business or activate a subscription.' },
+  { q: 'Is this a fee for repairing my credit?', a: 'No. Published prices are for business access to software, not consumer credit-repair work or a promised credit result. They do not determine what an agency may charge its clients or when.' },
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
   { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
@@ -130,7 +132,7 @@ export default function PricingContent() {
       {/* Pricing Cards */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {PLANS.map((plan) => {
               const price = plan.monthlyPrice;
               return (
@@ -180,7 +182,7 @@ export default function PricingContent() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            Personal is consumer-facing; Start and Grow are intended for credit-repair businesses. New paid checkout is unavailable until purchaser eligibility and consumer billing are reviewed.
+            Start and Grow are for business use only. Personal is no longer offered to new customers. Existing subscriptions are unchanged. New paid checkout remains unavailable.
           </p>
         </div>
       </section>
@@ -226,7 +228,7 @@ export default function PricingContent() {
                 {COMPARISON_ROWS.map((section) => (
                   <React.Fragment key={section.category}>
                     <tr className="bg-slate-50">
-                      <td colSpan={4} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      <td colSpan={PLANS.length + 1} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
                         {section.category}
                       </td>
                     </tr>
@@ -238,7 +240,6 @@ export default function PricingContent() {
                             <span title={row.tooltip}><HelpCircle size={13} className="text-slate-400" /></span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center"><CellValue value={row.starter} /></td>
                         <td className="px-4 py-3 text-center bg-blue-50/30"><CellValue value={row.professional} /></td>
                         <td className="px-4 py-3 text-center"><CellValue value={row.agency} /></td>
                       </tr>
@@ -286,7 +287,7 @@ export default function PricingContent() {
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">Software Access Only</p>
               <p className="text-sm text-amber-700 leading-relaxed">
-                Personal is designed for consumers; Start and Grow are intended for businesses. No credit outcome is guaranteed. The consumer billing flow is pending final legal approval, and new paid checkout is unavailable for all plans until purchaser eligibility is verified.
+                FixMy.Money provides business workflow software, not credit-repair services for consumers. Businesses remain responsible for client authorization, marketing, services, and lawful fees. No credit result, revenue, or business success is guaranteed. See our <Link href="/business-use" className="font-semibold underline">Business Use Policy</Link>.
               </p>
             </div>
           </div>

@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-const exactHeadline = 'Your credit report, organized. See what matters. You take action.';
-const exactSupportingText = 'Import your report, review organized bureau data, and investigate potential inconsistencies through a guided workflow.';
+const exactHeadline = 'Your client work, organized. Your team, in control.';
+const exactSupportingText = 'Manage clients, review credit reports, prepare editable correspondence, and track your team’s work in one business workspace. You provide the service; we provide the software.';
 
 test.describe('organized credit-report homepage experience', () => {
   test('preserves the exact approved copy and explains the illustrative sequence', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    await expect(page.getByText('Structured credit-report review', { exact: true })).toBeVisible();
+    await expect(page.getByText('Business software for credit professionals', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(exactHeadline);
     await expect(page.getByText(exactSupportingText, { exact: true })).toBeVisible();
 
@@ -27,7 +27,7 @@ test.describe('organized credit-report homepage experience', () => {
     expect(Math.min(...mobileTextSizes)).toBeGreaterThanOrEqual(12);
 
     await expect(page.getByText('Software plans · Reopening September 30, 2026', { exact: true })).toBeVisible();
-    await expect(page.getByText('per month', { exact: true })).toHaveCount(3);
+    await expect(page.getByText('per month', { exact: true })).toHaveCount(2);
     await expect(page.getByText(/most popular/i)).toHaveCount(0);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -66,7 +66,7 @@ test.describe('organized credit-report homepage experience', () => {
     expect(JSON.stringify(evidence)).not.toMatch(/report_contents|account_number|email|token/i);
   });
 
-  test('prefers native sharing and routes the personal hero CTA', async ({ page }) => {
+  test('prefers native sharing and routes the business hero CTA', async ({ page }) => {
     await page.addInitScript(() => {
       const state = window as Window & { __nativeShareData?: ShareData };
       Object.defineProperty(navigator, 'share', {
@@ -85,8 +85,8 @@ test.describe('organized credit-report homepage experience', () => {
     await expect(page.getByRole('button', { name: 'Shared' })).toBeVisible();
 
     const hero = page.getByRole('heading', { level: 1 }).locator('xpath=ancestor::section[1]');
-    const primaryCta = hero.getByRole('link', { name: /Review My Own Credit/ });
-    await expect(primaryCta).toHaveAttribute('href', '/individuals');
+    const primaryCta = hero.getByRole('link', { name: /Explore Business Software/ });
+    await expect(primaryCta).toHaveAttribute('href', '/professionals');
 
     const evidence = await page.evaluate(() => {
       const state = window as Window & { __capturedEvents?: unknown[][]; __nativeShareData?: ShareData };
@@ -103,6 +103,6 @@ test.describe('organized credit-report homepage experience', () => {
       expect.arrayContaining(['event', 'education_share_completed', expect.objectContaining({ share_method: 'native_share' })]),
     ]));
     await primaryCta.click();
-    await expect(page).toHaveURL(/\/individuals$/);
+    await expect(page).toHaveURL(/\/professionals$/);
   });
 });

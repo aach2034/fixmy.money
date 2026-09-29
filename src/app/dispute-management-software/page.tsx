@@ -34,7 +34,7 @@ export default function DisputeManagementSoftwarePage() {
       faqs={[
         { q: 'Is dispute-management software the same as a credit repair service?', a: 'No. The software organizes workflows. Users decide what to review, verify, send, and track.' },
         { q: 'Can professionals manage clients?', a: 'Yes. Professional plans support client management, report importing, dispute workflows, and dashboard views.' },
-        { q: 'Can individuals use it?', a: 'Yes. Individuals can use the consumer path to review and manage their own credit-report dispute activity.' },
+        { q: 'Can individuals use it?', a: 'New subscriptions are for businesses managing client workflows. Personal-use subscriptions are no longer offered.' },
       ]}
     />
   );

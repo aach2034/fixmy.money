@@ -111,10 +111,6 @@ const CreditRepairCloudAlternativeContent = () => {
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Fix My Money</h3>
               <div className="space-y-4 mb-8">
                 <div>
-                  <div className="text-3xl font-bold text-amber-600">${PLANS.starter.monthlyPrice}</div>
-                  <div className="text-gray-600">{PLANS.starter.name} ({PLANS.starter.maxClients} clients)</div>
-                </div>
-                <div>
                   <div className="text-3xl font-bold text-amber-600">${PLANS.professional.monthlyPrice}</div>
                   <div className="text-gray-600">{PLANS.professional.name} ({PLANS.professional.maxClients} clients)</div>
                 </div>

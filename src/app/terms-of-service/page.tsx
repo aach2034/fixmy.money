@@ -16,11 +16,11 @@ export default function TermsOfServicePage() {
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900">Terms of Service</h1>
         </div>
-        <p className="text-sm text-slate-500 mb-8">Last updated: July 2026</p>
+        <p className="text-sm text-slate-500 mb-8">Last updated: September 28, 2026</p>
         <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-6">
           <p className="text-slate-600">By accessing or using FixMy.Money, you agree to be bound by these Terms of Service. Please read them carefully.</p>
           <h2 className="text-lg font-bold text-slate-900">Platform Use</h2>
-          <p className="text-slate-600">FixMy.Money offers a consumer-facing Personal plan and Start/Grow software plans intended for businesses. New paid activation is on hold while consumer billing and business-purchaser eligibility are reviewed. We do not guarantee credit outcomes or automatically communicate with credit bureaus on a user's behalf.</p>
+          <p className="text-slate-600">FixMy.Money offers Start and Grow business software subscriptions. New accounts are for authorized business representatives managing client-service operations, not personal credit repair. Personal is no longer offered to new customers; existing subscriptions are unchanged. You agree to our <Link href="/business-use" className="text-blue-600 underline">Business Use Policy</Link> and to provide truthful business information. We do not perform consumer credit-repair services, guarantee credit outcomes or earnings, or automatically communicate with credit bureaus on a user's behalf.</p>
           <h2 className="text-lg font-bold text-slate-900">Independent Business Responsibility</h2>
           <p className="text-slate-600">You control and are solely responsible for your business, clients, contracts, disclosures, marketing, fees, dispute decisions, letters, communications, and legal compliance. You must independently review every report, recommendation, and letter before using it and comply with CROA, FCRA, TSR, applicable state laws, and all other requirements that apply to you or your clients.</p>
           <h2 className="text-lg font-bold text-slate-900">No Legal Advice</h2>
@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
           <h2 className="text-lg font-bold text-slate-900">No Guaranteed Results</h2>
           <p className="text-slate-600">FixMy.Money does not guarantee credit score improvements, item removals, or any specific credit outcomes. Results depend on individual circumstances, bureau responses, and the accuracy of information on credit reports.</p>
           <h2 className="text-lg font-bold text-slate-900">Subscriptions and Billing</h2>
-          <p className="text-slate-600">Existing subscriptions are billed according to their agreed terms and may be managed from billing settings. New paid activation is unavailable. Joining the reopening list collects no card or payment. Consumer billing terms and any future paid activation require final legal approval; this notice is not a conclusion of legal compliance.</p>
+          <p className="text-slate-600">Existing subscriptions are billed according to their agreed terms and may be managed from billing settings. New paid activation remains unavailable. Published Start and Grow prices describe monthly business software access, not fees for consumer credit-repair services. They do not authorize any fee your business charges clients. Joining the reopening list collects no card or payment and does not verify business eligibility.</p>
           <h2 className="text-lg font-bold text-slate-900">Acceptable Use</h2>
           <p className="text-slate-600">You may not use FixMy.Money to submit false claims, dispute information you know is accurate, impersonate a consumer, send a letter without the consumer's authorization, misrepresent your services, promise removals or score increases, evade fee restrictions, or violate any law. FixMy.Money does not automatically send dispute letters. Violation of these terms may result in account suspension or termination.</p>
           <h2 className="text-lg font-bold text-slate-900">Contact</h2>

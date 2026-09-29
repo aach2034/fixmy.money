@@ -1,48 +1,27 @@
 import type { Metadata } from 'next';
-import AcquisitionPage from '@/components/marketing/AcquisitionPage';
-import { canonicalUrl } from '@/lib/seo/config';
+import Link from 'next/link';
+import PublicFooter from '@/components/marketing/PublicFooter';
 
 export const metadata: Metadata = {
-  title: 'Credit Report Software for Individuals',
-  description: 'Understand your credit report, identify potential reporting issues, generate dispute correspondence, and track activity yourself.',
-  alternates: { canonical: canonicalUrl('/individuals') },
-  openGraph: {
-    title: 'Credit Report Software for Individuals | FixMy.Money',
-    description: 'Understand your credit report. Find potential issues. Take action yourself.',
-    url: canonicalUrl('/individuals'),
-    siteName: 'FixMy.Money',
-    type: 'website',
-  },
+  title: 'Personal subscriptions are no longer offered',
+  description: 'FixMy.Money now offers business software. Existing Personal subscriptions and support remain unchanged.',
+  robots: { index: false, follow: true },
 };
 
 export default function IndividualsPage() {
   return (
-    <AcquisitionPage
-      audience="consumer"
-      eyebrow="For individuals"
-      title="Understand your credit report. Find potential issues. Take action yourself."
-      description="FixMy.Money gives consumers a guided software workspace for reviewing credit reports, organizing possible reporting issues, generating dispute correspondence, and tracking dispute activity."
-      primaryCta={{ label: 'Reserve One Month Free', href: '/reopen' }}
-      secondaryCta={{ label: 'See How It Works', href: '#how-it-works' }}
-      features={[
-        'Upload and analyze credit report data',
-        'Identify possible reporting issues for review',
-        'Generate editable dispute letters from your facts',
-        'Track dispute rounds, dates, and responses',
-        'Organize supporting information',
-        'Keep the workflow private and structured',
-      ]}
-      workflow={[
-        'Upload or paste your credit-report information.',
-        'Review possible issues such as duplicates, wrong balances, late payments, or unfamiliar accounts.',
-        'Generate correspondence you can review, edit, and send yourself.',
-        'Track activity and responses so each next step is organized.',
-      ]}
-      faqs={[
-        { q: 'Is FixMy.Money a credit repair service?', a: 'No. FixMy.Money is software. You review your own information, decide what action to take, and control any correspondence.' },
-        { q: 'Does it promise score increases or deletions?', a: 'No. The software helps organize possible credit-report issues and dispute workflows. It does not promise outcomes.' },
-        { q: 'Can I use it without a professional?', a: 'Yes. The individual path is designed for consumers who want to understand and manage their own report workflow.' },
-      ]}
-    />
+    <>
+      <section className="mx-auto max-w-2xl px-6 py-20 text-slate-900">
+        <h1 className="text-3xl font-bold">FixMy.Money is now business software.</h1>
+        <p className="mt-6 leading-7">We no longer offer new Personal subscriptions for your own, friends’ or family members’ credit repair. Start and Grow are software plans for businesses managing client workflows.</p>
+        <p className="mt-4 leading-7">Already have a Personal account? Your subscription, access, and support are unchanged by this announcement. You have not been moved to a business plan.</p>
+        <nav className="mt-8 flex flex-wrap gap-6 font-semibold text-blue-700" aria-label="Next steps">
+          <Link href="/login" className="underline">Sign in to an existing account</Link>
+          <Link href="/professionals" className="underline">Explore business software</Link>
+          <Link href="/contact" className="underline">Contact support</Link>
+        </nav>
+      </section>
+      <PublicFooter />
+    </>
   );
 }

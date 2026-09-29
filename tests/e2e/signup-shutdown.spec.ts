@@ -4,11 +4,11 @@ test.describe('temporary signup shutdown', () => {
   test('homepage announces the reopening and routes to the reservation', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByText('Grand reopening · September 30, 2026')).toBeVisible();
-    await expect(page.getByRole('link', { name: /Review My Own Credit/ })).toHaveAttribute('href', '/individuals');
-    await expect(page.getByRole('link', { name: /Run My Credit Business/ })).toHaveAttribute('href', '/professionals');
-    await expect(page.getByRole('textbox', { name: 'Email address' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Explore Business Software/ })).toHaveAttribute('href', '/professionals');
+    await expect(page.getByRole('link', { name: /Compare Start and Grow/ })).toHaveAttribute('href', '/pricing');
+    await expect(page.getByRole('textbox', { name: 'Business contact email' })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
-    await expect(page.getByText('No payment today. No account will be created yet.')).toBeVisible();
+    await expect(page.getByText('Business software only. No payment today. No account will be created yet.')).toBeVisible();
   });
 
   test('/signup is a reopening-list page rather than account creation', async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('temporary signup shutdown', () => {
     });
     await page.goto('/reopen?email=person%40example.com&token=synthetic-secret#private');
     await expect(page.getByRole('textbox', { name: /first name/i })).toHaveCount(0);
-    await page.getByRole('textbox', { name: 'Email address' }).fill('waitlist-test@example.invalid');
+    await page.getByRole('textbox', { name: 'Business contact email' }).fill('waitlist-test@example.invalid');
     await page.getByRole('button', { name: 'RESERVE MY FREE MONTH' }).click();
     await expect(page.getByRole('status')).toContainText('You’re on the reopening list.');
     expect(requests).toHaveLength(1);
@@ -106,7 +106,7 @@ test.describe('temporary signup shutdown', () => {
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-turnstile-site-key', '1x00000000000000000000AA');
     });
-    await page.getByRole('textbox', { name: 'Email address' }).fill('shared-network@example.invalid');
+    await page.getByRole('textbox', { name: 'Business contact email' }).fill('shared-network@example.invalid');
     await page.getByRole('button', { name: 'RESERVE MY FREE MONTH' }).click();
 
     await expect(page.getByText('Complete the security verification to continue.')).toBeVisible();

@@ -15,8 +15,7 @@ import {
 import { canUseCustomerAcquisition } from '@/lib/signup/closure';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { getSupabasePublicConfig } from '@/lib/supabase/public-config';
-
-const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
+import { isBusinessPlan } from '@/lib/stripe/plans';
 
 type PendingCookie = {
   name: string;
@@ -208,8 +207,11 @@ export async function GET(request: NextRequest) {
 
     if (type === 'signup') {
       const requestedPlan = searchParams.get('plan') || 'professional';
-      const plan = ALLOWED_PLANS.has(requestedPlan) ? requestedPlan : 'professional';
-      destination = `/checkout?plan=${encodeURIComponent(plan)}&verified=1`;
+      // Email verification does not prove business eligibility. Never silently
+      // switch a stale Personal link to a more expensive business plan.
+      destination = isBusinessPlan(requestedPlan)
+        ? `/checkout?plan=${encodeURIComponent(requestedPlan)}&verified=1`
+        : '/checkout';
     } else if (type === 'client_signup') {
       destination = searchParams.has('next')
         ? getSafeCallbackPath(searchParams.get('next'))

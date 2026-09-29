@@ -8,7 +8,7 @@ export default function PublicFooter() {
         <div>
           <PublicBrandLink label="FixMy.Money" />
           <p className="mt-3 max-w-md text-sm leading-6 text-[#5e6d67]">
-            Structured credit-report review and evidence-led dispute workflows, with people in control of every decision.
+            Business software for client management, credit-report review, and evidence-led dispute workflows. Your business controls every decision.
           </p>
         </div>
         <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#43534d] sm:justify-end">
@@ -16,6 +16,8 @@ export default function PublicFooter() {
           <Link href="/pricing" className="transition-colors hover:text-[#267a31]">Pricing</Link>
           <Link href="/blog" className="transition-colors hover:text-[#267a31]">Resources</Link>
           <Link href="/privacy" className="transition-colors hover:text-[#267a31]">Privacy</Link>
+          <Link href="/terms-of-service" className="transition-colors hover:text-[#267a31]">Terms</Link>
+          <Link href="/business-use" className="transition-colors hover:text-[#267a31]">Business use</Link>
           <Link href="/login" className="transition-colors hover:text-[#267a31]">Sign in</Link>
         </nav>
       </div>
