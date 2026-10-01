@@ -16,6 +16,9 @@ function snapshot(overrides: Partial<WorkspaceEntitlementSnapshot> = {}): Worksp
     stripeStatus: 'active',
     accessState: 'active',
     planId: 'starter',
+    trialSource: 'none',
+    freeTrialStartedAt: null,
+    freeTrialEndsAt: null,
     trialEndsAt: null,
     currentPeriodEndsAt: '2026-10-03T18:00:00.000Z',
     graceEndsAt: null,
@@ -81,6 +84,28 @@ describe('subscription access status', () => {
       trialEndsAt: '2026-09-03T17:59:59.000Z',
       currentPeriodEndsAt: null,
     }), NOW)).toMatchObject({ canAccess: false, reason: 'trial_ended' });
+  });
+
+  it('grants an application trial without a Stripe customer until the exact boundary', () => {
+    const appTrial = snapshot({
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      stripeStatus: 'none',
+      accessState: 'trial',
+      trialSource: 'application',
+      freeTrialStartedAt: '2026-09-03T18:00:00.000Z',
+      freeTrialEndsAt: '2026-10-03T18:00:00.000Z',
+      trialEndsAt: '2026-10-03T18:00:00.000Z',
+      currentPeriodEndsAt: null,
+      lastVerifiedAt: '2026-09-03T18:00:00.000Z',
+    });
+    expect(evaluateWorkspaceEntitlement(appTrial, NOW)).toMatchObject({ canAccess: true, reason: 'trial' });
+    expect(evaluateWorkspaceEntitlement(appTrial, Date.parse('2026-10-03T17:59:59.999Z')).canAccess).toBe(true);
+    expect(evaluateWorkspaceEntitlement(appTrial, Date.parse('2026-10-03T18:00:00.000Z'))).toMatchObject({
+      canAccess: false,
+      reason: 'trial_ended',
+      needsReconciliation: false,
+    });
   });
 
   it('allows past_due only inside the fixed grace window', () => {

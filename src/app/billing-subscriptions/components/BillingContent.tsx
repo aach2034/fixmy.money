@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { PLANS } from "@/lib/stripe/plans";
-import { trialEndForDisplay } from "@/lib/subscription/display";
+import { trialDaysRemaining, trialEndForDisplay } from "@/lib/subscription/display";
 
 type Subscription = {
   canAccess: boolean;
@@ -23,6 +23,7 @@ type Subscription = {
   reason: string;
   planId: string | null;
   stripeStatus: string;
+  trialSource: string;
   trialEndsAt: string | null;
   currentPeriodEndsAt: string | null;
   graceEndsAt: string | null;
@@ -92,6 +93,7 @@ export default function BillingContent() {
   const status = subscription?.state || "expired";
   const isActive = Boolean(subscription?.canAccess);
   const displayedTrialEnd = trialEndForDisplay(subscription);
+  const displayedTrialDays = trialDaysRemaining(displayedTrialEnd);
   const paid = clients.filter((c) => c.subscription_status === "paid").length;
   const overdue = clients.filter(
     (c) => c.subscription_status === "overdue",
@@ -143,7 +145,7 @@ export default function BillingContent() {
               {displayedTrialEnd && (
                 <span className="text-xs text-slate-500">
                   · Trial ends{" "}
-                  {new Date(displayedTrialEnd).toLocaleDateString()}
+                  {new Date(displayedTrialEnd).toLocaleDateString()} ({displayedTrialDays} {displayedTrialDays === 1 ? "day" : "days"} remaining)
                 </span>
               )}
               {subscription?.graceEndsAt && status === "grace" && (
@@ -153,9 +155,9 @@ export default function BillingContent() {
               )}
             </div>
             <p className="text-sm text-slate-600 mt-3">
-              This is where your business pays FixMy.Money. The secure Stripe
-              portal lets you update your card, view invoices, change plans, or
-              cancel.
+              {status === "trial"
+                ? "30-day free trial. No credit card required. Trial expiration never creates a charge or debt; choose a paid plan to continue paid features. Your retained work is not deleted when the trial ends."
+                : "This is where your business pays FixMy.Money. The secure Stripe portal lets you update your card, view invoices, change plans, or cancel."}
             </p>
           </div>
           {subscription?.hasBillingAccount ? (
@@ -188,7 +190,7 @@ export default function BillingContent() {
             Published monthly plans
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            New paid activation is on hold pending billing and legal review. No card or payment is collected here.
+            Paid activation remains separately controlled. Payment details are requested only after you choose a plan and review its price and monthly billing terms.
           </p>
           <div className="grid md:grid-cols-3 gap-4 mt-5">
             {Object.values(PLANS)

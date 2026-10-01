@@ -20,6 +20,9 @@ export interface WorkspaceEntitlementRow {
   access_state: WorkspaceEntitlementState;
   plan_id: string | null;
   plan_catalog_version?: string | null;
+  trial_source: 'none' | 'application' | 'stripe';
+  free_trial_started_at: string | null;
+  free_trial_ends_at: string | null;
   trial_ends_at: string | null;
   current_period_ends_at: string | null;
   grace_ends_at: string | null;
@@ -123,6 +126,9 @@ function defaultRow(workspaceId: string): WorkspaceEntitlementRow {
     access_state: 'expired',
     plan_id: null,
     plan_catalog_version: null,
+    trial_source: 'none',
+    free_trial_started_at: null,
+    free_trial_ends_at: null,
     trial_ends_at: null,
     current_period_ends_at: null,
     grace_ends_at: null,
@@ -139,6 +145,9 @@ export function toEntitlementSnapshot(row: WorkspaceEntitlementRow): WorkspaceEn
     stripeStatus: row.stripe_status,
     accessState: row.access_state,
     planId: row.plan_id,
+    trialSource: row.trial_source,
+    freeTrialStartedAt: row.free_trial_started_at,
+    freeTrialEndsAt: row.free_trial_ends_at,
     trialEndsAt: row.trial_ends_at,
     currentPeriodEndsAt: row.current_period_ends_at,
     graceEndsAt: row.grace_ends_at,
@@ -155,6 +164,9 @@ export function createSupabaseEntitlementStore(admin: SupabaseClient): Workspace
     'access_state',
     'plan_id',
     'plan_catalog_version',
+    'trial_source',
+    'free_trial_started_at',
+    'free_trial_ends_at',
     'trial_ends_at',
     'current_period_ends_at',
     'grace_ends_at',
@@ -241,14 +253,21 @@ export function buildVerifiedEntitlementRow(input: {
   const { existing, subscription, stripeCustomerId, verifiedAt } = input;
   const verifiedIso = verifiedAt.toISOString();
 
+  const applicationTrialIsCurrent = existing.trial_source === 'application'
+    && Boolean(existing.free_trial_started_at)
+    && Boolean(existing.free_trial_ends_at)
+    && Date.parse(existing.free_trial_started_at!) <= verifiedAt.getTime()
+    && Date.parse(existing.free_trial_ends_at!) > verifiedAt.getTime();
+
   if (!subscription) {
     return {
       ...existing,
       stripe_customer_id: stripeCustomerId,
       stripe_subscription_id: null,
       stripe_status: 'none',
-      access_state: 'expired',
-      trial_ends_at: null,
+      access_state: applicationTrialIsCurrent ? 'trial' : 'expired',
+      trial_source: applicationTrialIsCurrent ? 'application' : 'none',
+      trial_ends_at: applicationTrialIsCurrent ? existing.free_trial_ends_at : null,
       current_period_ends_at: null,
       grace_ends_at: null,
       last_verified_at: verifiedIso,
@@ -271,6 +290,7 @@ export function buildVerifiedEntitlementRow(input: {
   const periodEndsAt = currentPeriodEnd(subscription);
   let accessState: WorkspaceEntitlementState = 'expired';
   let graceEndsAt: string | null = null;
+  let trialSource: WorkspaceEntitlementRow['trial_source'] = 'none';
 
   if (
     stripeStatus === 'active'
@@ -284,6 +304,7 @@ export function buildVerifiedEntitlementRow(input: {
     && Date.parse(trialEndsAt) > verifiedAt.getTime()
   ) {
     accessState = 'trial';
+    trialSource = 'stripe';
   } else if (stripeStatus === 'past_due') {
     const existingGrace = existing.stripe_status === 'past_due' && existing.grace_ends_at
       ? existing.grace_ends_at
@@ -292,6 +313,9 @@ export function buildVerifiedEntitlementRow(input: {
     graceEndsAt = existingGrace
       || new Date(graceAnchor.getTime() + PAYMENT_FAILURE_GRACE_MS).toISOString();
     accessState = Date.parse(graceEndsAt) > verifiedAt.getTime() ? 'grace' : 'expired';
+  } else if (applicationTrialIsCurrent) {
+    accessState = 'trial';
+    trialSource = 'application';
   }
 
   const reportedPlanId = subscription.metadata?.plan?.trim() || null;
@@ -307,8 +331,9 @@ export function buildVerifiedEntitlementRow(input: {
     stripe_subscription_id: subscription.id,
     stripe_status: stripeStatus,
     access_state: accessState,
+    trial_source: trialSource,
     plan_id: planId || null,
-    trial_ends_at: trialEndsAt,
+    trial_ends_at: trialSource === 'application' ? existing.free_trial_ends_at : trialEndsAt,
     current_period_ends_at: periodEndsAt,
     grace_ends_at: graceEndsAt,
     last_verified_at: verifiedIso,
@@ -513,4 +538,20 @@ export async function getSelectedWorkspaceContext(
   const { data, error } = await supabase.rpc('current_workspace_context');
   if (error) throw new Error(`WORKSPACE_CONTEXT_FAILED:${error.message}`);
   return (data?.[0] || null) as SelectedWorkspaceContext | null;
+}
+
+export async function activateWorkspaceFreeTrial(input: {
+  userId: string;
+  workspaceId: string;
+  planId: 'professional' | 'agency';
+}): Promise<WorkspaceEntitlementRow> {
+  const { data, error } = await getAdminClient().rpc('activate_workspace_free_trial_server', {
+    p_user_id: input.userId,
+    p_workspace_id: input.workspaceId,
+    p_plan_id: input.planId,
+  });
+  if (error) throw new Error(`FREE_TRIAL_ACTIVATION_FAILED:${error.message}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('FREE_TRIAL_ACTIVATION_FAILED:NO_RESULT');
+  return row as WorkspaceEntitlementRow;
 }

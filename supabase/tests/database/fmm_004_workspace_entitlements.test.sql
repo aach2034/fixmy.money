@@ -83,9 +83,13 @@ SELECT is(
   (SELECT count(*)
    FROM public.workspace_entitlements
    WHERE access_state = 'trial'
-     AND (stripe_status <> 'trialing' OR trial_ends_at IS NULL)),
+     AND NOT (
+       (trial_source = 'stripe' AND stripe_status = 'trialing' AND trial_ends_at IS NOT NULL)
+       OR (trial_source = 'application'
+         AND free_trial_started_at IS NOT NULL AND free_trial_ends_at = trial_ends_at)
+     )),
   0::bigint,
-  'trial access rows have a trialing Stripe shape'
+  'trial access rows have a bounded application or Stripe trial shape'
 );
 
 SELECT is(

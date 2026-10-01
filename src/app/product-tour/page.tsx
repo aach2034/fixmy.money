@@ -166,8 +166,8 @@ export default function ProductTourPage() {
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden sm:block">Pricing</Link>
             <Link href="/demo" className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 px-4 py-2 rounded-xl hidden sm:block">Book Demo</Link>
-            <Link href="/#reopening-list" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-              Reserve One Month Free
+            <Link href="/signup?plan=professional" className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Start 30-Day Free Trial
             </Link>
           </div>
         </div>
@@ -187,10 +187,10 @@ export default function ProductTourPage() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/#reopening-list"
+              href="/signup?plan=professional"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Reserve One Month Free <ArrowRight size={16} />
+              Start 30-Day Free Trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"
@@ -298,20 +298,20 @@ export default function ProductTourPage() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold px-4 py-2 rounded-full mb-6">
-            Reopening September 30, 2026
+            Business software trial
           </div>
           <h2 className="text-3xl font-extrabold text-white mb-4">
             Run your credit repair agency from one platform
           </h2>
           <p className="text-slate-400 mb-8">
-            Reserve one month free when FixMy.Money reopens September 30, 2026.
+            30-day free trial. No credit card required. Paid access begins only if you choose it.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/#reopening-list"
+              href="/signup?plan=professional"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Reserve One Month Free <ArrowRight size={16} />
+              Start 30-Day Free Trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/pricing"

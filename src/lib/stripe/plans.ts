@@ -28,6 +28,8 @@ export function isBusinessPlan(value: unknown): value is BusinessPlanId {
   return value === 'professional' || value === 'agency';
 }
 
+export const FREE_TRIAL_DAYS = 30;
+
 /** Immutable identifier persisted with entitlement decisions and usage records. */
 export const PLAN_CATALOG_VERSION = '2026-09-03.v1' as const;
 
@@ -85,7 +87,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: false,
-    cta: 'Join reopening list',
+    cta: 'Existing customers only',
     stripePriceIdEnvKey: 'STRIPE_STARTER_PRICE_ID',
     stripeAmountCents: 3900,
   },
@@ -114,7 +116,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: true,
-    cta: 'Join reopening list',
+    cta: 'Start 30-day free trial',
     stripePriceIdEnvKey: 'STRIPE_PROFESSIONAL_PRICE_ID',
     stripeAmountCents: 9900,
   },
@@ -137,7 +139,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: false,
-    cta: 'Join reopening list',
+    cta: 'Start 30-day free trial',
     stripePriceIdEnvKey: 'STRIPE_AGENCY_PRICE_ID',
     stripeAmountCents: 19900,
   },

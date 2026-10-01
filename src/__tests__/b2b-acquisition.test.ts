@@ -85,7 +85,7 @@ describe('business-only acquisition', () => {
   it('does not route old signup links to a substituted business plan', () => {
     const callback = fs.readFileSync('src/app/auth/callback/route.ts', 'utf8');
     expect(callback).toContain('isBusinessPlan(requestedPlan)');
-    expect(callback).toContain(": '/checkout'");
+    expect(callback).toContain(": '/onboarding'");
     expect(callback).not.toContain("new Set(['starter'");
   });
 });

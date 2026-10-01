@@ -210,8 +210,8 @@ export async function GET(request: NextRequest) {
       // Email verification does not prove business eligibility. Never silently
       // switch a stale Personal link to a more expensive business plan.
       destination = isBusinessPlan(requestedPlan)
-        ? `/checkout?plan=${encodeURIComponent(requestedPlan)}&verified=1`
-        : '/checkout';
+        ? `/onboarding?plan=${encodeURIComponent(requestedPlan)}&verified=1`
+        : '/onboarding';
     } else if (type === 'client_signup') {
       destination = searchParams.has('next')
         ? getSafeCallbackPath(searchParams.get('next'))

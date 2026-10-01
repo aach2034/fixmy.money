@@ -115,7 +115,7 @@ export function buildFunnelStages(input: {
       last30Days: recentEventUsers('letter_generated').size,
     },
     {
-      key: 'trial_started', label: 'Paid trial started',
+      key: 'trial_started', label: 'Free trial started',
       total: new Set([
         ...input.customers.filter(customer => customer.paidTrial || ACTIVE_STATUSES.has(customer.subscriptionStatus)).map(customer => customer.id),
         ...trialEventUsers,

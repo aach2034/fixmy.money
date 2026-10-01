@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Create Account | FixMy.Money',
-  description: 'Create a FixMy.Money business account and select a monthly plan.',
+  description: 'Create a FixMy.Money business account and start a 30-day free trial.',
   alternates: { canonical: 'https://fixmy.money/signup' },
 };
 
@@ -23,7 +23,7 @@ export default function SignupPage() {
         <Link href="/" className="mb-8 flex items-center justify-center gap-3"><AppLogo size={38} /><span className="text-xl font-semibold text-slate-900">FixMy<span className="text-emerald-700">.Money</span></span></Link>
         <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
           <h1 className="text-3xl font-bold text-slate-900">Create your business account</h1>
-          <p className="mb-7 mt-2 text-sm leading-6 text-slate-600">Verify your email to create an account. No payment is collected at signup. New paid activation is on hold pending billing and legal review.</p>
+          <p className="mb-7 mt-2 text-sm leading-6 text-slate-600">30-day free trial. No credit card required. Verify your email and complete onboarding to begin. You must choose a paid plan to continue after the trial.</p>
           <Suspense fallback={<p className="text-sm text-slate-500">Loading secure signup…</p>}><PublicSignupForm /></Suspense>
         </section>
       </div>

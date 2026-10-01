@@ -65,9 +65,9 @@ const COMPARISON_ROWS: {
 ];
 
 const BILLING_FAQS = [
-  { q: 'Is a credit card required to join the reopening list?', a: 'No. The reopening list does not collect a card or charge you.' },
+  { q: 'Is a credit card required for the free trial?', a: 'No. The 30-day free trial requires no card and never creates a charge or debt at expiration.' },
   { q: 'Who can purchase a plan?', a: 'Start and Grow are business software subscriptions for authorized representatives of businesses managing client workflows. New personal-use subscriptions are not offered.' },
-  { q: 'When can I activate a paid plan?', a: 'New paid activation remains on hold while the business-only release and purchaser review are prepared. Joining the list does not approve a business or activate a subscription.' },
+  { q: 'When does paid billing begin?', a: 'Only after the workspace owner separately chooses Start or Grow, reviews the monthly price and terms, enters payment details, and confirms through secure Checkout. Trial expiration never starts billing.' },
   { q: 'Is this a fee for repairing my credit?', a: 'No. Published prices are for business access to software, not consumer credit-repair work or a promised credit result. They do not determine what an agency may charge its clients or when.' },
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
@@ -93,8 +93,8 @@ export default function PricingContent() {
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Reserve One Month Free ${planName}`, '/reopen', 'pricing_page');
-    router.push('/reopen');
+    trackCtaClick(`Start 30-Day Free Trial ${planName}`, `/signup?plan=${planId}`, 'pricing_page');
+    router.push(`/signup?plan=${planId}`);
   };
 
   return (
@@ -106,8 +106,8 @@ export default function PricingContent() {
           <div className="flex items-center gap-3">
             <Link href="/product-tour" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Product Tour</Link>
             <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#52636d] transition-colors hover:bg-[#f1f5f3] hover:text-[#267a31] sm:block">Sign in</Link>
-            <Link href="/reopen" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
-              Reserve One Month Free
+            <Link href="/signup?plan=professional" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
+              Start 30-Day Free Trial
             </Link>
           </div>
         </div>
@@ -120,8 +120,8 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">New accounts reopen September 30, 2026. Join now to reserve one full month free.</p>
-          <p className="text-sm text-slate-400 mb-8">Published monthly prices are shown for planning only. New paid activation is on hold pending billing and legal review.</p>
+          <p className="text-xl text-slate-300 mb-3">30-day free trial. No credit card required.</p>
+          <p className="text-sm text-slate-400 mb-8">Trial expiration pauses paid features without charging you. Subscribe only after reviewing the price and monthly terms.</p>
 
           <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-5 py-3 text-sm font-semibold text-white">
             Monthly billing
@@ -174,7 +174,7 @@ export default function PricingContent() {
                         : plan.id === 'enterprise' ?'bg-slate-900 hover:bg-slate-800 text-white' :'bg-slate-100 hover:bg-slate-200 text-slate-900'
                     }`}
                   >
-                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Reserve One Month Free'}
+                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Start 30-Day Free Trial'}
                   </button>
                 </div>
               );
@@ -182,7 +182,7 @@ export default function PricingContent() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            Start and Grow are for business use only. Personal is no longer offered to new customers. Existing subscriptions are unchanged. New paid checkout remains unavailable.
+            30-day free trial. No credit card required. Start and Grow are for business use only. Personal is preserved for existing customers. Paid Checkout is separately gated.
           </p>
         </div>
       </section>
@@ -200,7 +200,7 @@ export default function PricingContent() {
           <DemoVideoPlayer
             placement="pricing"
             showTrialCta
-            onTrialClick={() => router.push('/reopen')}
+            onTrialClick={() => router.push('/signup?plan=professional')}
           />
         </div>
       </section>
@@ -258,8 +258,8 @@ export default function PricingContent() {
           <h2 className="text-2xl font-extrabold text-slate-900 mb-6 text-center">Billing terms</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: 'New paid activation', value: 'On hold pending billing and legal review' },
-              { label: 'Reopening list', value: 'No payment or card collected' },
+              { label: '30-day free trial', value: 'No card; no automatic conversion or charge' },
+              { label: 'Paid activation', value: 'Separate owner choice and Checkout confirmation required' },
               { label: 'Monthly billing', value: 'Charged on the same date each month' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
               { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
@@ -333,13 +333,13 @@ export default function PricingContent() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after September 30, 2026.</p>
+          <p className="text-slate-400 mb-8">Try your selected business plan for 30 days. No credit card required. Choose a paid plan only if you want to continue paid features.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/reopen"
+              href="/signup?plan=professional"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Reserve One Month Free <ArrowRight size={16} />
+              Start 30-Day Free Trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

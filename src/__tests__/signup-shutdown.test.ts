@@ -74,7 +74,7 @@ describe('temporary new-signup shutdown', () => {
 
     const checkout = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
     expect(checkout).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
-    expect(checkout).not.toContain('stripe.customers.create');
+    expect(checkout.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(checkout.indexOf('stripe.customers.create'));
   });
 
   it('opens acquisition only after the launch instant and explicit server-side enablement', () => {

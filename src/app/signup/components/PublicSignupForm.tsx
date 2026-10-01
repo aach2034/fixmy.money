@@ -87,7 +87,7 @@ export default function PublicSignupForm() {
       <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-7 text-emerald-950">
         <CheckCircle2 className="size-8 text-emerald-600" />
         <h1 className="mt-4 text-2xl font-bold">Check your email</h1>
-        <p className="mt-2 text-sm leading-6">If the address can be registered, you’ll receive an email verification link. This does not verify your business eligibility or activate a paid subscription. No payment is collected at signup.</p>
+        <p className="mt-2 text-sm leading-6">If the address can be registered, you’ll receive an email verification link. Your 30-day free trial starts after verification and onboarding. No credit card is required and expiration never creates a charge.</p>
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function PublicSignupForm() {
       {siteKey && <TurnstileChallenge action="customer_signup" generation={captchaGeneration} siteKey={siteKey} onToken={handleToken} onExpired={resetCaptcha} onError={() => { setCaptchaError(true); setCaptchaToken(''); }} />}
       {captchaError && <p role="alert" className="text-sm font-semibold text-rose-700">Security verification could not load. Refresh the page or try again later.</p>}
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">{error}</p>}
-      <button type="submit" disabled={!plan || state === 'submitting' || captchaError} className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl py-3 disabled:opacity-60">{state === 'submitting' && <Loader2 className="size-4 animate-spin" />}{state === 'submitting' ? 'CREATING ACCOUNT…' : 'CREATE BUSINESS ACCOUNT'}</button>
+      <button type="submit" disabled={!plan || state === 'submitting' || captchaError} className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl py-3 disabled:opacity-60">{state === 'submitting' && <Loader2 className="size-4 animate-spin" />}{state === 'submitting' ? 'CREATING ACCOUNT…' : 'START 30-DAY FREE TRIAL'}</button>
       <p className="text-center text-sm text-slate-500">Already have an account? <Link href="/login" className="font-semibold text-blue-700 underline">Sign in</Link></p>
     </form>
   );

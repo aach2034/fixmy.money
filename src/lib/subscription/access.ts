@@ -26,6 +26,9 @@ export interface WorkspaceEntitlementSnapshot {
   stripeStatus: StripeSubscriptionStatus;
   accessState: WorkspaceEntitlementState;
   planId: string | null;
+  trialSource: 'none' | 'application' | 'stripe';
+  freeTrialStartedAt: string | null;
+  freeTrialEndsAt: string | null;
   trialEndsAt: string | null;
   currentPeriodEndsAt: string | null;
   graceEndsAt: string | null;
@@ -67,6 +70,20 @@ export function evaluateWorkspaceEntitlement(
   nowMs = Date.now(),
   verificationTtlMs = ENTITLEMENT_VERIFICATION_TTL_MS
 ): WorkspaceEntitlementDecision {
+  if (snapshot.trialSource === 'application' && snapshot.accessState === 'trial') {
+    const trialStart = timestamp(snapshot.freeTrialStartedAt);
+    const trialEnd = timestamp(snapshot.freeTrialEndsAt);
+    if (trialStart === null || trialStart > nowMs || trialEnd === null || trialEnd <= nowMs) {
+      return {
+        canAccess: false,
+        state: 'expired',
+        reason: 'trial_ended',
+        needsReconciliation: false,
+      };
+    }
+    return { canAccess: true, state: 'trial', reason: 'trial', needsReconciliation: false };
+  }
+
   if (!snapshot.stripeCustomerId) {
     return {
       canAccess: false,

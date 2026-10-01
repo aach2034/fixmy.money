@@ -122,20 +122,23 @@ describe('New paid checkout hold', () => {
     const fs = await import('fs');
     const source = fs.readFileSync('src/lib/stripe/plans.ts', 'utf8');
     expect(source).not.toContain('TRIAL_CONFIG');
-    expect(PLANS.starter.cta).toBe('Join reopening list');
+    expect(PLANS.starter.cta).toBe('Existing customers only');
+    expect(PLANS.professional.cta).toBe('Start 30-day free trial');
   });
 
-  it('never creates a Stripe session or upfront charge for any plan', async () => {
+  it('creates no Stripe state while the independent paid-checkout gate is closed', async () => {
     const { POST } = await import('../app/api/stripe/create-checkout/route');
     for (const plan of ['starter', 'professional', 'agency']) {
       const response = await POST();
       expect(response.status, plan).toBe(503);
-      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(response.headers.get('Cache-Control')).toBe('private, no-store');
       await expect(response.json()).resolves.toMatchObject({ code: 'NEW_PAID_CHECKOUT_ON_HOLD' });
     }
     const fs = await import('fs');
     const source = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
-    expect(source).not.toMatch(/checkout\.sessions\.create|payment_method_collection|trial_period_days|price_data|customers\.create/);
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripeServerClient()'));
+    expect(source).not.toContain('trial_period_days');
+    expect(source).toContain("payment_method_collection: 'always'");
   });
 });
 
@@ -560,10 +563,9 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     );
     const source = fs.readFileSync(routePath, 'utf-8');
 
-    expect(source).toContain("status: 503");
+    expect(source).toContain('}, 503)');
     expect(source).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
-    expect(source).not.toContain('getStripePriceId');
-    expect(source).not.toContain('checkout.sessions.create');
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripePriceId(plan)'));
   });
 
   it('Checkout route returns 503 without loading a Stripe secret', async () => {
@@ -580,7 +582,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     );
 
     expect(source).toContain('503');
-    expect(source).not.toContain('getStripeServerClient');
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripeServerClient()'));
     expect(stripeServer).toContain('STRIPE_SECRET_KEY');
   });
 
@@ -700,7 +702,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     }
   });
 
-  it('Held checkout route cannot expose or load a Stripe secret', async () => {
+  it('Checkout route keeps the Stripe secret server-only and behind the release gate', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -713,7 +715,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
       'utf-8'
     );
 
-    expect(source).not.toContain('getStripeServerClient');
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripeServerClient()'));
     expect(stripeServer).toContain('STRIPE_SECRET_KEY');
     expect(source).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');
     expect(stripeServer).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');

@@ -43,7 +43,7 @@ export default function Home() {
           </div>
           <div className="hidden items-center gap-5 lg:flex">
             <Link href="/login" className="rounded-md px-3 py-3 text-sm font-medium hover:text-[#008958] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Sign In</Link>
-            <TrackedLink href="/reopen" eventLabel="Reserve My Free Month" eventLocation="homepage_nav" className="inline-flex min-h-12 items-center rounded-lg bg-[#007f51] px-5 text-sm font-bold text-white hover:bg-[#006e46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008958]">Reserve My Free Month</TrackedLink>
+            <TrackedLink href="/signup?plan=professional" eventLabel="Start 30-Day Free Trial" eventLocation="homepage_nav" className="inline-flex min-h-12 items-center rounded-lg bg-[#007f51] px-5 text-sm font-bold text-white hover:bg-[#006e46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008958]">Start 30-Day Free Trial</TrackedLink>
           </div>
           <div className="flex items-center gap-2 lg:hidden">
             <Link href="/login" className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-[#132440] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Sign In</Link>
@@ -55,7 +55,7 @@ export default function Home() {
                 <a className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="#pricing">Pricing</a>
                 <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/resources">Resources</Link>
                 <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/blog">Blog</Link>
-                <Link className="rounded-md bg-[#007f51] px-3 py-3 font-bold text-white" href="/reopen">Reserve My Free Month</Link>
+                <Link className="rounded-md bg-[#007f51] px-3 py-3 font-bold text-white" href="/signup?plan=professional">Start 30-Day Free Trial</Link>
               </div>
             </details>
           </div>
@@ -128,7 +128,7 @@ export default function Home() {
                 <h3 className="mt-3 text-lg font-semibold">{plan.name}</h3>
                 <p className="mt-4 flex items-baseline gap-2"><span className="text-4xl font-semibold tracking-[-.05em]">${plan.monthlyPrice}</span><span className="text-sm font-semibold text-[#64736c]">per month</span></p>
                 <p className="mt-2 text-sm text-[#718079]">{plan.description}</p>
-                <a href="/reopen" className={`mt-7 block w-full rounded-xl py-3 text-center text-sm font-semibold ${plan.highlight ? 'bg-[#267a31] text-white' : 'border border-[#dfe4ec] text-[#19322b]'}`}>Reserve one month free</a>
+                <a href={`/signup?plan=${plan.id}`} className={`mt-7 block w-full rounded-xl py-3 text-center text-sm font-semibold ${plan.highlight ? 'bg-[#267a31] text-white' : 'border border-[#dfe4ec] text-[#19322b]'}`}>30-day free trial. No credit card required.</a>
                 <div className="mt-6 space-y-3">{plan.features.slice(0,3).map(x => <p key={x} className="flex items-center gap-2 text-sm text-[#52655c]"><Check className="size-4 text-[#267a31]" />{x}</p>)}</div>
               </article>
             ))}

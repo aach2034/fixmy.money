@@ -95,6 +95,7 @@ interface WorkspaceEntitlement {
   state: 'active' | 'trial' | 'grace' | 'expired';
   planId: string | null;
   stripeStatus: string;
+  trialEndsAt: string | null;
 }
 
 export default function Sidebar() {
@@ -222,7 +223,11 @@ export default function Sidebar() {
               {profileLoaded ? `${statusLabel} Plan` : 'Checking plan…'}
             </span>
             {subStatus === 'trialing' && (
-              <span className="text-xs text-slate-400">Trial active</span>
+              <span className="text-xs text-slate-400">
+                {entitlement?.trialEndsAt
+                  ? `${Math.max(1, Math.ceil((new Date(entitlement.trialEndsAt).getTime() - Date.now()) / 86_400_000))} days left`
+                  : 'Trial active'}
+              </span>
             )}
             {subStatus === 'past_due' && entitlement?.canAccess && (
               <span className="text-xs text-slate-400">Payment grace</span>
