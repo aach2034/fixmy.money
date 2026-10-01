@@ -6,6 +6,7 @@ import { getStripeServerClient } from '@/lib/stripe/server';
 import { isBusinessPlan, PLANS, getStripePriceId } from '@/lib/stripe/plans';
 import { validateCheckoutPrice, type CheckoutPriceSnapshot } from '@/lib/stripe/priceValidation';
 import { bindStripeCustomerToWorkspace, getSelectedWorkspaceContext, getWorkspaceEntitlementDecision } from '@/lib/subscription/server';
+import { isBusinessPurchaserVerified, type BusinessVerification } from '@/lib/billing/completedService';
 
 const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -50,6 +51,40 @@ export async function POST(request: NextRequest) {
       return noStore({ alreadyActive: true, redirectTo: '/dashboard' }, 200);
     }
 
+    const admin = getAdminClient();
+    const { data: verificationRow, error: verificationError } = await admin
+      .from('business_purchaser_verifications')
+      .select('workspace_id,purchaser_user_id,status,plan_ids,attested_for_business,verification_checks,business_evidence_ref,reviewer_id,review_reason,reviewed_at,expires_at')
+      .eq('workspace_id', workspace.workspace_id)
+      .maybeSingle();
+    if (verificationError) {
+      return noStore({ error: 'Business verification could not be checked.', code: 'BUSINESS_VERIFICATION_UNAVAILABLE' }, 503);
+    }
+    const verification = verificationRow ? {
+      workspaceId: verificationRow.workspace_id,
+      purchaserUserId: verificationRow.purchaser_user_id,
+      status: verificationRow.status,
+      planIds: verificationRow.plan_ids,
+      attestedForBusiness: verificationRow.attested_for_business,
+      verificationChecks: verificationRow.verification_checks,
+      evidenceRef: verificationRow.business_evidence_ref,
+      reviewerId: verificationRow.reviewer_id,
+      reason: verificationRow.review_reason,
+      verifiedAt: verificationRow.reviewed_at,
+      expiresAt: verificationRow.expires_at,
+    } as BusinessVerification : null;
+    if (!isBusinessPurchaserVerified(
+      verification,
+      workspace.workspace_id,
+      user.id,
+      payload.plan,
+    )) {
+      return noStore({
+        error: 'Independent business verification is required before paid activation.',
+        code: 'BUSINESS_VERIFICATION_REQUIRED',
+      }, 409);
+    }
+
     const plan = payload.plan;
     const planConfig = PLANS[plan];
     const priceId = getStripePriceId(plan);
@@ -61,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     let customerId = entitlement.row.stripe_customer_id;
     if (!customerId) {
-      const { data: profile } = await getAdminClient().from('user_profiles')
+      const { data: profile } = await admin.from('user_profiles')
         .select('full_name,email').eq('id', user.id).single();
       const customer = await stripe.customers.create({
         email: user.email || profile?.email || undefined,

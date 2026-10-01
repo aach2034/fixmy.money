@@ -7,11 +7,13 @@ export const LOCAL_PASSWORD_RESET_REDIRECT_URL =
 export function buildTestSubscriptionParams(
   customerId: string,
   priceId: string,
+  paymentMethodId: string,
 ): Stripe.SubscriptionCreateParams {
   return {
     customer: customerId,
     items: [{ price: priceId }],
-    trial_period_days: 14,
+    default_payment_method: paymentMethodId,
+    payment_behavior: 'error_if_incomplete',
   };
 }
 

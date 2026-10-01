@@ -58,6 +58,31 @@ function stripeFixture(
   } as unknown as Stripe.Event;
 }
 
+function checkoutFixture(
+  id: string,
+  type: 'checkout.session.completed' | 'checkout.session.async_payment_succeeded' | 'checkout.session.async_payment_failed' = 'checkout.session.completed',
+): Stripe.Event {
+  return {
+    id,
+    object: 'event',
+    api_version: '2026-08-27.basil',
+    created: 1_788_454_800,
+    livemode: false,
+    pending_webhooks: 1,
+    request: { id: null, idempotency_key: null },
+    type,
+    data: { object: {
+      id: `cs_${id}`,
+      object: 'checkout.session',
+      customer: CUSTOMER_ID,
+      subscription: SUBSCRIPTION_ID,
+      mode: 'subscription',
+      payment_status: type === 'checkout.session.async_payment_failed' ? 'unpaid' : 'paid',
+      metadata: { plan: 'professional', userId: 'user-fmm008' },
+    } },
+  } as unknown as Stripe.Event;
+}
+
 class MemoryDurableStore implements DurableWebhookStore {
   events = new Map<string, StoredStripeWebhookEvent>();
   emails = new Map<string, BillingEmailOutboxItem>();
@@ -223,6 +248,79 @@ describe('FMM-008 durable Stripe webhook processing', () => {
       dependencies
     )).rejects.toThrow('ENTITLEMENT_BINDING_NOT_FOUND');
     expect(dependencies.logBillingEvent).not.toHaveBeenCalled();
+  });
+
+  it('records a no-trial Checkout conversion as paid access, never as a new trial', async () => {
+    const dependencies = businessDependencies({
+      retrieveSubscription: vi.fn(async () => subscription('active')),
+      customerInfo: vi.fn(async () => ({ email: 'paid@test.invalid', name: 'Paid Test' })),
+    });
+    await processStripeWebhookBusinessEvent(
+      checkoutFixture('evt_fmm008_paid_checkout'),
+      dependencies,
+    );
+
+    expect(dependencies.applySubscription).toHaveBeenCalledOnce();
+    expect(dependencies.logBillingEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'subscription_started',
+      expect.objectContaining({ status: 'active' }),
+    );
+    expect(dependencies.logBillingEvent).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'trial_started',
+      expect.anything(),
+    );
+    expect(dependencies.logAnalytics).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'subscription_started' }),
+    );
+    expect(dependencies.enqueueEmail).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('subscription_started'),
+      expect.objectContaining({ type: 'subscription_started' }),
+    );
+  });
+
+  it('preserves legacy Stripe-trial semantics and handles asynchronous success', async () => {
+    const trial = subscription('trialing');
+    trial.trial_start = 1_788_454_800;
+    trial.trial_end = 1_791_046_800;
+    const dependencies = businessDependencies({
+      retrieveSubscription: vi.fn(async () => trial),
+      customerInfo: vi.fn(async () => ({ email: 'trial@test.invalid', name: 'Trial Test' })),
+    });
+    await processStripeWebhookBusinessEvent(
+      checkoutFixture('evt_fmm008_async_trial', 'checkout.session.async_payment_succeeded'),
+      dependencies,
+    );
+
+    expect(dependencies.logBillingEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'trial_started',
+      expect.objectContaining({ status: 'trial_active' }),
+    );
+    expect(dependencies.logAnalytics).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'trial_started' }),
+    );
+    expect(dependencies.enqueueEmail).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('trial_confirmation'),
+      expect.objectContaining({ type: 'trial_confirmation' }),
+    );
+  });
+
+  it('records an asynchronous checkout failure without granting entitlement', async () => {
+    const dependencies = businessDependencies();
+    await processStripeWebhookBusinessEvent(
+      checkoutFixture('evt_fmm008_async_failed', 'checkout.session.async_payment_failed'),
+      dependencies,
+    );
+    expect(dependencies.applySubscription).not.toHaveBeenCalled();
+    expect(dependencies.logBillingEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'checkout.session.async_payment_failed',
+      expect.objectContaining({ status: 'failed' }),
+    );
   });
 
   it('deduplicates email outbox entries and retries failed delivery before marking sent', async () => {

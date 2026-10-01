@@ -134,8 +134,8 @@ describe('Stripe Test-Mode API', () => {
         {
           price_data: {
             currency: 'usd',
-            product_data: { name: 'Test Plan' },
-            unit_amount: 3900,
+            product_data: { name: 'FMM Start isolated test plan' },
+            unit_amount: 9900,
             recurring: { interval: 'month' },
           },
           quantity: 1,
@@ -143,13 +143,13 @@ describe('Stripe Test-Mode API', () => {
       ],
       success_url: 'https://fixmy.money/dashboard?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://fixmy.money/pricing',
-      metadata: { plan: 'starter', test: 'true' },
+      metadata: { plan: 'professional', test: 'true' },
     });
 
     expect(session?.id)?.toMatch(/^cs_test_/);
     expect(session?.mode)?.toBe('subscription');
     expect(session?.livemode)?.toBe(false);
-    expect(session?.metadata?.plan)?.toBe('starter');
+    expect(session?.metadata?.plan)?.toBe('professional');
 
     // Clean up
     await stripe?.checkout?.sessions?.expire(session?.id)?.catch(() => {});
@@ -170,6 +170,7 @@ describe('Stripe Test-Mode API', () => {
         metadata: { test: 'true' },
       });
       customerId = customer.id;
+      await stripe.paymentMethods.attach('pm_card_visa', { customer: customer.id });
       const product = await stripe.products.create({
         name: 'FMM isolated integration subscription',
         metadata: { test: 'true' },
@@ -178,18 +179,20 @@ describe('Stripe Test-Mode API', () => {
       const price = await stripe.prices.create({
         currency: 'usd',
         product: product.id,
-        unit_amount: 4900,
+        unit_amount: 9900,
         recurring: { interval: 'month' },
         metadata: { test: 'true' },
       });
       priceId = price.id;
       const subscription = await stripe.subscriptions.create(
-        buildTestSubscriptionParams(customer.id, price.id),
+        buildTestSubscriptionParams(customer.id, price.id, 'pm_card_visa'),
       );
       subscriptionId = subscription.id;
 
       expect(subscription.id).toMatch(/^sub_/);
-      expect(subscription.status).toBe('trialing');
+      expect(subscription.status).toBe('active');
+      expect(subscription.trial_start).toBeNull();
+      expect(subscription.trial_end).toBeNull();
       expect(subscription.livemode).toBe(false);
 
       const cancelled = await stripe.subscriptions.cancel(subscription.id);

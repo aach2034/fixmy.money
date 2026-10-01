@@ -7,6 +7,8 @@ const migration = fs.readFileSync(
   'utf8',
 );
 const checkout = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
+const billingPage = fs.readFileSync('src/app/billing-subscriptions/page.tsx', 'utf8');
+const billing = fs.readFileSync('src/app/billing-subscriptions/components/BillingContent.tsx', 'utf8');
 const proxy = fs.readFileSync('src/proxy.ts', 'utf8');
 
 describe('30-day application trial contract', () => {
@@ -26,8 +28,13 @@ describe('30-day application trial contract', () => {
   it('keeps paid Checkout separate and opt-in with no automatic Stripe trial', () => {
     expect(checkout).toContain("process.env.NEW_PAID_CHECKOUT_ENABLED !== 'true'");
     expect(checkout).toContain("payment_method_collection: 'always'");
+    expect(checkout.indexOf('isBusinessPurchaserVerified')).toBeLessThan(checkout.indexOf('getStripeServerClient()'));
     expect(checkout).not.toContain('trial_period_days');
     expect(checkout).not.toContain('payment_method_collection: \'if_required\'');
+    expect(billingPage).toContain("process.env.NEW_PAID_CHECKOUT_ENABLED === 'true'");
+    expect(billing).toContain('BUSINESS_PLAN_IDS.map');
+    expect(billing).toContain('Subscribe to {plan.name}');
+    expect(billing).not.toContain('Object.values(PLANS)');
   });
 
   it('denies direct feature APIs when the server entitlement expires', () => {
