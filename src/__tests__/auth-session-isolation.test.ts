@@ -181,7 +181,7 @@ describe('signup callback session isolation', () => {
 
     expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toBe(
-      'https://fixmy.money/checkout?plan=professional&verified=1'
+      'https://fixmy.money/onboarding?plan=professional&verified=1'
     );
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
     expect(response.headers.get('cache-control')).toContain('private');
@@ -201,7 +201,7 @@ describe('signup callback session isolation', () => {
     expect(client.exchangeCodeForSession).not.toHaveBeenCalled();
     expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toBe(
-      'https://fixmy.money/checkout?plan=professional&verified=1'
+      'https://fixmy.money/onboarding?plan=professional&verified=1'
     );
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
   });
@@ -308,16 +308,14 @@ describe('signup callback session isolation', () => {
     const response = await authCallback(
       request('/auth/callback?type=signup&plan=unknown&code=valid-code')
     );
-    expect(response.headers.get('location')).toBe(
-      'https://fixmy.money/checkout'
-    );
+    expect(response.headers.get('location')).toBe('https://fixmy.money/onboarding');
   });
 
   it('preserves a stale Personal signup session without choosing a business plan', async () => {
     const client = createMockClient({ exchangeUserId: 'legacy-personal-user' });
     const response = await authCallback(request('/auth/callback?type=signup&plan=starter&code=valid-code'));
     expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
-    expect(response.headers.get('location')).toBe('https://fixmy.money/checkout');
+    expect(response.headers.get('location')).toBe('https://fixmy.money/onboarding');
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
   });
 
