@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
@@ -9,6 +9,8 @@ test.skip(
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const PASSWORD = "FmmTrial_E2E_2026!";
+
+test.describe.configure({ retries: 0 });
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -138,22 +140,111 @@ async function login(page: Page, email: string, password = PASSWORD) {
   await page.getByRole("button", { name: "SIGN IN" }).click();
 }
 
+async function findCheckoutField(
+  page: Page,
+  selectors: string,
+  labels: RegExp[],
+  timeout: number,
+): Promise<Locator | null> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const bySelector = frame.locator(selectors).first();
+      if (await bySelector.isVisible().catch(() => false)) return bySelector;
+      for (const label of labels) {
+        const byLabel = frame.getByLabel(label).first();
+        if (await byLabel.isVisible().catch(() => false)) return byLabel;
+      }
+    }
+    await page.waitForTimeout(250);
+  }
+  return null;
+}
+
+async function requiredCheckoutField(
+  page: Page,
+  category: string,
+  selectors: string,
+  labels: RegExp[],
+): Promise<Locator> {
+  const field = await findCheckoutField(page, selectors, labels, 30_000);
+  if (field) return field;
+  const frameHosts = [
+    ...new Set(
+      page.frames().map((frame) => {
+        try {
+          return new URL(frame.url()).hostname || "local";
+        } catch {
+          return "unparseable";
+        }
+      }),
+    ),
+  ].sort();
+  throw new Error(
+    `TRIAL_E2E_CHECKOUT_FIELD_NOT_FOUND:${category}:frames=${frameHosts.join(",")}`,
+  );
+}
+
+async function requiredCheckoutButton(page: Page): Promise<Locator> {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const button = frame.getByRole("button", { name: /subscribe|pay/i }).first();
+      if (await button.isVisible().catch(() => false)) return button;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error("TRIAL_E2E_CHECKOUT_SUBMIT_NOT_FOUND");
+}
+
+async function requiredCheckoutText(page: Page, text: RegExp): Promise<Locator> {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const message = frame.getByText(text).first();
+      if (await message.isVisible().catch(() => false)) return message;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error("TRIAL_E2E_DECLINE_MESSAGE_NOT_FOUND");
+}
+
 async function fillCard(page: Page, number: string) {
-  const card = page.locator('input[name="cardNumber"], #cardNumber').first();
-  await card.waitFor({ state: "visible", timeout: 30_000 });
+  const card = await requiredCheckoutField(
+    page,
+    "card_number",
+    'input[name="cardNumber"], #cardNumber, input[name="cardnumber"], input[autocomplete="cc-number"], [data-elements-stable-field-name="cardNumber"]',
+    [/card number/i],
+  );
   await card.fill(number);
-  await page
-    .locator('input[name="cardExpiry"], #cardExpiry')
-    .first()
-    .fill("1234");
-  await page.locator('input[name="cardCvc"], #cardCvc').first().fill("123");
-  const name = page.locator('input[name="billingName"], #billingName').first();
-  if (await name.isVisible().catch(() => false))
-    await name.fill("FMM Isolated Trial");
-  const postal = page
-    .locator('input[name="billingPostalCode"], #billingPostalCode')
-    .first();
-  if (await postal.isVisible().catch(() => false)) await postal.fill("10001");
+  const expiry = await requiredCheckoutField(
+    page,
+    "card_expiry",
+    'input[name="cardExpiry"], #cardExpiry, input[name="exp-date"], input[autocomplete="cc-exp"], [data-elements-stable-field-name="cardExpiry"]',
+    [/expir/i, /mm\s*\/\s*yy/i],
+  );
+  await expiry.fill("1234");
+  const cvc = await requiredCheckoutField(
+    page,
+    "card_cvc",
+    'input[name="cardCvc"], #cardCvc, input[name="cvc"], input[autocomplete="cc-csc"], [data-elements-stable-field-name="cardCvc"]',
+    [/cvc/i, /security code/i],
+  );
+  await cvc.fill("123");
+  const name = await findCheckoutField(
+    page,
+    'input[name="billingName"], #billingName, input[autocomplete="cc-name"], input[autocomplete="name"]',
+    [/name on card/i, /cardholder name/i],
+    2_000,
+  );
+  if (name) await name.fill("FMM Isolated Trial");
+  const postal = await findCheckoutField(
+    page,
+    'input[name="billingPostalCode"], #billingPostalCode, input[name="postal"], input[autocomplete="postal-code"], [data-elements-stable-field-name="postalCode"]',
+    [/postal/i, /zip/i],
+    2_000,
+  );
+  if (postal) await postal.fill("10001");
 }
 
 test("signup, confirmation, application trial, expiry, and voluntary paid conversion", async ({
@@ -161,6 +252,7 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
   browser,
   request,
 }) => {
+  test.setTimeout(120_000);
   const appUrl = new URL(
     process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4028",
   );
@@ -377,10 +469,10 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30_000 });
 
   await fillCard(page, "4000000000000002");
-  await page.getByRole("button", { name: /subscribe|pay/i }).click();
+  await (await requiredCheckoutButton(page)).click();
   await expect(
-    page.getByText(/declined|could not be processed/i).first(),
-  ).toBeVisible({ timeout: 30_000 });
+    await requiredCheckoutText(page, /declined|could not be processed/i),
+  ).toBeVisible();
   const entitlementDuringFailedPayment = await entitlement(
     admin,
     account.workspace.id,
@@ -389,7 +481,7 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
   expect(entitlementDuringFailedPayment.stripe_subscription_id).toBeNull();
 
   await fillCard(page, "4242424242424242");
-  await page.getByRole("button", { name: /subscribe|pay/i }).click();
+  await (await requiredCheckoutButton(page)).click();
   await page.waitForURL(/\/dashboard\?checkout=success&session_id=/, {
     timeout: 60_000,
   });

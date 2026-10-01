@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('temporary signup shutdown', () => {
-  test('homepage announces the reopening and routes to the reservation', async ({ page }) => {
+  test('homepage explains the trial while acquisition remains gated', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('Grand reopening · September 30, 2026')).toBeVisible();
+    await expect(page.getByText('30-day free trial · No credit card required')).toBeVisible();
+    await expect(page.getByText('Trial expiration never creates a charge or subscription.')).toBeVisible();
     await expect(page.getByRole('link', { name: /Explore Business Software/ })).toHaveAttribute('href', '/professionals');
     await expect(page.getByRole('link', { name: /Compare Start and Grow/ })).toHaveAttribute('href', '/pricing');
-    await expect(page.getByRole('textbox', { name: 'Business contact email' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Start 30-Day Free Trial' }).first()).toHaveAttribute('href', '/signup?plan=professional');
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
-    await expect(page.getByText('Business software only. No payment today. No account will be created yet.')).toBeVisible();
   });
 
   test('/signup is a reopening-list page rather than account creation', async ({ page }) => {
