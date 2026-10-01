@@ -126,27 +126,30 @@ test.describe('production homepage smoke', () => {
     await expect(page).toHaveURL(/\/login$/);
 
     await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Reserve My Free Month/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
+    await page.getByRole('link', { name: /Start 30-Day Free Trial/i }).first().click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
     await gotoReady(page, '/');
     await page.getByRole('link', { name: /Explore Business Software/i }).click();
     await expect(page).toHaveURL(/\/professionals$/);
-    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
+    await page.getByRole('link', { name: /Start 30-Day Free Trial/i }).first().click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
     await gotoReady(page, '/');
     await page.getByRole('link', { name: /Compare Start and Grow/i }).click();
     await expect(page).toHaveURL(/\/pricing$/);
-    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
+    await page.locator('div.relative').filter({ has: page.getByRole('heading', { name: 'Start', exact: true }) }).getByRole('button', { name: 'Start 30-Day Free Trial' }).click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
-    const planExpectations = ['Start', 'Grow'] as const;
+    const planExpectations = [
+      { name: 'Start', id: 'professional' },
+      { name: 'Grow', id: 'agency' },
+    ] as const;
 
-    for (const planName of planExpectations) {
+    for (const plan of planExpectations) {
       await gotoReady(page, '/');
-      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Reserve one month free' }).click();
-      await expect(page).toHaveURL(/\/reopen$/);
+      await page.locator('article').filter({ has: page.getByRole('heading', { name: plan.name }) }).getByRole('link', { name: '30-day free trial. No credit card required.' }).click();
+      await expect(page).toHaveURL(new RegExp(`/signup\\?plan=${plan.id}$`));
     }
   });
 

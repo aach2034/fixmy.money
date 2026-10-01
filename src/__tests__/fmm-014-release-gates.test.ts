@@ -114,11 +114,15 @@ describe('FMM-014 enforced release gates', () => {
   it('requires an isolated no-card trial and voluntary paid-conversion browser journey', () => {
     expect(workflow).toContain('trial-journey:');
     expect(workflow).toContain('TRIAL_E2E_ENABLED: "true"');
+    expect(workflow).toContain('TEST_MAILPIT_URL: http://127.0.0.1:54324');
     expect(workflow).toContain('tests/e2e/trial-journey.spec.ts --project=chromium');
     expect(workflow).toContain('scripts/prepare-trial-e2e-stripe.ts');
     expect(workflow).toContain('scripts/cleanup-trial-e2e-stripe.ts');
     const journey = fs.readFileSync('tests/e2e/trial-journey.spec.ts', 'utf8');
     expect(journey).toContain('TRIAL_E2E_LOCAL_STACK_REQUIRED');
+    expect(journey).toContain('/api/v1/messages?limit=50');
+    expect(journey).toContain('/api/v1/message/${encodeURIComponent(messageId)}');
+    expect(journey).not.toContain('/api/v1/mailbox/');
     expect(journey).toContain('sk_test_');
     expect(journey).toContain("plan=starter");
     expect(journey).toContain("stripe_subscription_id).toBeNull()");

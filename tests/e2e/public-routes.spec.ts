@@ -173,9 +173,12 @@ test.describe('Retired Demo Mode (/demo-mode)', () => {
     await expect(page.getByRole('heading', { name: /Every feature, explained/i })).toBeVisible();
   });
 
-  test('routes the product-tour CTA to the reopening list', async ({ page }) => {
+  test('routes the product-tour CTA to the Start trial', async ({ page }) => {
     await page.goto('/demo-mode');
-    await expect(page.getByRole('link', { name: /Reserve one month free/i }).first()).toBeVisible();
+    const trialLink = page.getByRole('link', { name: /Start 30-Day Free Trial/i }).first();
+    await expect(trialLink).toBeVisible();
+    await trialLink.click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
   });
 });
 

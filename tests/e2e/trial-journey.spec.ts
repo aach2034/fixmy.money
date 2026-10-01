@@ -34,34 +34,66 @@ function messagesFrom(value: unknown): Array<Record<string, unknown>> {
   return messagesFrom(record.messages || record.items || record.data);
 }
 
+function decodeHtmlAttribute(value: string): string {
+  return value
+    .replaceAll("&amp;", "&")
+    .replaceAll("&#38;", "&")
+    .replaceAll("&#x26;", "&")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#34;", '"');
+}
+
 async function confirmationLink(
   email: string,
-  inbucketUrl: string,
+  mailpitUrl: string,
+  appUrl: URL,
 ): Promise<string> {
-  const mailboxNames = [email, email.split("@")[0]];
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    for (const mailbox of mailboxNames) {
-      const mailboxResponse = await fetch(
-        `${inbucketUrl}/api/v1/mailbox/${encodeURIComponent(mailbox)}`,
+    const messagesResponse = await fetch(`${mailpitUrl}/api/v1/messages?limit=50`);
+    if (!messagesResponse.ok) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      continue;
+    }
+    const messagesBody = (await messagesResponse.json()) as unknown;
+    for (const message of messagesFrom(messagesBody)) {
+      const recipients = allStrings(message.To || message.to).map((value) =>
+        value.toLowerCase(),
       );
-      if (!mailboxResponse.ok) continue;
-      const mailboxBody = (await mailboxResponse.json()) as unknown;
-      for (const message of messagesFrom(mailboxBody).reverse()) {
-        const messageId = String(message.id || message.ID || "");
-        if (!messageId) continue;
-        const detailResponse = await fetch(
-          `${inbucketUrl}/api/v1/mailbox/${encodeURIComponent(mailbox)}/${encodeURIComponent(messageId)}`,
-        );
-        if (!detailResponse.ok) continue;
-        const detail = (await detailResponse.json()) as unknown;
-        const content = allStrings(detail).join("\n").replaceAll("&amp;", "&");
-        for (const candidate of content.match(/https?:\/\/[^\s"'<>]+/g) || []) {
-          const cleaned = candidate.replace(/[).,]+$/, "");
-          if (
-            cleaned.includes("token_hash=") ||
-            cleaned.includes("/auth/v1/verify")
-          )
-            return cleaned;
+      if (!recipients.includes(email.toLowerCase())) continue;
+      if (String(message.Subject || message.subject) !== "Confirm your FixMy.Money account")
+        continue;
+
+      const messageId = String(message.ID || message.id || "");
+      if (!messageId) continue;
+      const detailResponse = await fetch(
+        `${mailpitUrl}/api/v1/message/${encodeURIComponent(messageId)}`,
+      );
+      if (!detailResponse.ok) continue;
+      const detail = (await detailResponse.json()) as Record<string, unknown>;
+      const detailRecipients = allStrings(detail.To || detail.to).map((value) =>
+        value.toLowerCase(),
+      );
+      if (!detailRecipients.includes(email.toLowerCase())) continue;
+
+      const content = decodeHtmlAttribute(
+        allStrings([detail.HTML, detail.html, detail.Text, detail.text]).join("\n"),
+      );
+      for (const candidate of content.match(/https?:\/\/[^\s"'<>]+/g) || []) {
+        const cleaned = candidate.replace(/[).,]+$/, "");
+        let parsed: URL;
+        try {
+          parsed = new URL(cleaned);
+        } catch {
+          continue;
+        }
+        if (
+          parsed.origin === appUrl.origin &&
+          parsed.pathname === "/auth/callback" &&
+          parsed.searchParams.get("type") === "signup" &&
+          parsed.searchParams.get("plan") === "professional" &&
+          parsed.searchParams.has("token_hash")
+        ) {
+          return parsed.toString();
         }
       }
     }
@@ -146,7 +178,7 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
   const serviceRoleKey = required("TEST_SUPABASE_SERVICE_ROLE_KEY");
   const stripeKey = required("STRIPE_SECRET_KEY");
   const webhookSecret = required("STRIPE_WEBHOOK_SECRET");
-  const inbucketUrl = required("TEST_INBUCKET_URL").replace(/\/$/, "");
+  const mailpitUrl = required("TEST_MAILPIT_URL").replace(/\/$/, "");
   if (
     !email.endsWith("@test.invalid") ||
     !expiredEmail.endsWith("@test.invalid") ||
@@ -186,7 +218,7 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
 
   const beforeConfirmation = await userAndWorkspace(admin, email);
   expect(beforeConfirmation.user.email_confirmed_at).toBeFalsy();
-  const link = await confirmationLink(email, inbucketUrl);
+  const link = await confirmationLink(email, mailpitUrl, appUrl);
   await page.goto(link);
   await page.waitForURL(/\/onboarding(?:\?|$)/, { timeout: 30_000 });
 

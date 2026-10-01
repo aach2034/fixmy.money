@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { ArrowRight, Check, Menu, Search, ShieldCheck, Upload } from 'lucide-react';
 import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
-import ReopeningNotice from '@/components/ReopeningNotice';
 import PublicBrandLink from '@/components/marketing/PublicBrandLink';
 import PublicFooter from '@/components/marketing/PublicFooter';
 import HomepageShareButton from '@/components/marketing/HomepageShareButton';
@@ -72,8 +71,8 @@ export default function Home() {
             <TrackedLink href="/professionals" eventLabel="Explore Business Software" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg bg-[#007f51] px-6 text-center text-base font-bold text-white hover:bg-[#006e46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008958]">Explore Business Software <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
             <TrackedLink href="/pricing" eventLabel="Compare Start and Grow" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg border border-[#aebfd2] bg-white px-6 text-center text-base font-bold text-[#263754] hover:border-[#007f51] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Compare Start and Grow <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
           </div>
-          <p className="mt-6 text-xs font-bold uppercase tracking-[.17em] text-[#53647e]">Grand reopening · September 30, 2026</p>
-          <p className="mt-2 text-base text-[#586984]">No payment today.</p>
+          <p className="mt-6 text-xs font-bold uppercase tracking-[.17em] text-[#53647e]">30-day free trial · No credit card required</p>
+          <p className="mt-2 text-base text-[#586984]">Trial expiration never creates a charge or subscription.</p>
         </div>
         <ProductPreview />
       </section>
@@ -86,7 +85,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="px-5 py-20 lg:px-12"><div className="mx-auto max-w-[1180px]"><ReopeningNotice /></div></section>
       <section id="three-details-to-compare" className="bg-[#f4f8f6] px-5 py-24 lg:px-8">
         <div className="mx-auto max-w-[1180px]">
           <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
@@ -117,7 +115,7 @@ export default function Home() {
       <section id="pricing" className="bg-[#fbfcfe] px-5 py-24 lg:px-8">
         <div className="mx-auto max-w-[1050px]">
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#267a31]">Software plans · Reopening September 30, 2026</p>
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#267a31]">Start and Grow · 30-day free trial</p>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Choose the workspace that fits.</h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#60716a]">Monthly business software subscriptions for professional client work and growing agencies. Not a consumer credit-repair service.</p>
           </div>

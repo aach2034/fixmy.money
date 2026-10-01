@@ -171,7 +171,7 @@ jobs:
       TRIAL_E2E_ENABLED: "true"
       TRIAL_E2E_EMAIL: fmm-trial-${{ github.run_id }}-${{ github.run_attempt }}@test.invalid
       TRIAL_E2E_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-      TEST_INBUCKET_URL: http://127.0.0.1:54324
+      TEST_MAILPIT_URL: http://127.0.0.1:54324
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
