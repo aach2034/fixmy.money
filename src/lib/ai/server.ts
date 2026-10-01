@@ -13,6 +13,7 @@ import type {
   AIUsageReservation,
 } from "./gateway";
 import { authorizeWorkspacePlanOperation } from "@/lib/subscription/planServer";
+import { PersonalCapabilityError, requirePersonalCapability } from "@/lib/personalPacket/capabilities";
 
 export interface AIGatewayAuthorization {
   actorId: string;
@@ -60,6 +61,15 @@ export async function authorizeAIGateway(): Promise<AIGatewayAuthorization> {
     workspaceId: workspace.workspace_id,
     feature: "ai_assistant",
   });
+  try {
+    await requirePersonalCapability({ consumerId: workspace.workspace_owner_id,
+      planId: planAuthorization.planId, capability: "new_analysis" });
+  } catch (error) {
+    if (error instanceof PersonalCapabilityError) {
+      throw new AIGatewayAuthorizationError(error.code, error.status);
+    }
+    throw error;
+  }
 
   return {
     actorId: user.id,

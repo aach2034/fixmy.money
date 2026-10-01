@@ -67,7 +67,7 @@ const WORKFLOW_STAGES = [
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
-    indicators: ['Activation date recorded', 'Billing eligibility confirmed', 'Service scope documented', 'Team assignment recorded'],
+    indicators: ['Activation date recorded', 'Billing remains on hold', 'Service scope documented', 'Team assignment recorded'],
     required: false,
   },
   {
@@ -98,12 +98,12 @@ const WORKFLOW_STAGES = [
     id: 'completed',
     step: '08',
     title: 'Completed',
-    description: 'Services completed. Completed-service documentation generated. Billing eligibility confirmed.',
+    description: 'Services completed. Completion evidence is documented for separate billing and legal review.',
     icon: CheckCircle,
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
-    indicators: ['Completed services documented', 'Final billing eligibility confirmed', 'Client record archived', 'Audit log finalized'],
+    indicators: ['Completed services documented', 'Billing review pending', 'Client record archived', 'Audit log finalized'],
     required: false,
   },
 ];
@@ -127,12 +127,12 @@ const COMPLIANCE_FEATURES = [
   {
     icon: DollarSign,
     title: 'Billing Eligibility Indicators',
-    body: 'The platform indicates when billing is eligible based on workflow stage. Billing is not marked eligible until the cancellation period has expired and the client is in Active status.',
+    body: 'A workflow stage or elapsed time alone never establishes completed-service billing eligibility. New paid activation remains on hold pending legal review.',
   },
   {
     icon: Shield,
     title: 'Completed Service Documentation',
-    body: 'When services are marked complete, the platform generates a completed-service record documenting what was performed, when, and by whom.',
+    body: 'Completed-service records must identify the promised work, evidence of full performance, timing, and the responsible reviewer. This review workflow is not yet active for new consumer billing.',
   },
   {
     icon: AlertTriangle,

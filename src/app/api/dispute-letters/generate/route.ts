@@ -26,6 +26,7 @@ import {
   type StoredRoundItem,
 } from '@/lib/disputes/letterGenerationBoundary';
 import { getLetterSenderInfo } from '@/lib/disputes/letterSender';
+import { PersonalCapabilityError, requirePersonalWorkspaceCapability } from '@/lib/personalPacket/capabilities';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_BYTES = 16_384;
@@ -375,6 +376,11 @@ export async function POST(request: NextRequest) {
   try {
     const context = await authenticateAndAuthorize(body.clientId);
     if (!context) return json({ error: 'Client not found or access denied.' }, 403);
+    await requirePersonalWorkspaceCapability({
+      workspaceId: context.authorization.workspaceId,
+      consumerId: context.authorization.workspaceOwnerId,
+      capability: 'dispute_generation',
+    });
     const { data: client, error: clientError } = await context.admin
       .from('staff_clients')
       .select('id, owner_id, workspace_id, name, email, phone, address, city, state, zip')
@@ -482,6 +488,7 @@ export async function POST(request: NextRequest) {
     });
     return json({ status: 'ready', letters, exclusions: allExclusions });
   } catch (error) {
+    if (error instanceof PersonalCapabilityError) return json({ error: error.code }, error.status);
     if (error instanceof LetterGenerationBoundaryError) {
       return json({ error: 'Selected evidence not found or access denied.' }, error.code === 'ACCESS_DENIED' ? 403 : 400);
     }

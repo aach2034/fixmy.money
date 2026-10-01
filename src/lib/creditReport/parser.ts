@@ -5,10 +5,6 @@ import { determineAnalyzerOutcome, type AnalyzerOutcome } from './analyzerOutcom
 export type SupportedProvider =
   | 'smartcredit' | 'myscoreiq' | 'identityiq' | 'myfreescorenow' | 'privacyguard' |'experian' | 'transunion' | 'equifax' | 'annualcreditreport' | 'creditkarma' | 'unknown';
 
-// ─── Developer logging ────────────────────────────────────────────────────────
-// Structured log for parser diagnostics. Written to console.debug so it only
-// appears when DevTools is open. Never shown to end users.
-
 export interface ParserDiagnostics {
   providerSelected: string;
   providerConfidence: number;
@@ -132,65 +128,6 @@ export interface ParseStageError {
   stage: 'upload' | 'text_extraction' | 'normalization' | 'provider_detection' | 'account_parsing' | 'personal_info' | 'scores' | 'inquiries' | 'public_records' | 'negative_classification';
   message: string;
   fatal: boolean;
-}
-
-function logDiagnostics(d: ParserDiagnostics): void {
-  try {
-    if (typeof console !== 'undefined') {
-      console.debug('[CreditReportParser] ── Diagnostics ──────────────────────');
-      console.debug(`  Provider selected:    ${d.providerSelected} (${d.providerConfidence}% confidence)`);
-      console.debug(`  Raw text length:      ${d.rawTextLength} chars`);
-      console.debug(`  Normalized length:    ${d.normalizedTextLength} chars`);
-      console.debug(`  Image-based PDF:      ${d.isImageBasedPdf}`);
-      console.debug(`  OCR was used:         ${d.ocrWasUsed}`);
-      console.debug(`  Total PDF pages:      ${d.totalPdfPages}`);
-      console.debug(`  Pages w/ text:        ${d.pagesWithEmbeddedText}`);
-      console.debug(`  Pages needing OCR:    ${d.pagesRequiringOcr}`);
-      console.debug(`  OCR pages succeeded:  ${d.ocrPagesSucceeded}`);
-      console.debug(`  OCR pages failed:     ${d.ocrPagesFailed}`);
-      console.debug(`  Binary blocks skipped:${d.binaryBlocksSkipped}`);
-      console.debug(`  Text blocks accepted: ${d.readableTextBlocksAccepted}`);
-      console.debug(`  Text blocks rejected: ${d.readableTextBlocksRejected}`);
-      console.debug(`  Total text blocks:    ${d.totalTextBlocks}`);
-      console.debug(`  Classified blocks:    ${d.classifiedBlocks}`);
-      console.debug(`  Fallback blocks:      ${d.fallbackConsumedBlocks}`);
-      console.debug(`  Boilerplate blocks:   ${d.boilerplateBlocks}`);
-      console.debug(`  Duplicate blocks:     ${d.duplicateBlocks}`);
-      console.debug(`  Unresolved blocks:    ${d.preservedUnclassifiedBlocks}`);
-      console.debug(`  Accounts detected:    ${d.accountsDetected}`);
-      console.debug(`  Rejected candidates:  ${d.rejectedAccountCandidates.length}`);
-      console.debug(`  Fragments merged:     ${d.accountFragmentsMerged}`);
-      console.debug(`  Inquiries detected:   ${d.inquiriesDetected}`);
-      console.debug(`  Scores detected:      ${d.scoresDetected}`);
-      console.debug(`  Final confidence:     ${d.finalConfidence}%`);
-      console.debug(`  Fallback parser used: ${d.fallbackUsed}`);
-      console.debug('  Section confidence:', d.sectionConfidence);
-      console.debug('  Section statuses:', d.sectionStatuses);
-      if (d.stageFailures.length > 0) {
-        console.debug('  Stage failures:');
-        d.stageFailures.forEach(f => {
-          console.debug(`    [${f.fatal ? 'FATAL' : 'WARN'}] ${f.stage}: ${f.message}`);
-        });
-      }
-      if (d.exclusionReasons.length > 0) {
-        console.debug('  Excluded block reasons:');
-        d.exclusionReasons.forEach((e, i) => {
-          console.debug(`    [${i + 1}] Reason: ${e.reason}`);
-          console.debug(`         Block: ${e.block.slice(0, 80).replace(/\n/g, ' ')}…`);
-        });
-      }
-      if (d.rejectedAccountCandidates.length > 0) {
-        console.debug('  Rejected account candidates:');
-        d.rejectedAccountCandidates.forEach((candidate, i) => {
-          console.debug(`    [${i + 1}] ${candidate.reason}`);
-          console.debug(`         Candidate: ${candidate.block.slice(0, 80).replace(/\n/g, ' ')}…`);
-        });
-      }
-      console.debug('[CreditReportParser] ────────────────────────────────────');
-    }
-  } catch {
-    // logging must never crash the parser
-  }
 }
 
 // ─── Safe text normalization ──────────────────────────────────────────────────
@@ -1028,26 +965,21 @@ export function isReadableText(str: string): boolean {
  */
 export function isValidCreditBlock(block: string): boolean {
   if (!block || block.trim().length < 10) {
-    console.debug('[ValidCreditBlock] REJECT — too short or empty:', JSON.stringify((block ?? '').slice(0, 80)));
     return false;
   }
   const trimmed = block.trim();
 
   // Reject PDF object stream markers
   if (/^\/(?:Image|XObject|Font|Resources|ColorSpace|ExtGState|Pattern|Shading|Properties)\b/i.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — PDF object stream marker:', trimmed.slice(0, 80));
     return false;
   }
   if (/\bstream\b[\s\S]{0,20}\bendstream\b/i.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — stream/endstream marker:', trimmed.slice(0, 80));
     return false;
   }
   if (/^\d+\s+\d+\s+obj\b/m.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — PDF obj marker:', trimmed.slice(0, 80));
     return false;
   }
   if (/endobj\b/i.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — endobj marker:', trimmed.slice(0, 80));
     return false;
   }
 
@@ -1055,7 +987,6 @@ export function isValidCreditBlock(block: string): boolean {
   const printable = (trimmed.match(/[\x20-\x7E]/g) ?? []).length;
   const printableRatio = printable / trimmed.length;
   if (printableRatio < 0.4) {
-    console.debug(`[ValidCreditBlock] REJECT — low printable ratio ${(printableRatio * 100).toFixed(1)}% (<40%):`, trimmed.slice(0, 80));
     return false;
   }
 
@@ -1064,56 +995,44 @@ export function isValidCreditBlock(block: string): boolean {
   const symbols = (trimmed.match(/[^A-Za-z0-9\s\-.,&'()\/:$%#@!?+*=_\n]/g) ?? []).length;
   const symbolRatio = symbols / trimmed.length;
   if (symbolRatio > 0.65) {
-    console.debug(`[ValidCreditBlock] REJECT — high symbol density ${(symbolRatio * 100).toFixed(1)}% (>65%), symbol count=${symbols}, block length=${trimmed.length}:`, trimmed.slice(0, 80));
     return false;
   }
 
   // Reject blocks that look like font encoding maps
   if (/\/uni[0-9A-F]{4}/i.test(trimmed) || /\/glyph\d+/i.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — font encoding map (uni/glyph):', trimmed.slice(0, 80));
     return false;
   }
 
   // Reject blocks that are pure hex strings (no letters at all)
   if (/^[0-9A-Fa-f\s]{20,}$/.test(trimmed) && !/[G-Zg-z]/.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — pure hex string:', trimmed.slice(0, 80));
     return false;
   }
 
   // Must contain at least one word with 2+ letters
   if (!/[A-Za-z]{2,}/.test(trimmed)) {
-    console.debug('[ValidCreditBlock] REJECT — no word with 2+ letters:', trimmed.slice(0, 80));
     return false;
   }
 
-  console.debug(`[ValidCreditBlock] PASS — printable=${(printableRatio * 100).toFixed(1)}%, symbols=${(symbolRatio * 100).toFixed(1)}%, len=${trimmed.length}:`, trimmed.slice(0, 60).replace(/\n/g, '↵'));
   return true;
 }
 
 export function isValidAccount(account: Partial<ParsedAccount>): boolean {
   const creditor = account.creditorName ?? '';
-  const blockPreview = (account.rawText ?? creditor).slice(0, 100).replace(/\n/g, '↵');
 
-  console.debug('[ValidAccount] Checking account block:', blockPreview);
 
   if (!isReadableText(creditor)) {
-    console.debug('[ValidAccount] REJECT — creditor name not readable:', JSON.stringify(creditor));
     return false;
   }
   if (creditor === 'Unknown Creditor') {
-    console.debug('[ValidAccount] REJECT — creditor is "Unknown Creditor"');
     return false;
   }
   if (/^\/[A-Z]/i.test(creditor)) {
-    console.debug('[ValidAccount] REJECT — creditor starts with PDF path marker:', creditor);
     return false;
   }
   if (/\bImage\b|\bXObject\b|\bFont\b|\bstream\b/i.test(creditor)) {
-    console.debug('[ValidAccount] REJECT — creditor contains PDF stream keyword:', creditor);
     return false;
   }
   if (!isPlausibleCreditorName(creditor)) {
-    console.debug('[ValidAccount] REJECT — creditor looks like an account value, not a creditor:', creditor);
     return false;
   }
 
@@ -1129,20 +1048,16 @@ export function isValidAccount(account: Partial<ParsedAccount>): boolean {
   const creditFieldCount = [hasBalance, hasAccountNumber, hasStatus, hasDateOpened, hasAccountType, hasPastDue, hasRemarks, hasPaymentHistory]
     .filter(Boolean).length;
 
-  console.debug(`[ValidAccount] Credit fields for "${creditor}": balance=${hasBalance}, accountNumber=${hasAccountNumber}, status=${hasStatus}, dateOpened=${hasDateOpened}, accountType=${hasAccountType}, pastDue=${hasPastDue}, remarks=${hasRemarks}, paymentHistory=${hasPaymentHistory} → total=${creditFieldCount}`);
 
   // Single labels and glossary rows are not enough evidence for an account.
   if (creditFieldCount < 2) {
-    console.debug(`[ValidAccount] REJECT — "${creditor}" has fewer than 2 credit fields`);
     return false;
   }
 
   if (account.rawText && !isValidCreditBlock(account.rawText)) {
-    console.debug(`[ValidAccount] REJECT — "${creditor}" rawText failed isValidCreditBlock`);
     return false;
   }
 
-  console.debug(`[ValidAccount] PASS — "${creditor}" with ${creditFieldCount} credit field(s)`);
   return true;
 }
 
@@ -1857,11 +1772,7 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
   try {
     if (!block || block.trim().length < 10) return null;
 
-    const blockPreview = block.slice(0, 120).replace(/\n/g, '↵');
-    console.debug('[ExtractAccountBlock] Processing block:', blockPreview);
-
     if (!isValidCreditBlock(block)) {
-      console.debug('[ExtractAccountBlock] SKIP — failed isValidCreditBlock');
       return null;
     }
 
@@ -1902,7 +1813,6 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       && lines.slice(1, 8).some(line => semanticLabelFor(line) || ACCOUNT_FIELD_LABEL_RE.test(line))
     ) {
       creditorName = stripInlineAccountSectionPrefix(lines[0]);
-      console.debug('[ExtractAccountBlock] Creditor from semantic account header:', creditorName);
     }
 
     // First try explicit label extraction
@@ -1911,7 +1821,6 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
       const candidate = creditorLabelMatch[1].trim();
       if (isReadableText(candidate) && candidate.length > 1 && isPlausibleCreditorName(candidate)) {
         creditorName = candidate;
-        console.debug('[ExtractAccountBlock] Creditor from label match:', creditorName);
       }
     }
 
@@ -1931,7 +1840,6 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
         const candidateName = stripInlineAccountSectionPrefix(line);
         if (isReadableText(candidateName) && isPlausibleCreditorName(candidateName)) {
           creditorName = candidateName;
-          console.debug('[ExtractAccountBlock] Creditor from line scan:', creditorName);
           break;
         }
       }
@@ -1943,15 +1851,12 @@ function extractAccountBlock(block: string, bureau: string): ParsedAccount | nul
     creditorName = creditorName.replace(/\s*\(\s*original\s+creditor\s*:.*\)\s*$/i, '').trim();
 
     if (!creditorName || !isReadableText(creditorName)) {
-      console.debug('[ExtractAccountBlock] SKIP — no readable creditor name found. First 6 lines:', lines.slice(0, 6));
       return null;
     }
     if (/^\/[A-Z]/i.test(creditorName)) {
-      console.debug('[ExtractAccountBlock] SKIP — creditor starts with PDF path:', creditorName);
       return null;
     }
     if (/\bImage\b|\bXObject\b|\bFont\b|\bstream\b/i.test(creditorName)) {
-      console.debug('[ExtractAccountBlock] SKIP — creditor contains PDF keyword:', creditorName);
       return null;
     }
 
@@ -2137,7 +2042,6 @@ function splitIntoBlocks(text: string): string[] {
   const triBureauBlocks = splitTriBureauColumnAccounts(text);
   if (triBureauBlocks.length > 0) {
     if (typeof console !== 'undefined') {
-      console.debug(`[CreditReportParser] Block split strategy selected: tri-bureau-column (${triBureauBlocks.length} account blocks)`);
     }
     return triBureauBlocks;
   }
@@ -2219,7 +2123,6 @@ function splitIntoBlocks(text: string): string[] {
   }
 
   if (typeof console !== 'undefined') {
-    console.debug(`[CreditReportParser] Block split strategy selected: ${bestStrategyName} (${bestScore} valid blocks from ${bestBlocks.length} total)`);
   }
 
   // If no strategy found valid blocks, fall back to double-newline
@@ -3926,9 +3829,6 @@ export function parseCreditReport(
       ocrWasUsed,
     };
 
-    // Log diagnostics to developer console (never exposes raw consumer report data)
-    logDiagnostics(diagnostics);
-
     const analysisOutcome = determineAnalyzerOutcome({
       provider,
       providerConfidence,
@@ -3979,14 +3879,6 @@ export function parseCreditReport(
     };
   } catch (fatalErr: any) {
     stageFailures.push({ stage: 'account_parsing', message: fatalErr?.message ?? 'fatal parser error', fatal: true });
-
-    // Log minimal diagnostics even on fatal error
-    try {
-      console.debug('[CreditReportParser] FATAL ERROR ──────────────────────────');
-      console.debug(`  Stage failures: ${stageFailures.map(f => `${f.stage}: ${f.message}`).join('; ')}`);
-      console.debug(`  Raw text length: ${rawTextLength}, Normalized: ${normalizedTextLength}`);
-      console.debug('[CreditReportParser] ────────────────────────────────────');
-    } catch { /* logging must never crash */ }
 
     warnings.push({
       section: 'Parser',

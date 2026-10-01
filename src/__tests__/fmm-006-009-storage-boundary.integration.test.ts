@@ -80,6 +80,7 @@ describe('FMM-006/FMM-009 authenticated Storage boundary', () => {
   let attemptedPath = '';
   let createdRelationshipId = '';
   let createdStaffClientId = '';
+  let consumerId = '';
   let entitlementSnapshot: EntitlementSnapshot | null = null;
 
   async function expectAdminObjectBytes(path: string, expected: Uint8Array) {
@@ -105,6 +106,7 @@ describe('FMM-006/FMM-009 authenticated Storage boundary', () => {
     });
     expect(signInError).toBeNull();
     expect(signInData.user).not.toBeNull();
+    consumerId = signInData.user!.id;
 
     const { data: relationships, error: relationshipError } = await admin
       .from('workspace_client_memberships')
@@ -257,5 +259,40 @@ describe('FMM-006/FMM-009 authenticated Storage boundary', () => {
     expect(error).toBeNull();
     expect(data).toEqual([]);
     await expectAdminObjectBytes(originalPath, ORIGINAL_BYTES);
+  });
+
+  it('denies direct Personal packet reads, signing, uploads, and deletes even to the owner', async () => {
+    const packetBucket = 'personal-review-packets';
+    const path = `${consumerId}/${crypto.randomUUID()}/packet.txt`;
+    const attemptedPath = `${consumerId}/${crypto.randomUUID()}/attempted.txt`;
+    const bytes = new TextEncoder().encode('Synthetic review packet only');
+    const { error: seedError } = await admin.storage.from(packetBucket).upload(path, bytes, {
+      contentType: 'text/plain', upsert: false,
+    });
+    expect(seedError).toBeNull();
+    try {
+      const anonymous = createClient(config.supabaseUrl, config.anonKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      for (const client of [anonymous, authenticated]) {
+        const { data: downloaded, error: readError } = await client.storage.from(packetBucket).download(path);
+        expect(readError).toBeTruthy();
+        expect(downloaded).toBeNull();
+        const { data: signed, error: signError } = await client.storage.from(packetBucket).createSignedUrl(path, 60);
+        expect(signError).toBeTruthy();
+        expect(signed).toBeNull();
+        const { error: uploadError } = await client.storage.from(packetBucket).upload(attemptedPath, bytes, {
+          contentType: 'text/plain', upsert: false,
+        });
+        expect(uploadError).toBeTruthy();
+        await client.storage.from(packetBucket).remove([path]);
+      }
+      const { data: preserved, error: preservedError } = await admin.storage.from(packetBucket).download(path);
+      expect(preservedError).toBeNull();
+      expect(new Uint8Array(await preserved!.arrayBuffer())).toEqual(bytes);
+    } finally {
+      const { error } = await admin.storage.from(packetBucket).remove([path, attemptedPath]);
+      expect(error).toBeNull();
+    }
   });
 });
