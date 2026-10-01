@@ -207,7 +207,7 @@ jobs:
         run: pnpm exec tsx scripts/prepare-trial-e2e-stripe.ts
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
-      - name: Run full trial and voluntary conversion journey
+      - name: Run trial and supported voluntary conversion journey
         run: |
           pnpm start &
           for attempt in {1..30}; do

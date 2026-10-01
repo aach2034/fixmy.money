@@ -111,7 +111,7 @@ describe('FMM-014 enforced release gates', () => {
     expect(workflow).toContain('NEXT_PUBLIC_SITE_URL=http://127.0.0.1:4028');
   });
 
-  it('requires an isolated no-card trial and voluntary paid-conversion browser journey', () => {
+  it('requires an isolated no-card trial, hosted redirect, and supported paid-conversion journey', () => {
     expect(workflow).toContain('trial-journey:');
     expect(workflow).toContain('TRIAL_E2E_ENABLED: "true"');
     expect(workflow).toContain('TEST_MAILPIT_URL: http://127.0.0.1:54324');
@@ -128,6 +128,12 @@ describe('FMM-014 enforced release gates', () => {
     expect(journey).toContain("stripe_subscription_id).toBeNull()");
     expect(journey).toContain('trial_ended');
     expect(journey).toContain('Subscribe to Start — $99/month');
+    expect(journey).toContain('checkout\\.stripe\\.com');
+    expect(journey).toContain('https://docs.stripe.com/automated-testing');
+    expect(journey).toContain('pm_card_visa_chargeDeclined');
+    expect(journey).toContain('pm_card_visa');
+    expect(journey).not.toContain('4000000000000002');
+    expect(journey).not.toContain('4242424242424242');
   });
 
   it('fails closed in CI when isolated authenticated E2E configuration is absent', () => {

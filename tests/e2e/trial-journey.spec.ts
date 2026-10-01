@@ -1,4 +1,9 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
@@ -140,114 +145,40 @@ async function login(page: Page, email: string, password = PASSWORD) {
   await page.getByRole("button", { name: "SIGN IN" }).click();
 }
 
-async function findCheckoutField(
-  page: Page,
-  selectors: string,
-  labels: RegExp[],
-  timeout: number,
-): Promise<Locator | null> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    for (const frame of page.frames()) {
-      const bySelector = frame.locator(selectors).first();
-      if (await bySelector.isVisible().catch(() => false)) return bySelector;
-      for (const label of labels) {
-        const byLabel = frame.getByLabel(label).first();
-        if (await byLabel.isVisible().catch(() => false)) return byLabel;
-      }
-    }
-    await page.waitForTimeout(250);
-  }
-  return null;
+async function postSignedStripeEvent(
+  request: APIRequestContext,
+  stripe: Stripe,
+  webhookSecret: string,
+  eventId: string,
+  type: string,
+  object: unknown,
+) {
+  const payload = JSON.stringify({
+    id: eventId,
+    object: "event",
+    api_version: null,
+    created: Math.floor(Date.now() / 1_000),
+    data: { object },
+    livemode: false,
+    pending_webhooks: 1,
+    request: { id: null, idempotency_key: null },
+    type,
+  });
+  const signature = stripe.webhooks.generateTestHeaderString({
+    payload,
+    secret: webhookSecret,
+  });
+  const response = await request.post("/api/stripe/webhook", {
+    data: payload,
+    headers: {
+      "content-type": "application/json",
+      "stripe-signature": signature,
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
 }
 
-async function requiredCheckoutField(
-  page: Page,
-  category: string,
-  selectors: string,
-  labels: RegExp[],
-): Promise<Locator> {
-  const field = await findCheckoutField(page, selectors, labels, 30_000);
-  if (field) return field;
-  const frameHosts = [
-    ...new Set(
-      page.frames().map((frame) => {
-        try {
-          return new URL(frame.url()).hostname || "local";
-        } catch {
-          return "unparseable";
-        }
-      }),
-    ),
-  ].sort();
-  throw new Error(
-    `TRIAL_E2E_CHECKOUT_FIELD_NOT_FOUND:${category}:frames=${frameHosts.join(",")}`,
-  );
-}
-
-async function requiredCheckoutButton(page: Page): Promise<Locator> {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    for (const frame of page.frames()) {
-      const button = frame.getByRole("button", { name: /subscribe|pay/i }).first();
-      if (await button.isVisible().catch(() => false)) return button;
-    }
-    await page.waitForTimeout(250);
-  }
-  throw new Error("TRIAL_E2E_CHECKOUT_SUBMIT_NOT_FOUND");
-}
-
-async function requiredCheckoutText(page: Page, text: RegExp): Promise<Locator> {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    for (const frame of page.frames()) {
-      const message = frame.getByText(text).first();
-      if (await message.isVisible().catch(() => false)) return message;
-    }
-    await page.waitForTimeout(250);
-  }
-  throw new Error("TRIAL_E2E_DECLINE_MESSAGE_NOT_FOUND");
-}
-
-async function fillCard(page: Page, number: string) {
-  const card = await requiredCheckoutField(
-    page,
-    "card_number",
-    'input[name="cardNumber"], #cardNumber, input[name="cardnumber"], input[autocomplete="cc-number"], [data-elements-stable-field-name="cardNumber"]',
-    [/card number/i],
-  );
-  await card.fill(number);
-  const expiry = await requiredCheckoutField(
-    page,
-    "card_expiry",
-    'input[name="cardExpiry"], #cardExpiry, input[name="exp-date"], input[autocomplete="cc-exp"], [data-elements-stable-field-name="cardExpiry"]',
-    [/expir/i, /mm\s*\/\s*yy/i],
-  );
-  await expiry.fill("1234");
-  const cvc = await requiredCheckoutField(
-    page,
-    "card_cvc",
-    'input[name="cardCvc"], #cardCvc, input[name="cvc"], input[autocomplete="cc-csc"], [data-elements-stable-field-name="cardCvc"]',
-    [/cvc/i, /security code/i],
-  );
-  await cvc.fill("123");
-  const name = await findCheckoutField(
-    page,
-    'input[name="billingName"], #billingName, input[autocomplete="cc-name"], input[autocomplete="name"]',
-    [/name on card/i, /cardholder name/i],
-    2_000,
-  );
-  if (name) await name.fill("FMM Isolated Trial");
-  const postal = await findCheckoutField(
-    page,
-    'input[name="billingPostalCode"], #billingPostalCode, input[name="postal"], input[autocomplete="postal-code"], [data-elements-stable-field-name="postalCode"]',
-    [/postal/i, /zip/i],
-    2_000,
-  );
-  if (postal) await postal.fill("10001");
-}
-
-test("signup, confirmation, application trial, expiry, and voluntary paid conversion", async ({
+test("signup, confirmation, application trial, expiry, and supported voluntary paid conversion", async ({
   page,
   browser,
   request,
@@ -468,11 +399,58 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
     .click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30_000 });
 
-  await fillCard(page, "4000000000000002");
-  await (await requiredCheckoutButton(page)).click();
-  await expect(
-    await requiredCheckoutText(page, /declined|could not be processed/i),
-  ).toBeVisible();
+  const checkoutEntitlement = await entitlement(admin, account.workspace.id);
+  const customerId = checkoutEntitlement.stripe_customer_id;
+  if (typeof customerId !== "string" || !customerId.startsWith("cus_")) {
+    throw new Error("TRIAL_E2E_CHECKOUT_CUSTOMER_MISSING");
+  }
+  const sessionSummary = (
+    await stripe.checkout.sessions.list({ customer: customerId, limit: 10 })
+  ).data.find(
+    (candidate) =>
+      candidate.metadata?.workspaceId === account.workspace.id &&
+      candidate.metadata?.plan === "professional",
+  );
+  if (!sessionSummary) throw new Error("TRIAL_E2E_CHECKOUT_SESSION_MISSING");
+  const session = await stripe.checkout.sessions.retrieve(sessionSummary.id, {
+    expand: ["line_items"],
+  });
+  expect(session.mode).toBe("subscription");
+  expect(session.status).toBe("open");
+  expect(session.payment_status).toBe("unpaid");
+  expect(session.line_items?.data[0]?.price?.id).toBe(
+    required("STRIPE_PROFESSIONAL_PRICE_ID"),
+  );
+
+  // https://docs.stripe.com/automated-testing documents that Checkout and the
+  // Payment Element deliberately use anti-automation controls. The browser
+  // proves the real hosted redirect; supported test PaymentMethods exercise
+  // decline/success outputs without bypassing CAPTCHA or putting card numbers
+  // in test code.
+  let decline: unknown;
+  try {
+    await stripe.paymentIntents.create({
+      amount: 9_900,
+      currency: "usd",
+      payment_method: "pm_card_visa_chargeDeclined",
+      confirm: true,
+      payment_method_types: ["card"],
+    });
+  } catch (error) {
+    decline = error;
+  }
+  if (!(decline instanceof Stripe.errors.StripeCardError)) {
+    throw decline || new Error("TRIAL_E2E_EXPECTED_STRIPE_DECLINE");
+  }
+  expect(decline.code).toBe("card_declined");
+  await postSignedStripeEvent(
+    request,
+    stripe,
+    webhookSecret,
+    `evt_fmm_trial_decline_${required("TRIAL_E2E_RUN_ID").replace(/[^a-zA-Z0-9_]/g, "_")}`,
+    "checkout.session.async_payment_failed",
+    session,
+  );
   const entitlementDuringFailedPayment = await entitlement(
     admin,
     account.workspace.id,
@@ -480,45 +458,60 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
   expect(entitlementDuringFailedPayment.access_state).toBe("trial");
   expect(entitlementDuringFailedPayment.stripe_subscription_id).toBeNull();
 
-  await fillCard(page, "4242424242424242");
-  await (await requiredCheckoutButton(page)).click();
-  await page.waitForURL(/\/dashboard\?checkout=success&session_id=/, {
-    timeout: 60_000,
+  const setupIntent = await stripe.setupIntents.create({
+    customer: customerId,
+    payment_method: "pm_card_visa",
+    payment_method_types: ["card"],
+    confirm: true,
+    usage: "off_session",
   });
-  const sessionId = new URL(page.url()).searchParams.get("session_id");
-  if (!sessionId) throw new Error("TRIAL_E2E_CHECKOUT_SESSION_MISSING");
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
-  expect(session.payment_status).toBe("paid");
-
-  const event = {
-    id: `evt_fmm_trial_e2e_${required("TRIAL_E2E_RUN_ID").replace(/[^a-zA-Z0-9_]/g, "_")}`,
-    object: "event",
-    api_version: null,
-    created: Math.floor(Date.now() / 1_000),
-    data: { object: session },
-    livemode: false,
-    pending_webhooks: 1,
-    request: { id: null, idempotency_key: null },
-    type: "checkout.session.completed",
-  };
-  const payload = JSON.stringify(event);
-  const signature = stripe.webhooks.generateTestHeaderString({
-    payload,
-    secret: webhookSecret,
-  });
-  const webhookResponse = await request.post("/api/stripe/webhook", {
-    data: payload,
-    headers: {
-      "content-type": "application/json",
-      "stripe-signature": signature,
+  expect(setupIntent.status).toBe("succeeded");
+  if (typeof setupIntent.payment_method !== "string") {
+    throw new Error("TRIAL_E2E_PAYMENT_METHOD_MISSING");
+  }
+  const subscription = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: required("STRIPE_PROFESSIONAL_PRICE_ID") }],
+    default_payment_method: setupIntent.payment_method,
+    payment_behavior: "error_if_incomplete",
+    metadata: {
+      plan: "professional",
+      userId: account.user.id,
+      workspaceId: account.workspace.id,
     },
   });
-  expect(webhookResponse.ok(), await webhookResponse.text()).toBeTruthy();
+  expect(subscription.status).toBe("active");
+  const latestInvoice =
+    typeof subscription.latest_invoice === "string"
+      ? await stripe.invoices.retrieve(subscription.latest_invoice)
+      : subscription.latest_invoice;
+  expect(latestInvoice?.status).toBe("paid");
+  expect(latestInvoice?.amount_paid).toBe(9_900);
+
+  await postSignedStripeEvent(
+    request,
+    stripe,
+    webhookSecret,
+    `evt_fmm_trial_success_${required("TRIAL_E2E_RUN_ID").replace(/[^a-zA-Z0-9_]/g, "_")}`,
+    "checkout.session.completed",
+    {
+      ...session,
+      payment_status: "paid",
+      status: "complete",
+      subscription: subscription.id,
+    },
+  );
+  await page.goto(
+    `/dashboard?checkout=success&session_id=${encodeURIComponent(session.id)}`,
+  );
+  await page.waitForURL(/\/dashboard\?checkout=success&session_id=/, {
+    timeout: 30_000,
+  });
 
   const paidEntitlement = await entitlement(admin, account.workspace.id);
   expect(paidEntitlement.access_state).toBe("active");
   expect(paidEntitlement.stripe_status).toBe("active");
-  expect(paidEntitlement.stripe_subscription_id).toBe(session.subscription);
+  expect(paidEntitlement.stripe_subscription_id).toBe(subscription.id);
   expect(paidEntitlement.free_trial_started_at).toBe(
     initialTrial.free_trial_started_at,
   );
