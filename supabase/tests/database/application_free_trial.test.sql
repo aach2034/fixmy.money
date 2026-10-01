@@ -38,8 +38,12 @@ INSERT INTO auth.users (
   '{"provider":"email","providers":["email"]}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
 
-UPDATE public.user_profiles SET onboarding_completed = true
+SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
+UPDATE public.user_profiles
+SET onboarding_completed = true,
+    onboarding_company_completed = true
 WHERE id = '71000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claims', '{}', true);
 
 SELECT lives_ok(format(
   'SELECT public.activate_workspace_free_trial_server(%L, %L, %L)',

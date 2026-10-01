@@ -165,7 +165,7 @@ test("signup, confirmation, application trial, expiry, and voluntary paid conver
 
   await page.goto("/signup?plan=starter");
   await expect(page.getByRole("alert")).toContainText(
-    "Personal is no longer available",
+    "That plan is not available for new accounts. Choose Start or Grow for your business.",
   );
   await expect(
     page.getByRole("button", { name: "START 30-DAY FREE TRIAL" }),

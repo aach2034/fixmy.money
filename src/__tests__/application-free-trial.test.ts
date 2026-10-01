@@ -23,6 +23,8 @@ describe('30-day application trial contract', () => {
     expect(migration).toContain('FREE_TRIAL_IMMUTABLE');
     expect(migration).toContain('REVOKE ALL ON FUNCTION public.activate_workspace_free_trial_server');
     expect(migration).not.toContain('GRANT EXECUTE ON FUNCTION public.activate_workspace_free_trial_server(uuid, uuid, text)\n  TO authenticated');
+    expect(migration).toContain("IF TG_TABLE_NAME = 'workspace_memberships' THEN\n    IF NEW.role = 'owner' THEN");
+    expect(migration).not.toContain("TG_TABLE_NAME = 'workspace_memberships' AND NEW.role");
   });
 
   it('keeps paid Checkout separate and opt-in with no automatic Stripe trial', () => {

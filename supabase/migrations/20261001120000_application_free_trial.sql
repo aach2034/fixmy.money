@@ -194,11 +194,18 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'UNSUPPORTED_ALLOCATION_TABLE';
   END IF;
   target_workspace := NEW.workspace_id;
-  IF TG_TABLE_NAME = 'workspace_memberships' AND NEW.role = 'owner' THEN
-    IF NOT EXISTS (SELECT 1 FROM public.workspaces WHERE id = target_workspace AND owner_id = NEW.user_id) THEN
-      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'WORKSPACE_OWNER_REQUIRED';
+  -- NEW is an untyped trigger record. Narrow to the membership table before
+  -- dereferencing fields that do not exist on staff_clients/client_documents.
+  IF TG_TABLE_NAME = 'workspace_memberships' THEN
+    IF NEW.role = 'owner' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM public.workspaces AS workspace
+        WHERE workspace.id = target_workspace AND workspace.owner_id = NEW.user_id
+      ) THEN
+        RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'WORKSPACE_OWNER_REQUIRED';
+      END IF;
+      RETURN NEW;
     END IF;
-    RETURN NEW;
   END IF;
 
   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(target_workspace::text, 9009));
@@ -222,21 +229,28 @@ BEGIN
 
   SELECT * INTO catalog FROM private.plan_catalog
   WHERE catalog_version = entitlement.plan_catalog_version
-    AND plan_id = COALESCE((SELECT canonical_plan_id FROM private.plan_catalog_aliases
-      WHERE catalog_version = entitlement.plan_catalog_version AND alias_plan_id = entitlement.plan_id), entitlement.plan_id);
+    AND plan_id = COALESCE((
+      SELECT alias.canonical_plan_id FROM private.plan_catalog_aliases AS alias
+      WHERE alias.catalog_version = entitlement.plan_catalog_version
+        AND alias.alias_plan_id = entitlement.plan_id
+    ), entitlement.plan_id);
   IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'PLAN_NOT_CONFIGURED'; END IF;
 
-  IF TG_TABLE_NAME = 'staff_clients' AND NEW.case_stage NOT IN ('completed', 'churned') THEN
-    SELECT count(*) INTO used_count FROM public.staff_clients
-      WHERE workspace_id = target_workspace AND case_stage NOT IN ('completed', 'churned') AND id IS DISTINCT FROM NEW.id;
-    IF catalog.max_clients IS NOT NULL AND used_count + 1 > catalog.max_clients THEN
-      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'CLIENTS_LIMIT_REACHED';
+  IF TG_TABLE_NAME = 'staff_clients' THEN
+    IF NEW.case_stage NOT IN ('completed', 'churned') THEN
+      SELECT count(*) INTO used_count FROM public.staff_clients
+        WHERE workspace_id = target_workspace AND case_stage NOT IN ('completed', 'churned') AND id IS DISTINCT FROM NEW.id;
+      IF catalog.max_clients IS NOT NULL AND used_count + 1 > catalog.max_clients THEN
+        RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'CLIENTS_LIMIT_REACHED';
+      END IF;
     END IF;
-  ELSIF TG_TABLE_NAME = 'workspace_memberships' AND NEW.status IN ('active', 'invited') THEN
-    SELECT count(*) INTO used_count FROM public.workspace_memberships
-      WHERE workspace_id = target_workspace AND status IN ('active', 'invited') AND id IS DISTINCT FROM NEW.id;
-    IF catalog.max_seats IS NOT NULL AND used_count + 1 > catalog.max_seats THEN
-      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'SEATS_LIMIT_REACHED';
+  ELSIF TG_TABLE_NAME = 'workspace_memberships' THEN
+    IF NEW.status IN ('active', 'invited') THEN
+      SELECT count(*) INTO used_count FROM public.workspace_memberships
+        WHERE workspace_id = target_workspace AND status IN ('active', 'invited') AND id IS DISTINCT FROM NEW.id;
+      IF catalog.max_seats IS NOT NULL AND used_count + 1 > catalog.max_seats THEN
+        RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'SEATS_LIMIT_REACHED';
+      END IF;
     END IF;
   ELSIF TG_TABLE_NAME = 'client_documents' THEN
     SELECT COALESCE(sum(GREATEST(file_size, 0)), 0) INTO used_bytes FROM public.client_documents

@@ -170,7 +170,11 @@ describe('Stripe Test-Mode API', () => {
         metadata: { test: 'true' },
       });
       customerId = customer.id;
-      await stripe.paymentMethods.attach('pm_card_visa', { customer: customer.id });
+      const paymentMethod = await stripe.paymentMethods.create({
+        type: 'card',
+        card: { token: 'tok_visa' },
+      });
+      await stripe.paymentMethods.attach(paymentMethod.id, { customer: customer.id });
       const product = await stripe.products.create({
         name: 'FMM isolated integration subscription',
         metadata: { test: 'true' },
@@ -185,7 +189,7 @@ describe('Stripe Test-Mode API', () => {
       });
       priceId = price.id;
       const subscription = await stripe.subscriptions.create(
-        buildTestSubscriptionParams(customer.id, price.id, 'pm_card_visa'),
+        buildTestSubscriptionParams(customer.id, price.id, paymentMethod.id),
       );
       subscriptionId = subscription.id;
 

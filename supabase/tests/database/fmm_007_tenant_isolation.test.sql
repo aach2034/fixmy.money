@@ -62,6 +62,7 @@ SET
   plan_id = 'professional',
   stripe_status = 'trialing',
   access_state = 'trial',
+  trial_source = 'stripe',
   trial_ends_at = CURRENT_TIMESTAMP + interval '1 day',
   last_verified_at = CURRENT_TIMESTAMP
 WHERE workspace_id IN (
