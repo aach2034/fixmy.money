@@ -193,4 +193,11 @@ describe('temporary new-signup shutdown', () => {
     expect(form).toContain('await submitWaitlist(token)');
     expect(form).not.toContain('TURNSTILE_SECRET_KEY');
   });
+
+  it('keeps customer-signup Turnstile callbacks stable across renders', () => {
+    const form = fs.readFileSync('src/app/signup/components/PublicSignupForm.tsx', 'utf8');
+    expect(form).toContain('const handleCaptchaError = useCallback');
+    expect(form).toContain('onError={handleCaptchaError}');
+    expect(form).not.toContain('onError={() =>');
+  });
 });

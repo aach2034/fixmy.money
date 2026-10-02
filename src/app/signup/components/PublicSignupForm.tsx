@@ -28,6 +28,10 @@ export default function PublicSignupForm() {
     setCaptchaToken('');
     setCaptchaGeneration(value => value + 1);
   }, []);
+  const handleCaptchaError = useCallback(() => {
+    setCaptchaError(true);
+    setCaptchaToken('');
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,7 +106,7 @@ export default function PublicSignupForm() {
       <div><label className="label-text" htmlFor="confirmPassword">Confirm password</label><input className="input-field" id="confirmPassword" name="confirmPassword" type="password" minLength={12} maxLength={128} required autoComplete="new-password" /></div>
       <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input className="mt-1" type="checkbox" name="businessUse" value="accepted" required /><span>{BUSINESS_USE_DECLARATION} <Link className="font-semibold text-blue-700 underline" href="/business-use">Read the Business Use Policy</Link>.</span></label>
       <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input className="mt-1" type="checkbox" name="terms" value="accepted" required />I agree to the <Link className="font-semibold text-blue-700 underline" href="/terms-of-service">Terms of Service</Link> and <Link className="font-semibold text-blue-700 underline" href="/privacy">Privacy Policy</Link>.</label>
-      {siteKey && <TurnstileChallenge action="customer_signup" generation={captchaGeneration} siteKey={siteKey} onToken={handleToken} onExpired={resetCaptcha} onError={() => { setCaptchaError(true); setCaptchaToken(''); }} />}
+      {siteKey && <TurnstileChallenge action="customer_signup" generation={captchaGeneration} siteKey={siteKey} onToken={handleToken} onExpired={resetCaptcha} onError={handleCaptchaError} />}
       {captchaError && <p role="alert" className="text-sm font-semibold text-rose-700">Security verification could not load. Refresh the page or try again later.</p>}
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">{error}</p>}
       <button type="submit" disabled={!plan || state === 'submitting' || captchaError} className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl py-3 disabled:opacity-60">{state === 'submitting' && <Loader2 className="size-4 animate-spin" />}{state === 'submitting' ? 'CREATING ACCOUNT…' : 'START 30-DAY FREE TRIAL'}</button>
