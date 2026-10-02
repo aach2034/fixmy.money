@@ -15,7 +15,7 @@ export default function BusinessUsePage() {
       <h1 className="text-3xl font-bold text-slate-900">Business Use Policy</h1>
       <p className="text-sm">Version {BUSINESS_USE_POLICY_VERSION} · September 28, 2026</p>
       <h2 className="text-xl font-bold text-slate-900">Who the software is for</h2>
-      <p>New Start and Grow accounts are for businesses managing client-service operations. The purchaser must be authorized to act for that business. A business name, LLC filing, or checkbox alone does not establish eligibility for every service or jurisdiction. Personal-use subscriptions are no longer offered; existing subscriptions are not changed by this announcement.</p>
+      <p>New FixMy Pro and FixMy Scale accounts are for businesses managing client-service operations. The purchaser must be authorized to act for that business. A business name, LLC filing, or checkbox alone does not establish eligibility for every service or jurisdiction. New FixMy Credit enrollment is not yet available; existing subscriptions are not changed by this announcement.</p>
       <h2 className="text-xl font-bold text-slate-900">Software access, not consumer services</h2>
       <p>FixMy.Money provides client records, report-review tools, editable correspondence, and workflow tracking. We do not perform credit repair for your clients, promise results, sell a guaranteed business opportunity, or determine what you can charge consumers. A software subscription is not evidence that a consumer service has been completed.</p>
       <h2 className="text-xl font-bold text-slate-900">Your responsibilities</h2>

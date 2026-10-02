@@ -13,8 +13,10 @@
  * - Schema.org structured data
  * - Confirmation emails
  *
- * New acquisition is business-only. New paid activation remains on hold.
- * Historical Personal identifiers and entitlements must remain resolvable.
+ * The owner-approved customer-facing names are FixMy Credit, FixMy Pro, and
+ * FixMy Scale. Stable technical IDs remain unchanged so existing subscriptions
+ * and entitlements continue to resolve.
+ * New FixMy Credit acquisition remains held. New paid activation remains held.
  * Annual billing is not published until matching Stripe prices are configured.
  */
 
@@ -67,7 +69,7 @@ export interface PlanConfig {
 export const PLANS: Record<PlanId, PlanConfig> = {
   starter: {
     id: 'starter',
-    name: 'Personal',
+    name: 'FixMy Credit',
     monthlyPrice: 39,
     annualPrice: null,
     annualTotal: null,
@@ -75,7 +77,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxTeamMembers: 1,
     storageGb: 5,
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant'],
-    description: 'Legacy Personal plan. Not available for new subscriptions.',
+    description: 'For people managing their own credit information. New enrollment is not yet available.',
     features: [
       'Core CRM',
       'Client portal',
@@ -87,13 +89,13 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     ],
     badge: null,
     highlight: false,
-    cta: 'Existing customers only',
+    cta: 'View availability',
     stripePriceIdEnvKey: 'STRIPE_STARTER_PRICE_ID',
     stripeAmountCents: 3900,
   },
   professional: {
     id: 'professional',
-    name: 'Start',
+    name: 'FixMy Pro',
     monthlyPrice: 99,
     annualPrice: null,
     annualTotal: null,
@@ -122,7 +124,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   },
   agency: {
     id: 'agency',
-    name: 'Grow',
+    name: 'FixMy Scale',
     monthlyPrice: 199,
     annualPrice: null,
     annualTotal: null,
@@ -132,7 +134,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
     description: 'For growing agencies managing up to 600 active clients.',
     features: [
-      'Everything in Start',
+      'Everything in FixMy Pro',
       'Data export',
       'Onboarding assistance',
       'Priority support',
@@ -155,7 +157,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     enabledFeatures: ['core_crm', 'client_portal', 'credit_report_import', 'ai_assistant', 'team_access', 'data_export'],
     description: 'Custom pricing for large agencies and multi-location operations.',
     features: [
-      'Everything in Grow',
+      'Everything in FixMy Scale',
       'Custom integrations',
       'Dedicated success manager',
       'Custom SLA',
@@ -173,6 +175,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
 
 /** Ordered list for display (pricing cards, comparison tables, etc.) */
 export const PLANS_LIST: PlanConfig[] = [
+  PLANS.starter,
   PLANS.professional,
   PLANS.agency,
 ];

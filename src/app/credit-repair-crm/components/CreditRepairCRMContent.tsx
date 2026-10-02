@@ -116,7 +116,7 @@ const CreditRepairCRMContent = () => {
               },
               {
                 q: 'How many clients can I manage?',
-                a: 'Business plans support up to 300 active clients on Start and 600 on Grow.',
+                a: 'Business plans support up to 300 active clients on FixMy Pro and 600 on FixMy Scale.',
               },
               {
                 q: 'Can my team collaborate?',

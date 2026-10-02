@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   const captchaToken = typeof payload.captchaToken === 'string' ? payload.captchaToken.trim() : '';
 
   if (!isBusinessPlan(plan)) {
-    return noStoreJson({ error: 'New accounts are for businesses on Start or Grow. Select a business plan.', code: 'BUSINESS_PLAN_REQUIRED' }, 400);
+    return noStoreJson({ error: 'New accounts are currently available for FixMy Pro or FixMy Scale. FixMy Credit enrollment remains unavailable.', code: 'BUSINESS_PLAN_REQUIRED' }, 400);
   }
   if (payload.termsAccepted !== true || payload.businessUseAccepted !== true || payload.businessPolicyVersion !== BUSINESS_USE_POLICY_VERSION) {
     return noStoreJson({ error: 'Accept the current Terms of Service and Business Use Policy to continue.', code: 'BUSINESS_DECLARATION_REQUIRED' }, 400);

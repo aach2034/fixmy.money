@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!user) return noStore({ error: 'Authentication required.' }, 401);
     const payload = await request.json().catch(() => null) as { plan?: unknown; requestId?: unknown } | null;
     if (!payload || !isBusinessPlan(payload.plan)) {
-      return noStore({ error: 'Select the Start or Grow business plan.', code: 'BUSINESS_PLAN_REQUIRED' }, 400);
+      return noStore({ error: 'Select FixMy Pro or FixMy Scale.', code: 'BUSINESS_PLAN_REQUIRED' }, 400);
     }
     if (typeof payload.requestId !== 'string' || !REQUEST_ID_PATTERN.test(payload.requestId)) {
       return noStore({ error: 'Invalid checkout request.' }, 400);

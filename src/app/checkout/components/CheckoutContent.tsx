@@ -61,7 +61,7 @@ export default function CheckoutContent() {
           Your free trial does not convert automatically and cannot create a charge, invoice, or debt.
           Payment details are requested only after you select the button below and review Stripe&apos;s confirmation screen.
         </p>
-        <p className="mt-3 text-sm text-slate-600">Personal remains available only to existing customers. Existing subscriptions and access are unchanged.</p>
+        <p className="mt-3 text-sm text-slate-600">New FixMy Credit billing remains unavailable. Existing subscriptions and access are unchanged.</p>
         {error && <p role="alert" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{error}</p>}
         <button type="button" disabled={submitting} onClick={subscribe} className="btn-primary mt-6 w-full justify-center disabled:opacity-60">
           {submitting ? 'Opening secure checkout…' : `Subscribe to ${plan.name} — $${plan.monthlyPrice}/month`}

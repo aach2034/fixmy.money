@@ -127,7 +127,7 @@ describe('FMM-014 enforced release gates', () => {
     expect(journey).toContain("plan=starter");
     expect(journey).toContain("stripe_subscription_id).toBeNull()");
     expect(journey).toContain('trial_ended');
-    expect(journey).toContain('Subscribe to Start — $99/month');
+    expect(journey).toContain('Subscribe to FixMy Pro — $99/month');
     expect(journey).toContain('checkout\\.stripe\\.com');
     expect(journey).toContain('https://docs.stripe.com/automated-testing');
     expect(journey).toContain('pm_card_visa_chargeDeclined');

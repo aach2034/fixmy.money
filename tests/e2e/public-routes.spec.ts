@@ -89,13 +89,13 @@ test.describe('Pricing (/pricing)', () => {
 
   test('has plan options', async ({ page }) => {
     await page.goto('/pricing');
-    for (const [plan, price] of [['Start', '$99'], ['Grow', '$199']] as const) {
+    for (const [plan, price] of [['FixMy Credit', '$39'], ['FixMy Pro', '$99'], ['FixMy Scale', '$199']] as const) {
       const card = page.getByRole('heading', { name: plan, exact: true }).locator('xpath=../..');
       await expect(card).toContainText(price);
       await expect(card).toContainText('per month');
     }
     await expect(page.getByText('$249', { exact: true })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Personal', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'View availability' })).toHaveCount(1);
   });
 });
 

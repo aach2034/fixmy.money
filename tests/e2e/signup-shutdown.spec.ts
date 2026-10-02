@@ -6,7 +6,7 @@ test.describe('temporary signup shutdown', () => {
     await expect(page.getByText('30-day free trial · No credit card required')).toBeVisible();
     await expect(page.getByText('Trial expiration never creates a charge or subscription.')).toBeVisible();
     await expect(page.getByRole('link', { name: /Explore Business Software/ })).toHaveAttribute('href', '/professionals');
-    await expect(page.getByRole('link', { name: /Compare Start and Grow/ })).toHaveAttribute('href', '/pricing');
+    await expect(page.getByRole('link', { name: /Compare plans/ })).toHaveAttribute('href', '/pricing');
     if ((page.viewportSize()?.width ?? 1024) < 1024) {
       await page.locator('summary[aria-label="Open navigation menu"]').click();
     }

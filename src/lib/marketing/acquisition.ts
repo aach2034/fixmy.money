@@ -58,7 +58,7 @@ export const creatorPages: Record<string, {
   creator123: {
     name: 'Creator Partner',
     headline: 'Client-management and report-review software for independent businesses.',
-    offer: 'Explore Start and Grow for your business. No new personal-use subscriptions.',
+    offer: 'Explore FixMy Pro and FixMy Scale for your business. New FixMy Credit enrollment is not yet available.',
     ref: 'creator123',
     audience: 'professional',
   },

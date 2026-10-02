@@ -33,7 +33,7 @@ export default function PublicSignupForm() {
     event.preventDefault();
     setError('');
     if (!plan) {
-      setError('Select Start or Grow. Personal is no longer available for new accounts.');
+      setError('Select FixMy Pro or FixMy Scale. FixMy Credit enrollment is not yet available.');
       return;
     }
     if (siteKey && !captchaToken) {
@@ -94,7 +94,7 @@ export default function PublicSignupForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      {plan ? <p className="text-sm text-slate-600">Business software account · {PLANS[plan].name}. No personal-use subscriptions.</p> : <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">That plan is not available for new accounts. Choose <Link href="/signup?plan=professional" className="underline">Start</Link> or <Link href="/signup?plan=agency" className="underline">Grow</Link> for your business.</p>}
+      {plan ? <p className="text-sm text-slate-600">Business software account · {PLANS[plan].name}. FixMy Credit enrollment remains unavailable.</p> : <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">That plan is not available for new accounts. Choose <Link href="/signup?plan=professional" className="underline">FixMy Pro</Link> or <Link href="/signup?plan=agency" className="underline">FixMy Scale</Link> for your business.</p>}
       <div><label className="label-text" htmlFor="companyName">Company name</label><input className="input-field" id="companyName" name="companyName" maxLength={120} required autoComplete="organization" /></div>
       <div><label className="label-text" htmlFor="adminName">Your name</label><input className="input-field" id="adminName" name="adminName" maxLength={100} required autoComplete="name" /></div>
       <div><label className="label-text" htmlFor="email">Work email</label><input className="input-field" id="email" name="email" type="email" maxLength={254} required autoComplete="email" /></div>

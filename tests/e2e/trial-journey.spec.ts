@@ -220,7 +220,7 @@ test("signup, confirmation, application trial, expiry, and supported voluntary p
 
   await page.goto("/signup?plan=starter");
   await expect(page.getByRole("alert")).toContainText(
-    "That plan is not available for new accounts. Choose Start or Grow for your business.",
+    "That plan is not available for new accounts. Choose FixMy Pro or FixMy Scale for your business.",
   );
   await expect(
     page.getByRole("button", { name: "START 30-DAY FREE TRIAL" }),
@@ -392,10 +392,10 @@ test("signup, confirmation, application trial, expiry, and supported voluntary p
   if (verificationError) throw verificationError;
 
   await page.reload();
-  await page.getByRole("link", { name: "Subscribe to Start" }).click();
-  await expect(page.getByText("Start is $99/month")).toBeVisible();
+  await page.getByRole("link", { name: "Subscribe to FixMy Pro" }).click();
+  await expect(page.getByText("FixMy Pro is $99/month")).toBeVisible();
   await page
-    .getByRole("button", { name: "Subscribe to Start — $99/month" })
+    .getByRole("button", { name: "Subscribe to FixMy Pro — $99/month" })
     .click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30_000 });
 

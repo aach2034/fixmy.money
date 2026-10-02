@@ -130,7 +130,7 @@ I built FixMy.Money after spending time in the credit repair industry and being 
 
 **Tech stack:** Next.js, Supabase, OpenAI, Stripe
 
-**Published monthly prices:** Start $99, Grow $199. Business software only. New paid activation is on hold.
+**Published monthly prices:** FixMy Credit $39, FixMy Pro $99, FixMy Scale $199. Software access only. New paid activation is on hold.
 
 **Compliance:** Software tools only — users handle their own CROA/FCRA compliance
 

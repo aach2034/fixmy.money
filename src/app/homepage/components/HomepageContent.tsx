@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight, Check, Menu, Search, ShieldCheck, Upload } from 'lucide-react';
-import { CHECKOUT_PLANS } from '@/lib/stripe/plans';
+import { PLANS_LIST } from '@/lib/stripe/plans';
 import PublicBrandLink from '@/components/marketing/PublicBrandLink';
 import PublicFooter from '@/components/marketing/PublicFooter';
 import HomepageShareButton from '@/components/marketing/HomepageShareButton';
@@ -34,6 +34,7 @@ export default function Home() {
         <nav aria-label="Primary" className="mx-auto flex min-h-[84px] max-w-[1440px] items-center justify-between gap-4 border-b border-[#e9eef3] bg-white px-5 lg:px-12">
           <PublicBrandLink />
           <div className="hidden items-center gap-7 text-sm font-medium lg:flex">
+            <Link href="/individuals" className="hover:text-[#008958]">For Individuals</Link>
             <Link href="/professionals" className="hover:text-[#008958]">For Professionals</Link>
             <a href="#solutions" className="hover:text-[#008958]">How It Works</a>
             <a href="#pricing" className="hover:text-[#008958]">Pricing</a>
@@ -49,6 +50,7 @@ export default function Home() {
             <details className="relative">
               <summary className="flex size-11 cursor-pointer list-none items-center justify-center rounded-md border border-[#dce5ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]" aria-label="Open navigation menu"><Menu className="size-5" aria-hidden="true" /></summary>
               <div className="absolute right-0 top-12 z-30 flex w-56 flex-col rounded-xl border border-[#dce5ee] bg-white p-2 shadow-lg">
+                <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/individuals">For Individuals</Link>
                 <Link className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="/professionals">For Professionals</Link>
                 <a className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="#solutions">How It Works</a>
                 <a className="rounded-md px-3 py-3 hover:bg-[#effbf5]" href="#pricing">Pricing</a>
@@ -69,7 +71,7 @@ export default function Home() {
           <p className="mt-6 max-w-xl text-lg leading-8 text-[#586984]">Manage clients, review credit reports, prepare editable correspondence, and track your team’s work in one business workspace. You provide the service; we provide the software.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <TrackedLink href="/professionals" eventLabel="Explore Business Software" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg bg-[#007f51] px-6 text-center text-base font-bold text-white hover:bg-[#006e46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008958]">Explore Business Software <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
-            <TrackedLink href="/pricing" eventLabel="Compare Start and Grow" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg border border-[#aebfd2] bg-white px-6 text-center text-base font-bold text-[#263754] hover:border-[#007f51] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Compare Start and Grow <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
+            <TrackedLink href="/pricing" eventLabel="Compare plans" eventLocation="homepage_hero" className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-lg border border-[#aebfd2] bg-white px-6 text-center text-base font-bold text-[#263754] hover:border-[#007f51] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#008958]">Compare plans <ArrowRight className="size-5" aria-hidden="true" /></TrackedLink>
           </div>
           <p className="mt-6 text-xs font-bold uppercase tracking-[.17em] text-[#53647e]">30-day free trial · No credit card required</p>
           <p className="mt-2 text-base text-[#586984]">Trial expiration never creates a charge or subscription.</p>
@@ -115,18 +117,18 @@ export default function Home() {
       <section id="pricing" className="bg-[#fbfcfe] px-5 py-24 lg:px-8">
         <div className="mx-auto max-w-[1050px]">
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#267a31]">Start and Grow · 30-day free trial</p>
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#267a31]">FixMy Credit · FixMy Pro · FixMy Scale</p>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-.05em] sm:text-5xl">Choose the workspace that fits.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#60716a]">Monthly business software subscriptions for professional client work and growing agencies. Not a consumer credit-repair service.</p>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#60716a]">Three defined software plans. FixMy Pro and FixMy Scale are available for business trial signup. New FixMy Credit enrollment remains unavailable.</p>
           </div>
-          <div className="mt-12 grid gap-5 md:grid-cols-2">
-            {CHECKOUT_PLANS.map(plan => (
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {PLANS_LIST.map(plan => (
               <article key={plan.id} className={`relative rounded-2xl border p-7 ${plan.highlight ? 'border-[#79aa94] bg-white shadow-[0_18px_50px_rgba(16,61,48,.1)]' : 'border-[#dfe4ec] bg-white'}`}>
-                <p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#267a31]">{plan.id === 'professional' ? 'Professional teams' : 'Growing agencies'}</p>
+                <p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#267a31]">{plan.id === 'starter' ? 'Individual software' : plan.id === 'professional' ? 'Credit professionals' : 'Growing teams'}</p>
                 <h3 className="mt-3 text-lg font-semibold">{plan.name}</h3>
                 <p className="mt-4 flex items-baseline gap-2"><span className="text-4xl font-semibold tracking-[-.05em]">${plan.monthlyPrice}</span><span className="text-sm font-semibold text-[#64736c]">per month</span></p>
                 <p className="mt-2 text-sm text-[#718079]">{plan.description}</p>
-                <a href={`/signup?plan=${plan.id}`} className={`mt-7 block w-full rounded-xl py-3 text-center text-sm font-semibold ${plan.highlight ? 'bg-[#267a31] text-white' : 'border border-[#dfe4ec] text-[#19322b]'}`}>30-day free trial. No credit card required.</a>
+                <a href={plan.id === 'starter' ? '/individuals' : `/signup?plan=${plan.id}`} className={`mt-7 block w-full rounded-xl py-3 text-center text-sm font-semibold ${plan.highlight ? 'bg-[#267a31] text-white' : 'border border-[#dfe4ec] text-[#19322b]'}`}>{plan.id === 'starter' ? 'View availability' : '30-day free trial. No credit card required.'}</a>
                 <div className="mt-6 space-y-3">{plan.features.slice(0,3).map(x => <p key={x} className="flex items-center gap-2 text-sm text-[#52655c]"><Check className="size-4 text-[#267a31]" />{x}</p>)}</div>
               </article>
             ))}

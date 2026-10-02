@@ -30,7 +30,7 @@ export default function ReopeningNotice({ standalone = false }: { standalone?: b
           <aside aria-labelledby="next-heading" className="min-w-0 bg-[#effff9] p-6 sm:p-10 lg:p-12">
             <h2 id="next-heading" className="text-3xl font-extrabold tracking-[-.03em]">What happens next</h2>
             <ol className="mt-5 space-y-4 text-lg">
-              {['Reserve your place', 'We’ll email you before reopening', 'Choose Start or Grow for your business'].map((step, index) => <li key={step} className="flex items-center gap-5"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#daf8eb] text-base font-bold text-[#006d49]">{index + 1}</span><span>{step}</span></li>)}
+              {['Reserve your place', 'We’ll email you before reopening', 'Choose FixMy Pro or FixMy Scale for your business'].map((step, index) => <li key={step} className="flex items-center gap-5"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#daf8eb] text-base font-bold text-[#006d49]">{index + 1}</span><span>{step}</span></li>)}
             </ol>
             <div className="mt-7 rounded-xl bg-[#e0f9ed] px-6 py-5"><p className="text-sm">Your reopening benefit</p><p className="mt-2 flex items-center gap-4 text-xl font-bold"><Check className="size-7 rounded-full bg-[#00955f] p-1 text-white" aria-hidden="true" />First month free</p></div>
             <div className="mt-5 rounded-xl border border-[#dce5ef] bg-white p-4 shadow-sm">

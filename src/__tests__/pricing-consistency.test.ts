@@ -23,7 +23,7 @@ import { PLANS, PLANS_LIST, CHECKOUT_PLANS, getStripePriceId } from '../lib/stri
 // ─── 1. Centralized Pricing Config ───────────────────────────────────────────
 
 describe('Centralized Pricing Config — Single Source of Truth', () => {
-  it('homepage imports checkout plans instead of defining another pricing table', async () => {
+  it('homepage imports the centralized public plan list instead of defining another pricing table', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const homepage = fs.readFileSync(
@@ -32,24 +32,24 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     );
 
     expect(homepage).toContain("from '@/lib/stripe/plans'");
-    expect(homepage).toContain('CHECKOUT_PLANS');
+    expect(homepage).toContain('PLANS_LIST');
     expect(homepage).not.toMatch(/const\s+PLANS\s*=\s*\[/);
   });
 
-  it('legacy Personal pricing remains $39/month', () => {
-    expect(PLANS.starter.name).toBe('Personal');
+  it('FixMy Credit pricing remains $39/month', () => {
+    expect(PLANS.starter.name).toBe('FixMy Credit');
     expect(PLANS.starter.monthlyPrice).toBe(39);
     expect(PLANS.starter.stripeAmountCents).toBe(3900);
   });
 
-  it('Start plan costs $99/month', () => {
-    expect(PLANS.professional.name).toBe('Start');
+  it('FixMy Pro costs $99/month', () => {
+    expect(PLANS.professional.name).toBe('FixMy Pro');
     expect(PLANS.professional.monthlyPrice).toBe(99);
     expect(PLANS.professional.stripeAmountCents).toBe(9900);
   });
 
-  it('Grow plan costs $199/month', () => {
-    expect(PLANS.agency.name).toBe('Grow');
+  it('FixMy Scale costs $199/month', () => {
+    expect(PLANS.agency.name).toBe('FixMy Scale');
     expect(PLANS.agency.monthlyPrice).toBe(199);
     expect(PLANS.agency.stripeAmountCents).toBe(19900);
   });
@@ -75,10 +75,10 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     expect(planIds).not.toContain('growth');
   });
 
-  it('New acquisition offers professional and agency only', () => {
+  it('publishes three plans while limiting new checkout to professional and agency', () => {
     const checkoutIds = CHECKOUT_PLANS.map(p => p.id);
     expect(checkoutIds).toEqual(['professional', 'agency']);
-    expect(PLANS_LIST.map(p => p.id)).toEqual(checkoutIds);
+    expect(PLANS_LIST.map(p => p.id)).toEqual(['starter', 'professional', 'agency']);
     expect(checkoutIds).not.toContain('enterprise');
     expect(checkoutIds).not.toContain('growth');
   });
@@ -122,7 +122,7 @@ describe('New paid checkout hold', () => {
     const fs = await import('fs');
     const source = fs.readFileSync('src/lib/stripe/plans.ts', 'utf8');
     expect(source).not.toContain('TRIAL_CONFIG');
-    expect(PLANS.starter.cta).toBe('Existing customers only');
+    expect(PLANS.starter.cta).toBe('View availability');
     expect(PLANS.professional.cta).toBe('Start 30-day free trial');
   });
 

@@ -66,8 +66,8 @@ const COMPARISON_ROWS: {
 
 const BILLING_FAQS = [
   { q: 'Is a credit card required for the free trial?', a: 'No. The 30-day free trial requires no card and never creates a charge or debt at expiration.' },
-  { q: 'Who can purchase a plan?', a: 'Start and Grow are business software subscriptions for authorized representatives of businesses managing client workflows. New personal-use subscriptions are not offered.' },
-  { q: 'When does paid billing begin?', a: 'Only after the workspace owner separately chooses Start or Grow, reviews the monthly price and terms, enters payment details, and confirms through secure Checkout. Trial expiration never starts billing.' },
+  { q: 'Who can purchase a plan?', a: 'FixMy Pro and FixMy Scale are business software subscriptions for authorized representatives of businesses managing client workflows. New FixMy Credit enrollment is not yet available.' },
+  { q: 'When does paid billing begin?', a: 'Only after the workspace owner separately chooses FixMy Pro or FixMy Scale, reviews the monthly price and terms, enters payment details, and confirms through secure Checkout. Trial expiration never starts billing.' },
   { q: 'Is this a fee for repairing my credit?', a: 'No. Published prices are for business access to software, not consumer credit-repair work or a promised credit result. They do not determine what an agency may charge its clients or when.' },
   { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
   { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
@@ -87,6 +87,11 @@ export default function PricingContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const handleStartTrial = (planId: string, planName: string, price: number | null) => {
+    if (planId === 'starter') {
+      trackCtaClick('View FixMy Credit availability', '/individuals', 'pricing_page');
+      router.push('/individuals');
+      return;
+    }
     if (planId === 'enterprise') {
       trackCtaClick('Contact Sales', '/contact', 'pricing_page');
       router.push('/contact');
@@ -121,7 +126,7 @@ export default function PricingContent() {
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
           <p className="text-xl text-slate-300 mb-3">30-day free trial. No credit card required.</p>
-          <p className="text-sm text-slate-400 mb-8">Trial expiration pauses paid features without charging you. Subscribe only after reviewing the price and monthly terms.</p>
+          <p className="text-sm text-slate-400 mb-8">The no-card trial applies to FixMy Pro and FixMy Scale. Trial expiration pauses paid features without charging you. FixMy Credit enrollment remains unavailable.</p>
 
           <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-5 py-3 text-sm font-semibold text-white">
             Monthly billing
@@ -132,7 +137,7 @@ export default function PricingContent() {
       {/* Pricing Cards */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PLANS.map((plan) => {
               const price = plan.monthlyPrice;
               return (
@@ -174,7 +179,7 @@ export default function PricingContent() {
                         : plan.id === 'enterprise' ?'bg-slate-900 hover:bg-slate-800 text-white' :'bg-slate-100 hover:bg-slate-200 text-slate-900'
                     }`}
                   >
-                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Start 30-Day Free Trial'}
+                    {plan.cta}
                   </button>
                 </div>
               );
@@ -182,7 +187,7 @@ export default function PricingContent() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            30-day free trial. No credit card required. Start and Grow are for business use only. Personal is preserved for existing customers. Paid Checkout is separately gated.
+            FixMy Pro and FixMy Scale include the existing 30-day no-card trial. FixMy Credit is $39/month, but new enrollment and billing remain unavailable. Existing subscriptions are unchanged. Paid Checkout is separately gated.
           </p>
         </div>
       </section>
@@ -240,6 +245,7 @@ export default function PricingContent() {
                             <span title={row.tooltip}><HelpCircle size={13} className="text-slate-400" /></span>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-center"><CellValue value={row.starter} /></td>
                         <td className="px-4 py-3 text-center bg-blue-50/30"><CellValue value={row.professional} /></td>
                         <td className="px-4 py-3 text-center"><CellValue value={row.agency} /></td>
                       </tr>

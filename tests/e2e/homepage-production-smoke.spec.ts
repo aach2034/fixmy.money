@@ -136,14 +136,14 @@ test.describe('production homepage smoke', () => {
     await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
     await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Compare Start and Grow/i }).click();
+    await page.getByRole('link', { name: /Compare plans/i }).click();
     await expect(page).toHaveURL(/\/pricing$/);
-    await page.locator('div.relative').filter({ has: page.getByRole('heading', { name: 'Start', exact: true }) }).getByRole('button', { name: 'Start 30-Day Free Trial' }).click();
+    await page.locator('div.relative').filter({ has: page.getByRole('heading', { name: 'FixMy Pro', exact: true }) }).getByRole('button', { name: 'Start 30-day free trial' }).click();
     await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
     const planExpectations = [
-      { name: 'Start', id: 'professional' },
-      { name: 'Grow', id: 'agency' },
+      { name: 'FixMy Pro', id: 'professional' },
+      { name: 'FixMy Scale', id: 'agency' },
     ] as const;
 
     for (const plan of planExpectations) {

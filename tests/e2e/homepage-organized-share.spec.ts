@@ -26,8 +26,8 @@ test.describe('organized credit-report homepage experience', () => {
       .map(element => Number.parseFloat(getComputedStyle(element).fontSize)));
     expect(Math.min(...mobileTextSizes)).toBeGreaterThanOrEqual(12);
 
-    await expect(page.getByText('Start and Grow · 30-day free trial', { exact: true })).toBeVisible();
-    await expect(page.getByText('per month', { exact: true })).toHaveCount(2);
+    await expect(page.getByText('FixMy Credit · FixMy Pro · FixMy Scale', { exact: true })).toBeVisible();
+    await expect(page.getByText('per month', { exact: true })).toHaveCount(3);
     await expect(page.getByText(/most popular/i)).toHaveCount(0);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

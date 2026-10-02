@@ -58,9 +58,10 @@ const BILLING_ONLY_SECTIONS = [
 ];
 
 const PLAN_LABELS: Record<string, string> = {
-  starter: 'Starter',
-  growth: 'Professional',
-  agency: 'Agency',
+  starter: 'FixMy Credit',
+  professional: 'FixMy Pro',
+  growth: 'FixMy Pro',
+  agency: 'FixMy Scale',
   trial_active: 'Trial',
   trialing: 'Trial',
   active: 'Active',
