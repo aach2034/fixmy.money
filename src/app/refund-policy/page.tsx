@@ -24,7 +24,7 @@ export default function RefundPolicyPage() {
         <p className="text-sm text-slate-500 mb-8">Last updated: June 2026</p>
         <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-6">
           <h2 className="text-lg font-bold text-slate-900">New paid activation</h2>
-          <p className="text-slate-600">New paid activation is on hold. The reopening list does not collect a payment or card. Consumer billing terms are pending final legal approval.</p>
+          <p className="text-slate-600">The 30-day free trial requires no credit card, does not renew automatically, and creates no amount to refund. Paid activation is a separate, explicit choice and remains controlled by the release billing gate.</p>
 
           <h2 className="text-lg font-bold text-slate-900">Subscription Refunds</h2>
           <p className="text-slate-600">Subscription fees are generally non-refundable. If you believe you were charged in error, contact us within 7 days at <a href="mailto:support@fixmy.money" className="text-blue-600 hover:underline">support@fixmy.money</a> and we will review your case.</p>

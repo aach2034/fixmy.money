@@ -54,7 +54,7 @@ export default function SecurityPage() {
         <section className="mt-8 rounded-2xl border border-slate-200 p-6">
           <h2 className="text-xl font-bold">Service providers currently in use</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Supabase provides database and authentication infrastructure. Stripe processes FixMy.Money subscription checkout and billing. Google Analytics may process product-usage analytics when enabled. External AI processing of credit-report files is disabled during containment.
+            Supabase provides database and authentication infrastructure. Stripe supports existing subscription billing; new paid Checkout remains on hold. Google Analytics may process product-usage analytics when enabled. External AI processing of credit-report files is disabled during containment.
           </p>
         </section>
       </section>

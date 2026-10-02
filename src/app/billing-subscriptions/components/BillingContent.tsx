@@ -14,8 +14,8 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
-import { PLANS } from "@/lib/stripe/plans";
-import { trialEndForDisplay } from "@/lib/subscription/display";
+import { BUSINESS_PLAN_IDS, PLANS } from "@/lib/stripe/plans";
+import { trialDaysRemaining, trialEndForDisplay } from "@/lib/subscription/display";
 
 type Subscription = {
   canAccess: boolean;
@@ -23,6 +23,7 @@ type Subscription = {
   reason: string;
   planId: string | null;
   stripeStatus: string;
+  trialSource: string;
   trialEndsAt: string | null;
   currentPeriodEndsAt: string | null;
   graceEndsAt: string | null;
@@ -38,7 +39,7 @@ type ClientBilling = {
   subscription_status: "paid" | "overdue" | "pending" | null;
 };
 
-export default function BillingContent() {
+export default function BillingContent({ paidCheckoutEnabled }: { paidCheckoutEnabled: boolean }) {
   const { user } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -91,7 +92,9 @@ export default function BillingContent() {
 
   const status = subscription?.state || "expired";
   const isActive = Boolean(subscription?.canAccess);
+  const canChoosePaidPlan = status === "trial" || status === "expired";
   const displayedTrialEnd = trialEndForDisplay(subscription);
+  const displayedTrialDays = trialDaysRemaining(displayedTrialEnd);
   const paid = clients.filter((c) => c.subscription_status === "paid").length;
   const overdue = clients.filter(
     (c) => c.subscription_status === "overdue",
@@ -143,7 +146,7 @@ export default function BillingContent() {
               {displayedTrialEnd && (
                 <span className="text-xs text-slate-500">
                   · Trial ends{" "}
-                  {new Date(displayedTrialEnd).toLocaleDateString()}
+                  {new Date(displayedTrialEnd).toLocaleDateString()} ({displayedTrialDays} {displayedTrialDays === 1 ? "day" : "days"} remaining)
                 </span>
               )}
               {subscription?.graceEndsAt && status === "grace" && (
@@ -153,12 +156,12 @@ export default function BillingContent() {
               )}
             </div>
             <p className="text-sm text-slate-600 mt-3">
-              This is where your business pays FixMy.Money. The secure Stripe
-              portal lets you update your card, view invoices, change plans, or
-              cancel.
+              {status === "trial"
+                ? "30-day free trial. No credit card required. Trial expiration never creates a charge or debt; choose a paid plan to continue paid features. Your retained work is not deleted when the trial ends."
+                : "This is where your business pays FixMy.Money. The secure Stripe portal lets you update your card, view invoices, change plans, or cancel."}
             </p>
           </div>
-          {subscription?.hasBillingAccount ? (
+          {subscription?.hasBillingAccount && status !== "trial" ? (
             <button
               onClick={manageBilling}
               disabled={portalLoading}
@@ -171,15 +174,15 @@ export default function BillingContent() {
               )}
               Manage my subscription
             </button>
-          ) : (
+          ) : canChoosePaidPlan ? (
             <Link href="#plans" className="btn-primary">
               View published plans
             </Link>
-          )}
+          ) : null}
         </div>
       </section>
 
-      {!isActive && (
+      {canChoosePaidPlan && (
         <section
           id="plans"
           className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6"
@@ -188,12 +191,11 @@ export default function BillingContent() {
             Published monthly plans
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            New paid activation is on hold pending billing and legal review. No card or payment is collected here.
+            Paid activation remains separately controlled. Payment details are requested only after you choose a plan and review its price and monthly billing terms.
           </p>
-          <div className="grid md:grid-cols-3 gap-4 mt-5">
-            {Object.values(PLANS)
-              .filter((plan: any) => plan.stripeAmountCents)
-              .map((plan: any) => (
+          <div className="grid md:grid-cols-2 gap-4 mt-5">
+            {BUSINESS_PLAN_IDS.map((planId) => PLANS[planId])
+              .map((plan) => (
                 <div
                   key={plan.id}
                   className="rounded-xl border border-slate-200 p-5"
@@ -203,12 +205,18 @@ export default function BillingContent() {
                     {plan.description}
                   </p>
                   <p className="text-2xl font-black text-slate-900 mt-4">
-                    ${plan.stripeAmountCents / 100}
+                    ${plan.stripeAmountCents! / 100}
                     <span className="text-sm font-medium text-slate-400">
                       /month
                     </span>
                   </p>
-                  <p className="mt-4 text-xs font-semibold text-amber-800">Activation unavailable</p>
+                  {paidCheckoutEnabled ? (
+                    <Link href={`/checkout?plan=${plan.id}`} className="btn-primary mt-4 inline-flex">
+                      Subscribe to {plan.name}
+                    </Link>
+                  ) : (
+                    <p className="mt-4 text-xs font-semibold text-amber-800">Activation unavailable</p>
+                  )}
                 </div>
               ))}
           </div>

@@ -22,7 +22,7 @@ export default function ProfessionalsPage() {
       eyebrow="For professionals"
       title="Credit intelligence and dispute-management software built for professionals."
       description="Manage credit-related workflows for clients with report importing, negative-item identification, dispute workflows, letter generation, client tracking, and a focused dashboard."
-      primaryCta={{ label: 'Reserve One Month Free', href: '/reopen' }}
+      primaryCta={{ label: 'Start 30-Day Free Trial', href: '/signup?plan=professional' }}
       secondaryCta={{ label: 'See How It Works', href: '#how-it-works' }}
       features={[
         'Client management and workspace organization',

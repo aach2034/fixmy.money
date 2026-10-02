@@ -15,14 +15,14 @@ const CreditRepairCloudAlternativeContent = () => {
             Credit Repair Cloud Alternative: Why Agencies Are Switching
           </h1>
           <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            Tired of Credit Repair Cloud\'s limitations? Fix My Money offers AI-powered disputes, modern dashboard, Stripe billing, and better support at a better price.
+            FixMy.Money offers a modern dashboard, client CRM, structured report review, and a 30-day no-card business trial. External AI and new paid Checkout are temporarily unavailable.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
             <Link
-              href="/demo"
+              href="/signup?plan=professional"
               className="inline-flex items-center justify-center px-8 py-4 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition"
             >
-              Switch to Fix My Money <ArrowRight className="ml-2 w-5 h-5" />
+              Start 30-Day Free Trial <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <a
               href="#comparison"
@@ -49,10 +49,10 @@ const CreditRepairCloudAlternativeContent = () => {
               </thead>
               <tbody>
                 {[
-                  ['AI Credit Analysis', true, false],
-                  ['AI Dispute Generation', true, false],
+                  ['External AI analysis (temporarily unavailable)', false, false],
+                  ['Evidence-linked dispute preparation', true, false],
                   ['Modern Dashboard', true, false],
-                  ['Stripe Native Billing', true, false],
+                  ['New paid Checkout (on hold)', false, false],
                   ['White-Label Portal', true, true],
                   ['Client CRM', true, true],
                   ['Automated Workflows', true, true],
@@ -84,14 +84,14 @@ const CreditRepairCloudAlternativeContent = () => {
           </h2>
           <div className="space-y-6">
             {[
-              'AI-powered dispute generation saves 10+ hours per week',
-              'Modern, intuitive dashboard vs outdated interface',
-              'Stripe native billing with lower processing fees',
-              'Better customer support and faster response times',
-              'More affordable pricing with more features',
-              'Mobile app for managing clients on the go',
-              'API access for custom integrations',
-              'Faster onboarding and implementation',
+              'Structured report review with evidence-linked findings',
+              'Modern dashboard for client and workflow management',
+              'Human review before any dispute preparation',
+              'No automatic bureau submission or unsupported disputes',
+              '30-day business trial with no credit card required',
+              'FixMy Pro at $99 per month after separate paid activation',
+              'FixMy Scale at $199 per month after separate paid activation',
+              'External AI and new paid Checkout are clearly held',
             ]?.map((benefit, idx) => (
               <div key={idx} className="flex items-start gap-4">
                 <CheckCircle2 className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
@@ -111,10 +111,6 @@ const CreditRepairCloudAlternativeContent = () => {
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Fix My Money</h3>
               <div className="space-y-4 mb-8">
                 <div>
-                  <div className="text-3xl font-bold text-amber-600">${PLANS.starter.monthlyPrice}</div>
-                  <div className="text-gray-600">{PLANS.starter.name} ({PLANS.starter.maxClients} clients)</div>
-                </div>
-                <div>
                   <div className="text-3xl font-bold text-amber-600">${PLANS.professional.monthlyPrice}</div>
                   <div className="text-gray-600">{PLANS.professional.name} ({PLANS.professional.maxClients} clients)</div>
                 </div>
@@ -123,8 +119,8 @@ const CreditRepairCloudAlternativeContent = () => {
                   <div className="text-gray-600">{PLANS.agency.name} ({PLANS.agency.maxClients} clients)</div>
                 </div>
               </div>
-              <Link href="/demo" className="block text-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition">
-                Reserve One Month Free
+              <Link href="/signup?plan=professional" className="block text-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition">
+                Start 30-Day Free Trial
               </Link>
             </div>
             <div className="p-8 border border-gray-200 rounded-lg">
@@ -157,10 +153,10 @@ const CreditRepairCloudAlternativeContent = () => {
           </h2>
           <div className="space-y-8">
             {[
-              { step: '1', title: 'Join the Reopening List', desc: 'Reserve one full month free when you activate after reopening.' },
-              { step: '2', title: 'Import Your Clients', desc: 'We help you migrate all your clients from Credit Repair Cloud.' },
-              { step: '3', title: 'Set Up Your Workflows', desc: 'Configure automation rules and customize your portal.' },
-              { step: '4', title: 'Go Live', desc: 'Switch your clients over and start saving time immediately.' },
+              { step: '1', title: 'Start a Business Trial', desc: 'Create a FixMy Pro or FixMy Scale account for a 30-day trial with no credit card.' },
+              { step: '2', title: 'Review Supported Imports', desc: 'Confirm the supported data and document paths before moving customer records.' },
+              { step: '3', title: 'Set Up Your Workflows', desc: 'Configure client records, review steps, templates, and outcome tracking.' },
+              { step: '4', title: 'Validate Before Switching', desc: 'Use synthetic data first and move live customer work only after your own review.' },
             ]?.map((item, idx) => (
               <div key={idx} className="flex gap-6">
                 <div className="flex-shrink-0">
@@ -184,19 +180,19 @@ const CreditRepairCloudAlternativeContent = () => {
             {[
               {
                 q: 'Will I lose my client data when switching?',
-                a: 'No. We help you migrate all your clients, disputes, and history from Credit Repair Cloud. Your data is safe and secure.',
+                a: 'Do not assume every record can be migrated automatically. Review supported imports, preserve your source data, and validate a synthetic sample before moving live customer records.',
               },
               {
                 q: 'How long does the migration take?',
-                a: 'Most migrations take 1-2 days. Our team handles everything so you can focus on your business.',
+                a: 'Timing depends on your source data and required review. FixMy.Money does not promise a one- or two-day migration.',
               },
               {
                 q: 'Can I cancel my Credit Repair Cloud subscription?',
-                a: 'Yes. Once you\'re set up with Fix My Money, you can cancel your CRC subscription anytime.',
+                a: 'Your Credit Repair Cloud agreement controls cancellation. Keep access until you have independently verified any data you need to retain or move.',
               },
               {
                 q: 'What if I have questions during the migration?',
-                a: 'Our support team is here to help. We provide dedicated support during your migration and beyond.',
+                a: 'Use FixMy.Money support for product questions. No dedicated migration service or response-time promise is included unless separately agreed.',
               },
             ]?.map((faq, idx) => (
               <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -223,13 +219,13 @@ const CreditRepairCloudAlternativeContent = () => {
             Ready to Switch to Fix My Money?
           </h2>
           <p className="text-xl text-amber-100 mb-8">
-            Reserve one month free when FixMy.Money reopens September 30, 2026.
+            Start a 30-day FixMy Pro or FixMy Scale trial with no credit card. New paid Checkout remains on hold.
           </p>
           <Link
-            href="/demo"
+            href="/signup?plan=professional"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-amber-600 font-semibold rounded-lg hover:bg-gray-100 transition"
           >
-            Reserve One Month Free <ArrowRight className="ml-2 w-5 h-5" />
+            Start 30-Day Free Trial <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
       </section>

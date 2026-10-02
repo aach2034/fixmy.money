@@ -15,6 +15,9 @@ function publicEntitlement(
     reason: result.decision.reason,
     planId: result.row.plan_id,
     stripeStatus: result.row.stripe_status,
+    trialSource: result.row.trial_source,
+    freeTrialStartedAt: result.row.free_trial_started_at,
+    freeTrialEndsAt: result.row.free_trial_ends_at,
     trialEndsAt: result.row.trial_ends_at,
     currentPeriodEndsAt: result.row.current_period_ends_at,
     graceEndsAt: result.row.grace_ends_at,
@@ -45,7 +48,11 @@ async function entitlementResponse(forceReconcile: boolean) {
     });
   } catch (error) {
     const code = error instanceof EntitlementReconciliationError ? error.code : 'ENTITLEMENT_CHECK_FAILED';
-    const status = code === 'AMBIGUOUS_STRIPE_SUBSCRIPTIONS' || code === 'STRIPE_CUSTOMER_MISMATCH'
+    const status = [
+      'AMBIGUOUS_STRIPE_SUBSCRIPTIONS',
+      'STRIPE_CUSTOMER_MISMATCH',
+      'STRIPE_CUSTOMER_NOT_FOUND',
+    ].includes(code)
       ? 409
       : 503;
     console.error('[Entitlement] Verification failed:', code);

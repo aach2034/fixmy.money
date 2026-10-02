@@ -1,0 +1,193 @@
+BEGIN;
+
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT no_plan();
+
+-- Reproduce the production order: FMM-003/FMM-007 are already present while
+-- the older certified-mailings migration is still pending.
+DROP TABLE public.certified_mailings;
+DROP FUNCTION public.update_certified_mailings_updated_at();
+\ir migrations/20260826110000_certified_mailings.sql
+
+SELECT ok(
+  to_regclass('public.certified_mailings') IS NOT NULL,
+  'late replay creates certified_mailings'
+);
+
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.certified_mailings'::regclass),
+  'late replay enables row-level security'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS required(privilege)
+    WHERE has_table_privilege('authenticated', 'public.certified_mailings', required.privilege)
+  ),
+  4::bigint,
+  'authenticated callers retain the four application CRUD privileges'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS forbidden(privilege)
+    WHERE has_table_privilege('anon', 'public.certified_mailings', forbidden.privilege)
+  ),
+  0::bigint,
+  'anonymous callers have no certified-mailings table privileges'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS required(privilege)
+    WHERE has_table_privilege('service_role', 'public.certified_mailings', required.privilege)
+  ),
+  4::bigint,
+  'service role retains certified-mailings CRUD privileges'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_proc AS routine
+    JOIN pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+    WHERE namespace.nspname = 'public'
+      AND routine.proname = 'update_certified_mailings_updated_at'
+      AND NOT routine.prosecdef
+      AND routine.proconfig @> ARRAY['search_path=""']::text[]
+  ),
+  1::bigint,
+  'updated-at trigger function is invoker-safe with an empty search path'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_proc AS routine
+    JOIN pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+    CROSS JOIN LATERAL aclexplode(
+      COALESCE(routine.proacl, acldefault('f', routine.proowner))
+    ) AS permission
+    WHERE namespace.nspname = 'public'
+      AND routine.proname = 'update_certified_mailings_updated_at'
+      AND permission.grantee = 0
+      AND permission.privilege_type = 'EXECUTE'
+  ),
+  0::bigint,
+  'PUBLIC has no implicit execute grant on the trigger function'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM unnest(ARRAY['anon', 'authenticated']) AS browser_role(role_name)
+    WHERE has_function_privilege(
+      browser_role.role_name,
+      'public.update_certified_mailings_updated_at()',
+      'EXECUTE'
+    )
+  ),
+  0::bigint,
+  'browser-facing roles cannot execute the trigger function directly'
+);
+
+SELECT ok(
+  has_function_privilege(
+    'service_role',
+    'public.update_certified_mailings_updated_at()',
+    'EXECUTE'
+  ),
+  'service role can execute the trigger function'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_constraint
+    WHERE conrelid = 'public.certified_mailings'::regclass
+      AND conname = 'certified_mailings_client_owner_tenant_fkey'
+      AND contype = 'f'
+      AND confrelid = 'public.staff_clients'::regclass
+      AND convalidated
+  ),
+  1::bigint,
+  'late replay installs and validates the client-owner tenant foreign key'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND tablename = 'certified_mailings'
+      AND indexname = 'certified_mailings_client_owner_tenant_idx'
+      AND indexdef LIKE '%(client_id, owner_id)%'
+  ),
+  1::bigint,
+  'late replay installs the client-owner tenant index'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_trigger
+    WHERE tgrelid = 'public.certified_mailings'::regclass
+      AND tgname = 'bind_selected_workspace_owner'
+      AND tgenabled = 'O'
+      AND NOT tgisinternal
+  ),
+  1::bigint,
+  'late replay binds writes to the selected workspace owner'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'certified_mailings'
+  ),
+  4::bigint,
+  'late replay leaves exactly four role-aware policies'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'certified_mailings'
+      AND policyname IN (
+        'workspace_members_select_certified_mailings',
+        'workspace_members_insert_certified_mailings',
+        'workspace_members_update_certified_mailings',
+        'workspace_members_delete_certified_mailings'
+      )
+      AND roles = ARRAY['authenticated']::name[]
+      AND (
+        coalesce(qual, '') LIKE '%can_read_owner%'
+        OR coalesce(qual, '') LIKE '%can_write_owner%'
+        OR coalesce(with_check, '') LIKE '%can_write_owner%'
+      )
+  ),
+  4::bigint,
+  'all certified-mailings policies use the FMM-007 owner authorization helpers'
+);
+
+SELECT is(
+  (
+    SELECT count(*)
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'certified_mailings'
+      AND policyname = 'users_manage_own_certified_mailings'
+  ),
+  0::bigint,
+  'late replay removes the obsolete direct-owner policy'
+);
+
+SELECT * FROM finish();
+ROLLBACK;

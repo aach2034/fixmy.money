@@ -114,6 +114,7 @@ async function seedLocalE2eUsers() {
     .update({
       stripe_status: 'trialing',
       access_state: 'trial',
+      trial_source: 'stripe',
       plan_id: 'professional',
       trial_ends_at: trialEnd.toISOString(),
       current_period_ends_at: null,

@@ -117,7 +117,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
       <div role="status" aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-left text-emerald-950 shadow-sm">
         <CheckCircle2 className="size-7 text-emerald-600" aria-hidden="true" />
         <h2 className="mt-3 text-xl font-bold">You’re on the reopening list.</h2>
-        <p className="mt-2 text-sm leading-6">We’ll email you when FixMy.Money reopens on September 30, 2026. Your email is reserved for one full month free when you activate after reopening.</p>
+        <p className="mt-2 text-sm leading-6">We’ll email you when FixMy.Money reopens on September 30, 2026. Your reservation is for one full month free on an eligible business account when activation opens.</p>
         <div className="mt-5 rounded-xl border border-emerald-200 bg-white/80 p-4">
           <p className="text-sm font-bold">Your next step</p>
           <p className="mt-1 text-sm leading-6">Watch your inbox for the reopening email. No account or payment is needed today.</p>
@@ -132,7 +132,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
   return (
     <form onSubmit={handleSubmit} noValidate aria-busy={state === 'submitting'} className={compact ? 'space-y-3' : 'space-y-4'}>
       <label htmlFor={compact ? 'reopening-email-compact' : 'reopening-email'} className="block text-sm font-medium text-[#132440]">
-        Email address
+        Business contact email
       </label>
       <input
         id={compact ? 'reopening-email-compact' : 'reopening-email'}
@@ -184,7 +184,7 @@ export default function ReopeningWaitlistForm({ compact = false }: { compact?: b
       <button type="submit" disabled={state === 'submitting' || challenge.phase !== 'idle'} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#007f51] px-6 py-3.5 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(38,122,49,.22)] transition hover:-translate-y-0.5 hover:bg-[#006e46] focus-visible:ring-4 focus-visible:ring-[#267a31]/20 disabled:cursor-wait disabled:translate-y-0 disabled:opacity-65">
         {state === 'submitting' ? <><Loader2 className="size-4 animate-spin" /> JOINING…</> : <>RESERVE MY FREE MONTH</>}
       </button>
-      <p className="flex items-start justify-center gap-2 text-center text-sm leading-5 text-[#586984]"><LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden="true" />No payment today. No account will be created yet.</p><p className="text-xs leading-5 text-[#66766e]">By joining, you agree to receive reopening updates. See our <Link href="/privacy" className="font-semibold underline underline-offset-2">Privacy Policy</Link>.</p>
+      <p className="flex items-start justify-center gap-2 text-center text-sm leading-5 text-[#586984]"><LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden="true" />Business software only. No payment today. No account will be created yet.</p><p className="text-xs leading-5 text-[#66766e]">By joining, you agree to receive reopening updates. See our <Link href="/privacy" className="font-semibold underline underline-offset-2">Privacy Policy</Link>.</p>
     </form>
   );
 }

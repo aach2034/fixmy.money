@@ -36,9 +36,8 @@ export async function resolvePostLoginDestination(input: {
     input.getEntitlement(),
   ]);
 
-  if (profile && entitlement?.canAccess) {
-    return profile.onboarding_completed ? (input.redirectTo || '/dashboard') : '/onboarding';
-  }
+  if (profile && !profile.onboarding_completed) return '/onboarding';
+  if (profile && entitlement?.canAccess) return input.redirectTo || '/dashboard';
 
   return '/billing-subscriptions';
 }

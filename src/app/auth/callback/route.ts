@@ -14,8 +14,8 @@ import {
 } from '@/lib/auth/password-recovery-state';
 import { canUseCustomerAcquisition } from '@/lib/signup/closure';
 import { getAdminClient } from '@/lib/supabase/admin';
-
-const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
+import { getSupabasePublicConfig } from '@/lib/supabase/public-config';
+import { isBusinessPlan } from '@/lib/stripe/plans';
 
 type PendingCookie = {
   name: string;
@@ -91,14 +91,15 @@ export async function GET(request: NextRequest) {
   let pendingHeaders: Record<string, string> = {};
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
+    let publicConfig;
+    try {
+      publicConfig = getSupabasePublicConfig();
+    } catch {
       console.error('[Auth Callback] Supabase authentication is not configured.');
       return createFailedAuthRedirect(request);
     }
 
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createServerClient(publicConfig.url, publicConfig.publishableKey, {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {
@@ -206,8 +207,11 @@ export async function GET(request: NextRequest) {
 
     if (type === 'signup') {
       const requestedPlan = searchParams.get('plan') || 'professional';
-      const plan = ALLOWED_PLANS.has(requestedPlan) ? requestedPlan : 'professional';
-      destination = `/checkout?plan=${encodeURIComponent(plan)}&verified=1`;
+      // Email verification does not prove business eligibility. Never silently
+      // switch a stale Personal link to a more expensive business plan.
+      destination = isBusinessPlan(requestedPlan)
+        ? `/onboarding?plan=${encodeURIComponent(requestedPlan)}&verified=1`
+        : '/onboarding';
     } else if (type === 'client_signup') {
       destination = searchParams.has('next')
         ? getSafeCallbackPath(searchParams.get('next'))

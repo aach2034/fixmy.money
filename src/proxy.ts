@@ -79,6 +79,14 @@ const ONBOARDING_GATED_PATHS = [
 const SUBSCRIPTION_GATED_PATHS = ONBOARDING_GATED_PATHS.filter(
   (path) => !['/billing-subscriptions', '/onboarding'].includes(path)
 );
+const SUBSCRIPTION_GATED_API_PREFIXES = [
+  '/api/ai/',
+  '/api/clients',
+  '/api/credit-report/',
+  '/api/dispute-letters/',
+  '/api/mailings/',
+  '/api/workspaces/client-invitations',
+];
 interface CurrentWorkspaceContext {
   workspace_id: string;
   workspace_owner_id: string;
@@ -266,6 +274,14 @@ export async function proxy(request: NextRequest) {
   ];
 
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
+  const isSubscriptionGatedApi = SUBSCRIPTION_GATED_API_PREFIXES.some((p) => pathname.startsWith(p));
+
+  if (!user && isSubscriptionGatedApi) {
+    return carryAuthState(NextResponse.json(
+      { error: 'Authentication required.', code: 'AUTHENTICATION_REQUIRED' },
+      { status: 401 },
+    ));
+  }
 
   if (!user && isProtected) {
     return carryAuthState(redirectToLoginWithReturnPath(request));
@@ -275,11 +291,17 @@ export async function proxy(request: NextRequest) {
   // workspace changes the database-enforced RLS boundary for every subsequent
   // query, so memberships in multiple agencies can never be blended silently.
   let currentWorkspace: CurrentWorkspaceContext | null = null;
-  const requiresWorkspace = isProtected && !pathname.startsWith('/admin');
+  const requiresWorkspace = (isProtected && !pathname.startsWith('/admin')) || isSubscriptionGatedApi;
   if (user && requiresWorkspace) {
     const { data: workspaceRows, error: workspaceError } = await supabase.rpc('current_workspace_context');
     currentWorkspace = (workspaceRows?.[0] || null) as CurrentWorkspaceContext | null;
     if (workspaceError || !currentWorkspace) {
+      if (isSubscriptionGatedApi) {
+        return carryAuthState(NextResponse.json(
+          { error: 'No active workspace is selected.', code: 'WORKSPACE_REQUIRED' },
+          { status: 403 },
+        ));
+      }
       const { data: portalAccount } = await supabase
         .from('client_accounts')
         .select('id')
@@ -322,7 +344,8 @@ export async function proxy(request: NextRequest) {
 
   // SUBSCRIPTION GATE (server-side): a workspace-bound entitlement record is
   // reconciled from Stripe and expires closed when its verification is stale.
-  const isSubscriptionGated = SUBSCRIPTION_GATED_PATHS.some((p) => pathname.startsWith(p));
+  const isSubscriptionGated = isSubscriptionGatedApi
+    || SUBSCRIPTION_GATED_PATHS.some((p) => pathname.startsWith(p));
   if (user && isSubscriptionGated) {
     try {
       if (!currentWorkspace?.workspace_id) throw new Error('No selected workspace');
@@ -331,6 +354,12 @@ export async function proxy(request: NextRequest) {
       });
 
       if (!entitlement.decision.canAccess) {
+        if (isSubscriptionGatedApi) {
+          return carryAuthState(NextResponse.json(
+            { error: 'An active plan or free trial is required.', code: entitlement.decision.reason },
+            { status: 403 },
+          ));
+        }
         const url = request.nextUrl.clone();
         url.pathname = '/billing-subscriptions';
         url.searchParams.set(
@@ -342,6 +371,12 @@ export async function proxy(request: NextRequest) {
         return carryAuthState(NextResponse.redirect(url));
       }
     } catch {
+      if (isSubscriptionGatedApi) {
+        return carryAuthState(NextResponse.json(
+          { error: 'Subscription access could not be verified.', code: 'SUBSCRIPTION_CHECK_FAILED' },
+          { status: 503 },
+        ));
+      }
       const url = request.nextUrl.clone();
       url.pathname = '/billing-subscriptions';
       url.searchParams.set('reason', 'subscription_check_failed');

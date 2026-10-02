@@ -22,7 +22,7 @@ describe('Google Analytics funnel tracking', () => {
     expect(analytics).not.toContain("document.createElement('script')");
   });
 
-  it('does not report a purchase or checkout start while activation is held', () => {
+  it('does not report a purchase or checkout start before verified paid activation', () => {
     const analytics = read('src/lib/analytics.ts');
     const checkout = read('src/app/checkout/components/CheckoutContent.tsx');
     const dashboard = read('src/app/dashboard/page.tsx');
@@ -30,7 +30,9 @@ describe('Google Analytics funnel tracking', () => {
     const trialSignupBody = analytics.split('export function trackTrialSignup')[1].split('export function trackToolStarted')[0];
     expect(trialSignupBody).not.toContain("trackEvent('begin_checkout'");
     expect(checkout).not.toContain("trackEvent('begin_checkout'");
-    expect(checkoutRoute).not.toContain('session_id={CHECKOUT_SESSION_ID}');
+    expect(checkoutRoute.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(
+      checkoutRoute.indexOf('stripe.checkout.sessions.create')
+    );
     expect(dashboard).not.toContain("trackEvent('purchase'");
     expect(dashboard).toContain('checkout_return_');
   });
@@ -146,6 +148,13 @@ describe('Google Analytics funnel tracking', () => {
     }
     expect(analytics).not.toContain('mixpanel');
     expect(analytics).not.toContain('segment');
+  });
+
+  it('guards onboarding_started against effect replays', () => {
+    const onboarding = read('src/app/onboarding/components/OnboardingContent.tsx');
+    expect(onboarding).toContain('const onboardingStartedTracked = useRef(false)');
+    expect(onboarding).toContain('if (!user || onboardingStartedTracked.current) return');
+    expect(onboarding).toContain('onboardingStartedTracked.current = true');
   });
 
   it('adds page and device context without tracking client identifiers', () => {

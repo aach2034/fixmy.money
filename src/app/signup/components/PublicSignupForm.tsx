@@ -6,17 +6,19 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import TurnstileChallenge from '@/components/TurnstileChallenge';
 import { getRuntimeTurnstileSiteKey } from '@/lib/marketing/leadChallenge';
-
-const ALLOWED_PLANS = new Set(['starter', 'professional', 'agency']);
+import { isBusinessPlan, PLANS } from '@/lib/stripe/plans';
+import { BUSINESS_USE_DECLARATION, BUSINESS_USE_POLICY_VERSION } from '@/lib/signup/business-policy';
 
 export default function PublicSignupForm() {
   const searchParams = useSearchParams();
   const requestedPlan = searchParams.get('plan') || 'professional';
-  const plan = ALLOWED_PLANS.has(requestedPlan) ? requestedPlan : 'professional';
+  const plan = isBusinessPlan(requestedPlan) ? requestedPlan : null;
   const siteKey = getRuntimeTurnstileSiteKey();
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaGeneration, setCaptchaGeneration] = useState(0);
   const [captchaError, setCaptchaError] = useState(false);
+  const [businessUseAccepted, setBusinessUseAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [state, setState] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
 
@@ -28,10 +30,18 @@ export default function PublicSignupForm() {
     setCaptchaToken('');
     setCaptchaGeneration(value => value + 1);
   }, []);
+  const handleCaptchaError = useCallback(() => {
+    setCaptchaError(true);
+    setCaptchaToken('');
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+    if (!plan) {
+      setError('Select FixMy Pro or FixMy Scale. FixMy Credit enrollment is not yet available.');
+      return;
+    }
     if (siteKey && !captchaToken) {
       setError('Complete the security verification to continue.');
       return;
@@ -42,8 +52,12 @@ export default function PublicSignupForm() {
       setError('Passwords do not match.');
       return;
     }
-    if (form.get('terms') !== 'accepted') {
+    if (!termsAccepted) {
       setError('Accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+    if (!businessUseAccepted) {
+      setError('Confirm your business use and authority to continue.');
       return;
     }
 
@@ -58,6 +72,9 @@ export default function PublicSignupForm() {
           email: form.get('email'),
           password: form.get('password'),
           plan,
+          termsAccepted: true,
+          businessUseAccepted: true,
+          businessPolicyVersion: BUSINESS_USE_POLICY_VERSION,
           captchaToken,
         }),
       });
@@ -76,23 +93,25 @@ export default function PublicSignupForm() {
       <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-7 text-emerald-950">
         <CheckCircle2 className="size-8 text-emerald-600" />
         <h1 className="mt-4 text-2xl font-bold">Check your email</h1>
-        <p className="mt-2 text-sm leading-6">If the address can be registered, you’ll receive a verification link. No payment is collected at signup; new paid activation remains on hold pending legal review.</p>
+        <p className="mt-2 text-sm leading-6">If the address can be registered, you’ll receive an email verification link. Your 30-day free trial starts after verification and onboarding. No credit card is required and expiration never creates a charge.</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      {plan ? <p className="text-sm text-slate-600">Business software account · {PLANS[plan].name}. FixMy Credit enrollment remains unavailable.</p> : <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">That plan is not available for new accounts. Choose <Link href="/signup?plan=professional" className="underline">FixMy Pro</Link> or <Link href="/signup?plan=agency" className="underline">FixMy Scale</Link> for your business.</p>}
       <div><label className="label-text" htmlFor="companyName">Company name</label><input className="input-field" id="companyName" name="companyName" maxLength={120} required autoComplete="organization" /></div>
       <div><label className="label-text" htmlFor="adminName">Your name</label><input className="input-field" id="adminName" name="adminName" maxLength={100} required autoComplete="name" /></div>
       <div><label className="label-text" htmlFor="email">Work email</label><input className="input-field" id="email" name="email" type="email" maxLength={254} required autoComplete="email" /></div>
       <div><label className="label-text" htmlFor="password">Password</label><input className="input-field" id="password" name="password" type="password" minLength={12} maxLength={128} required autoComplete="new-password" /><p className="mt-1 text-xs text-slate-500">Use at least 12 characters.</p></div>
       <div><label className="label-text" htmlFor="confirmPassword">Confirm password</label><input className="input-field" id="confirmPassword" name="confirmPassword" type="password" minLength={12} maxLength={128} required autoComplete="new-password" /></div>
-      <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input className="mt-1" type="checkbox" name="terms" value="accepted" required />I agree to the <Link className="font-semibold text-blue-700 underline" href="/terms-of-service">Terms of Service</Link> and <Link className="font-semibold text-blue-700 underline" href="/privacy">Privacy Policy</Link>.</label>
-      {siteKey && <TurnstileChallenge action="customer_signup" generation={captchaGeneration} siteKey={siteKey} onToken={handleToken} onExpired={resetCaptcha} onError={() => { setCaptchaError(true); setCaptchaToken(''); }} />}
+      <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input className="mt-1" type="checkbox" name="businessUse" value="accepted" checked={businessUseAccepted} onChange={event => setBusinessUseAccepted(event.target.checked)} required /><span>{BUSINESS_USE_DECLARATION} <Link className="font-semibold text-blue-700 underline" href="/business-use">Read the Business Use Policy</Link>.</span></label>
+      <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input className="mt-1" type="checkbox" name="terms" value="accepted" checked={termsAccepted} onChange={event => setTermsAccepted(event.target.checked)} required />I agree to the <Link className="font-semibold text-blue-700 underline" href="/terms-of-service">Terms of Service</Link> and <Link className="font-semibold text-blue-700 underline" href="/privacy">Privacy Policy</Link>.</label>
+      {siteKey && <TurnstileChallenge action="customer_signup" generation={captchaGeneration} siteKey={siteKey} onToken={handleToken} onExpired={resetCaptcha} onError={handleCaptchaError} />}
       {captchaError && <p role="alert" className="text-sm font-semibold text-rose-700">Security verification could not load. Refresh the page or try again later.</p>}
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">{error}</p>}
-      <button type="submit" disabled={state === 'submitting' || captchaError} className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl py-3 disabled:opacity-60">{state === 'submitting' && <Loader2 className="size-4 animate-spin" />}{state === 'submitting' ? 'CREATING ACCOUNT…' : 'CREATE ACCOUNT'}</button>
+      <button type="submit" disabled={!plan || state === 'submitting' || captchaError} className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl py-3 disabled:opacity-60">{state === 'submitting' && <Loader2 className="size-4 animate-spin" />}{state === 'submitting' ? 'CREATING ACCOUNT…' : 'START 30-DAY FREE TRIAL'}</button>
       <p className="text-center text-sm text-slate-500">Already have an account? <Link href="/login" className="font-semibold text-blue-700 underline">Sign in</Link></p>
     </form>
   );

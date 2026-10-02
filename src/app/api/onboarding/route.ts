@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
-import { getSelectedWorkspaceContext } from '@/lib/subscription/server';
+import { activateWorkspaceFreeTrial, getSelectedWorkspaceContext } from '@/lib/subscription/server';
 import { evaluateOnboardingWorkflow, serverConnectPolicy } from '@/lib/onboarding/workflow';
+import { isNewTrialEligibleAccount } from '@/lib/signup/closure';
+import { isBusinessPlan } from '@/lib/stripe/plans';
+import { logProductAnalyticsEvent } from '@/lib/analytics/server';
 
 async function authoritativeStatus() {
   const supabase = await createClient();
@@ -15,7 +18,7 @@ async function authoritativeStatus() {
   }
 
   const [profileResult, workspaceResult] = await Promise.all([
-    supabase.from('user_profiles').select('full_name,company_name,onboarding_completed,onboarding_company_completed').eq('id', user.id).single(),
+    supabase.from('user_profiles').select('full_name,company_name,plan,onboarding_completed,onboarding_company_completed').eq('id', user.id).single(),
     supabase.from('workspaces').select('name').eq('id', workspaceContext.workspace_id).single(),
   ]);
   if (profileResult.error || workspaceResult.error || !profileResult.data || !workspaceResult.data) {
@@ -32,7 +35,13 @@ async function authoritativeStatus() {
     connectRequired: connect.required,
     connectStatus: connect.status,
   });
-  return { userId: user.id, status };
+  return {
+    user,
+    userId: user.id,
+    workspaceId: workspaceContext.workspace_id,
+    plan: profileResult.data.plan,
+    status,
+  };
 }
 
 function requiredString(value: unknown, max: number): string | null {
@@ -123,7 +132,33 @@ export async function POST() {
       .single();
     if (error || !data?.onboarding_completed) throw error || new Error('ONBOARDING_WRITE_NOT_DURABLE');
 
-    return NextResponse.json({ ...result.status, state: 'completed', nextStep: 'done' }, {
+    let trialEndsAt: string | null = null;
+    if (
+      result.user?.email_confirmed_at
+      && isNewTrialEligibleAccount(result.user.created_at)
+      && isBusinessPlan(result.plan)
+      && result.workspaceId
+    ) {
+      const entitlement = await activateWorkspaceFreeTrial({
+        userId: result.userId,
+        workspaceId: result.workspaceId,
+        planId: result.plan,
+      });
+      trialEndsAt = entitlement.free_trial_ends_at;
+      try {
+        await logProductAnalyticsEvent({
+          eventName: 'trial_started',
+          userId: result.userId,
+          properties: { plan: result.plan },
+          dedupeKey: `application-trial:${result.userId}`,
+          occurredAt: entitlement.free_trial_started_at,
+        });
+      } catch (analyticsError) {
+        console.error('[Onboarding] Trial analytics write failed:', analyticsError);
+      }
+    }
+
+    return NextResponse.json({ ...result.status, state: 'completed', nextStep: 'done', trialEndsAt }, {
       headers: { 'Cache-Control': 'private, no-store' },
     });
   } catch (error) {

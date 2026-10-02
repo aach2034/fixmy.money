@@ -86,8 +86,10 @@ describe('FMM-005 deterministic analyzer outcomes', () => {
     const dependencies: CreditReportAnalysisRouteDependencies = {
       enabled: () => true,
       processorPolicyApproved: () => true,
+      actorAllowed: () => true,
       authorize: vi.fn(async () => ({ actorId: 'actor-1', workspaceId: 'workspace-1', workspaceOwnerId: 'owner-1', planId: 'starter' })),
       loadReport: vi.fn(async () => ({ overall_confidence: 59, all_accounts: [{}] })),
+      loadFindings: vi.fn(async () => []),
       gateway,
     };
     const response = await handleCreditReportAnalysisPost(new Request('https://example.test/api/credit-report/analyze', {

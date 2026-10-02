@@ -65,13 +65,15 @@ const COMPARISON_ROWS: {
 ];
 
 const BILLING_FAQS = [
-  { q: 'Is a credit card required to join the reopening list?', a: 'No. The reopening list does not collect a card or charge you.' },
-  { q: 'When can I activate a paid plan?', a: 'New paid activation is on hold. Consumer billing requires final legal approval, and business checkout requires verified purchaser eligibility.' },
-  { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
-  { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
-  { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
-  { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
-  { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
+  { q: 'Is a credit card required for the free trial?', a: 'No. The 30-day free trial requires no card and never creates a charge or debt at expiration.' },
+  { q: 'Who can purchase a plan?', a: 'FixMy Pro and FixMy Scale are business software subscriptions for authorized representatives of businesses managing client workflows. New FixMy Credit enrollment is not yet available.' },
+  { q: 'When does paid billing begin?', a: 'New paid Checkout is currently unavailable. When it is enabled, billing can begin only after the workspace owner separately chooses FixMy Pro or FixMy Scale, reviews the monthly price and terms, enters payment details, and confirms through secure Checkout. Trial expiration never starts billing.' },
+  { q: 'Is this a fee for repairing my credit?', a: 'No. Published prices are for business access to software, not consumer credit-repair work or a promised credit result. They do not determine what an agency may charge its clients or when.' },
+  { q: 'Can I cancel anytime?', a: 'Existing subscribers can cancel from billing settings; access continues until the end of the current billing period. New paid Checkout is currently unavailable.' },
+  { q: 'What happens when I cancel?', a: 'For an existing paid subscription, cancellation prevents renewal and access continues through the paid period. New trial customers have no paid subscription or charge to cancel.' },
+  { q: 'Can I upgrade or downgrade my plan?', a: 'Plan changes are currently available only where an existing subscription and billing controls support them. New paid Checkout remains on hold.' },
+  { q: 'What happens if a payment fails?', a: 'This applies only to existing paid subscriptions. New trial signup creates no payment method, invoice, charge, or debt.' },
+  { q: 'Do you offer refunds?', a: 'The no-card trial creates no amount to refund. Existing subscribers who believe they were charged in error should contact support@fixmy.money within 7 days.' },
 ];
 
 function CellValue({ value }: { value: string | boolean }) {
@@ -85,14 +87,19 @@ export default function PricingContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const handleStartTrial = (planId: string, planName: string, price: number | null) => {
+    if (planId === 'starter') {
+      trackCtaClick('View FixMy Credit availability', '/individuals', 'pricing_page');
+      router.push('/individuals');
+      return;
+    }
     if (planId === 'enterprise') {
       trackCtaClick('Contact Sales', '/contact', 'pricing_page');
       router.push('/contact');
       return;
     }
     trackPricingPlanSelect(planName, price ?? 0, 'pricing_page');
-    trackCtaClick(`Reserve One Month Free ${planName}`, '/reopen', 'pricing_page');
-    router.push('/reopen');
+    trackCtaClick(`Start 30-Day Free Trial ${planName}`, `/signup?plan=${planId}`, 'pricing_page');
+    router.push(`/signup?plan=${planId}`);
   };
 
   return (
@@ -104,8 +111,8 @@ export default function PricingContent() {
           <div className="flex items-center gap-3">
             <Link href="/product-tour" className="hidden text-sm font-semibold text-[#52636d] transition-colors hover:text-[#267a31] sm:block">Product Tour</Link>
             <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#52636d] transition-colors hover:bg-[#f1f5f3] hover:text-[#267a31] sm:block">Sign in</Link>
-            <Link href="/reopen" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
-              Reserve One Month Free
+            <Link href="/signup?plan=professional" className="rounded-xl bg-[#267a31] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(38,122,49,.18)] transition hover:-translate-y-0.5 hover:bg-[#1f6729]">
+              Start 30-Day Free Trial
             </Link>
           </div>
         </div>
@@ -118,8 +125,8 @@ export default function PricingContent() {
             Transparent Pricing
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">Simple, honest pricing</h1>
-          <p className="text-xl text-slate-300 mb-3">New accounts reopen September 30, 2026. Join now to reserve one full month free.</p>
-          <p className="text-sm text-slate-400 mb-8">Published monthly prices are shown for planning only. New paid activation is on hold pending billing and legal review.</p>
+          <p className="text-xl text-slate-300 mb-3">30-day free trial. No credit card required.</p>
+          <p className="text-sm text-slate-400 mb-8">The no-card trial applies to FixMy Pro and FixMy Scale. Trial expiration pauses paid features without charging you. FixMy Credit enrollment remains unavailable.</p>
 
           <div className="inline-flex items-center rounded-2xl border border-slate-700/60 bg-slate-800/60 px-5 py-3 text-sm font-semibold text-white">
             Monthly billing
@@ -172,7 +179,7 @@ export default function PricingContent() {
                         : plan.id === 'enterprise' ?'bg-slate-900 hover:bg-slate-800 text-white' :'bg-slate-100 hover:bg-slate-200 text-slate-900'
                     }`}
                   >
-                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Reserve One Month Free'}
+                    {plan.cta}
                   </button>
                 </div>
               );
@@ -180,7 +187,7 @@ export default function PricingContent() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            Personal is consumer-facing; Start and Grow are intended for credit-repair businesses. New paid checkout is unavailable until purchaser eligibility and consumer billing are reviewed.
+            FixMy Pro and FixMy Scale include the existing 30-day no-card trial. FixMy Credit is $39/month, but new enrollment and billing remain unavailable. Existing subscriptions are unchanged. Paid Checkout is separately gated.
           </p>
         </div>
       </section>
@@ -198,7 +205,7 @@ export default function PricingContent() {
           <DemoVideoPlayer
             placement="pricing"
             showTrialCta
-            onTrialClick={() => router.push('/reopen')}
+            onTrialClick={() => router.push('/signup?plan=professional')}
           />
         </div>
       </section>
@@ -226,7 +233,7 @@ export default function PricingContent() {
                 {COMPARISON_ROWS.map((section) => (
                   <React.Fragment key={section.category}>
                     <tr className="bg-slate-50">
-                      <td colSpan={4} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      <td colSpan={PLANS.length + 1} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
                         {section.category}
                       </td>
                     </tr>
@@ -257,15 +264,14 @@ export default function PricingContent() {
           <h2 className="text-2xl font-extrabold text-slate-900 mb-6 text-center">Billing terms</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: 'New paid activation', value: 'On hold pending billing and legal review' },
-              { label: 'Reopening list', value: 'No payment or card collected' },
-              { label: 'Monthly billing', value: 'Charged on the same date each month' },
+              { label: '30-day free trial', value: 'No card; no automatic conversion or charge' },
+              { label: 'Paid activation', value: 'New Checkout on hold; separate owner choice required when enabled' },
+              { label: 'Monthly billing', value: 'Existing subscriptions continue under their agreed terms' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
-              { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
-              { label: 'Downgrades', value: 'Take effect at next billing cycle' },
-              { label: 'Failed payments', value: 'Retried automatically; account suspended if unresolved' },
-              { label: 'Refunds', value: 'No refunds for partial periods; billing errors reviewed within 7 days' },
-              { label: 'Data export on cancellation', value: 'Available for 30 days after cancellation (Agency+ plans)' },
+              { label: 'Plan changes', value: 'Existing subscriptions only while new Checkout is held' },
+              { label: 'Failed payments', value: 'Existing subscriptions only; trials create no payment' },
+              { label: 'Refunds', value: 'No-card trials create no amount to refund' },
+              { label: 'Data retention', value: 'Trial expiration does not delete retained customer work' },
             ].map((item) => (
               <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 flex gap-3">
                 <div className="flex-1">
@@ -286,7 +292,7 @@ export default function PricingContent() {
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">Software Access Only</p>
               <p className="text-sm text-amber-700 leading-relaxed">
-                Personal is designed for consumers; Start and Grow are intended for businesses. No credit outcome is guaranteed. The consumer billing flow is pending final legal approval, and new paid checkout is unavailable for all plans until purchaser eligibility is verified.
+                FixMy.Money provides business workflow software, not credit-repair services for consumers. Businesses remain responsible for client authorization, marketing, services, and lawful fees. No credit result, revenue, or business success is guaranteed. See our <Link href="/business-use" className="font-semibold underline">Business Use Policy</Link>.
               </p>
             </div>
           </div>
@@ -332,13 +338,13 @@ export default function PricingContent() {
       <section className="a11y-dark py-16 px-4 bg-slate-900 text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to get started?</h2>
-          <p className="text-slate-400 mb-8">Join the reopening list and reserve one full month free when you activate after September 30, 2026.</p>
+          <p className="text-slate-400 mb-8">Try your selected business plan for 30 days. No credit card required. Choose a paid plan only if you want to continue paid features.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/reopen"
+              href="/signup?plan=professional"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
             >
-              Reserve One Month Free <ArrowRight size={16} />
+              Start 30-Day Free Trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/demo"

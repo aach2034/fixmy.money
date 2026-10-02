@@ -5,7 +5,7 @@ import BillingContent from './components/BillingContent';
 export default function BillingPage() {
   return (
     <AppLayout>
-      <BillingContent />
+      <BillingContent paidCheckoutEnabled={process.env.NEW_PAID_CHECKOUT_ENABLED === 'true'} />
     </AppLayout>
   );
 }

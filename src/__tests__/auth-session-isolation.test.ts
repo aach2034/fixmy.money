@@ -176,12 +176,12 @@ describe('signup callback session isolation', () => {
   it('redirects only after the exchanged session is bound to the verified new identity', async () => {
     const client = createMockClient({ exchangeUserId: 'new-user' });
     const response = await authCallback(
-      request('/auth/callback?type=signup&plan=starter&code=valid-code')
+      request('/auth/callback?type=signup&plan=professional&code=valid-code')
     );
 
     expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toBe(
-      'https://fixmy.money/checkout?plan=starter&verified=1'
+      'https://fixmy.money/onboarding?plan=professional&verified=1'
     );
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
     expect(response.headers.get('cache-control')).toContain('private');
@@ -191,7 +191,7 @@ describe('signup callback session isolation', () => {
   it('establishes the verified new identity from a token hash in a different browser', async () => {
     const client = createMockClient({ exchangeUserId: 'new-user' });
     const response = await authCallback(
-      request('/auth/callback?type=signup&plan=starter&token_hash=new-user-token-hash')
+      request('/auth/callback?type=signup&plan=professional&token_hash=new-user-token-hash')
     );
 
     expect(client.verifyOtp).toHaveBeenCalledWith({
@@ -201,7 +201,7 @@ describe('signup callback session isolation', () => {
     expect(client.exchangeCodeForSession).not.toHaveBeenCalled();
     expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
     expect(response.headers.get('location')).toBe(
-      'https://fixmy.money/checkout?plan=starter&verified=1'
+      'https://fixmy.money/onboarding?plan=professional&verified=1'
     );
     expect(response.headers.get('set-cookie')).toContain('new-session-value');
   });
@@ -308,9 +308,15 @@ describe('signup callback session isolation', () => {
     const response = await authCallback(
       request('/auth/callback?type=signup&plan=unknown&code=valid-code')
     );
-    expect(response.headers.get('location')).toBe(
-      'https://fixmy.money/checkout?plan=professional&verified=1'
-    );
+    expect(response.headers.get('location')).toBe('https://fixmy.money/onboarding');
+  });
+
+  it('preserves a stale Personal signup session without choosing a business plan', async () => {
+    const client = createMockClient({ exchangeUserId: 'legacy-personal-user' });
+    const response = await authCallback(request('/auth/callback?type=signup&plan=starter&code=valid-code'));
+    expect(client.getUser).toHaveBeenCalledWith(client.accessToken);
+    expect(response.headers.get('location')).toBe('https://fixmy.money/onboarding');
+    expect(response.headers.get('set-cookie')).toContain('new-session-value');
   });
 
   it('targets only Supabase auth cookies and storage keys for local clearing', () => {

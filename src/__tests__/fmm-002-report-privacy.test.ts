@@ -5,13 +5,17 @@ import { parseAIGatewayRequest, type AIGatewayDependencies } from '@/lib/ai/gate
 import {
   FMM002_DISCLOSURE_VERSION,
   FMM002_EXTERNAL_SCHEMA_VERSION,
+  buildExternalReportPrompt,
   isReportAIProcessorPolicyApproved,
+  minimizeFindingsForExternalAI,
   minimizeReportForExternalAI,
   parseCreditReportAnalysisRequest,
   stripRawReportArtifacts,
 } from '@/lib/creditReport/aiPrivacy';
 import {
+  handleCreditReportAnalysisGet,
   handleCreditReportAnalysisPost,
+  isCreditReportAIActorAllowed,
   type CreditReportAnalysisRouteDependencies,
 } from '@/lib/creditReport/reportAnalysisRoute';
 
@@ -41,6 +45,7 @@ function dependencies(
   return {
     enabled: () => true,
     processorPolicyApproved: () => true,
+    actorAllowed: () => true,
     authorize: vi.fn(async () => ({ actorId: 'actor-1', workspaceId: 'workspace-1', workspaceOwnerId: 'owner-1', planId: 'starter' })),
     loadReport: vi.fn(async () => ({
       provider: 'SmartCredit',
@@ -62,6 +67,15 @@ function dependencies(
       all_inquiries: [{ bureau: 'Experian', creditor: 'Private Lender', type: 'hard' }],
       public_records: [{ type: 'bankruptcy', rawText: 'private court record' }],
     })),
+    loadFindings: vi.fn(async () => [{
+      issue_type: 'balance_discrepancy',
+      affected_bureaus: ['Experian', 'Equifax', 'TransUnion'],
+      confidence_level: 90,
+      evidence_strength: 'moderate',
+      evidence_currently_available: ['Credit report field comparison'],
+      evidence_still_needed: ['Recent billing statement from Private Bank'],
+      affected_furnisher: 'Private Bank',
+    }]),
     gateway,
     ...overrides,
   };
@@ -98,6 +112,16 @@ describe('FMM-002 strict consent and processor policy', () => {
       operation: 'credit_report_analysis',
       input: { prompt: 'raw report text' },
     })).toThrow(/Unknown AI operation/);
+  });
+
+  it('fails closed unless the exact actor is allowlisted', () => {
+    expect(isCreditReportAIActorAllowed('actor-1', {
+      CREDIT_REPORT_AI_ALLOWED_ACTOR_IDS: 'actor-2, actor-1',
+    } as NodeJS.ProcessEnv)).toBe(true);
+    expect(isCreditReportAIActorAllowed('actor-10', {
+      CREDIT_REPORT_AI_ALLOWED_ACTOR_IDS: 'actor-1',
+    } as NodeJS.ProcessEnv)).toBe(false);
+    expect(isCreditReportAIActorAllowed('actor-1', {} as NodeJS.ProcessEnv)).toBe(false);
   });
 });
 
@@ -150,6 +174,34 @@ describe('FMM-002 deterministic minimization', () => {
       nested: [{ status: 'current' }],
     });
   });
+
+  it('links only minimized candidate findings to generic evidence references', () => {
+    const findings = minimizeFindingsForExternalAI([{
+      issue_type: 'balance_discrepancy',
+      affected_bureaus: ['Experian', 'Equifax', 'TransUnion'],
+      confidence_level: 91,
+      evidence_strength: 'moderate',
+      evidence_currently_available: ['Private Bank exact values'],
+      evidence_still_needed: ['Recent billing statement from Private Bank'],
+      affected_furnisher: 'Private Bank',
+    }]);
+    const prompt = buildExternalReportPrompt(minimizeReportForExternalAI({
+      provider: 'MyScoreIQ',
+      overall_confidence: 90,
+      all_accounts: [],
+    }), findings);
+
+    expect(findings).toEqual([expect.objectContaining({
+      reference: 'finding-1',
+      issueType: 'balance_discrepancy',
+      evidenceReferences: ['cross_bureau_report_comparison'],
+      evidenceNeededCategories: ['billing_statement'],
+    })]);
+    expect(prompt).toContain('finding-1');
+    expect(prompt).toContain('ADDITIONAL_FINDINGS: none');
+    expect(prompt).not.toContain('Private Bank');
+    expect(prompt).not.toContain('exact values');
+  });
 });
 
 describe('FMM-002 fail-closed report route', () => {
@@ -169,6 +221,19 @@ describe('FMM-002 fail-closed report route', () => {
     expect(deps.gateway.invoke).not.toHaveBeenCalled();
   });
 
+  it('reports unavailable and rejects POST for every non-allowlisted actor', async () => {
+    const deps = dependencies({ actorAllowed: () => false });
+    const availability = await handleCreditReportAnalysisGet(deps);
+    expect(availability.status).toBe(200);
+    expect(await availability.json()).toEqual({ available: false });
+
+    const response = await handleCreditReportAnalysisPost(request(approvedRequest), deps);
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: 'CREDIT_REPORT_AI_ACCOUNT_NOT_ALLOWED' });
+    expect(deps.loadReport).not.toHaveBeenCalled();
+    expect(deps.gateway.invoke).not.toHaveBeenCalled();
+  });
+
   it('loads by workspace and sends only the minimized server-built prompt', async () => {
     const deps = dependencies();
     const response = await handleCreditReportAnalysisPost(request(approvedRequest), deps);
@@ -179,7 +244,10 @@ describe('FMM-002 fail-closed report route', () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({ schemaVersion: FMM002_EXTERNAL_SCHEMA_VERSION, requiresHumanReview: true });
     expect(deps.loadReport).toHaveBeenCalledWith({ parsedReportId: reportId, workspaceOwnerId: 'owner-1' });
+    expect(deps.loadFindings).toHaveBeenCalledWith({ parsedReportId: reportId, workspaceOwnerId: 'owner-1' });
     expect(providerPrompt).toContain(FMM002_EXTERNAL_SCHEMA_VERSION);
+    expect(providerPrompt).toContain('finding-1');
+    expect(providerPrompt).toContain('cross_bureau_report_comparison');
     for (const secret of ['Jane Doe', 'Private Bank', 'Private Lender', '1234', '123-45-6789', 'private court record']) {
       expect(providerPrompt).not.toContain(secret);
     }

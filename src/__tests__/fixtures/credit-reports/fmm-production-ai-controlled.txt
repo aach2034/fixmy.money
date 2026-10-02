@@ -1,0 +1,21 @@
+MyScoreIQ Three Bureau Credit Report
+
+Account History
+
+SYNTHETIC BANK
+TransUnion Experian Equifax
+Account #: ****1234 ****1234 ****1234
+Account Type: Credit Card Credit Card Credit Card
+Account Status: Current Current Current
+Balance: $0 $1284 $0
+Date Opened: 01/15/2024 01/15/2024 01/15/2024
+
+SYNTHETIC AUTO
+TransUnion Experian Equifax
+Account #: ****9876 ****9876 ****9876
+Account Type: Auto Loan Auto Loan Auto Loan
+Account Status: Current Current Current
+Balance: $5000 $5000 $5000
+Date Opened: 02/01/2025 02/01/2025 02/01/2025
+
+Inquiries

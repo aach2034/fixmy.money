@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'FixMy.Money Credit Repair Software',
     short_name: 'FixMy.Money',
-    description: 'Structured credit report review and editable dispute-drafting software for individuals and credit repair agencies.',
+    description: 'Structured credit report review and editable dispute-drafting software for credit professionals and agencies.',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

@@ -47,6 +47,8 @@ jobs:
       - name: Repeat migration replay
         run: supabase db reset --local --no-seed
       - run: supabase test db
+      - name: Production-order certified-mailings replay
+        run: supabase test db supabase/certified_mailings_late_replay.pg
       - run: supabase db lint --local --level error --fail-on error
 
   integration:
@@ -155,9 +157,72 @@ jobs:
           curl --fail http://127.0.0.1:4028/api/health
           pnpm exec playwright test --project=${{ matrix.project }}
 
+  trial-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FMM_RELEASE_GATE: "1"
+      PUBLIC_SIGNUP_ENABLED: "true"
+      NEW_PAID_CHECKOUT_ENABLED: "true"
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:4028
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:4028
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: whsec_trial_ci_${{ github.run_id }}_${{ github.run_attempt }}
+      TRIAL_E2E_ENABLED: "true"
+      TRIAL_E2E_EMAIL: fmm-trial-${{ github.run_id }}-${{ github.run_attempt }}@test.invalid
+      TRIAL_E2E_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      TEST_MAILPIT_URL: http://127.0.0.1:54324
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local --no-seed
+      - name: Configure isolated trial environment
+        run: |
+          if [[ "$STRIPE_SECRET_KEY" != sk_test_* ]]; then
+            echo "STRIPE_TEST_SECRET_KEY must be configured as a Stripe sk_test_ GitHub Actions secret." >&2
+            exit 1
+          fi
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          source "$RUNNER_TEMP/supabase.env"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "TEST_SUPABASE_URL=$API_URL"
+            echo "TEST_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "TEST_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+      - name: Prepare isolated Stripe test-mode prices
+        run: pnpm exec tsx scripts/prepare-trial-e2e-stripe.ts
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Run trial and supported voluntary conversion journey
+        run: |
+          pnpm start &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:4028/api/health && break
+            sleep 1
+          done
+          curl --fail http://127.0.0.1:4028/api/health
+          pnpm exec playwright test tests/e2e/trial-journey.spec.ts --project=chromium
+      - name: Dispose isolated Stripe test-mode resources
+        if: always()
+        run: pnpm exec tsx scripts/cleanup-trial-e2e-stripe.ts
+
   release-gate:
     if: always()
-    needs: [quality, migration-replay, integration, browser]
+    needs: [quality, migration-replay, integration, browser, trial-journey]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -168,3 +233,4 @@ jobs:
           migration-replay=${{ needs.migration-replay.result }}
           integration=${{ needs.integration.result }}
           browser=${{ needs.browser.result }}
+          trial-journey=${{ needs.trial-journey.result }}

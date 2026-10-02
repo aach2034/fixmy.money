@@ -75,7 +75,7 @@ async function seed() {
       email_confirm: true,
     });
 
-    if (error && error.message.includes('already registered')) {
+    if (error && /already(?: been)? registered/i.test(error.message)) {
       // User exists — look up their ID
       const { data: listData } = await adminClient.auth.admin.listUsers();
       const existing = listData?.users?.find((u) => u.email === fixture.email);
@@ -110,20 +110,47 @@ async function seed() {
   console.log(`  ✓ Reusing automatically created Workspace A: ${workspaceAId}`);
   console.log(`  ✓ Reusing automatically created Workspace B: ${workspaceBId}`);
 
+  // Local-only active entitlements are required by the same allocation trigger
+  // that protects production client creation. These identifiers never reach Stripe.
+  for (const [index, workspaceId] of [workspaceAId, workspaceBId].entries()) {
+    const { error } = await adminClient
+      .from('workspace_entitlements')
+      .update({
+        stripe_customer_id: `cus_test_fixture_${index + 1}`,
+        stripe_subscription_id: `sub_test_fixture_${index + 1}`,
+        stripe_status: 'active',
+        access_state: 'active',
+        plan_id: 'professional',
+        current_period_ends_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        last_verified_at: new Date().toISOString(),
+        last_reconciliation_error: null,
+      })
+      .eq('workspace_id', workspaceId);
+    if (error) {
+      console.error(`  ✗ Failed to activate local fixture entitlement: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
   // Seed clients for each workspace
   const clientsA = [
-    { first_name: 'Test', last_name: 'Client_A1', email: 'client-a1@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
-    { first_name: 'Test', last_name: 'Client_A2', email: 'client-a2@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
+    { name: 'Test Client_A1', email: 'client-a1@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
+    { name: 'Test Client_A2', email: 'client-a2@test.invalid', workspace_id: workspaceAId, owner_id: userIds.ownerA },
   ];
   const clientsB = [
-    { first_name: 'Test', last_name: 'Client_B1', email: 'client-b1@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
-    { first_name: 'Test', last_name: 'Client_B2', email: 'client-b2@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
+    { name: 'Test Client_B1', email: 'client-b1@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
+    { name: 'Test Client_B2', email: 'client-b2@test.invalid', workspace_id: workspaceBId, owner_id: userIds.ownerB },
   ];
 
   for (const client of [...clientsA, ...clientsB]) {
-    const { error } = await adminClient
+    const existing = await adminClient
       .from('staff_clients')
-      .upsert(client, { onConflict: 'email' });
+      .select('id')
+      .eq('email', client.email)
+      .maybeSingle();
+    const { error } = existing.data
+      ? await adminClient.from('staff_clients').update(client).eq('id', existing.data.id)
+      : await adminClient.from('staff_clients').insert(client);
     if (error) {
       console.warn(`  ⚠ Could not seed client ${client.email}: ${error.message}`);
     } else {
@@ -132,15 +159,28 @@ async function seed() {
   }
 
   // Seed audit log entries
-  for (const wsId of [workspaceAId, workspaceBId]) {
+  for (const ownerId of [userIds.ownerA, userIds.ownerB]) {
+    const description = 'Deterministic local security-test fixture';
+    const existing = await adminClient
+      .from('audit_logs')
+      .select('id')
+      .eq('owner_id', ownerId)
+      .eq('description', description)
+      .maybeSingle();
+    if (existing.data) {
+      console.log(`  ✓ Audit log exists for owner: ${ownerId}`);
+      continue;
+    }
     const { error } = await adminClient.from('audit_logs').insert({
-      workspace_id: wsId,
-      action: 'test_fixture_event',
-      user_id: wsId === workspaceAId ? userIds.ownerA : userIds.ownerB,
-      details: { test: true },
+      owner_id: ownerId,
+      action: 'client_note_added',
+      actor_name: 'Integration fixture',
+      actor_email: 'fixture@test.invalid',
+      description,
+      metadata: { test: true },
     });
     if (error) {
-      console.warn(`  ⚠ Could not seed audit log for workspace ${wsId}: ${error.message}`);
+      console.warn(`  ⚠ Could not seed audit log for owner ${ownerId}: ${error.message}`);
     }
   }
 

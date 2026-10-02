@@ -57,15 +57,15 @@ export const creatorPages: Record<string, {
 }> = {
   creator123: {
     name: 'Creator Partner',
-    headline: 'A guided credit-report workflow for people who want to take action themselves.',
-    offer: 'Start with the analyzer, then keep your letters and dispute activity organized.',
+    headline: 'Client-management and report-review software for independent businesses.',
+    offer: 'Explore FixMy Pro and FixMy Scale for your business. New FixMy Credit enrollment is not yet available.',
     ref: 'creator123',
-    audience: 'consumer',
+    audience: 'professional',
   },
   mortgage: {
     name: 'Mortgage Readiness Partner',
-    headline: 'Help applicants review possible credit-report issues before the next milestone.',
-    offer: 'A compliance-friendly borrower handoff path with referral tracking.',
+    headline: 'Organize authorized client report reviews in your professional workspace.',
+    offer: 'Business software with client records, correspondence review, and workflow tracking.',
     ref: 'mortgage',
     audience: 'professional',
   },

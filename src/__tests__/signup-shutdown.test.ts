@@ -74,7 +74,7 @@ describe('temporary new-signup shutdown', () => {
 
     const checkout = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
     expect(checkout).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
-    expect(checkout).not.toContain('stripe.customers.create');
+    expect(checkout.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(checkout.indexOf('stripe.customers.create'));
   });
 
   it('opens acquisition only after the launch instant and explicit server-side enablement', () => {
@@ -192,5 +192,14 @@ describe('temporary new-signup shutdown', () => {
     expect(form).toContain('challengeRetryInFlight.current');
     expect(form).toContain('await submitWaitlist(token)');
     expect(form).not.toContain('TURNSTILE_SECRET_KEY');
+  });
+
+  it('keeps customer-signup Turnstile callbacks stable across renders', () => {
+    const form = fs.readFileSync('src/app/signup/components/PublicSignupForm.tsx', 'utf8');
+    expect(form).toContain('const handleCaptchaError = useCallback');
+    expect(form).toContain('onError={handleCaptchaError}');
+    expect(form).not.toContain('onError={() =>');
+    expect(form).toContain('checked={businessUseAccepted}');
+    expect(form).toContain('checked={termsAccepted}');
   });
 });

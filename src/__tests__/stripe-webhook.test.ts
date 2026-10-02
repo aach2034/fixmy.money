@@ -43,7 +43,27 @@ const FIXTURE_EVENTS = {
     subscription: FIXTURE_SUBSCRIPTION_ID,
     mode: 'subscription',
     payment_status: 'paid',
-    metadata: { plan: 'starter', userId: 'test-user-id' },
+    metadata: { plan: 'professional', userId: 'test-user-id' },
+  }),
+
+  'checkout.session.async_payment_succeeded': makeStripeEvent('checkout.session.async_payment_succeeded', {
+    id: 'cs_test_fixture_async_success_001',
+    object: 'checkout.session',
+    customer: FIXTURE_CUSTOMER_ID,
+    subscription: FIXTURE_SUBSCRIPTION_ID,
+    mode: 'subscription',
+    payment_status: 'paid',
+    metadata: { plan: 'professional', userId: 'test-user-id' },
+  }),
+
+  'checkout.session.async_payment_failed': makeStripeEvent('checkout.session.async_payment_failed', {
+    id: 'cs_test_fixture_async_failure_001',
+    object: 'checkout.session',
+    customer: FIXTURE_CUSTOMER_ID,
+    subscription: null,
+    mode: 'subscription',
+    payment_status: 'unpaid',
+    metadata: { plan: 'professional', userId: 'test-user-id' },
   }),
 
   'customer.subscription.created': makeStripeEvent('customer.subscription.created', {
@@ -187,9 +207,11 @@ describe('Stripe Webhook Handler', () => {
   });
 
   describe('Supported event types', () => {
-    it('Documents all 11 supported webhook event types', () => {
+    it('Documents all 14 supported webhook event types', () => {
       const supportedEvents = [
         'checkout.session.completed',
+        'checkout.session.async_payment_succeeded',
+        'checkout.session.async_payment_failed',
         'customer.subscription.created',
         'customer.subscription.updated',
         'customer.subscription.deleted',
@@ -245,6 +267,8 @@ describe('Stripe Webhook Handler', () => {
     it('Fixture payloads cover all supported event types', () => {
       const fixtureEventTypes = Object.keys(FIXTURE_EVENTS);
       expect(fixtureEventTypes).toContain('checkout.session.completed');
+      expect(fixtureEventTypes).toContain('checkout.session.async_payment_succeeded');
+      expect(fixtureEventTypes).toContain('checkout.session.async_payment_failed');
       expect(fixtureEventTypes).toContain('customer.subscription.created');
       expect(fixtureEventTypes).toContain('customer.subscription.updated');
       expect(fixtureEventTypes).toContain('customer.subscription.deleted');

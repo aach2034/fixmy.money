@@ -69,6 +69,7 @@
     "seed:e2e-local": "tsx scripts/seed-local-e2e-user.ts",
     "test:d1-replay": "node scripts/validate-d1-migrations.mjs",
     "test:supabase-replay": "supabase db reset --local --no-seed && supabase test db",
+    "test:certified-mailings-late-replay": "supabase test db supabase/certified_mailings_late_replay.pg",
     "teardown-test": "tsx scripts/seed-test-fixtures.ts --teardown",
     "reconcile:fmm004": "tsx scripts/reconcile-fmm-004-entitlements.ts",
     "purge:fmm002": "tsx scripts/purge-fmm-002-raw-artifacts.ts",

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Trash2, Save, ArrowRight, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { DISPUTE_INSTRUCTIONS, type ParsedCreditReport, type ParsedAccount, type SectionConfidence } from '@/lib/creditReport/parser';
@@ -36,6 +36,23 @@ interface InvestigationIssue {
   evidence_still_needed: string[] | null;
 }
 
+interface AIReviewAvailability {
+  available: boolean;
+  provider?: string;
+  model?: string;
+  disclosureVersion?: string;
+  dataScope?: string;
+}
+
+interface AIReviewResult {
+  analysis: string;
+  provider: string;
+  model: string;
+  candidateFindingCount: number;
+  requiresHumanReview: boolean;
+  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
+}
+
 export default function ReportReviewContent({ clientId, reportId }: ReportReviewContentProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -49,6 +66,12 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [sectionConf, setSectionConf] = useState<SectionConfidence | null>(null);
   const [investigationIssues, setInvestigationIssues] = useState<InvestigationIssue[]>([]);
+  const [aiAvailability, setAIAvailability] = useState<AIReviewAvailability | null>(null);
+  const [aiConsent, setAIConsent] = useState(false);
+  const [aiRunning, setAIRunning] = useState(false);
+  const [aiAttempted, setAIAttempted] = useState(false);
+  const [aiReview, setAIReview] = useState<AIReviewResult | null>(null);
+  const [aiError, setAIError] = useState('');
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -218,6 +241,44 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
   }, [reportId, clientId]);
 
   useEffect(() => { loadReport(); }, [loadReport]);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/credit-report/analyze', { method: 'GET', cache: 'no-store' })
+      .then(async response => {
+        const body = await response.json().catch(() => ({ available: false }));
+        if (active) setAIAvailability(body as AIReviewAvailability);
+      })
+      .catch(() => {
+        if (active) setAIAvailability({ available: false });
+      });
+    return () => { active = false; };
+  }, []);
+
+  const handleAIReview = async () => {
+    if (!aiAvailability?.available || !aiAvailability.disclosureVersion || !aiConsent || aiAttempted) return;
+    setAIAttempted(true);
+    setAIRunning(true);
+    setAIError('');
+    try {
+      const response = await fetch('/api/credit-report/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parsedReportId: reportId,
+          consent: true,
+          disclosureVersion: aiAvailability.disclosureVersion,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'The controlled AI review failed safely.');
+      setAIReview(body as AIReviewResult);
+    } catch (error) {
+      setAIError(error instanceof Error ? error.message : 'The controlled AI review failed safely.');
+    } finally {
+      setAIRunning(false);
+    }
+  };
 
   const updateAccount = (id: string, updates: Partial<EditableAccount>) => {
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
@@ -413,6 +474,61 @@ export default function ReportReviewContent({ clientId, reportId }: ReportReview
           </div>
         ))}
       </div>
+
+      {/* Account-scoped external AI review */}
+      {aiAvailability?.available && (
+        <div className="card border border-indigo-200 bg-indigo-50/40 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <Sparkles size={20} className="mt-0.5 shrink-0 text-indigo-700" />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Controlled AI findings review</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {aiAvailability.provider} {aiAvailability.model} reviews only minimized categories, opaque finding references, and generic evidence references. Raw report text, names, account numbers, exact amounts, and creditor names are not sent.
+              </p>
+            </div>
+          </div>
+          {!aiReview && !aiError && (
+            <>
+              <label className="flex items-start gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={aiConsent}
+                  onChange={event => setAIConsent(event.target.checked)}
+                  disabled={aiAttempted}
+                  className="mt-1"
+                />
+                <span>I consent to this one controlled external review and understand that every result requires human verification before dispute preparation.</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAIReview}
+                disabled={!aiConsent || aiRunning || aiAttempted}
+                className="btn-primary inline-flex items-center gap-2 text-sm"
+              >
+                {aiRunning ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {aiRunning ? 'Running one controlled review…' : 'Run controlled AI review once'}
+              </button>
+            </>
+          )}
+          {aiReview && (
+            <div className="rounded-xl border border-indigo-200 bg-white p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">AI review result</p>
+                <span className="text-xs text-muted-foreground">
+                  {aiReview.usage.inputTokens} input + {aiReview.usage.outputTokens} output tokens
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap text-sm text-foreground">{aiReview.analysis}</p>
+              <p className="text-xs font-medium text-amber-800">Human review required. A flagged anomaly is not automatically a supportable dispute.</p>
+            </div>
+          )}
+          {aiError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {aiError} No automatic retry was made.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Investigation issues */}
       {investigationIssues.length > 0 && (

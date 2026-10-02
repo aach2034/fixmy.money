@@ -25,6 +25,9 @@ function row(overrides: Partial<WorkspaceEntitlementRow> = {}): WorkspaceEntitle
     stripe_status: 'none',
     access_state: 'expired',
     plan_id: 'starter',
+    trial_source: 'none',
+    free_trial_started_at: null,
+    free_trial_ends_at: null,
     trial_ends_at: null,
     current_period_ends_at: null,
     grace_ends_at: null,
@@ -98,6 +101,44 @@ describe('FMM-004 workspace entitlement authority', () => {
       verifiedAt: NOW,
     });
     expect(trial).toMatchObject({ stripe_status: 'trialing', access_state: 'trial' });
+  });
+
+  it('keeps an application trial independent from failed or canceled Checkout', () => {
+    const applicationTrial = row({
+      stripe_customer_id: 'cus_a',
+      stripe_subscription_id: null,
+      stripe_status: 'none',
+      access_state: 'trial',
+      trial_source: 'application',
+      free_trial_started_at: NOW.toISOString(),
+      free_trial_ends_at: '2026-10-03T18:00:00.000Z',
+      trial_ends_at: '2026-10-03T18:00:00.000Z',
+      last_verified_at: NOW.toISOString(),
+    });
+    expect(buildVerifiedEntitlementRow({
+      existing: applicationTrial, subscription: null, stripeCustomerId: 'cus_a', verifiedAt: NOW,
+    })).toMatchObject({ access_state: 'trial', trial_source: 'application', stripe_status: 'none' });
+    expect(buildVerifiedEntitlementRow({
+      existing: applicationTrial,
+      subscription: subscription({ status: 'canceled', items: { data: [] } }),
+      stripeCustomerId: 'cus_a',
+      verifiedAt: NOW,
+    })).toMatchObject({ access_state: 'trial', trial_source: 'application' });
+  });
+
+  it('converts to paid access without erasing one-time trial history', () => {
+    const converted = buildVerifiedEntitlementRow({
+      existing: row({
+        access_state: 'trial', trial_source: 'application', stripe_status: 'none',
+        free_trial_started_at: NOW.toISOString(), free_trial_ends_at: '2026-10-03T18:00:00.000Z',
+        trial_ends_at: '2026-10-03T18:00:00.000Z', last_verified_at: NOW.toISOString(),
+      }),
+      subscription: subscription(), stripeCustomerId: 'cus_a', verifiedAt: NOW,
+    });
+    expect(converted).toMatchObject({
+      access_state: 'active', trial_source: 'none',
+      free_trial_started_at: NOW.toISOString(), free_trial_ends_at: '2026-10-03T18:00:00.000Z',
+    });
   });
 
   it('expires canceled access immediately', async () => {
@@ -254,6 +295,47 @@ describe('FMM-004 workspace entitlement authority', () => {
       access_state: 'active',
       last_verified_at: '2026-09-03T16:00:00.000Z',
     });
+    expect(store.saves).toHaveLength(0);
+  });
+
+  it('classifies a missing Stripe customer as a binding error and preserves the reference for repair', async () => {
+    const store = memoryStore([row({
+      stripe_status: 'active',
+      access_state: 'active',
+      current_period_ends_at: '2026-10-03T18:00:00.000Z',
+      last_verified_at: '2026-09-03T16:00:00.000Z',
+    })]);
+    await expect(getWorkspaceEntitlementDecision({
+      workspaceId: 'workspace-a',
+      store,
+      gateway: {
+        async list() {
+          throw { type: 'invalid_request_error', code: 'resource_missing', param: 'customer' };
+        },
+      },
+      now: NOW,
+    })).rejects.toMatchObject({ code: 'STRIPE_CUSTOMER_NOT_FOUND' });
+    expect(store.rows.get('workspace-a')).toMatchObject({
+      stripe_customer_id: 'cus_a',
+      stripe_subscription_id: 'sub_a',
+      access_state: 'expired',
+      last_verified_at: null,
+      last_reconciliation_error: 'STRIPE_CUSTOMER_NOT_FOUND',
+    });
+  });
+
+  it('does not classify unrelated Stripe resource errors as a missing customer', async () => {
+    const store = memoryStore([row()]);
+    await expect(getWorkspaceEntitlementDecision({
+      workspaceId: 'workspace-a',
+      store,
+      gateway: {
+        async list() {
+          throw { type: 'invalid_request_error', code: 'resource_missing', param: 'subscription' };
+        },
+      },
+      now: NOW,
+    })).rejects.toMatchObject({ code: 'STRIPE_RECONCILIATION_UNAVAILABLE' });
     expect(store.saves).toHaveLength(0);
   });
 

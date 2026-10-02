@@ -6,7 +6,7 @@ import { canonicalUrl } from '@/lib/seo/config';
 
 export const metadata: Metadata = {
   title: 'FixMy.Money Affiliate and Referral Program',
-  description: 'Create trackable referral URLs for consumer, creator, professional, and mortgage partner acquisition campaigns.',
+  description: 'Create trackable referral URLs for business and professional partner acquisition campaigns.',
   alternates: { canonical: canonicalUrl('/affiliates') },
 };
 
@@ -27,7 +27,7 @@ export default function AffiliatesPage() {
           <div className="mx-auto max-w-5xl">
             <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">Affiliate and referral program</p>
             <h1 className="mt-5 max-w-3xl text-4xl font-black leading-tight sm:text-5xl">Track creator, partner, and campaign referrals into FixMy.Money.</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Use referral codes and UTM parameters to route consumers or professionals to the reopening list while preserving first-touch attribution.</p>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Use referral codes and UTM parameters to route business purchasers to the reopening list while preserving first-touch attribution.</p>
             <div className="mt-8 break-all rounded-lg border border-white/10 bg-white/5 p-4 font-mono text-xs leading-6 text-emerald-100">{example}</div>
           </div>
         </section>
@@ -55,7 +55,7 @@ export default function AffiliatesPage() {
             <h2 className="text-3xl font-black">Referral URL patterns</h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {[
-                ['/individuals?ref=coach&utm_source=linkedin&utm_medium=partner&utm_campaign=consumer_report_review', 'Consumer educator'],
+                ['/professionals?ref=coach&utm_source=linkedin&utm_medium=partner&utm_campaign=business_software', 'Professional educator'],
                 ['/professionals?ref=consultant&utm_source=webinar&utm_medium=partner&utm_campaign=agency_trial', 'Professional consultant'],
                 ['/r/creator123?utm_source=youtube&utm_medium=creator&utm_campaign=credit-report-video', 'Creator landing page'],
               ].map(([href, label]) => (

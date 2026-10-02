@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const requiredJobs = ['quality', 'migration-replay', 'integration', 'browser'];
+const requiredJobs = ['quality', 'migration-replay', 'integration', 'browser', 'trial-journey'];
 const results = new Map(
   process.argv.slice(2).map((argument) => {
     const separator = argument.indexOf('=');

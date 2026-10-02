@@ -173,53 +173,106 @@ export async function processStripeWebhookBusinessEvent(
     requireEntitlement(await dependencies.applySubscription(subscription, event), event);
   };
 
+  const processSuccessfulCheckout = async (session: Stripe.Checkout.Session) => {
+    const customerId = stripeObjectId(session.customer);
+    if (!customerId || session.mode !== 'subscription' ||
+      !['paid', 'no_payment_required'].includes(session.payment_status)) return;
+
+    const subscriptionId = stripeObjectId(session.subscription);
+    if (!subscriptionId) throw new Error(`CHECKOUT_SUBSCRIPTION_MISSING:${event.id}`);
+
+    const subscription = await dependencies.retrieveSubscription(subscriptionId);
+    const plan = subscription.metadata?.plan || session.metadata?.plan || 'starter';
+    await applyRequiredSubscription(subscription);
+    await dependencies.logBillingEvent(event, event.type, {
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId,
+      status: 'completed',
+      stripeCreatedAt: event.created,
+      metadata: session.metadata ?? undefined,
+    });
+
+    const { email, name } = await dependencies.customerInfo(customerId);
+    if (subscription.status === 'trialing') {
+      await dependencies.logBillingEvent(event, 'trial_started', {
+        stripeEventId: `${event.id}_trial_started`,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        status: 'trial_active',
+        stripeCreatedAt: event.created,
+        metadata: session.metadata ?? undefined,
+      });
+      await dependencies.logAnalytics({
+        eventName: 'trial_started',
+        userId: session.metadata?.userId || null,
+        stripeCustomerId: customerId,
+        properties: { plan },
+        dedupeKey: `stripe:${subscriptionId}:trial_started`,
+        occurredAt: new Date(event.created * 1000).toISOString(),
+      });
+      if (email) {
+        await dependencies.enqueueEmail(event.id, `stripe:${subscriptionId}:trial_confirmation`, {
+          type: 'trial_confirmation',
+          to: email,
+          name,
+          plan,
+          trialEndDate: subscription.trial_end ? formatDate(subscription.trial_end) : '',
+          amount: getPlanAmount(plan),
+        });
+      }
+      return;
+    }
+
+    if (subscription.status === 'active') {
+      const periodEnd = subscriptionPeriodEnd(subscription);
+      await dependencies.logBillingEvent(event, 'subscription_started', {
+        stripeEventId: `${event.id}_subscription_started`,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        status: 'active',
+        stripeCreatedAt: event.created,
+        metadata: session.metadata ?? undefined,
+      });
+      await dependencies.logAnalytics({
+        eventName: 'subscription_started',
+        userId: session.metadata?.userId || null,
+        stripeCustomerId: customerId,
+        properties: { plan },
+        dedupeKey: `stripe:${subscriptionId}:subscription_started`,
+        occurredAt: new Date(event.created * 1000).toISOString(),
+      });
+      if (email) {
+        await dependencies.enqueueEmail(event.id, `stripe:${subscriptionId}:subscription_started`, {
+          type: 'subscription_started',
+          to: email,
+          name,
+          plan,
+          renewalDate: periodEnd ? formatDate(periodEnd) : '',
+          amount: getPlanAmount(plan),
+        });
+      }
+    }
+  };
+
   switch (event.type) {
-    case 'checkout.session.completed': {
+    case 'checkout.session.completed':
+    case 'checkout.session.async_payment_succeeded': {
       const session = event.data.object as Stripe.Checkout.Session;
-      if (session.customer && session.mode === 'subscription' && session.payment_status === 'paid') {
-        const customerId = session.customer as string;
-        const subscriptionId = stripeObjectId(session.subscription);
-        if (!subscriptionId) throw new Error(`CHECKOUT_SUBSCRIPTION_MISSING:${event.id}`);
+      await processSuccessfulCheckout(session);
+      break;
+    }
 
-        const subscription = await dependencies.retrieveSubscription(subscriptionId);
-        const plan = subscription.metadata?.plan || session.metadata?.plan || 'starter';
-        await applyRequiredSubscription(subscription);
-
-        await dependencies.logBillingEvent(event, 'checkout.session.completed', {
+    case 'checkout.session.async_payment_failed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const customerId = stripeObjectId(session.customer);
+      if (customerId) {
+        await dependencies.logBillingEvent(event, event.type, {
           stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
-          status: 'completed',
+          stripeSubscriptionId: stripeObjectId(session.subscription),
+          status: 'failed',
           stripeCreatedAt: event.created,
           metadata: session.metadata ?? undefined,
         });
-        await dependencies.logBillingEvent(event, 'trial_started', {
-          stripeEventId: `${event.id}_trial_started`,
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
-          status: 'trial_active',
-          stripeCreatedAt: event.created,
-          metadata: session.metadata ?? undefined,
-        });
-        await dependencies.logAnalytics({
-          eventName: 'trial_started',
-          userId: session.metadata?.userId || null,
-          stripeCustomerId: customerId,
-          properties: { plan },
-          dedupeKey: `stripe:${event.id}:trial_started`,
-          occurredAt: new Date(event.created * 1000).toISOString(),
-        });
-
-        const { email, name } = await dependencies.customerInfo(customerId);
-        if (email) {
-          await dependencies.enqueueEmail(event.id, `${event.id}:trial_confirmation`, {
-            type: 'trial_confirmation',
-            to: email,
-            name,
-            plan,
-            trialEndDate: subscription.trial_end ? formatDate(subscription.trial_end) : '',
-            amount: getPlanAmount(plan),
-          });
-        }
       }
       break;
     }

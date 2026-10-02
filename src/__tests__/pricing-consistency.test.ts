@@ -23,7 +23,7 @@ import { PLANS, PLANS_LIST, CHECKOUT_PLANS, getStripePriceId } from '../lib/stri
 // ─── 1. Centralized Pricing Config ───────────────────────────────────────────
 
 describe('Centralized Pricing Config — Single Source of Truth', () => {
-  it('homepage imports checkout plans instead of defining another pricing table', async () => {
+  it('homepage imports the centralized public plan list instead of defining another pricing table', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const homepage = fs.readFileSync(
@@ -32,24 +32,24 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     );
 
     expect(homepage).toContain("from '@/lib/stripe/plans'");
-    expect(homepage).toContain('CHECKOUT_PLANS');
+    expect(homepage).toContain('PLANS_LIST');
     expect(homepage).not.toMatch(/const\s+PLANS\s*=\s*\[/);
   });
 
-  it('Personal plan costs $39/month', () => {
-    expect(PLANS.starter.name).toBe('Personal');
+  it('FixMy Credit pricing remains $39/month', () => {
+    expect(PLANS.starter.name).toBe('FixMy Credit');
     expect(PLANS.starter.monthlyPrice).toBe(39);
     expect(PLANS.starter.stripeAmountCents).toBe(3900);
   });
 
-  it('Start plan costs $99/month', () => {
-    expect(PLANS.professional.name).toBe('Start');
+  it('FixMy Pro costs $99/month', () => {
+    expect(PLANS.professional.name).toBe('FixMy Pro');
     expect(PLANS.professional.monthlyPrice).toBe(99);
     expect(PLANS.professional.stripeAmountCents).toBe(9900);
   });
 
-  it('Grow plan costs $199/month', () => {
-    expect(PLANS.agency.name).toBe('Grow');
+  it('FixMy Scale costs $199/month', () => {
+    expect(PLANS.agency.name).toBe('FixMy Scale');
     expect(PLANS.agency.monthlyPrice).toBe(199);
     expect(PLANS.agency.stripeAmountCents).toBe(19900);
   });
@@ -75,9 +75,10 @@ describe('Centralized Pricing Config — Single Source of Truth', () => {
     expect(planIds).not.toContain('growth');
   });
 
-  it('Checkout plans are starter, professional, agency only', () => {
+  it('publishes three plans while limiting new checkout to professional and agency', () => {
     const checkoutIds = CHECKOUT_PLANS.map(p => p.id);
-    expect(checkoutIds).toEqual(['starter', 'professional', 'agency']);
+    expect(checkoutIds).toEqual(['professional', 'agency']);
+    expect(PLANS_LIST.map(p => p.id)).toEqual(['starter', 'professional', 'agency']);
     expect(checkoutIds).not.toContain('enterprise');
     expect(checkoutIds).not.toContain('growth');
   });
@@ -121,20 +122,23 @@ describe('New paid checkout hold', () => {
     const fs = await import('fs');
     const source = fs.readFileSync('src/lib/stripe/plans.ts', 'utf8');
     expect(source).not.toContain('TRIAL_CONFIG');
-    expect(PLANS.starter.cta).toBe('Join reopening list');
+    expect(PLANS.starter.cta).toBe('View availability');
+    expect(PLANS.professional.cta).toBe('Start 30-day free trial');
   });
 
-  it('never creates a Stripe session or upfront charge for any plan', async () => {
+  it('creates no Stripe state while the independent paid-checkout gate is closed', async () => {
     const { POST } = await import('../app/api/stripe/create-checkout/route');
     for (const plan of ['starter', 'professional', 'agency']) {
       const response = await POST();
       expect(response.status, plan).toBe(503);
-      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(response.headers.get('Cache-Control')).toBe('private, no-store');
       await expect(response.json()).resolves.toMatchObject({ code: 'NEW_PAID_CHECKOUT_ON_HOLD' });
     }
     const fs = await import('fs');
     const source = fs.readFileSync('src/app/api/stripe/create-checkout/route.ts', 'utf8');
-    expect(source).not.toMatch(/checkout\.sessions\.create|payment_method_collection|trial_period_days|price_data|customers\.create/);
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripeServerClient()'));
+    expect(source).not.toContain('trial_period_days');
+    expect(source).toContain("payment_method_collection: 'always'");
   });
 });
 
@@ -559,10 +563,9 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     );
     const source = fs.readFileSync(routePath, 'utf-8');
 
-    expect(source).toContain("status: 503");
+    expect(source).toContain('}, 503)');
     expect(source).toContain('NEW_PAID_CHECKOUT_ON_HOLD');
-    expect(source).not.toContain('getStripePriceId');
-    expect(source).not.toContain('checkout.sessions.create');
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripePriceId(plan)'));
   });
 
   it('Checkout route returns 503 without loading a Stripe secret', async () => {
@@ -579,7 +582,7 @@ describe('Stripe Environment Variables — Safe Disabled State', () => {
     );
 
     expect(source).toContain('503');
-    expect(source).not.toContain('getStripeServerClient');
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripeServerClient()'));
     expect(stripeServer).toContain('STRIPE_SECRET_KEY');
   });
 
@@ -699,7 +702,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     }
   });
 
-  it('Held checkout route cannot expose or load a Stripe secret', async () => {
+  it('Checkout route keeps the Stripe secret server-only and behind the release gate', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const routePath = path.resolve(
@@ -712,7 +715,7 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
       'utf-8'
     );
 
-    expect(source).not.toContain('getStripeServerClient');
+    expect(source.indexOf("NEW_PAID_CHECKOUT_ENABLED !== 'true'")).toBeLessThan(source.indexOf('getStripeServerClient()'));
     expect(stripeServer).toContain('STRIPE_SECRET_KEY');
     expect(source).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');
     expect(stripeServer).not.toContain('NEXT_PUBLIC_STRIPE_SECRET_KEY');
@@ -733,17 +736,18 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     }
   });
 
-  it('email calls require a user session or server credential', async () => {
+  it('email calls send modern keys in apikey and user sessions in Authorization', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const emailPath = path.resolve(process.cwd(), 'src/lib/email/emailService.ts');
     const source = fs.readFileSync(emailPath, 'utf-8');
 
-    expect(source).toContain('accessToken || process.env.SUPABASE_SERVICE_ROLE_KEY');
-    expect(source).not.toContain('Authorization: `Bearer ${SUPABASE_ANON_KEY}`');
+    expect(source).toContain('apikey: accessToken ? SUPABASE_PUBLIC_KEY : serviceKey!');
+    expect(source).toContain('if (accessToken) headers.Authorization = `Bearer ${accessToken}`');
+    expect(source).not.toContain('Authorization: `Bearer ${serviceKey}`');
   });
 
-  it('email edge function preserves JWT verification and restricts service calls', async () => {
+  it('email edge function explicitly authorizes modern keys and user JWTs', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const functionPath = path.resolve(
@@ -752,7 +756,10 @@ describe('Secret Key Exposure — Not in Browser Bundle', () => {
     );
     const source = fs.readFileSync(functionPath, 'utf-8');
 
-    expect(source).toContain('const isServiceRole = authHeader ===');
+    expect(source).toContain('managedKeys("SUPABASE_SECRET_KEYS")');
+    expect(source).toContain('managedKeys("SUPABASE_PUBLISHABLE_KEYS")');
+    expect(source).toContain('const isModernService = includesKey(secretKeys, apiKey)');
+    expect(source).toContain('await getAuthenticatedUser(authHeader, supabaseUrl, apiKey)');
     expect(source).toContain('Invalid or expired session');
     expect(source).toContain('Recipient is not one of your clients');
     expect(source).toContain('/rest/v1/rpc/current_workspace_context');

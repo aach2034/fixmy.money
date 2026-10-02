@@ -4,12 +4,12 @@ import AppLayout from '@/components/AppLayout';
 import AIFinancialCoachContent from './components/AIFinancialCoachContent';
 
 export const metadata: Metadata = {
-  title: 'AI Financial Coach | Credit Repair Guidance',
-  description: 'Get personalized financial coaching from our AI assistant. Learn credit repair strategies and business growth tips.',
+  title: 'AI Financial Coach Availability | FixMy.Money',
+  description: 'The FixMy.Money AI financial coach is temporarily unavailable while production privacy and usage controls are verified.',
   keywords: ['AI coach', 'financial coaching', 'credit repair guidance', 'business coaching'],
   openGraph: {
-    title: 'AI Financial Coach | Credit Repair Guidance',
-    description: 'Get personalized financial coaching from our AI assistant. Learn credit repair strategies and business growth tips.',
+    title: 'AI Financial Coach Availability | FixMy.Money',
+    description: 'The FixMy.Money AI financial coach is temporarily unavailable while production privacy and usage controls are verified.',
     type: 'website',
     url: 'https://fixmy.money/ai-financial-coach',
     siteName: 'Fix My Money',

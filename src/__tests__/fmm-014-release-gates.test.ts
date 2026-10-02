@@ -20,7 +20,7 @@ describe('FMM-014 enforced release gates', () => {
   });
 
   it('requires clean migration replay and database tests', () => {
-    expect(workflow.match(/supabase db reset --local --no-seed/g)).toHaveLength(4);
+    expect(workflow.match(/supabase db reset --local --no-seed/g)).toHaveLength(5);
     expect(workflow).toContain('supabase test db');
     expect(workflow).toContain('supabase db lint --local --level error --fail-on error');
     expect(fs.existsSync('supabase/config.toml')).toBe(true);
@@ -111,6 +111,31 @@ describe('FMM-014 enforced release gates', () => {
     expect(workflow).toContain('NEXT_PUBLIC_SITE_URL=http://127.0.0.1:4028');
   });
 
+  it('requires an isolated no-card trial, hosted redirect, and supported paid-conversion journey', () => {
+    expect(workflow).toContain('trial-journey:');
+    expect(workflow).toContain('TRIAL_E2E_ENABLED: "true"');
+    expect(workflow).toContain('TEST_MAILPIT_URL: http://127.0.0.1:54324');
+    expect(workflow).toContain('tests/e2e/trial-journey.spec.ts --project=chromium');
+    expect(workflow).toContain('scripts/prepare-trial-e2e-stripe.ts');
+    expect(workflow).toContain('scripts/cleanup-trial-e2e-stripe.ts');
+    const journey = fs.readFileSync('tests/e2e/trial-journey.spec.ts', 'utf8');
+    expect(journey).toContain('TRIAL_E2E_LOCAL_STACK_REQUIRED');
+    expect(journey).toContain('/api/v1/messages?limit=50');
+    expect(journey).toContain('/api/v1/message/${encodeURIComponent(messageId)}');
+    expect(journey).not.toContain('/api/v1/mailbox/');
+    expect(journey).toContain('sk_test_');
+    expect(journey).toContain("plan=starter");
+    expect(journey).toContain("stripe_subscription_id).toBeNull()");
+    expect(journey).toContain('trial_ended');
+    expect(journey).toContain('Subscribe to FixMy Pro — $99/month');
+    expect(journey).toContain('checkout\\.stripe\\.com');
+    expect(journey).toContain('https://docs.stripe.com/automated-testing');
+    expect(journey).toContain('pm_card_visa_chargeDeclined');
+    expect(journey).toContain('pm_card_visa');
+    expect(journey).not.toContain('4000000000000002');
+    expect(journey).not.toContain('4242424242424242');
+  });
+
   it('fails closed in CI when isolated authenticated E2E configuration is absent', () => {
     expect(isRequiredReleaseGate({ CI: 'true' })).toBe(true);
     expect(isRequiredReleaseGate({ FMM_RELEASE_GATE: '1' })).toBe(true);
@@ -149,7 +174,7 @@ describe('FMM-014 enforced release gates', () => {
   });
 
   it('exposes a single fail-closed release gate', () => {
-    expect(workflow).toContain('needs: [quality, migration-replay, integration, browser]');
+    expect(workflow).toContain('needs: [quality, migration-replay, integration, browser, trial-journey]');
     expect(workflow).toContain('if: always()');
     expect(workflow).toContain('node scripts/verify-release-gate.mjs');
 
@@ -159,6 +184,7 @@ describe('FMM-014 enforced release gates', () => {
       'migration-replay=success',
       'integration=success',
       'browser=success',
+      'trial-journey=success',
     ]);
     expect(passing.status).toBe(0);
 
@@ -168,6 +194,7 @@ describe('FMM-014 enforced release gates', () => {
       'migration-replay=success',
       'integration=failure',
       'browser=success',
+      'trial-journey=success',
     ]);
     expect(failing.status).not.toBe(0);
     expect(failing.stderr.toString()).toContain('integration did not succeed');

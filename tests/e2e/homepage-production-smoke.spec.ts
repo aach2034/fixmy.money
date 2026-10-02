@@ -62,9 +62,9 @@ async function expectCleanHomepage(page: Page) {
   const response = await gotoReady(page, '/');
   expect(response?.status()).toBeLessThan(400);
   await expect(page.getByRole('heading', {
-    name: /Your credit report, organized\. See what matters\. You take action\./i,
+    name: /Your client work, organized\. Your team, in control\./i,
   })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Review My Own Credit/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Explore Business Software/i })).toBeVisible();
   await expect(page.getByText('Three-Bureau Comparison').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByText('No raw report transmission to external AI')).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -126,27 +126,30 @@ test.describe('production homepage smoke', () => {
     await expect(page).toHaveURL(/\/login$/);
 
     await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Reserve My Free Month/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
+    await page.getByRole('link', { name: /Start 30-Day Free Trial/i }).first().click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
     await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Review My Own Credit/i }).click();
-    await expect(page).toHaveURL(/\/individuals$/);
-    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
-
-    await gotoReady(page, '/');
-    await page.getByRole('link', { name: /Run My Credit Business/i }).click();
+    await page.getByRole('link', { name: /Explore Business Software/i }).click();
     await expect(page).toHaveURL(/\/professionals$/);
-    await page.getByRole('link', { name: /Reserve One Month Free/i }).first().click();
-    await expect(page).toHaveURL(/\/reopen$/);
+    await page.getByRole('link', { name: /Start 30-Day Free Trial/i }).first().click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
-    const planExpectations = ['Personal', 'Start', 'Grow'] as const;
+    await gotoReady(page, '/');
+    await page.getByRole('link', { name: /Compare plans/i }).click();
+    await expect(page).toHaveURL(/\/pricing$/);
+    await page.locator('div.relative').filter({ has: page.getByRole('heading', { name: 'FixMy Pro', exact: true }) }).getByRole('button', { name: 'Start 30-day free trial' }).click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
 
-    for (const planName of planExpectations) {
+    const planExpectations = [
+      { name: 'FixMy Pro', id: 'professional' },
+      { name: 'FixMy Scale', id: 'agency' },
+    ] as const;
+
+    for (const plan of planExpectations) {
       await gotoReady(page, '/');
-      await page.locator('article').filter({ has: page.getByRole('heading', { name: planName }) }).getByRole('link', { name: 'Reserve one month free' }).click();
-      await expect(page).toHaveURL(/\/reopen$/);
+      await page.locator('article').filter({ has: page.getByRole('heading', { name: plan.name }) }).getByRole('link', { name: '30-day free trial. No credit card required.' }).click();
+      await expect(page).toHaveURL(new RegExp(`/signup\\?plan=${plan.id}$`));
     }
   });
 

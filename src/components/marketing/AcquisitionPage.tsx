@@ -39,7 +39,7 @@ export default function AcquisitionPage({
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <PublicBrandLink compact />
           <div className="hidden items-center gap-5 text-sm font-bold text-slate-700 md:flex">
-            <Link href="/individuals" className="transition-colors hover:text-[#267a31]">Individuals</Link>
+            <Link href="/business-use" className="transition-colors hover:text-[#267a31]">Business use</Link>
             <Link href="/professionals" className="transition-colors hover:text-[#267a31]">Professionals</Link>
             <Link href="/tools" className="transition-colors hover:text-[#267a31]">Free Tools</Link>
             <Link href="/pricing" className="transition-colors hover:text-[#267a31]">Pricing</Link>

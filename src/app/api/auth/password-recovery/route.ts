@@ -9,6 +9,7 @@ import {
   includeCookieInVary,
   isSupabaseAuthCookie,
 } from '@/lib/auth/session-isolation';
+import { getSupabasePublicConfig } from '@/lib/supabase/public-config';
 
 type PendingCookie = {
   name: string;
@@ -57,14 +58,19 @@ function createResponse(
 }
 
 function createSupabaseContext(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const signingSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseAnonKey || !signingSecret) return null;
+  if (!signingSecret) return null;
+
+  let publicConfig;
+  try {
+    publicConfig = getSupabasePublicConfig();
+  } catch {
+    return null;
+  }
 
   const pendingCookies: PendingCookie[] = [];
   let pendingHeaders: Record<string, string> = {};
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(publicConfig.url, publicConfig.publishableKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(cookiesToSet, headers) {

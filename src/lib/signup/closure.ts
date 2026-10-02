@@ -29,6 +29,12 @@ export function isPublicSignupOpen(now = new Date()): boolean {
   );
 }
 
+export function isNewTrialEligibleAccount(createdAt: string | undefined | null): boolean {
+  if (!createdAt) return false;
+  const created = new Date(createdAt);
+  return !Number.isNaN(created.getTime()) && created >= new Date(PUBLIC_SIGNUP_OPENS_AT);
+}
+
 export function canUseCustomerAcquisition(createdAt: string | undefined | null, now = new Date()): boolean {
   return isPreShutdownUser(createdAt) || isPublicSignupOpen(now);
 }

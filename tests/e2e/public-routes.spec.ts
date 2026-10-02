@@ -43,9 +43,9 @@ test.describe('Homepage (/)', () => {
 
   test('has CTA button', async ({ page }) => {
     await page.goto('/');
-    const cta = page.getByRole('link', { name: /Review My Own Credit/i });
+    const cta = page.getByRole('link', { name: /Explore Business Software/i });
     await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute('href', '/individuals');
+    await expect(cta).toHaveAttribute('href', '/professionals');
   });
 });
 
@@ -89,12 +89,13 @@ test.describe('Pricing (/pricing)', () => {
 
   test('has plan options', async ({ page }) => {
     await page.goto('/pricing');
-    for (const [plan, price] of [['Personal', '$39'], ['Start', '$99'], ['Grow', '$199']] as const) {
+    for (const [plan, price] of [['FixMy Credit', '$39'], ['FixMy Pro', '$99'], ['FixMy Scale', '$199']] as const) {
       const card = page.getByRole('heading', { name: plan, exact: true }).locator('xpath=../..');
       await expect(card).toContainText(price);
       await expect(card).toContainText('per month');
     }
     await expect(page.getByText('$249', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'View availability' })).toHaveCount(1);
   });
 });
 
@@ -172,9 +173,12 @@ test.describe('Retired Demo Mode (/demo-mode)', () => {
     await expect(page.getByRole('heading', { name: /Every feature, explained/i })).toBeVisible();
   });
 
-  test('routes the product-tour CTA to the reopening list', async ({ page }) => {
+  test('routes the product-tour CTA to the Start trial', async ({ page }) => {
     await page.goto('/demo-mode');
-    await expect(page.getByRole('link', { name: /Reserve one month free/i }).first()).toBeVisible();
+    const trialLink = page.getByRole('link', { name: /Start 30-Day Free Trial/i }).first();
+    await expect(trialLink).toBeVisible();
+    await trialLink.click();
+    await expect(page).toHaveURL(/\/signup\?plan=professional$/);
   });
 });
 
@@ -388,7 +392,8 @@ test.describe('Mobile Navigation', () => {
 // ─── Keyboard Navigation ──────────────────────────────────────────────────────
 
 test.describe('Keyboard Navigation', () => {
-  test('homepage is keyboard navigable', async ({ page }) => {
+  test('homepage is keyboard navigable', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Desktop Tab traversal is not modeled by touch-only mobile browser profiles.');
     await page.goto('/');
     // Tab through interactive elements
     await page.keyboard.press('Tab');

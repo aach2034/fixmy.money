@@ -12,14 +12,16 @@ describe('isolated integration API contracts', () => {
   });
 
   it('creates subscriptions from an isolated recurring Price ID', () => {
-    const params = buildTestSubscriptionParams('cus_test', 'price_test');
+    const params = buildTestSubscriptionParams('cus_test', 'price_test', 'pm_test');
 
     expect(params).toEqual({
       customer: 'cus_test',
       items: [{ price: 'price_test' }],
-      trial_period_days: 14,
+      default_payment_method: 'pm_test',
+      payment_behavior: 'error_if_incomplete',
     });
     expect(params.items?.[0]).not.toHaveProperty('price_data');
+    expect(params).not.toHaveProperty('trial_period_days');
   });
 
   it('puts the portal return URL on the supported top-level field', () => {

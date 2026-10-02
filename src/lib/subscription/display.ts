@@ -1,12 +1,13 @@
 export type SubscriptionDisplayState = {
   state: "active" | "trial" | "grace" | "expired";
   stripeStatus: string;
+  trialSource?: string;
   trialEndsAt: string | null;
 };
 
 /**
- * Return a trial end only when Stripe's server-verified state says the
- * subscription is currently trialing and the supplied end is still valid.
+ * Return a trial end only when the server-authoritative entitlement says the
+ * application or legacy Stripe trial is current.
  */
 export function trialEndForDisplay(
   subscription: SubscriptionDisplayState | null,
@@ -15,7 +16,10 @@ export function trialEndForDisplay(
   if (
     !subscription ||
     subscription.state !== "trial" ||
-    subscription.stripeStatus !== "trialing" ||
+    !(
+      (subscription.trialSource === "application" && subscription.stripeStatus === "none") ||
+      (subscription.trialSource !== "application" && subscription.stripeStatus === "trialing")
+    ) ||
     !subscription.trialEndsAt
   ) {
     return null;
@@ -27,4 +31,11 @@ export function trialEndForDisplay(
   }
 
   return subscription.trialEndsAt;
+}
+
+export function trialDaysRemaining(trialEndsAt: string | null, now: Date = new Date()): number | null {
+  if (!trialEndsAt) return null;
+  const remaining = new Date(trialEndsAt).getTime() - now.getTime();
+  if (!Number.isFinite(remaining) || remaining <= 0) return null;
+  return Math.ceil(remaining / 86_400_000);
 }
