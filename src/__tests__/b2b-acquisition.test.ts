@@ -34,9 +34,9 @@ describe('business-only acquisition', () => {
     signUp.mockResolvedValue({ error: null });
   });
 
-  it('publishes only business plans while retaining legacy entitlement data', () => {
-    expect(PLANS_LIST.map(plan => plan.id)).toEqual([...BUSINESS_PLAN_IDS]);
-    expect(PLANS.starter).toMatchObject({ name: 'Personal', monthlyPrice: 39, maxClients: 3, stripeAmountCents: 3900 });
+  it('publishes the approved catalog while limiting new acquisition to business plans', () => {
+    expect(PLANS_LIST.map(plan => plan.id)).toEqual(['starter', ...BUSINESS_PLAN_IDS]);
+    expect(PLANS.starter).toMatchObject({ name: 'FixMy Credit', monthlyPrice: 39, maxClients: 3, stripeAmountCents: 3900 });
     expect(isBusinessPlan('starter')).toBe(false);
     expect(PUBLIC_SEO_PAGES.some(page => page.path === '/individuals')).toBe(false);
     expect(PUBLIC_SEO_PAGES.some(page => page.path === '/business-use')).toBe(true);
