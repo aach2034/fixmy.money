@@ -199,5 +199,7 @@ describe('temporary new-signup shutdown', () => {
     expect(form).toContain('const handleCaptchaError = useCallback');
     expect(form).toContain('onError={handleCaptchaError}');
     expect(form).not.toContain('onError={() =>');
+    expect(form).toContain('checked={businessUseAccepted}');
+    expect(form).toContain('checked={termsAccepted}');
   });
 });
