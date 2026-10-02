@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseWithAdapter, type NormalizedAccount } from '@/lib/creditReport/adapters';
+import { parseCreditReport } from '@/lib/creditReport/parser';
 import {
   calculateEvidenceStrength,
   compareDisputedFields,
@@ -28,6 +29,11 @@ Balance: $1,284
 Date Opened: 01/15/2024
 Date Reported: 08/01/2026
 Bureau: Experian`;
+
+const controlledProductionReport = readFileSync(
+  'src/__tests__/fixtures/credit-reports/fmm-production-ai-controlled.txt',
+  'utf8',
+);
 
 function storedRow(id: string, bureau: string, balance: number): StoredNegativeItem {
   return {
@@ -57,6 +63,24 @@ function storedRow(id: string, bureau: string, balance: number): StoredNegativeI
 }
 
 describe('owner-priority synthetic customer journey', () => {
+  it('detects the seeded mismatch while leaving the accurate control account unflagged', () => {
+    const intake = parseCreditReport(controlledProductionReport, 'myscoreiq');
+    const canonicalAccounts = normalizeCrossBureauAccounts(intake.bureauTradelines ?? intake.accounts);
+    expect(canonicalAccounts.map(account => account.displayName)).toEqual(['SYNTHETIC BANK', 'SYNTHETIC AUTO']);
+    const bank = canonicalAccounts.find(account => account.displayName === 'SYNTHETIC BANK');
+    const auto = canonicalAccounts.find(account => account.displayName === 'SYNTHETIC AUTO');
+
+    expect(bank?.tradelines).toHaveLength(3);
+    expect(detectPotentialIssues(bank!)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        issueType: 'balance_discrepancy',
+        evidenceCurrentlyAvailable: ['Credit report field comparison'],
+      }),
+    ]));
+    expect(auto?.tradelines).toHaveLength(3);
+    expect(detectPotentialIssues(auto!)).toEqual([]);
+  });
+
   it('moves from report intake to evidence review, factual preparation, and tracked outcome without converting an anomaly into an unsupported claim', () => {
     const intake = parseWithAdapter(syntheticReport, 'experian');
     const importedAccount = intake.accounts.find(value => value.creditorName === 'SYNTHETIC BANK');

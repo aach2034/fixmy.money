@@ -5,6 +5,7 @@ export const FMM002_EXTERNAL_SCHEMA_VERSION = "fmm-002-minimized-v1" as const;
 export const FMM002_MAX_EXTERNAL_PAYLOAD_CHARS = 3_500;
 
 const MAX_ACCOUNT_GROUPS = 12;
+const MAX_EXTERNAL_FINDINGS = 8;
 const MAX_SOURCE_ACCOUNTS = 500;
 const MAX_SOURCE_ITEMS = 200;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -38,6 +39,16 @@ type AccountClass = "revolving" | "installment" | "mortgage" | "auto" | "student
 type StatusClass = "current" | "late" | "collection" | "charge_off" | "closed" | "unknown";
 type AmountBand = "zero" | "under_500" | "500_1999" | "2000_9999" | "10000_plus" | "unknown";
 type RiskFlag = "negative" | "collection" | "charge_off" | "late";
+type EvidenceStrength = "strong" | "moderate" | "insufficient" | "unknown";
+type EvidenceReference = "cross_bureau_report_comparison" | "report_derived_candidate";
+type EvidenceNeededCategory =
+  | "consumer_confirmation"
+  | "account_agreement"
+  | "billing_statement"
+  | "payment_record"
+  | "furnisher_record"
+  | "investigation_response"
+  | "other_document";
 
 export interface CreditReportAnalysisRequest {
   parsedReportId: string;
@@ -63,6 +74,45 @@ export interface MinimizedExternalReportV1 {
   hardInquiryCounts: Array<{ bureau: BureauClass; count: number }>;
   publicRecordCount: number;
 }
+
+export interface MinimizedExternalFindingV1 {
+  reference: `finding-${number}`;
+  issueType: string;
+  affectedBureaus: BureauClass[];
+  confidence: ConfidenceBand;
+  evidenceStrength: EvidenceStrength;
+  evidenceReferences: EvidenceReference[];
+  evidenceNeededCategories: EvidenceNeededCategory[];
+}
+
+const ALLOWED_ISSUE_TYPES = new Set([
+  "balance_discrepancy",
+  "status_discrepancy",
+  "charge_off_status_discrepancy",
+  "collection_status_discrepancy",
+  "payment_status_discrepancy",
+  "past_due_discrepancy",
+  "high_balance_discrepancy",
+  "credit_limit_discrepancy",
+  "date_discrepancy",
+  "collection_activity_before_opening",
+  "last_payment_date_discrepancy",
+  "account_type_discrepancy",
+  "responsibility_discrepancy",
+  "payment_history_discrepancy",
+  "remarks_discrepancy",
+  "potential_duplicate_obligation",
+  "potentially_obsolete_reporting",
+  "original_creditor_discrepancy",
+  "collection_balance_discrepancy",
+  "paid_account_reporting_balance",
+  "open_after_documented_closure",
+  "late_payment_discrepancy",
+  "ownership_identity_review",
+  "mixed_file_indicator",
+  "potential_reinsertion",
+  "post_dispute_material_change",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -168,6 +218,17 @@ function riskFlags(account: Record<string, unknown>): RiskFlag[] {
   if (account.isChargeOff === true || account.is_charge_off === true) flags.push("charge_off");
   if (account.isLate === true || account.is_late === true) flags.push("late");
   return flags;
+}
+
+function evidenceNeededCategory(value: unknown): EvidenceNeededCategory {
+  const normalized = String(value ?? "").toLowerCase();
+  if (/consumer|confirm|identity/.test(normalized)) return "consumer_confirmation";
+  if (/agreement|contract/.test(normalized)) return "account_agreement";
+  if (/statement|invoice/.test(normalized)) return "billing_statement";
+  if (/payment|receipt|bank record/.test(normalized)) return "payment_record";
+  if (/furnisher|creditor|account record/.test(normalized)) return "furnisher_record";
+  if (/investigation|response|result/.test(normalized)) return "investigation_response";
+  return "other_document";
 }
 
 export function parseCreditReportAnalysisRequest(value: unknown): CreditReportAnalysisRequest {
@@ -290,12 +351,61 @@ export function assertMinimizedReportIsSafe(payload: MinimizedExternalReportV1):
   }
 }
 
-export function buildExternalReportPrompt(payload: MinimizedExternalReportV1): string {
+export function minimizeFindingsForExternalAI(value: unknown): MinimizedExternalFindingV1[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.slice(0, MAX_EXTERNAL_FINDINGS).flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const rawIssueType = String(item.issue_type ?? "").toLowerCase();
+    const issueType = ALLOWED_ISSUE_TYPES.has(rawIssueType)
+      ? rawIssueType
+      : "potential_reporting_discrepancy";
+    const rawBureaus = Array.isArray(item.affected_bureaus) ? item.affected_bureaus : [];
+    const affectedBureaus = [...new Set(rawBureaus.map(bureauClass))]
+      .filter(bureau => bureau !== "unknown");
+    const rawStrength = String(item.evidence_strength ?? "").toLowerCase();
+    const evidenceStrength: EvidenceStrength = ["strong", "moderate", "insufficient"].includes(rawStrength)
+      ? rawStrength as EvidenceStrength
+      : "unknown";
+    const availableEvidence = Array.isArray(item.evidence_currently_available)
+      ? item.evidence_currently_available
+      : [];
+    const evidenceReferences: EvidenceReference[] = availableEvidence.length > 0 || affectedBureaus.length > 1
+      ? ["cross_bureau_report_comparison"]
+      : ["report_derived_candidate"];
+    const rawNeeded = Array.isArray(item.evidence_still_needed) ? item.evidence_still_needed : [];
+    const evidenceNeededCategories = [...new Set(rawNeeded.map(evidenceNeededCategory))].slice(0, 4);
+
+    return [{
+      reference: `finding-${index + 1}` as const,
+      issueType,
+      affectedBureaus,
+      confidence: confidenceBand(item.confidence_level),
+      evidenceStrength,
+      evidenceReferences,
+      evidenceNeededCategories,
+    }];
+  });
+}
+
+export function buildExternalReportPrompt(
+  payload: MinimizedExternalReportV1,
+  findings: MinimizedExternalFindingV1[] = [],
+): string {
   assertMinimizedReportIsSafe(payload);
-  return [
-    "Review this aggregate credit-report schema. Identify only categories that need human review and explain uncertainty.",
-    JSON.stringify(payload),
+  const prompt = [
+    "Review only the supplied candidate findings against the minimized report summary.",
+    "Do not invent facts, findings, evidence, accounts, or issue categories. Do not flag anything not listed as a candidate.",
+    "An anomaly is not automatically a dispute. Do not decide which bureau is correct unless the supplied evidence proves it.",
+    "For each supported candidate, cite its finding reference and one supplied evidence reference. State evidence limits and that a human must review before dispute preparation.",
+    "End with exactly: ADDITIONAL_FINDINGS: none",
+    JSON.stringify({ reportSummary: payload, candidateFindings: findings }),
   ].join("\n");
+  const forbidden = /\b\d{3}-\d{2}-\d{4}\b|\b\d{12,19}\b|[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
+  if (prompt.length > 4_000 || forbidden.test(prompt)) {
+    throw new AIGatewayError("REPORT_AI_MINIMIZATION_FAILED", 422, "Report minimization failed closed.");
+  }
+  return prompt;
 }
 
 export function isReportAIProcessorPolicyApproved(env: NodeJS.ProcessEnv = process.env): boolean {

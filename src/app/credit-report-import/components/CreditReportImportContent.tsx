@@ -1376,7 +1376,7 @@ export default function CreditReportImportContent() {
                   <div className="mt-4 space-y-3">
                     {[
                       { icon: FileUp, title: 'Upload or get a report', detail: 'Use a partner link or upload the file you already have.' },
-                      { icon: SearchCheck, title: 'AI reads the report', detail: 'Accounts, bureaus, and negative items are extracted.' },
+                      { icon: SearchCheck, title: 'The secure parser reads the report', detail: 'Accounts, bureaus, and possible negative items are extracted.' },
                       { icon: ListChecks, title: 'Review the results', detail: 'You confirm classifications before moving forward.' },
                       { icon: Sparkles, title: 'Prepare disputes', detail: 'Qualified items can continue into the dispute workflow.' },
                     ].map(step => {
