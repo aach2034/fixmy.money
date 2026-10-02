@@ -67,13 +67,13 @@ const COMPARISON_ROWS: {
 const BILLING_FAQS = [
   { q: 'Is a credit card required for the free trial?', a: 'No. The 30-day free trial requires no card and never creates a charge or debt at expiration.' },
   { q: 'Who can purchase a plan?', a: 'FixMy Pro and FixMy Scale are business software subscriptions for authorized representatives of businesses managing client workflows. New FixMy Credit enrollment is not yet available.' },
-  { q: 'When does paid billing begin?', a: 'Only after the workspace owner separately chooses FixMy Pro or FixMy Scale, reviews the monthly price and terms, enters payment details, and confirms through secure Checkout. Trial expiration never starts billing.' },
+  { q: 'When does paid billing begin?', a: 'New paid Checkout is currently unavailable. When it is enabled, billing can begin only after the workspace owner separately chooses FixMy Pro or FixMy Scale, reviews the monthly price and terms, enters payment details, and confirms through secure Checkout. Trial expiration never starts billing.' },
   { q: 'Is this a fee for repairing my credit?', a: 'No. Published prices are for business access to software, not consumer credit-repair work or a promised credit result. They do not determine what an agency may charge its clients or when.' },
-  { q: 'Can I cancel anytime?', a: 'Yes. You can cancel your subscription at any time from your billing settings. Your access continues until the end of the current billing period.' },
-  { q: 'What happens when I cancel?', a: 'When you cancel, your subscription will not renew. You retain access until the end of the period you paid for. Your data remains available for export for 30 days after cancellation.' },
-  { q: 'Can I upgrade or downgrade my plan?', a: 'Yes. You can upgrade or downgrade at any time. Upgrades take effect immediately. Downgrades take effect at the next billing cycle.' },
-  { q: 'What happens if a payment fails?', a: 'If a payment fails, we will retry the charge and notify you by email. If the payment cannot be collected after multiple attempts, your account will be suspended until the payment issue is resolved.' },
-  { q: 'Do you offer refunds?', a: 'We do not offer refunds for partial billing periods. If you believe you were charged in error, contact support@fixmy.money within 7 days.' },
+  { q: 'Can I cancel anytime?', a: 'Existing subscribers can cancel from billing settings; access continues until the end of the current billing period. New paid Checkout is currently unavailable.' },
+  { q: 'What happens when I cancel?', a: 'For an existing paid subscription, cancellation prevents renewal and access continues through the paid period. New trial customers have no paid subscription or charge to cancel.' },
+  { q: 'Can I upgrade or downgrade my plan?', a: 'Plan changes are currently available only where an existing subscription and billing controls support them. New paid Checkout remains on hold.' },
+  { q: 'What happens if a payment fails?', a: 'This applies only to existing paid subscriptions. New trial signup creates no payment method, invoice, charge, or debt.' },
+  { q: 'Do you offer refunds?', a: 'The no-card trial creates no amount to refund. Existing subscribers who believe they were charged in error should contact support@fixmy.money within 7 days.' },
 ];
 
 function CellValue({ value }: { value: string | boolean }) {
@@ -265,14 +265,13 @@ export default function PricingContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: '30-day free trial', value: 'No card; no automatic conversion or charge' },
-              { label: 'Paid activation', value: 'Separate owner choice and Checkout confirmation required' },
-              { label: 'Monthly billing', value: 'Charged on the same date each month' },
+              { label: 'Paid activation', value: 'New Checkout on hold; separate owner choice required when enabled' },
+              { label: 'Monthly billing', value: 'Existing subscriptions continue under their agreed terms' },
               { label: 'Cancellation', value: 'Cancel anytime; access continues to end of period' },
-              { label: 'Upgrades', value: 'Take effect immediately; prorated charge' },
-              { label: 'Downgrades', value: 'Take effect at next billing cycle' },
-              { label: 'Failed payments', value: 'Retried automatically; account suspended if unresolved' },
-              { label: 'Refunds', value: 'No refunds for partial periods; billing errors reviewed within 7 days' },
-              { label: 'Data export on cancellation', value: 'Available for 30 days after cancellation (Agency+ plans)' },
+              { label: 'Plan changes', value: 'Existing subscriptions only while new Checkout is held' },
+              { label: 'Failed payments', value: 'Existing subscriptions only; trials create no payment' },
+              { label: 'Refunds', value: 'No-card trials create no amount to refund' },
+              { label: 'Data retention', value: 'Trial expiration does not delete retained customer work' },
             ].map((item) => (
               <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 flex gap-3">
                 <div className="flex-1">

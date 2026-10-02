@@ -129,8 +129,8 @@ const FEATURES = [
     icon: CreditCard,
     title: 'Subscription Billing',
     description:
-      'Manage your FixMy.Money plan and subscription through Stripe-hosted checkout and billing controls.',
-    highlights: ['Stripe-hosted checkout', 'Plan selection', 'Subscription status', 'Billing portal access'],
+      'Existing subscribers can review subscription status and billing controls. New paid Checkout remains on hold.',
+    highlights: ['Existing subscription status', 'Billing portal access', 'Published plan prices', 'New Checkout held'],
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
   },
@@ -304,7 +304,7 @@ export default function ProductTourPage() {
             Run your credit repair agency from one platform
           </h2>
           <p className="text-slate-400 mb-8">
-            30-day free trial. No credit card required. Paid access begins only if you choose it.
+            30-day free trial. No credit card required. New paid Checkout remains on hold; trial expiration never creates a charge.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
