@@ -11,23 +11,23 @@ const CreditRepairSoftwareContent = () => {
   const features = [
     {
       icon: Brain,
-      title: 'AI Credit Analysis',
-      description: 'Upload credit reports and get instant AI-powered analysis identifying negative items and dispute strategies.',
+      title: 'Structured Report Review',
+      description: 'Import supported reports and review parsed accounts, bureau differences, and evidence-linked anomalies. External AI review is temporarily unavailable.',
     },
     {
       icon: Zap,
-      title: 'Automated Dispute Generation',
-      description: 'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion with one click.',
+      title: 'Fact-Based Dispute Preparation',
+      description: 'Prepare editable bureau-specific drafts from customer-reviewed facts. Nothing is sent automatically.',
     },
     {
       icon: Users,
       title: 'Client CRM',
-      description: 'Manage unlimited clients with Salesforce-style profiles, dispute history, notes, and timelines.',
+      description: 'Manage clients within your plan limit with profiles, dispute history, notes, and timelines.',
     },
     {
       icon: CreditCard,
-      title: 'Stripe Native Billing',
-      description: 'Charge clients automatically. Manage subscriptions, invoices, and payment history without leaving the platform.',
+      title: 'Billing Controls',
+      description: 'Review trial and billing status. New paid Checkout remains on hold; existing subscriptions are preserved.',
     },
     {
       icon: FileText,
@@ -36,19 +36,19 @@ const CreditRepairSoftwareContent = () => {
     },
     {
       icon: Target,
-      title: 'Task Automation',
-      description: 'Build automation rules for onboarding, disputes, and billing. Reduce manual work by 80%.',
+      title: 'Workflow Controls',
+      description: 'Use templates, tasks, and outcome tracking while keeping a human in control of every dispute decision.',
     },
   ];
 
   const faqs = [
     {
       q: 'What is credit repair software and why do I need it?',
-      a: 'Credit repair software automates the dispute process, client management, and billing for credit repair agencies. It reduces manual work by 80%, improves accuracy, and helps you scale from 30 clients to 300+ clients without hiring additional staff.',
+      a: 'Credit repair software organizes client records, report review, dispute preparation, and outcome tracking. FixMy.Money does not automatically submit disputes or guarantee labor savings, credit outcomes, or business growth.',
     },
     {
       q: 'How does the AI dispute generation work?',
-      a: 'Our AI analyzes credit reports, identifies inaccuracies and negative items, and generates personalized dispute letters for each bureau. The letters are CROA-compliant and ready to send immediately.',
+      a: 'External report AI is temporarily unavailable while production verification is completed. The current workflow supports structured, evidence-linked findings and editable drafts that require customer review; an anomaly never becomes an automatic or unsupported dispute.',
     },
     {
       q: 'Can I integrate with my existing CRM?',
@@ -56,11 +56,11 @@ const CreditRepairSoftwareContent = () => {
     },
     {
       q: 'Is the software CROA compliant?',
-      a: 'Yes. The platform includes built-in compliance tools: required disclosure forms, contract templates, and audit trails designed to keep your business compliant with the Credit Repair Organizations Act.',
+      a: 'The platform provides records, review controls, templates, and audit evidence. Those tools do not establish legal compliance; each business remains responsible for the laws that apply to its services, marketing, fees, and locations.',
     },
     {
       q: 'How much can I save with credit repair software?',
-      a: 'Most agencies save 15-20 hours per week on manual tasks. At $50/hour, that\'s $750-$1,000 per week in labor savings. Plus, you can serve 3-5× more clients with the same team.',
+      a: 'Organized workflows may reduce manual work, but savings depend on your operation. FixMy.Money does not promise a specific number of hours, clients, revenue, or results.',
     },
   ];
 
@@ -72,14 +72,14 @@ const CreditRepairSoftwareContent = () => {
             Credit Repair Software Built for Modern Agencies
           </h1>
           <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            Automate disputes, manage clients, collect payments, track results, and scale your credit repair business from one platform. AI-powered analysis and dispute generation included.
+            Manage clients, import reports, review evidence-linked findings, prepare editable dispute drafts, and track outcomes from one platform. External AI analysis and new paid Checkout are temporarily unavailable.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
             <Link
-              href="/demo"
+              href="/signup?plan=professional"
               className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
             >
-              Reserve One Month Free <ArrowRight className="ml-2 w-5 h-5" />
+              Start 30-Day Free Trial <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <Link
               href="#features"
@@ -90,16 +90,16 @@ const CreditRepairSoftwareContent = () => {
           </div>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-3xl font-bold text-blue-600">256K+</div>
-              <div className="text-sm text-gray-600">Disputes Generated</div>
+              <div className="text-3xl font-bold text-blue-600">30 days</div>
+              <div className="text-sm text-gray-600">No-card business trial</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-emerald-600">99.9%</div>
-              <div className="text-sm text-gray-600">Uptime</div>
+              <div className="text-3xl font-bold text-emerald-600">300</div>
+              <div className="text-sm text-gray-600">FixMy Pro client limit</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-violet-600">4×</div>
-              <div className="text-sm text-gray-600">Faster Scaling</div>
+              <div className="text-3xl font-bold text-violet-600">600</div>
+              <div className="text-sm text-gray-600">FixMy Scale client limit</div>
             </div>
           </div>
         </div>
@@ -110,7 +110,7 @@ const CreditRepairSoftwareContent = () => {
             Everything You Need to Run a Credit Repair Business
           </h2>
           <p className="text-lg text-gray-600 text-center mb-16 max-w-2xl mx-auto">
-            From AI-powered dispute generation to client management and billing, Fix My Money is the complete platform for credit repair agencies.
+            Current production access centers on client management, structured report review, editable dispute preparation, and outcome tracking.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features?.map((feature, idx) => {
@@ -133,14 +133,14 @@ const CreditRepairSoftwareContent = () => {
           </h2>
           <div className="space-y-6">
             {[
-              'Reduce manual work by 80% with automation',
-              'Scale from 30 to 300+ clients without hiring',
-              'AI-powered dispute generation saves 10+ hours per week',
-              'CROA-compliant with built-in compliance tools',
-              'Stripe native billing with automatic payments',
-              'White-label client portal for professional branding',
-              'Real-time analytics and performance tracking',
-              'Dedicated support team for your success',
+              'Structured report review with evidence-linked findings',
+              'Human review before dispute preparation',
+              'No automatic bureau submission',
+              'External report AI is temporarily unavailable',
+              'New paid Checkout remains on hold',
+              'Private document storage and audit records',
+              'Plan-limited client CRM and workflow tracking',
+              '30-day business trial with no credit card required',
             ]?.map((benefit, idx) => (
               <div key={idx} className="flex items-start gap-4">
                 <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
@@ -166,10 +166,10 @@ const CreditRepairSoftwareContent = () => {
               </thead>
               <tbody>
                 {[
-                  ['AI Credit Analysis', true, false],
-                  ['AI Dispute Generation', true, false],
+                  ['External AI analysis (temporarily unavailable)', false, false],
+                  ['Evidence-linked dispute preparation', true, false],
                   ['Modern Dashboard', true, false],
-                  ['Stripe Native Billing', true, false],
+                  ['New paid Checkout (on hold)', false, false],
                   ['Client CRM', true, true],
                   ['Automated Workflows', true, true],
                   ['White-Label Portal', true, true],
@@ -221,13 +221,13 @@ const CreditRepairSoftwareContent = () => {
             Ready to Scale Your Credit Repair Business?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join the reopening list and reserve one month free when FixMy.Money reopens.
+            Start a 30-day FixMy Pro or FixMy Scale trial with no credit card. FixMy Credit enrollment and new paid Checkout remain unavailable.
           </p>
           <Link
-            href="/demo"
+            href="/signup?plan=professional"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition"
           >
-            Reserve One Month Free <ArrowRight className="ml-2 w-5 h-5" />
+            Start 30-Day Free Trial <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
       </section>

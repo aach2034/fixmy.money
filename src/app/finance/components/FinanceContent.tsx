@@ -35,9 +35,9 @@ const EDUCATION_ARTICLES = [
 ];
 
 const TOOLS = [
-  { icon: Brain, title: 'AI Credit Analysis', description: 'Upload a credit report and get instant AI-powered analysis of negative items and dispute opportunities.', cta: 'Reserve One Month Free', href: '/#reopening-list' },
-  { icon: FileText, title: 'Dispute Letter Generator', description: 'Generate bureau-ready dispute letters for Equifax, Experian, and TransUnion in seconds.', cta: 'Reserve One Month Free', href: '/#reopening-list' },
-  { icon: Users, title: 'Client Management CRM', description: 'Manage all your clients, disputes, documents, and billing from one professional dashboard.', cta: 'Reserve One Month Free', href: '/#reopening-list' },
+  { icon: Brain, title: 'Structured Report Review', description: 'Import supported reports and review parsed accounts and evidence-linked findings. External AI is temporarily unavailable.', cta: 'Start 30-Day Free Trial', href: '/signup?plan=professional' },
+  { icon: FileText, title: 'Dispute Preparation', description: 'Prepare editable, bureau-specific drafts from customer-reviewed facts. Nothing is sent automatically.', cta: 'Start 30-Day Free Trial', href: '/signup?plan=professional' },
+  { icon: Users, title: 'Client Management CRM', description: 'Manage clients within your plan limit with records, documents, workflows, and outcome tracking.', cta: 'Start 30-Day Free Trial', href: '/signup?plan=professional' },
 ];
 
 export default function FinanceContent() {
@@ -60,7 +60,7 @@ export default function FinanceContent() {
         <Link href="/" className="underline font-bold hover:no-underline">
           FixMy.Money
         </Link>{' '}
-        — the AI credit repair software platform.
+        — the credit workflow software platform.
       </div>
 
       {/* NAVBAR */}
@@ -78,10 +78,10 @@ export default function FinanceContent() {
               <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Articles</Link>
               <Link href="/#pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 hidden md:block">Pricing</Link>
               <Link
-                href="/#reopening-list"
+                href="/signup?plan=professional"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all"
               >
-                Try FixMy.Money for $1 <ArrowRight size={14} />
+                Start 30-Day Free Trial <ArrowRight size={14} />
               </Link>
             </div>
           </div>
@@ -105,11 +105,11 @@ export default function FinanceContent() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/#reopening-list"
+              href="/signup?plan=professional"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
             >
               <Sparkles size={18} />
-              Join the reopening list
+              Start a 30-day business trial
             </Link>
             <a
               href="#articles"
@@ -129,7 +129,7 @@ export default function FinanceContent() {
               <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Powered by FixMy.Money</p>
               <h2 className="text-2xl font-extrabold text-white mb-3">FixMy.Finance is the education hub. FixMy.Money is the software.</h2>
               <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                FixMy.Finance provides free credit education and business resources. When you're ready to run your credit repair business with professional tools, FixMy.Money is the platform — with AI analysis, dispute automation, client management, and billing built in.
+                FixMy.Finance provides free credit education and business resources. FixMy.Money currently provides client management, structured report review, editable dispute preparation, and outcome tracking. External AI and new paid Checkout are temporarily unavailable.
               </p>
               <Link href="/" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 font-semibold text-sm">
                 Explore FixMy.Money <ExternalLink size={14} />
@@ -137,10 +137,10 @@ export default function FinanceContent() {
             </div>
             <div className="grid grid-cols-2 gap-3 shrink-0">
               {[
-                { label: 'AI Credit Analysis', icon: Brain },
-                { label: 'Dispute Automation', icon: FileText },
+                { label: 'Structured Report Review', icon: Brain },
+                { label: 'Dispute Preparation', icon: FileText },
                 { label: 'Client CRM', icon: Users },
-                { label: 'Stripe Billing', icon: TrendingUp },
+                { label: 'Outcome Tracking', icon: TrendingUp },
               ].map(item => {
                 const ItemIcon = item.icon;
                 return (
@@ -160,7 +160,7 @@ export default function FinanceContent() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-2">Free Tools</p>
-            <h2 className="text-3xl font-extrabold text-slate-900">Professional credit repair tools — join the reopening list</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900">Professional credit workflow tools — start with a no-card trial</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TOOLS.map(tool => {
@@ -282,14 +282,14 @@ export default function FinanceContent() {
       <section className="py-16 bg-blue-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to run your credit repair business with professional tools?</h2>
-          <p className="text-blue-100 mb-8 text-lg">FixMy.Money is the software platform — AI analysis, dispute automation, client management, and billing in one place.</p>
+          <p className="text-blue-100 mb-8 text-lg">FixMy.Money currently provides structured report review, editable dispute preparation, client management, and outcome tracking. External AI and new paid Checkout remain held.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/#reopening-list"
+              href="/signup?plan=professional"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-white text-blue-600 font-bold text-base px-8 py-4 rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
             >
               <Sparkles size={18} />
-              Reserve One Month Free on FixMy.Money
+              Start 30-Day Free Trial
             </Link>
             <Link
               href="/"
